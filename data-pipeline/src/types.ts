@@ -2,9 +2,15 @@ export interface CsvRow {
   ATT_ID: string;
   ATT_NAME_TH: string;
   ATT_NAME_EN: string;
+  ATT_ADDRESS?: string;
+  ATT_ADDRESS_ALLEY?: string;
+  ATT_ADDRESS_ROAD?: string;
+  ATT_POSTCODE?: string;
+  ATT_START_END?: string;
   ATT_LOCATION: string; // "lat, lng"
   PROVINCE_NAME_TH: string;
   DISTRICT_NAME_TH: string;
+  SUBDISTRICT_NAME_TH?: string;
   ATT_CATEGORY_LABEL: string;
   ATT_TYPE_LABEL: string;
   ATT_TEL: string;

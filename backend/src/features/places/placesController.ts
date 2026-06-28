@@ -26,7 +26,7 @@ export const fetchNakhonPathomPlaces = async (
     for (const place of places) {
       const { province, district } = extractAddress(place);
 
-      await supabase.from("place").upsert({
+      await supabase.from("places").upsert({
         google_place_id: place.place_id,
         place_name: place.name,
         latitude: place.geometry.location.lat,

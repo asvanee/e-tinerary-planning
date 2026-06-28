@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "fetch": "ts-node src/fetchPlaces.ts",
-    "upload": "ts-node src/uploadToSupabase.ts",
-    "run-all": "npm run fetch && npm run upload"
+    "upload:csv": "ts-node src/uploadCsvToSupabase.ts",
+    "upload:bangkok-google": "cross-env TARGET_PROVINCE=กรุงเทพมหานคร ts-node src/uploadProvinceGooglePlaces.ts",
+    "upload:chiangmai-google": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/uploadProvinceGooglePlaces.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
+    "cross-env": "^7.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
