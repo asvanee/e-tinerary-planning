@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Welcome from "./features/welcome/welcome";
+import Welcome from "./features/welcome/Welcome";
 import Register from "./features/auth/register/register";
 import ConfirmEmail from "./features/auth/confirmEmail/confirmEmail";
 import Login from "./features/auth/login/login";
 import Home from "./features/home/home";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import CreateTrip from "./features/trip/createTrip";
+import AllTrip from "./features/auth/alltrip/alltrip";
 
 export default function App() {
   return (
@@ -31,6 +32,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <CreateTrip />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/trip/all"
+          element={
+            <ProtectedRoute>
+              <AllTrip />
             </ProtectedRoute>
           }
         />

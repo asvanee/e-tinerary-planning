@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/hooks/useAuth";
-import Navbar from "../../components/navbar";
+import Navbar from "../../components/Navbar";
 import "./Home.css";
 
 const demoPlaces = [
