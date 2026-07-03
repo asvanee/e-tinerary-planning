@@ -42,6 +42,14 @@ export default function Navbar() {
       {/* Right side */}
       <div className="animate-fade-in-2 flex items-center gap-3">
 
+        {/* My trips button */}
+        <button
+          onClick={() => navigate("/trips")}
+          className="font-prompt text-sm font-semibold px-4 py-2 rounded-full border border-white/30 text-white bg-white/10 hover:bg-white/20 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200"
+        >
+          🗂️ ทริปของฉัน
+        </button>
+
         {/* Create trip button */}
         <button
           onClick={() => navigate("/trip/create")}

@@ -15,6 +15,13 @@ export interface CsvRow {
   ATT_TYPE_LABEL: string;
   ATT_TEL: string;
   ATT_WEBSITE: string;
+  ATT_DETAIL_TH?: string; 
+    ATT_FACEBOOK?: string;   // ← เพิ่ม
+  ATT_INSTAGRAM?: string;  // ← เพิ่ม
+  ATT_TIKTOK?: string;     // ← เพิ่ม
+  ATT_YOUTUBE?: string;    // ← เพิ่ม
+  ATT_LINE?: string;       // ← เพิ่ม
+  
 }
 
 export interface GooglePlaceResult {
@@ -52,4 +59,13 @@ export interface PlaceRecord {
   province: string;
   district: string;
   user_ratings_total: number | null;
+  att_id: string;
+  att_type_label: string | null;
+  att_category_label: string | null;
+  att_detail_th: string | null;
+    att_facebook: string | null;    // ← เพิ่ม
+  att_instagram: string | null;   // ← เพิ่ม
+  att_tiktok: string | null;      // ← เพิ่ม
+  att_youtube: string | null;     // ← เพิ่ม
+  att_line: string | null;        // ← เพิ่ม
 }

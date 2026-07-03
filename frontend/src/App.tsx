@@ -5,7 +5,9 @@ import ConfirmEmail from "./features/auth/confirmEmail/confirmEmail";
 import Login from "./features/auth/login/login";
 import Home from "./features/home/home";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
-import CreateTrip from "./features/trip/createTrip";
+import CreateTrip from "./features/trip/create/createTrip";
+import TripRecommendations from "./features/trip/recommendations/TripRecommendations";
+import MyTrips from "./features/trip/myTrips/MyTrips";
 
 export default function App() {
   return (
@@ -34,6 +36,22 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+    path="/trip/:tripId/recommendations"
+    element={
+        <ProtectedRoute>
+            <TripRecommendations />
+        </ProtectedRoute>
+    }
+/>
+<Route
+  path="/trips"
+  element={
+    <ProtectedRoute>
+      <MyTrips />
+    </ProtectedRoute>
+  }
+/>
       </Routes>
     </BrowserRouter>
   );

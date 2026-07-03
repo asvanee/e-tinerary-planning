@@ -67,6 +67,15 @@ function toPlaceRecord(row: CsvRow): PlaceRecord | null {
     province: clean(row.PROVINCE_NAME_TH) || "",
     district: clean(row.DISTRICT_NAME_TH) || "",
     user_ratings_total: null,
+    att_id: row.ATT_ID,                              // ← เพิ่ม (ขาดอยู่แต่เดิม)
+  att_type_label: clean(row.ATT_TYPE_LABEL),        // ← เพิ่ม
+  att_category_label: clean(row.ATT_CATEGORY_LABEL),// ← เพิ่ม
+  att_detail_th: clean(row.ATT_DETAIL_TH),          // ← เพิ่ม
+    att_facebook: clean(row.ATT_FACEBOOK),     // ← เพิ่ม
+  att_instagram: clean(row.ATT_INSTAGRAM),   // ← เพิ่ม
+  att_tiktok: clean(row.ATT_TIKTOK),         // ← เพิ่ม
+  att_youtube: clean(row.ATT_YOUTUBE),       // ← เพิ่ม
+  att_line: clean(row.ATT_LINE),             // ← เพิ่ม
   };
 }
 

@@ -6,7 +6,11 @@
   "scripts": {
     "upload:csv": "ts-node src/uploadCsvToSupabase.ts",
     "upload:bangkok-google": "cross-env TARGET_PROVINCE=กรุงเทพมหานคร ts-node src/uploadProvinceGooglePlaces.ts",
-    "upload:chiangmai-google": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/uploadProvinceGooglePlaces.ts"
+    "upload:chiangmai-google": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/uploadProvinceGooglePlaces.ts",
+    "upload:chonburi-google": "cross-env TARGET_PROVINCE=ชลบุรี ts-node src/uploadProvinceGooglePlaces.ts",
+    "upload:chonburi-google-test5": "cross-env TARGET_PROVINCE=ชลบุรี PLACES_LIMIT=5 GOOGLE_DELAY_MS=200 ts-node src/uploadProvinceGooglePlaces.ts",
+    "test:province": "cross-env TARGET_PROVINCE=ชลบุรี SAMPLE_LIMIT=5 ts-node src/testProvinceSample.ts",
+    "test:dedupe": "cross-env TARGET_PROVINCE=ชลบุรี ts-node src/testDedupe.ts"
   },
   "keywords": [],
   "author": "",

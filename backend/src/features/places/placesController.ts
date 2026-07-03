@@ -1,79 +1,58 @@
-import axios from "axios";
 import { Request, Response } from "express";
 import { supabase } from "../../config/db";
 
-const NAKHON_PATHOM_CENTER = "13.8199,100.0622";
+/**
+ * GET /api/places?ids=uuid1,uuid2,uuid3
+ * คืนข้อมูลสถานที่ (ชื่อ, จังหวัด, พิกัด ฯลฯ) ตาม place_id ที่ส่งมา
+ * ใช้สำหรับฝั่ง frontend join เข้ากับผลลัพธ์จาก /calculate-poi
+ * (ฝั่งนั้น return แค่ placeId + คะแนน ไม่มีชื่อสถานที่)
+ */
+export const getPlacesByIds = async (req: Request, res: Response) => {
+  const { ids } = req.query;
 
-export const fetchNakhonPathomPlaces = async (
-  req: Request,
-  res: Response
-) => {
+  if (!ids || typeof ids !== "string") {
+    return res.status(400).json({ message: "ต้องระบุ ids (comma-separated)" });
+  }
+
+  const placeIds = ids
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+
+  if (placeIds.length === 0) {
+    return res.status(400).json({ message: "ไม่พบ id ที่ถูกต้อง" });
+  }
+
   try {
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
-      {
-        params: {
-          location: NAKHON_PATHOM_CENTER,
-          radius: 30000,
-          type: "tourist_attraction",
-          key: process.env.GOOGLE_API_KEY,
-        },
-      }
-    );
+    const { data, error } = await supabase
+  .from("places")
+  .select(`
+    place_id,
+    place_name,
+    province,
+    district,
+    latitude,
+    longitude,
+    rating,
+    price_level,
+    formatted_address,
+    phone_number,
+    website,
+    opening_hours,
+    user_ratings_total,
+    att_type_label,
+    att_category_label
+  `)
+  .in("place_id", placeIds);
 
-    const places = response.data.results;
-
-    for (const place of places) {
-      const { province, district } = extractAddress(place);
-
-      await supabase.from("places").upsert({
-        google_place_id: place.place_id,
-        place_name: place.name,
-        latitude: place.geometry.location.lat,
-        longitude: place.geometry.location.lng,
-        rating: place.rating || null,
-        price_level: place.price_level || null,
-        user_ratings_total: place.user_ratings_total || 0,
-        formatted_address: place.vicinity || null,
-        province,
-        district,
-      }, {
-        onConflict: "google_place_id",
-      });
+    if (error) {
+      console.error("getPlacesByIds error:", error.message);
+      return res.status(500).json({ message: "ดึงข้อมูลสถานที่ไม่สำเร็จ" });
     }
 
-    console.log("API response status:", response.data.status);
-    console.log("Results count:", response.data.results.length);
-
-    res.json({
-      message: "นครปฐม tourist_attraction saved",
-      count: places.length,
-    });
-
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(200).json({ places: data ?? [] });
+  } catch (err: any) {
+    console.error("getPlacesByIds exception:", err);
+    return res.status(500).json({ message: err.message || "เกิดข้อผิดพลาดภายในระบบ" });
   }
 };
-
-function extractAddress(place: any) {
-  let province = null;
-  let district = null;
-
-  if (place.plus_code?.compound_code) {
-    const address = place.plus_code.compound_code;
-
-    if (address.includes("นครปฐม")) {
-      province = "นครปฐม";
-    }
-  }
-
-  // ตอนนี้ Nearby Search ไม่มี address_components
-  // ดังนั้นรอบแรกจะใช้ formatted_address แยกแบบง่าย ๆ
-
-  if (place.vicinity) {
-    const parts = place.vicinity.split(",");
-    district = parts[0]?.trim() || null;
-  }
-
-  return { province, district };
-}

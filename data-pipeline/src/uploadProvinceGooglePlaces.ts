@@ -5,6 +5,8 @@ import * as path from "path";
 import { parse } from "csv-parse/sync";
 import * as dotenv from "dotenv";
 import { CsvRow, GooglePlaceResult, PlaceRecord } from "./types";
+import { dedupeRows, applyLocationOverrides, applyForceMerges } from "./dedupe";
+import { locationOverrides, forceMergeGroups } from "./manualOverrides";
 
 dotenv.config();
 
@@ -133,6 +135,15 @@ function toPlaceRecord(
     district: clean(row.DISTRICT_NAME_TH) || "",
     user_ratings_total:
       details.user_ratings_total ?? found.user_ratings_total ?? null,
+    att_id: row.ATT_ID,
+    att_type_label: clean(row.ATT_TYPE_LABEL),
+    att_category_label: clean(row.ATT_CATEGORY_LABEL),
+    att_detail_th: clean(row.ATT_DETAIL_TH),   // ← เพิ่ม
+        att_facebook: clean(row.ATT_FACEBOOK),
+    att_instagram: clean(row.ATT_INSTAGRAM),
+    att_tiktok: clean(row.ATT_TIKTOK),
+    att_youtube: clean(row.ATT_YOUTUBE),
+    att_line: clean(row.ATT_LINE),
   };
 }
 
@@ -150,12 +161,63 @@ async function main() {
     relax_quotes: true,
   });
 
-  const provinceRows = rows
-    .filter((row) => clean(row.PROVINCE_NAME_TH) === TARGET_PROVINCE)
-    .slice(0, LIMIT);
+  const rawProvinceRows = rows.filter(
+    (row) => clean(row.PROVINCE_NAME_TH) === TARGET_PROVINCE
+  );
 
   console.log(`Target province: ${TARGET_PROVINCE}`);
-  console.log(`Province rows: ${provinceRows.length}`);
+  console.log(`Province rows (before dedupe): ${rawProvinceRows.length}`);
+
+  // 1) แก้พิกัดที่รู้อยู่แล้วว่าพัง/ผิด (verify โดยคนแล้ว) ก่อนเข้า dedupe อัตโนมัติ
+  const overriddenRows = applyLocationOverrides(rawProvinceRows, locationOverrides);
+
+  // 2) dedupe อัตโนมัติ (website/phone + พิกัด/ชื่อยืนยัน)
+  const autoResult = dedupeRows(overriddenRows);
+
+  // 3) บังคับ merge กลุ่มที่คนตรวจสอบแล้วว่าเป็นที่เดียวกันจริง แต่อัลกอริทึมมองไม่ออก
+  const relevantForceMergeGroups = forceMergeGroups.filter((group) =>
+    group.some((id) => rawProvinceRows.some((r) => r.ATT_ID === id))
+  );
+  const { deduped, mergedGroups, reviewGroups } = applyForceMerges(
+    overriddenRows,
+    autoResult,
+    relevantForceMergeGroups
+  );
+
+  const flaggedRowCount = reviewGroups.reduce((sum, g) => sum + g.rows.length, 0);
+
+  console.log(`Province rows (after dedupe): ${deduped.length}`);
+  console.log(`Confirmed duplicate groups merged: ${mergedGroups.length}`);
+  if (flaggedRowCount > 0) {
+    console.log(
+      `⚠️  Flagged for manual review (kept separate, NOT auto-merged, WILL still call Google for each): ${reviewGroups.length} cluster(s), ${flaggedRowCount} rows — run testDedupe.ts to inspect before spending API budget`
+    );
+  }
+
+  // LIMIT ใช้กับข้อมูล "หลัง dedupe" เสมอ เพราะจำนวนแถวหลัง dedupe คือจำนวน
+  // Google API request จริงที่จะยิง ไม่ใช่จำนวนแถวดิบจาก CSV
+  const provinceRows = deduped.slice(0, LIMIT);
+  console.log(`Rows to process this run (after LIMIT): ${provinceRows.length}`);
+
+  // แถวที่ dedupe ตัดทิ้งไป (droppedAttIds) จะไม่เข้า loop ด้านล่างเลย เพราะฉะนั้น
+  // placeholder "csv:<ATT_ID>" ของแถวที่ถูกตัดทิ้งเหล่านี้ (ที่ uploadCsvToSupabase.ts
+  // เคย insert ไว้ตอน Stage 1) จะไม่มีวันถูกลบถ้าไม่จัดการตรงนี้ — ลบทิ้งเลยไม่ต้องรอ
+  // ผลจาก Google เพราะเป็น duplicate ที่ยืนยันแล้วว่าไม่ใช่ที่แยกต่างหาก
+  const droppedCsvIds = mergedGroups.flatMap((g) =>
+    g.droppedAttIds.map((id) => `csv:${id}`)
+  );
+  if (droppedCsvIds.length > 0) {
+    const { error } = await supabase
+      .from("places")
+      .delete()
+      .in("google_place_id", droppedCsvIds);
+
+    if (error) {
+      console.error(`Could not delete deduped placeholder records: ${error.message}`);
+    } else {
+      console.log(`Deleted deduped (duplicate) placeholder records: ${droppedCsvIds.length}`);
+    }
+  }
 
   let successCount = 0;
   let notFoundCount = 0;
@@ -191,12 +253,15 @@ async function main() {
     await sleep(DELAY_MS);
 
     const record = toPlaceRecord(row, coords, found, details);
-    const { error } = await supabase
+    // ✅ .select().single() เพื่อดึง place_id (uuid) กลับมาใช้ insert place_api_types ต่อ
+    const { data: upserted, error } = await supabase
       .from("places")
-      .upsert(record, { onConflict: "google_place_id" });
+      .upsert(record, { onConflict: "google_place_id" })
+      .select("place_id")
+      .single();
 
-    if (error) {
-      console.error(`  Supabase upsert error: ${error.message}`);
+    if (error || !upserted) {
+      console.error(`  Supabase upsert error: ${error?.message}`);
       errorCount++;
       continue;
     }
