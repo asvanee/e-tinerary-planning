@@ -33,14 +33,16 @@ interface RecommendedPlace {
   distanceScore: number;
   budgetScore: number;
   weatherScore: number;
+  isOpen?: boolean;
 }
 
 export default function AllTrip() {
   const location = useLocation();
   const [recommendations, setRecommendations] = useState<RecommendedPlace[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<RecommendedPlace | null>(null);
+  const [selectedPlaces, setSelectedPlaces] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProvince, setSelectedProvince] = useState<string>("");
 
   useEffect(() => {
     const savedPreferences = localStorage.getItem("tripPreferences");
@@ -52,6 +54,7 @@ export default function AllTrip() {
       return;
     }
 
+    setSelectedProvince(tripPreferences.province || "");
     setLoading(true);
     fetch("/api/recommend", {
       method: "POST",
@@ -85,6 +88,12 @@ export default function AllTrip() {
             <input className="search-input" placeholder="ค้นหาสถานที่ 🔍" />
           </div>
 
+          {selectedProvince && (
+            <p className="mt-4 text-[#102a6b] font-semibold">
+              แสดงสถานที่ในจังหวัด: {selectedProvince}
+            </p>
+          )}
+
           {loading && <p className="mt-4 text-[#102a6b]">กำลังคำนวณคำแนะนำสำหรับทริปของคุณ...</p>}
           {error && <p className="mt-4 text-red-600">{error}</p>}
 
@@ -92,30 +101,40 @@ export default function AllTrip() {
             <p className="mt-4 text-[#102a6b]">ยังไม่มีข้อมูลคำแนะนำสำหรับทริปนี้</p>
           )}
 
-          {selectedPlace && (
-            <div className="detail-card">
-              <div className="detail-header">
-                <div>
-                  <p className="detail-label">รายละเอียดสถานที่</p>
-                  <h3 className="detail-title">{selectedPlace.place_name}</h3>
-                </div>
-                <button type="button" className="detail-close-btn" onClick={() => setSelectedPlace(null)}>
-                  ปิด
-                </button>
-              </div>
+          {selectedPlaces.length > 0 && (
+            <div className="space-y-3">
+              {recommendations
+                .filter((place) => selectedPlaces.includes(place.place_id))
+                .map((place) => (
+                  <div key={place.place_id} className="detail-card">
+                    <div className="detail-header">
+                      <div>
+                        <p className="detail-label">รายละเอียดสถานที่</p>
+                        <h3 className="detail-title">{place.place_name}</h3>
+                      </div>
+                      <button
+                        type="button"
+                        className="detail-close-btn"
+                        onClick={() => setSelectedPlaces((prev) => prev.filter((id) => id !== place.place_id))}
+                      >
+                        ปิด
+                      </button>
+                    </div>
 
-              <div className="detail-body">
-                <p className="detail-text">📍 {selectedPlace.formatted_address || `${selectedPlace.province || ""} ${selectedPlace.district || ""}`.trim()}</p>
-                <p className="detail-text">⭐ Rating: {selectedPlace.rating ?? "-"} ({selectedPlace.user_ratings_total ?? 0} รีวิว)</p>
-                <p className="detail-text">🏷️ คะแนนรวม: {selectedPlace.totalScore.toFixed(2)}</p>
-                <p className="detail-text">📊 หมวดหมู่ {selectedPlace.categoryScore.toFixed(2)} • เรตติ้ง {selectedPlace.ratingScore.toFixed(2)} • ระยะทาง {selectedPlace.distanceScore.toFixed(2)} • งบ {selectedPlace.budgetScore.toFixed(2)} • อากาศ {selectedPlace.weatherScore.toFixed(2)}</p>
-                {selectedPlace.phone_number && <p className="detail-text">📞 {selectedPlace.phone_number}</p>}
-                {selectedPlace.website && (
-                  <p className="detail-text">
-                    🌐 <a href={selectedPlace.website} target="_blank" rel="noreferrer">{selectedPlace.website}</a>
-                  </p>
-                )}
-              </div>
+                    <div className="detail-body">
+                      <p className="detail-text">📍 {place.formatted_address || `${place.province || ""} ${place.district || ""}`.trim()}</p>
+                      <p className="detail-text">⭐ Rating: {place.rating ?? "-"} ({place.user_ratings_total ?? 0} รีวิว)</p>
+                      <p className="detail-text">🏷️ คะแนนรวม: {place.totalScore.toFixed(2)}</p>
+                      <p className="detail-text">📊 หมวดหมู่ {place.categoryScore.toFixed(2)} • เรตติ้ง {place.ratingScore.toFixed(2)} • ระยะทาง {place.distanceScore.toFixed(2)} • งบ {place.budgetScore.toFixed(2)} • อากาศ {place.weatherScore.toFixed(2)}</p>
+                      {place.phone_number && <p className="detail-text">📞 {place.phone_number}</p>}
+                      {place.website && (
+                        <p className="detail-text">
+                          🌐 <a href={place.website} target="_blank" rel="noreferrer">{place.website}</a>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
             </div>
           )}
 
@@ -134,11 +153,18 @@ export default function AllTrip() {
                 <p className="text-xs text-[#102a6b]">
                   หมวดหมู่ {place.categoryScore.toFixed(2)} • เรตติ้ง {place.ratingScore.toFixed(2)} • ระยะทาง {place.distanceScore.toFixed(2)} • งบ {place.budgetScore.toFixed(2)} • อากาศ {place.weatherScore.toFixed(2)}
                 </p>
+                <p className={`mt-2 text-sm font-semibold ${place.isOpen === false ? "text-red-600" : "text-emerald-600"}`}>
+                  {place.isOpen === false ? "ปิดในช่วงเวลานี้" : "เปิดอยู่"}
+                </p>
               </div>
               <button
                 type="button"
                 className="view-btn"
-                onClick={() => setSelectedPlace(place)}
+                onClick={() =>
+                  setSelectedPlaces((prev) =>
+                    prev.includes(place.place_id) ? prev : [...prev, place.place_id]
+                  )
+                }
               >
                 ดูรายละเอียด
               </button>

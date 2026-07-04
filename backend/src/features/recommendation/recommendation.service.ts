@@ -78,6 +78,37 @@ function getDistanceScore(place: Record<string, any>, province?: string | null, 
   return 0.4;
 }
 
+function matchesSelectedLocation(
+  place: Record<string, any>,
+  province?: string | null,
+  city?: string | null
+): boolean {
+  const selectedProvince = province?.trim().toLowerCase();
+  const selectedCity = city?.trim().toLowerCase();
+
+  if (!selectedProvince && !selectedCity) return true;
+
+  const placeText = [
+    place.place_name,
+    place.province,
+    place.district,
+    place.formatted_address,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (selectedProvince && placeText.includes(selectedProvince)) {
+    return true;
+  }
+
+  if (selectedCity && placeText.includes(selectedCity)) {
+    return true;
+  }
+
+  return false;
+}
+
 function getBudgetScore(place: Record<string, any>, totalBudget?: number | null, people?: number | null): number {
   if (!totalBudget || !people) return 1;
 
@@ -89,6 +120,53 @@ function getBudgetScore(place: Record<string, any>, totalBudget?: number | null,
   if (estimatedCost <= budgetPerPerson * 1.2) return 0.8;
   if (estimatedCost <= budgetPerPerson * 1.5) return 0.6;
   return 0.3;
+}
+
+function isPlaceOpenAtSelectedTime(
+  place: Record<string, any>,
+  startDate?: string,
+  startTime?: string
+): boolean {
+  const openingHours = place.opening_hours;
+  if (!openingHours) return true;
+
+  if (openingHours.open_now === false) return false;
+
+  if (!startDate) return true;
+
+  const selectedDate = new Date(startDate);
+  if (Number.isNaN(selectedDate.getTime())) return true;
+
+  const selectedDay = selectedDate.getDay();
+  const selectedTime = startTime ? startTime.replace(":", "") : null;
+
+  const periods = openingHours.periods ?? [];
+  if (!periods.length) return true;
+
+  if (!selectedTime) {
+    return periods.some((period: Record<string, any>) => period.open?.day === selectedDay);
+  }
+
+  return periods.some((period: Record<string, any>) => {
+    const openDay = period.open?.day;
+    const closeDay = period.close?.day;
+    const openTime = period.open?.time;
+    const closeTime = period.close?.time;
+
+    if (openDay === undefined || closeDay === undefined || !openTime || !closeTime) {
+      return false;
+    }
+
+    const startMinutes = Number(selectedTime.slice(0, 2)) * 60 + Number(selectedTime.slice(2));
+    const openMinutes = Number(openTime.slice(0, 2)) * 60 + Number(openTime.slice(2));
+    const closeMinutes = Number(closeTime.slice(0, 2)) * 60 + Number(closeTime.slice(2));
+
+    if (closeTime === "0000") {
+      return openDay === selectedDay && startMinutes >= openMinutes;
+    }
+
+    return openDay === selectedDay && startMinutes >= openMinutes && startMinutes < closeMinutes;
+  });
 }
 
 function getWeatherScore(startDate?: string, tags: string[] = []): number {
@@ -106,7 +184,11 @@ function getWeatherScore(startDate?: string, tags: string[] = []): number {
 export async function getRecommendedPlaces(preferences: TripPreferences = {}) {
   const places = await getPlaces();
 
-  const scoredPlaces = places
+  const filteredPlaces = places.filter((place: Record<string, any>) =>
+    matchesSelectedLocation(place, preferences.province, preferences.city)
+  );
+
+  const scoredPlaces = filteredPlaces
     .map((place: Record<string, any>) => {
       const categoryScore = getCategoryScore(place, preferences.tags ?? []);
       const ratingScore = normalizeScore(place.rating, 5);
@@ -120,6 +202,7 @@ export async function getRecommendedPlaces(preferences: TripPreferences = {}) {
         budgetScore,
         weatherScore
       );
+      const isOpen = isPlaceOpenAtSelectedTime(place, preferences.start_date, preferences.start_time);
 
       return {
         ...place,
@@ -129,6 +212,7 @@ export async function getRecommendedPlaces(preferences: TripPreferences = {}) {
         budgetScore,
         weatherScore,
         totalScore,
+        isOpen,
       };
     })
     .sort((a, b) => b.totalScore - a.totalScore);
