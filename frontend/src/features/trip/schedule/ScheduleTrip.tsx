@@ -2,21 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../../../components/Navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
-import { haversineKm } from "../../../utils/haversine";
-
-interface PlaceInfo {
-  place_id: string;
-  place_name: string;
-  province: string | null;
-  district: string | null;
-  latitude: number;
-  longitude: number;
-  formatted_address: string | null;
-  category: string;
-  rating: number;
-  price_level: number | null;
-  opening_hours?: any;
-}
 
 interface TripInfo {
   trip_id: string;
@@ -29,20 +14,20 @@ interface TripInfo {
   daily_budget: number | null;
   number_of_people: number | null;
   available_time_per_day: number | null;
-  preferred_category?: string | null; // ใช้แทนค่า hardcode "ธรรมชาติ" ถ้ามีใน schema
+  preferred_category?: string | null;
 }
 
-interface TripRequest {
+interface ScheduledPlace {
+  place_id: string;
+  place_name: string;
+  province: string | null;
+  district: string | null;
+  latitude: number;
+  longitude: number;
+  formatted_address: string | null;
   category: string;
-  budget: number;
-  weather: string;
-  startMinutes: number;
-  endMinutes: number;
-  userLat: number;
-  userLng: number;
-}
-
-interface ScheduledPlace extends PlaceInfo {
+  rating: number;
+  price_level: number | null;
   poiScore: number;
   categoryScore: number;
   ratingScore: number;
@@ -50,8 +35,8 @@ interface ScheduledPlace extends PlaceInfo {
   budgetScore: number;
   weatherScore: number;
   estimatedCost: number;
-  distanceKm: number; // ระยะจากจุดเริ่มทริป ใช้แค่ตอนให้คะแนน
-  distanceKmFromPrevious: number | null; // ระยะจากจุดก่อนหน้าในตาราง ใช้แสดงผลจริง
+  distanceKm: number;
+  distanceKmFromPrevious: number | null;
   durationMinutes: number;
   arrivalTime: string;
   departureTime: string;
@@ -62,102 +47,6 @@ const parseSelectedPlaceIds = (value: string | null) =>
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
-
-const parseTimeToMinutes = (value: string | null | undefined) => {
-  if (!value) return 0;
-  const [hours, minutes] = value.split(":").map(Number);
-  return hours * 60 + (minutes || 0);
-};
-
-const formatMinutes = (minutes: number) => {
-  const hrs = Math.floor(minutes / 60) % 24;
-  const mins = minutes % 60;
-  return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
-};
-
-function createItinerary(places: PlaceInfo[], trip: TripRequest): ScheduledPlace[] {
-  const scored: ScheduledPlace[] = places.map((place) => {
-    const categoryScore = place.category === trip.category ? 1 : 0;
-    const ratingScore = (place.rating ?? 0) / 5;
-    const distanceKm = haversineKm(trip.userLat, trip.userLng, place.latitude, place.longitude);
-    const distanceScore = Math.max(0, 1 - distanceKm / 50);
-    const estimatedCost = (place.price_level ?? 1) * 250;
-    const budgetScore = estimatedCost <= trip.budget ? 1 : 0;
-
-    let weatherScore = 1;
-    if (trip.weather === "Rain" && place.category === "ธรรมชาติ") {
-      weatherScore = 0.4;
-    }
-
-    const poiScore =
-      0.35 * categoryScore +
-      0.25 * ratingScore +
-      0.15 * distanceScore +
-      0.15 * budgetScore +
-      0.1 * weatherScore;
-
-    let durationMinutes = 60;
-    if (place.category === "ธรรมชาติ") {
-      durationMinutes = 180;
-    } else if (place.category === "วัด") {
-      durationMinutes = 90;
-    } else if (place.category === "คาเฟ่") {
-      durationMinutes = 60;
-    }
-
-    return {
-      ...place,
-      poiScore,
-      categoryScore,
-      ratingScore,
-      distanceScore,
-      budgetScore,
-      weatherScore,
-      estimatedCost,
-      distanceKm,
-      distanceKmFromPrevious: null,
-      durationMinutes,
-      arrivalTime: "",
-      departureTime: "",
-    };
-  });
-
-  scored.sort((a, b) => b.poiScore - a.poiScore);
-
-  let currentMinutes = trip.startMinutes;
-  const endMinutes = trip.endMinutes;
-  let totalCost = 0;
-  let prevLat = trip.userLat;
-  let prevLng = trip.userLng;
-  const result: ScheduledPlace[] = [];
-
-  for (const place of scored) {
-    // ระยะทาง/เวลาเดินทางต้องคำนวณจาก "จุดก่อนหน้าในตาราง" ไม่ใช่จุดเริ่มทริปเดิมทุกครั้ง
-    const distanceFromPrevious = haversineKm(prevLat, prevLng, place.latitude, place.longitude);
-    const travelMinutes = Math.round(distanceFromPrevious * 2);
-    const finishTime = currentMinutes + travelMinutes + place.durationMinutes;
-
-    if (finishTime > endMinutes) {
-      continue;
-    }
-
-    if (totalCost + place.estimatedCost > trip.budget) {
-      continue;
-    }
-
-    place.arrivalTime = formatMinutes(currentMinutes + travelMinutes);
-    place.departureTime = formatMinutes(finishTime);
-    place.distanceKmFromPrevious = distanceFromPrevious;
-
-    result.push(place);
-    totalCost += place.estimatedCost;
-    currentMinutes = finishTime;
-    prevLat = place.latitude;
-    prevLng = place.longitude;
-  }
-
-  return result;
-}
 
 export default function ScheduleTrip() {
   const { tripId } = useParams();
@@ -190,52 +79,33 @@ export default function ScheduleTrip() {
       setError(null);
 
       try {
-        const tripsRes = await fetch("/api/trips", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        const tripsData = await tripsRes.json();
-        if (!tripsRes.ok) throw new Error(tripsData.message || "โหลดข้อมูลทริปไม่สำเร็จ");
-
-        const currentTrip = (tripsData.trips || []).find((item: TripInfo) => item.trip_id === tripId);
-        if (!currentTrip) throw new Error("ไม่พบทริปนี้");
-
         if (selectedIds.length === 0) {
           throw new Error("กรุณาเลือกสถานที่ก่อนทำการจัดตาราง");
         }
 
-        const placeQuery = new URLSearchParams({ ids: selectedIds.join(",") });
-        if (currentTrip.province) placeQuery.set("province", currentTrip.province);
-        if (currentTrip.district) placeQuery.set("district", currentTrip.district);
-
-        const placesRes = await fetch(`/api/places?${placeQuery.toString()}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+        // ให้ backend เป็นคนคำนวณ POI score, จัดลำดับ, และตารางเวลาให้เสร็จ
+        // frontend ดึงมาแสดงผลอย่างเดียว ไม่คำนวณซ้ำ
+        const itineraryQuery = new URLSearchParams({
+          selected: selectedIds.join(","),
         });
-        const placesData = await placesRes.json();
-        if (!placesRes.ok) throw new Error(placesData.message || "โหลดสถานที่ไม่สำเร็จ");
 
-        const placeList = (placesData.places || []) as PlaceInfo[];
+        const itineraryRes = await fetch(
+          `/api/trips/${tripId}/itinerary?${itineraryQuery.toString()}`,
+          {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }
+        );
+        const itineraryData = await itineraryRes.json();
+        if (!itineraryRes.ok) {
+          throw new Error(itineraryData.message || "โหลดตารางทริปไม่สำเร็จ");
+        }
 
-        const startMinutes = parseTimeToMinutes(currentTrip.start_time);
-        const availableMinutes = (currentTrip.available_time_per_day || 6) * 60;
-        const endMinutes = startMinutes + availableMinutes; // ไม่ต้อง mod 24 เพื่อกันช่วงเวลาพลิกกลับ
-
-        const tripRequest: TripRequest = {
-          category: currentTrip.preferred_category || "ธรรมชาติ",
-          budget: currentTrip.daily_budget ?? 5000,
-          weather: "Sunny", // TODO: ดึงจาก weather API จริงตามพิกัด start_lat/start_lng แทนค่า hardcode
-          startMinutes,
-          endMinutes,
-          userLat: currentTrip.start_lat ?? 13.7563,
-          userLng: currentTrip.start_lng ?? 100.5018,
-        };
-
-        const scheduled = createItinerary(placeList, tripRequest);
-
-        setTrip(currentTrip);
-        setPlaces(scheduled);
+        // คาดหวังรูปแบบ response: { trip: TripInfo, places: ScheduledPlace[] }
+        setTrip(itineraryData.trip ?? null);
+        setPlaces((itineraryData.places || []) as ScheduledPlace[]);
       } catch (err: any) {
         console.error(err);
-        setError(err.message || "เกิดข้อผิดพลาดในการคำนวณตารางทริป");
+        setError(err.message || "เกิดข้อผิดพลาดในการโหลดตารางทริป");
       } finally {
         setLoading(false);
       }
@@ -268,7 +138,7 @@ export default function ScheduleTrip() {
 
         {loading && (
           <div className="bg-white rounded-2xl shadow-lg px-6 py-10 text-center text-[#5990c0]">
-            กำลังคำนวณตารางทริป...
+            กำลังโหลดตารางทริป...
           </div>
         )}
 
