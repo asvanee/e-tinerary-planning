@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Navbar from "../../../components/navbar";
+import Navbar from "../../../components/Navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
+import { getOpeningHoursDisplay } from "../../../utils/openingHours";
 
 interface PoiResult {
   placeId: string;
@@ -46,6 +47,21 @@ export default function TripRecommendations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFallbackUsed, setCategoryFallbackUsed] = useState(false);
+  const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
+
+  const togglePlaceSelection = (placeId: string) => {
+    setSelectedPlaceIds((prev) => {
+      if (prev.includes(placeId)) {
+        return prev.filter((id) => id !== placeId);
+      }
+      return [...prev, placeId];
+    });
+  };
+
+  const handleViewSelectedPlaces = () => {
+    if (!tripId || selectedPlaceIds.length === 0) return;
+    navigate(`/trip/${tripId}/map?selected=${selectedPlaceIds.join(",")}`);
+  };
   
 
   useEffect(() => {
@@ -185,11 +201,27 @@ try {
           </p>
         </div>
 
-        {categoryFallbackUsed && (
-          <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-5 py-3 mb-6 text-sm">
-            ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในจังหวัดนี้ ระบบจึงแสดงผลแบบตรงใจน้อยลง
+        <div className="flex flex-col gap-3 rounded-2xl bg-white/80 p-4 shadow-sm mb-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-prompt font-semibold text-[#102a6b]">เลือกสถานที่ที่ต้องการดูบนแผนที่</h3>
+              <p className="text-sm text-[#5990c0]">เลือกได้มากกว่า 1 แห่ง แล้วกดดูแผนที่เพื่อดูว่าแต่ละแห่งอยู่ใกล้ไกลจากจุดเริ่มต้นเท่าไหร่</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleViewSelectedPlaces}
+              disabled={selectedPlaceIds.length === 0}
+              className="rounded-xl bg-gradient-to-r from-[#102a6b] to-[#015185] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              ดูแผนที่ ({selectedPlaceIds.length})
+            </button>
           </div>
-        )}
+          {categoryFallbackUsed && (
+            <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-4 py-3 text-sm">
+              ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในจังหวัดนี้ ระบบจึงแสดงผลแบบตรงใจน้อยลง
+            </div>
+          )}
+        </div>
 
         {loading && (
           <div className="bg-white rounded-2xl shadow-lg px-8 py-16 flex flex-col items-center justify-center text-center gap-3">
@@ -234,11 +266,24 @@ try {
 
         {!loading && !error && places.length > 0 && (
           <div className="flex flex-col gap-4">
-            {places.map((item, index) => (
+            {places.map((item, index) => {
+              const placeId = item.place?.place_id ?? item.placeId;
+              const isSelected = selectedPlaceIds.includes(placeId);
+
+              return (
               <div
                 key={item.placeId}
-                className="bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5"
+                className={`rounded-2xl border px-6 py-5 flex items-start gap-4 shadow-md ${isSelected ? "border-[#015185] bg-[#f5fbff]" : "border-transparent bg-white"}`}
               >
+                <button
+                  type="button"
+                  onClick={() => togglePlaceSelection(placeId)}
+                  className={`mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-all ${isSelected ? "border-[#015185] bg-[#015185] text-white" : "border-[#5990c0]/30 bg-white text-[#015185]"}`}
+                  aria-label={`เลือก ${item.place?.place_name ?? "สถานที่"}`}
+                >
+                  {isSelected ? "✓" : "+"}
+                </button>
+
                 <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#102a6b] text-white font-prompt font-bold flex items-center justify-center">
                   {index + 1}
                 </div>
@@ -261,6 +306,24 @@ try {
     📞 {item.place.phone_number}
   </div>
 )}
+{(() => {
+  const openingHours = getOpeningHoursDisplay(item.place?.opening_hours);
+  const badgeClass =
+    openingHours.status === "open"
+      ? "bg-green-50 text-green-700"
+      : openingHours.status === "closed"
+      ? "bg-red-50 text-red-700"
+      : "bg-gray-100 text-gray-700";
+
+  return (
+    <div className="mt-2">
+      <div className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badgeClass}`}>
+        {openingHours.label}
+      </div>
+      <div className="mt-1 text-xs text-[#4b5563]">{openingHours.text}</div>
+    </div>
+  );
+})()}
 {item.place?.website && (
   <a
     href={
@@ -297,7 +360,8 @@ try {
                   <div className="text-xs text-[#5990c0]">คะแนนรวม</div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
