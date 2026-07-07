@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../../components/navbar";
+import Navbar from "../../components/Navbar";
 import "./createTrip.css";
 
 const PROVINCES = [
@@ -93,10 +93,9 @@ export default function CreateTrip() {
         };
 
         console.log("DATA READY FOR BACKEND:", payload);
+        localStorage.setItem("tripPreferences", JSON.stringify(payload));
 
-        // await fetch("/api/trips", { method: "POST", body: JSON.stringify(payload) })
-
-        navigate("/home");
+        navigate("/trip/all", { state: { tripPreferences: payload } });
     };
 
     const inputClass =

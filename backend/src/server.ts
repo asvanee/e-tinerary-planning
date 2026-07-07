@@ -1,13 +1,3 @@
-import express from "express";
-import cors from "cors";
-import authRoutes from "./features/auth/authRoutes";
-import placesRoutes from "./features/places/placesRoutes";
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-app.use("/api/auth", authRoutes);
-app.use("/api/places", placesRoutes);
+import app from "./app";
 
 app.listen(5000, () => console.log("Server running on port 5000"));
