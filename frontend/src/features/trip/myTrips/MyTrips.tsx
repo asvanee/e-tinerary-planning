@@ -32,6 +32,12 @@ export default function MyTrips() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+    // ✅ เพิ่มใหม่: state สำหรับปุ่มลบทริป
+    // - confirmTripId: ทริปที่กำลังถามยืนยันการลบอยู่ (แสดง popup)
+    // - deletingId: ทริปที่กำลังยิง DELETE request อยู่จริง (กันกดซ้ำ + โชว์ loading เฉพาะปุ่มนั้น)
+    const [confirmTripId, setConfirmTripId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
     useEffect(() => {
         const fetchTrips = async () => {
             if (!session) {
@@ -62,6 +68,38 @@ export default function MyTrips() {
 
         fetchTrips();
     }, [session, navigate]);
+
+    // ✅ เพิ่มใหม่: ลบทริปจริงผ่าน DELETE /api/trips/:tripId
+    // ตอนลบสำเร็จ ตัดออกจาก state ตรงๆ (ไม่ refetch ใหม่ทั้งก้อน) เพื่อความไว
+    async function handleDelete(tripId: string) {
+        if (!session) return;
+
+        setDeletingId(tripId);
+        setError("");
+
+        try {
+            const res = await fetch(`/api/trips/${tripId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.message || "ลบทริปไม่สำเร็จ");
+                return;
+            }
+
+            setTrips((prev) => prev.filter((t) => t.trip_id !== tripId));
+        } catch (err) {
+            console.error("Delete trip error:", err);
+            setError("ไม่สามารถเชื่อมต่อ server ได้");
+        } finally {
+            setDeletingId(null);
+            setConfirmTripId(null);
+        }
+    }
 
     return (
         <div className="font-sarabun min-h-screen bg-[#fcedd3]">
@@ -128,7 +166,7 @@ export default function MyTrips() {
                             <div
                                 key={trip.trip_id}
                                 onClick={() =>
-                                    navigate(`/trip/${trip.trip_id}/recommendations`)
+                                    navigate(`/trip/${trip.trip_id}/detail`)
                                 }
                                 className="bg-white rounded-2xl shadow-lg px-6 py-5 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between gap-4"
                             >
@@ -154,14 +192,68 @@ export default function MyTrips() {
                                     </div>
                                 </div>
 
-                                <span className="font-prompt text-sm font-semibold text-[#015185] whitespace-nowrap">
-                                    ดูรายละเอียด →
-                                </span>
+                                {/* ✅ เพิ่มใหม่: ห่อ "ดูรายละเอียด" + ปุ่มลบไว้ด้วยกันฝั่งขวา */}
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <span className="font-prompt text-sm font-semibold text-[#015185] whitespace-nowrap">
+                                        ดูรายละเอียด →
+                                    </span>
+
+                                    <button
+                                        onClick={(e) => {
+                                            // กัน event ทะลุขึ้นไป trigger onClick ของการ์ด (navigate ไป recommendations)
+                                            e.stopPropagation();
+                                            setConfirmTripId(trip.trip_id);
+                                        }}
+                                        title="ลบทริปนี้"
+                                        className="w-9 h-9 rounded-full bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-600 flex items-center justify-center transition-colors"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* ✅ เพิ่มใหม่: popup ยืนยันก่อนลบ — กันกดพลาดแล้วข้อมูลหายถาวร */}
+            {confirmTripId && (
+                <div
+                    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
+                    onClick={() => {
+                        if (deletingId) return; // กันปิด popup ระหว่างกำลังลบอยู่
+                        setConfirmTripId(null);
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white rounded-2xl shadow-xl px-6 py-6 max-w-sm w-full text-center"
+                    >
+                        <p className="font-prompt font-semibold text-[#102a6b] mb-1">
+                            ลบทริปนี้เลยไหม?
+                        </p>
+                        <p className="text-sm text-[#5990c0] mb-5">
+                            แผนการเดินทางทั้งหมดของทริปนี้จะถูกลบและกู้คืนไม่ได้
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={() => setConfirmTripId(null)}
+                                disabled={deletingId === confirmTripId}
+                                className="px-5 py-2 rounded-xl font-semibold text-[#102a6b] bg-gray-100 disabled:opacity-60"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={() => handleDelete(confirmTripId)}
+                                disabled={deletingId === confirmTripId}
+                                className="px-5 py-2 rounded-xl font-semibold text-white bg-red-500 disabled:opacity-60"
+                            >
+                                {deletingId === confirmTripId ? "กำลังลบ..." : "ลบเลย"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

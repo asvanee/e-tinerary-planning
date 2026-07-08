@@ -71,6 +71,9 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
 
       return {
         placeId: place.placeId,
+        // ✅ เพิ่ม — ใช้แสดง badge หมวดหมู่ที่ตรงกับความสนใจที่เลือกไว้ในหน้า Recommendation
+        // (ไม่ใช่ส่วนหนึ่งของสูตรคะแนน แค่ pass-through ข้อมูล display เฉยๆ)
+        categoryName: place.categoryName,
         ...breakdown,
       };
     });

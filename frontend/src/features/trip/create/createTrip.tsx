@@ -31,6 +31,35 @@ interface TripSummary {
     tripDays: number;
 }
 
+// ✅ เพิ่มใหม่: เช็คไม่ให้ end_time (start_time + available_time_per_day) ข้ามเที่ยงคืน
+// สอดคล้องกับ validateNoMidnightCrossing ฝั่ง backend (tripController.ts) — ทาง (ก)
+// ตามมติใน itineraries_feature_status.md ทำหน้าที่แค่เตือน user เร็วๆ ก่อนยิง API เท่านั้น
+// (backend ยังคง validate ซ้ำเป็นด่านสุดท้ายเสมอ ไม่เชื่อ client ตรงๆ)
+function getMidnightCrossingError(
+    startTime: string,
+    availableTimePerDay: number | null
+): string | null {
+    if (availableTimePerDay === null) return null;
+
+    if (Number.isNaN(availableTimePerDay) || availableTimePerDay <= 0) {
+        return "เวลาว่างต่อวันต้องเป็นตัวเลขมากกว่า 0";
+    }
+
+    const match = /^(\d{1,2}):(\d{2})$/.exec(startTime);
+    if (!match) {
+        return "กรุณากรอกเวลาเริ่มต้นให้ถูกต้อง";
+    }
+
+    const startMinutes = Number(match[1]) * 60 + Number(match[2]);
+    const endMinutes = startMinutes + availableTimePerDay * 60;
+
+    if (endMinutes > 24 * 60) {
+        return "เวลาเริ่มต้นรวมกับเวลาว่างต่อวันข้ามเที่ยงคืน กรุณาปรับเวลาเริ่มต้นให้เร็วขึ้น หรือลดเวลาว่างต่อวันลง";
+    }
+
+    return null;
+}
+
 export default function CreateTrip() {
     const navigate = useNavigate();
     const { session } = useAuth();
@@ -150,8 +179,11 @@ export default function CreateTrip() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!province && !district) {
-            alert("กรุณาเลือกจังหวัดหรืออำเภออย่างน้อย 1 อย่าง");
+        // ✅ แก้แล้ว: province บังคับกรอกเสมอ (district เลือกเพิ่มหรือไม่ก็ได้)
+        // ปกติ <select> จังหวัดมี required อยู่แล้วทำให้ submit ไม่ได้ถ้าไม่เลือก
+        // แต่เช็คซ้ำไว้เป็น safety net เผื่อ browser ข้าม native validation ไปได้
+        if (!province) {
+            alert("กรุณาเลือกจังหวัด");
             return;
         }
 
@@ -169,6 +201,17 @@ export default function CreateTrip() {
 
         if (totalBudget && (!budgetScope || !budgetPeriod)) {
             alert("กรุณาเลือกขอบเขตและช่วงเวลาของงบประมาณให้ครบ");
+            return;
+        }
+
+        // ✅ เพิ่มใหม่: กัน end_time ข้ามเที่ยงคืน ก่อนยิง API (backend ยัง validate ซ้ำอยู่ดี)
+        const midnightCrossingError = getMidnightCrossingError(
+            startTime,
+            availableTimePerDay ? Number(availableTimePerDay) : null
+        );
+
+        if (midnightCrossingError) {
+            alert(midnightCrossingError);
             return;
         }
 
@@ -204,7 +247,7 @@ export default function CreateTrip() {
         }
 
         const payload = {
-            province: province || null,
+            province, // บังคับกรอกแล้ว การันตีไม่ว่างจาก validation ด้านบน
             district: district || null,
             start_date: startDate,
             end_date: endDate,
@@ -421,6 +464,9 @@ export default function CreateTrip() {
                             <input type="number" min={1} max={24} className={inputClass}
                                 value={availableTimePerDay}
                                 onChange={(e) => setAvailableTimePerDay(e.target.value)} />
+                            <p className="text-xs text-[#5990c0]/80 mt-1 font-sarabun">
+                                เวลาเริ่มต้น + เวลาว่างต่อวัน ต้องไม่ข้ามเที่ยงคืน (เช่น เริ่ม 20:00 ต้องมีเวลาว่างไม่เกิน 4 ชั่วโมง)
+                            </p>
                         </div>
 
                         <div>

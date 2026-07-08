@@ -5,6 +5,9 @@ import { useAuth } from "../../auth/hooks/useAuth";
 
 interface PoiResult {
   placeId: string;
+  // ✅ เพิ่มใหม่ — หมวดหมู่ที่ตรงกับความสนใจที่ user เลือกไว้ตอนสร้างทริป (เช่น "Viewpoint")
+  // แยกจาก place.att_category_label ที่มาจาก Google
+  categoryName: string;
   categoryScore: number;
   ratingScore: number;
   distanceScore: number;
@@ -21,7 +24,9 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  price_level: number | null;
+  // ✅ coalesce เสร็จจาก backend เสมอแล้ว (places.price_level -> categories.default_price_level -> 0)
+  // ดู placesController.ts — ไม่มีทาง null จริงในทางปฏิบัติ
+  price_level: number;
   formatted_address: string | null;
 
   phone_number?: string | null;
@@ -31,6 +36,10 @@ interface PlaceInfo {
 
   att_type_label?: string | null;
   att_category_label?: string | null;
+
+  // ✅ เพิ่มใหม่ — จาก categories.default_duration_min (join ผ่าน place_categories)
+  // จำเป็นสำหรับหน้า itinerary editor ตอน recompute client-side (buildDayItems ต้องใช้คำนวณ endTime)
+  default_duration_min: number;
 }
 
 interface MergedPlace extends PoiResult {
@@ -46,135 +55,214 @@ export default function TripRecommendations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFallbackUsed, setCategoryFallbackUsed] = useState(false);
-  
+
+  // ✅ โหมดจัดทริปเอง — ปิดอยู่ก่อน (แสดงการ์ดแบบดูอย่างเดียว) จนกว่าจะกด "จัดทริปเอง"
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
+
+  // ✅ state สำหรับตอนเรียก POST /draft
+  const [creatingRoute, setCreatingRoute] = useState(false);
+  const [createRouteError, setCreateRouteError] = useState<string | null>(null);
 
   useEffect(() => {
-  // ✅ รอ AuthContext อ่าน session จาก localStorage ให้เสร็จก่อน
-  // ไม่งั้น mount ครั้งแรก session จะเป็น null ชั่วคราวเสมอ (แม้ user
-  // จะล็อกอินอยู่จริง) แล้วโดนเด้งไป /login ผิดพลาด
-  if (authLoading) {
-    return;
-  }
-
-  if (!session) {
-    navigate("/login");
-    return;
-  }
-
-  if (!tripId) {
-    setError("ไม่พบรหัสทริป");
-    setLoading(false);
-    return;
-  }
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-        
-      const poiRes = await fetch(
-        `/api/poi/trips/${tripId}/calculate-poi`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      const responseText = await poiRes.text();
-
-      let poiData;
-
-try {
-  poiData = JSON.parse(responseText);
-} catch {
-  throw new Error(
-    `API ไม่ได้ส่ง JSON กลับมา (status ${poiRes.status})`
-  );
-}
-      
-
-      if (!poiRes.ok) {
-        throw new Error(
-          poiData.message || "คำนวณคะแนนสถานที่ไม่สำเร็จ"
-        );
-      }
-
-      const results: PoiResult[] = poiData.results ?? [];
-
-      setCategoryFallbackUsed(
-        !!poiData.categoryFallbackUsed
-      );
-
-      if (results.length === 0) {
-        setPlaces([]);
-        return;
-      }
-
-      const ids = results
-        .map((r) => r.placeId)
-        .join(",");
-
-      const placesRes = await fetch(
-        `/api/places?ids=${encodeURIComponent(ids)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-
-      const placesData = await placesRes.json();
-
-      if (!placesRes.ok) {
-        throw new Error(
-          placesData.message || "ดึงข้อมูลสถานที่ไม่สำเร็จ"
-        );
-      }
-
-      const placeMap = new Map<string, PlaceInfo>(
-        (placesData.places as PlaceInfo[]).map((p) => [
-          p.place_id,
-          p,
-        ])
-      );
-
-      const merged: MergedPlace[] = results.map((r) => ({
-        ...r,
-        place: placeMap.get(r.placeId),
-      }));
-
-      setPlaces(merged);
-    } catch (err: any) {
-      console.error(err);
-      setError(
-        err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล"
-      );
-    } finally {
-      setLoading(false);
+    // ✅ รอ AuthContext อ่าน session จาก localStorage ให้เสร็จก่อน
+    // ไม่งั้น mount ครั้งแรก session จะเป็น null ชั่วคราวเสมอ (แม้ user
+    // จะล็อกอินอยู่จริง) แล้วโดนเด้งไป /login ผิดพลาด
+    if (authLoading) {
+      return;
     }
+
+    if (!session) {
+      navigate("/login");
+      return;
+    }
+
+    if (!tripId) {
+      setError("ไม่พบรหัสทริป");
+      setLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+
+        const poiRes = await fetch(
+          `/api/poi/trips/${tripId}/calculate-poi`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+        const responseText = await poiRes.text();
+
+        let poiData;
+
+        try {
+          poiData = JSON.parse(responseText);
+        } catch {
+          throw new Error(
+            `API ไม่ได้ส่ง JSON กลับมา (status ${poiRes.status})`
+          );
+        }
+
+
+        if (!poiRes.ok) {
+          throw new Error(
+            poiData.message || "คำนวณคะแนนสถานที่ไม่สำเร็จ"
+          );
+        }
+
+        const results: PoiResult[] = poiData.results ?? [];
+
+        setCategoryFallbackUsed(
+          !!poiData.categoryFallbackUsed
+        );
+
+        if (results.length === 0) {
+          setPlaces([]);
+          return;
+        }
+
+        const ids = results
+          .map((r) => r.placeId)
+          .join(",");
+
+        const placesRes = await fetch(
+          `/api/places?ids=${encodeURIComponent(ids)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        const placesData = await placesRes.json();
+
+        if (!placesRes.ok) {
+          throw new Error(
+            placesData.message || "ดึงข้อมูลสถานที่ไม่สำเร็จ"
+          );
+        }
+
+        const placeMap = new Map<string, PlaceInfo>(
+          (placesData.places as PlaceInfo[]).map((p) => [
+            p.place_id,
+            p,
+          ])
+        );
+
+        const merged: MergedPlace[] = results.map((r) => ({
+          ...r,
+          place: placeMap.get(r.placeId),
+        }));
+
+        setPlaces(merged);
+
+        // ✅ ไม่ pre-select ทุกที่แล้ว — ผู้ใช้ต้องกด "จัดทริปเอง" แล้วเลือกเองทีละที่
+
+      } catch (err: any) {
+        console.error(err);
+        setError(
+          err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [tripId, session, authLoading, navigate]);
+
+  const togglePlace = (placeId: string) => {
+    setSelectedPlaceIds((prev) =>
+      prev.includes(placeId)
+        ? prev.filter((id) => id !== placeId)
+        : [...prev, placeId]
+    );
   };
 
-  fetchData();
-}, [tripId, session, authLoading, navigate]);
+  const handleStartCustomMode = () => {
+    setIsCustomMode(true);
+    setSelectedPlaceIds([]);
+  };
+
+  const handleCancelCustomMode = () => {
+    setIsCustomMode(false);
+    setSelectedPlaceIds([]);
+    setCreateRouteError(null);
+  };
+
+  // ✅ เรียก backend สร้าง draft ก่อน แล้วค่อย navigate ไปหน้า editor พร้อมผลลัพธ์ที่ backend คำนวณแล้ว
+  // (ไม่ส่ง raw places ตรงๆ — editor ต้องได้ draft ที่ผ่าน TSP + validate จาก backend มาแล้ว)
+  const handleCreateRoute = async () => {
+    if (!tripId || !session || selectedPlaceIds.length === 0) {
+      return;
+    }
+
+    setCreatingRoute(true);
+    setCreateRouteError(null);
+
+    try {
+      const res = await fetch(`/api/itinerary/trips/${tripId}/draft`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ place_ids: selectedPlaceIds }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "สร้างเส้นทางไม่สำเร็จ");
+      }
+
+      const selectedPlaces = places.filter((p) =>
+        selectedPlaceIds.includes(p.placeId)
+      );
+
+      navigate(`/trip/${tripId}/editor`, {
+        state: {
+          tripId,
+          draft: data,
+          // ✅ ส่งแค่สถานที่ที่ user เลือกไว้เท่านั้น (ไม่ใช่ candidate pool ทั้งหมด ~50 ที่)
+          // มี default_duration_min/opening_hours/price_level ติดมาด้วยสำหรับ editor ใช้ recompute
+          places: selectedPlaces,
+        },
+      });
+    } catch (err: any) {
+      console.error(err);
+      setCreateRouteError(
+        err.message || "เกิดข้อผิดพลาดในการสร้างเส้นทาง"
+      );
+    } finally {
+      setCreatingRoute(false);
+    }
+  };
 
   return (
     <div className="font-sarabun min-h-screen bg-[#fcedd3]">
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 pt-6">
-  <button
-    onClick={() => navigate(-1)}
-    className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md hover:shadow-lg hover:-translate-x-1 transition-all duration-200"
-  >
-    <span className="text-lg transition-transform duration-200 group-hover:-translate-x-1">
-      ←
-    </span>
-    <span>กลับ</span>
-  </button>
-</div>
+        <button
+          onClick={() => navigate(-1)}
+          className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md hover:shadow-lg hover:-translate-x-1 transition-all duration-200"
+        >
+          <span className="text-lg transition-transform duration-200 group-hover:-translate-x-1">
+            ←
+          </span>
+          <span>กลับ</span>
+        </button>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      {/* เว้นที่ด้านล่างให้ sticky bar ตอน custom mode ไม่บังการ์ดล่างสุด */}
+      <div className={`max-w-4xl mx-auto px-4 py-6 ${isCustomMode ? "pb-28" : ""}`}>
         <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
           <h2 className="font-prompt font-bold text-2xl text-white mb-1">
             สถานที่ที่ตรงใจคุณ
@@ -233,74 +321,165 @@ try {
         )}
 
         {!loading && !error && places.length > 0 && (
-          <div className="flex flex-col gap-4">
-            {places.map((item, index) => (
-              <div
-                key={item.placeId}
-                className="bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5"
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#102a6b] text-white font-prompt font-bold flex items-center justify-center">
-                  {index + 1}
+          <>
+            {/* ✅ แถบปุ่มบนสุด: ก่อนเข้าโหมดจัดทริปเอง แสดง 2 ปุ่ม, หลังเข้าโหมดแล้วแสดงตัวนับ + ยกเลิก */}
+            <div className="flex justify-between items-center mb-4 gap-3">
+              {!isCustomMode ? (
+                <div className="flex gap-3 ml-auto">
+                  <button
+                    disabled
+                    title="เร็วๆ นี้"
+                    className="px-5 py-3 rounded-xl font-bold bg-white text-[#5990c0] border-2 border-[#5990c0]/30 cursor-not-allowed opacity-60"
+                  >
+                    จัดทริปอัตโนมัติ
+                  </button>
+                  <button
+                    onClick={handleStartCustomMode}
+                    className="px-5 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#102a6b] to-[#015185] shadow-md hover:shadow-lg transition-shadow"
+                  >
+                    จัดทริปเอง
+                  </button>
                 </div>
+              ) : (
+                <>
+                  <div className="text-sm text-[#5990c0]">
+                    เลือกแล้ว {selectedPlaceIds.length} สถานที่
+                  </div>
+                  <button
+                    onClick={handleCancelCustomMode}
+                    className="px-4 py-2 rounded-xl text-[#102a6b] font-semibold bg-white border-2 border-[#102a6b]/20 hover:bg-gray-50 transition-colors"
+                  >
+                    ยกเลิก
+                  </button>
+                </>
+              )}
+            </div>
 
-                <div className="flex-1">
-                  <h3 className="font-prompt font-bold text-base text-[#102a6b]">
-                    {item.place?.place_name ?? "ไม่พบชื่อสถานที่"}
-                  </h3>
-                  <p className="text-xs text-[#5990c0] mt-0.5">
-                    {item.place?.district ? `${item.place.district}, ` : ""}
-                    {item.place?.province ?? ""}
-                  </p>
-                  {item.place?.att_category_label && (
-  <div className="mt-2 inline-block px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
-    {item.place.att_category_label}
-  </div>
-)}
-{item.place?.phone_number && (
-  <div className="text-xs text-[#015185] mt-1">
-    📞 {item.place.phone_number}
-  </div>
-)}
-{item.place?.website && (
-  <a
-    href={
-      item.place.website.startsWith("http")
-        ? item.place.website
-        : `https://${item.place.website}`
-    }
-    target="_blank"
-    rel="noopener noreferrer"
-    className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
-  >
-    🌐
-    <span className="truncate max-w-[180px]">
-      {item.place.website
-        .replace(/^https?:\/\//, "")
-        .replace(/^www\./, "")
-        .split("/")[0]}
-    </span>
-  </a>
-)}
+            <div className="flex flex-col gap-4">
+              {places.map((item, index) => (
+                <div
+                  key={item.placeId}
+                  className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-colors ${
+                    isCustomMode
+                      ? selectedPlaceIds.includes(item.placeId)
+                        ? "border-green-500"
+                        : "border-transparent opacity-60"
+                      : "border-transparent"
+                  }`}
+                >
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#102a6b] text-white font-prompt font-bold flex items-center justify-center">
+                    {index + 1}
+                  </div>
 
-                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#015185]">
-                    <span>ความตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</span>
-                    <span>คะแนนรีวิว {(item.ratingScore * 5).toFixed(1)}/5</span>
-                    <span>ความใกล้ {(item.distanceScore * 100).toFixed(0)}%</span>
-                    <span>ความคุ้มงบ {(item.budgetScore * 100).toFixed(0)}%</span>
+                  <div className="flex-1">
+                    <h3 className="font-prompt font-bold text-base text-[#102a6b]">
+                      {item.place?.place_name ?? "ไม่พบชื่อสถานที่"}
+                    </h3>
+                    <p className="text-xs text-[#5990c0] mt-0.5">
+                      {item.place?.district ? `${item.place.district}, ` : ""}
+                      {item.place?.province ?? ""}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {/* ✅ หมวดหมู่ที่ตรงกับความสนใจที่เลือกไว้ตอนสร้างทริป */}
+                      {item.categoryName && (
+                        <div className="inline-block px-2 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
+                          {item.categoryName}
+                        </div>
+                      )}
+                      {/* ป้ายหมวดหมู่จาก Google (ถ้ามีข้อมูล) */}
+                      {item.place?.att_category_label && (
+                        <div className="inline-block px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
+                          {item.place.att_category_label}
+                        </div>
+                      )}
+                    </div>
+                    {item.place?.phone_number && (
+                      <div className="text-xs text-[#015185] mt-1">
+                        📞 {item.place.phone_number}
+                      </div>
+                    )}
+                    {item.place?.website && (
+                      <a
+                        href={
+                          item.place.website.startsWith("http")
+                            ? item.place.website
+                            : `https://${item.place.website}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+                      >
+                        🌐
+                        <span className="truncate max-w-[180px]">
+                          {item.place.website
+                            .replace(/^https?:\/\//, "")
+                            .replace(/^www\./, "")
+                            .split("/")[0]}
+                        </span>
+                      </a>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#015185]">
+                      <span>ความตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</span>
+                      <span>คะแนนรีวิว {(item.ratingScore * 5).toFixed(1)}/5</span>
+                      <span>ความใกล้ {(item.distanceScore * 100).toFixed(0)}%</span>
+                      <span>ความคุ้มงบ {(item.budgetScore * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+
+                  {/* ✅ ปุ่มเลือก แสดงเฉพาะตอนอยู่ในโหมดจัดทริปเองเท่านั้น */}
+                  {isCustomMode && (
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => togglePlace(item.placeId)}
+                        className={`w-10 h-10 rounded-full font-bold ${
+                          selectedPlaceIds.includes(item.placeId)
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200"
+                        }`}
+                      >
+                        {selectedPlaceIds.includes(item.placeId) ? "✓" : "+"}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex-shrink-0 text-right">
+                    <div className="font-prompt font-bold text-2xl text-[#102a6b]">
+                      {(item.poiScore * 100).toFixed(0)}
+                    </div>
+                    <div className="text-xs text-[#5990c0]">คะแนนรวม</div>
                   </div>
                 </div>
-
-                <div className="flex-shrink-0 text-right">
-                  <div className="font-prompt font-bold text-2xl text-[#102a6b]">
-                    {(item.poiScore * 100).toFixed(0)}
-                  </div>
-                  <div className="text-xs text-[#5990c0]">คะแนนรวม</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
+
+      {/* ✅ ปุ่ม "สร้างเส้นทาง" ลอย — โผล่เฉพาะตอนอยู่ในโหมดจัดทริปเอง และเลือกอย่างน้อย 1 ที่ */}
+      {isCustomMode && selectedPlaceIds.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-20">
+          <div className="max-w-4xl mx-auto px-4 pb-5">
+            <div className="bg-white rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4 border border-black/5">
+              <div className="text-sm text-[#102a6b] font-prompt font-semibold">
+                เลือกแล้ว {selectedPlaceIds.length} สถานที่
+                {createRouteError && (
+                  <div className="text-xs text-red-600 font-normal mt-1">
+                    {createRouteError}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleCreateRoute}
+                disabled={creatingRoute}
+                className="px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#102a6b] to-[#015185] shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {creatingRoute ? "กำลังสร้าง..." : "สร้างเส้นทาง"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
