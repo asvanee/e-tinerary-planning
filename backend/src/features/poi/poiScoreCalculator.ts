@@ -1,15 +1,11 @@
 import { haversineKm } from "../../utils/haversine";
+import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
 
 /**
  * แปลง price_level (0-4) เป็นราคาบาทโดยประมาณ
+ * ✅ Extract ไปเป็น shared constant แล้ว — ดู utils/priceLevel.ts
+ * (เดิมประกาศซ้ำที่นี่กับ poiPlaceQueries.ts แยกกัน แก้ราคาต้องแก้ 2 ที่ ตอนนี้เหลือที่เดียว)
  */
-const PRICE_LEVEL_TO_BAHT: Record<number, number> = {
-  0: 0,
-  1: 200,
-  2: 450,
-  3: 900,
-  4: 1500,
-};
 
 // ---------- คะแนนรายด้าน ----------
 
@@ -52,9 +48,13 @@ export function calculateDistanceScore(
  * ("ใช้งบเกือบหมด" ≈ 0, "ถูกกว่ามาก" ≈ 1) แทนการเทียบกับราคาแพงสุดที่มีในระบบ (hardcode)
  *
  * หมายเหตุ: getFilteredPlaces() ใน poiPlaceQueries.ts กรอง hard filter ตัด
- * placeCost > perPersonDailyBudget ออกไปก่อนแล้วเสมอ ดังนั้นในทางปฏิบัติ placeCost
- * จะ ≤ perPersonDailyBudget เสมอ ผลลัพธ์จึงไม่มีทางติดลบ — guard ด้านล่างกันไว้เผื่อ
- * ฟังก์ชันนี้ถูกเรียกตรงๆ โดยไม่ผ่าน filter (เช่น unit test ในอนาคต)
+ * placeCost > perPersonDailyBudget ออกไปก่อนแล้วเสมอ (เฉพาะสถานที่ที่มี price_level จริง —
+ * ดู hasPriceLevel) ดังนั้นในทางปฏิบัติ placeCost จะ ≤ perPersonDailyBudget เสมอ ผลลัพธ์จึง
+ * ไม่มีทางติดลบ — guard ด้านล่างกันไว้เผื่อฟังก์ชันนี้ถูกเรียกตรงๆ โดยไม่ผ่าน filter
+ * (เช่น unit test ในอนาคต)
+ *
+ * ⚠️ ฟังก์ชันนี้ถูกเรียกเฉพาะตอน hasPriceLevel = true เท่านั้น (ดู calculatePoiScore ด้านล่าง)
+ * priceLevel รับเป็น number ตรงๆ ไม่ nullable เพราะผู้เรียกรับประกันแล้วว่ามีค่าจริง
  */
 export function calculateBudgetScore(
   dailyBudget: number | null,
@@ -90,17 +90,49 @@ const WEIGHTS = {
   weather: 0.1,
 };
 
+/**
+ * ✅ เพิ่มใหม่: ใช้กับสถานที่ที่ไม่มี price_level จริง (hasPriceLevel = false)
+ * แทนที่จะ coalesce price_level เป็นค่า default ของ category แล้วเสแสร้งว่ามีข้อมูล (มติเดิม
+ * ที่ยกเลิกไปแล้ว — ดู PROJECT_BRIEF ข้อ 4.3 เวอร์ชันใหม่) ตอนนี้ตัด budget ออกจากสูตรไปเลย
+ * แล้วกระจาย weight ของ budget (0.15) คืนให้ 4 มิติที่เหลือตามสัดส่วนเดิมของมันเอง
+ * (renormalize ให้ผลรวม weight กลับมาเป็น 1 พอดี ไม่ทำให้เพดานคะแนนของกลุ่มนี้ต่ำกว่ากลุ่มที่มี
+ * price_level อย่างไม่เป็นธรรม)
+ */
+const REMAINING_SUM =
+  WEIGHTS.category + WEIGHTS.rating + WEIGHTS.distance + WEIGHTS.weather; // 0.85
+
+const WEIGHTS_NO_BUDGET = {
+  category: WEIGHTS.category / REMAINING_SUM, // ≈ 0.4118
+  rating: WEIGHTS.rating / REMAINING_SUM, // ≈ 0.2941
+  distance: WEIGHTS.distance / REMAINING_SUM, // ≈ 0.1765
+  weather: WEIGHTS.weather / REMAINING_SUM, // ≈ 0.1176
+};
+
 export interface PoiScoreBreakdown {
   categoryScore: number;
   ratingScore: number;
   distanceScore: number;
-  budgetScore: number;
+  // ✅ เปลี่ยนเป็น nullable: null = ไม่ได้คิดในสูตรนี้เลย (ไม่ใช่ 0 — 0 จะสื่อผิดว่า "แพงเกินงบ")
+  budgetScore: number | null;
   weatherScore: number;
   poiScore: number;
+  // ✅ เพิ่มใหม่ — ค่าดิบเป็นบาท ให้ frontend แสดงผลแบบ "placeCost/perPersonDailyBudget บาท"
+  // แทนเปอร์เซ็นต์ ไม่ต้อง derive กลับจาก budgetScore (ซึ่งมีแค่สัดส่วน ไม่มีทางคำนวณ
+  // ย้อนกลับเป็น 2 ค่าดิบแยกกันได้จริง) — null ทั้งคู่เมื่อ hasPriceLevel = false
+  // perPersonDailyBudget เป็น null ได้อีกกรณี (แม้ hasPriceLevel = true): ตอน trip.dailyBudget
+  // เป็น null เอง (ไม่ได้ตั้งงบไว้เลย) placeCost ยังคำนวณได้ตามปกติ
+  placeCost: number | null;
+  perPersonDailyBudget: number | null;
 }
 
 /**
- * คำนวณคะแนนรวม POI_SCORE จากคะแนนรายด้านทั้ง 5 
+ * คำนวณคะแนนรวม POI_SCORE
+ *
+ * ✅ แก้แล้ว: เพิ่ม hasPriceLevel เข้ามาแยกสูตร
+ * - hasPriceLevel = true  -> สูตรเต็ม 5 มิติ (WEIGHTS เดิม, มี budget_score)
+ * - hasPriceLevel = false -> สูตร 4 มิติ ไม่มี budget_score (WEIGHTS_NO_BUDGET) — priceLevel
+ *   ที่ส่งเข้ามาตอนนั้นจะเป็น null และไม่ถูกใช้เลย
+ *
  * รับ input แบบ primitive ตรงๆ ไม่ใช่ object ก้อนใหญ่ ตามที่ตกลงกัน
  */
 export function calculatePoiScore(
@@ -112,7 +144,8 @@ export function calculatePoiScore(
   placeLng: number,
   dailyBudget: number | null,
   numberOfPeople: number,
-  priceLevel: number
+  priceLevel: number | null,
+  hasPriceLevel: boolean
 ): PoiScoreBreakdown {
   const categoryScore = calculateCategoryScore(confidenceScore);
   const ratingScore = calculateRatingScore(rating);
@@ -122,12 +155,38 @@ export function calculatePoiScore(
     placeLat,
     placeLng
   );
+  const weatherScore = calculateWeatherScore();
+
+  if (!hasPriceLevel) {
+    const poiScore =
+      WEIGHTS_NO_BUDGET.category * categoryScore +
+      WEIGHTS_NO_BUDGET.rating * ratingScore +
+      WEIGHTS_NO_BUDGET.distance * distanceScore +
+      WEIGHTS_NO_BUDGET.weather * weatherScore;
+
+    return {
+      categoryScore,
+      ratingScore,
+      distanceScore,
+      budgetScore: null,
+      weatherScore,
+      poiScore,
+      placeCost: null,
+      perPersonDailyBudget: null,
+    };
+  }
+
   const budgetScore = calculateBudgetScore(
     dailyBudget,
     numberOfPeople,
-    priceLevel
+    priceLevel as number
   );
-  const weatherScore = calculateWeatherScore();
+
+  // ✅ ค่าดิบสำหรับ frontend แสดงเป็น "placeCost/perPersonDailyBudget บาท"
+  // (คำนวณตามสูตรเดียวกับใน calculateBudgetScore เป๊ะ ให้ตัวเลขสอดคล้องกัน)
+  const placeCost = PRICE_LEVEL_TO_BAHT[priceLevel as number] ?? 0;
+  const perPersonDailyBudget =
+    dailyBudget === null ? null : dailyBudget / numberOfPeople;
 
   const poiScore =
     WEIGHTS.category * categoryScore +
@@ -143,5 +202,7 @@ export function calculatePoiScore(
     budgetScore,
     weatherScore,
     poiScore,
+    placeCost,
+    perPersonDailyBudget,
   };
 }

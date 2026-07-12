@@ -10,10 +10,17 @@ import { supabase } from "../../config/db";
  * ✅ อัปเดต: เพิ่ม default_duration_min (จาก categories.default_duration_min ผ่าน place_categories)
  * เข้า response ด้วย — จำเป็นสำหรับหน้า itinerary editor ฝั่ง frontend ที่ต้อง recompute
  * buildDayItems/buildItinerary เอง (client-side, ไม่รอ network) ต้องการ field นี้เพื่อคำนวณ
- * endTime ต่อกันเป็นลูกโซ่ทั้งวัน — join pattern + coalesce (price_level, default_duration_min)
- * mirror ให้ตรงกับ getSelectedPlaces() ใน itineraryPlaceQueries.ts เป๊ะ (ไฟล์เดียวกับที่
- * buildDraft/confirmItinerary controller เรียกใช้จริง) กันค่าเพี้ยนกันระหว่าง endpoint นี้
- * กับตอน backend re-validate ซ้ำก่อน save
+ * endTime ต่อกันเป็นลูกโซ่ทั้งวัน
+ *
+ * ✅ แก้แล้ว: เลิก coalesce price_level กับ categories.default_price_level อีกต่อไป
+ * (ยกเลิกมติเดิม PROJECT_BRIEF ข้อ 4.3 — ตามที่ poiPlaceQueries.ts/poiScoreCalculator.ts/
+ * itineraryPlaceQueries.ts::getSelectedPlaces() ยกเลิกไปแล้ว ตอนนี้ endpoint นี้ปรับให้ตรงกัน)
+ * คืนค่า price_level จริงตรงๆ (null ได้) + เพิ่ม has_price_level ให้ frontend ใช้ตัดสินใจแทนการเดา
+ * — join pattern มิเรอร์ให้ตรงกับ getSelectedPlaces() เป๊ะ (ไฟล์เดียวกับที่ buildDraft/
+ * confirmItinerary controller เรียกใช้จริง) กันค่าเพี้ยนกันระหว่าง endpoint นี้ (ที่ ItineraryEditor.tsx
+ * ใช้ recompute ตอน user ลากปรับ) กับตอน backend re-validate ซ้ำก่อน save — ก่อนหน้านี้ทั้งสองจุด
+ * เคย coalesce ไม่ตรงกัน (endpoint นี้ยัง coalesce แต่ getSelectedPlaces() เลิกไปแล้ว) ทำให้ user
+ * เห็นราคา/isBudgetConflict กะพริบเปลี่ยนตอนกด "ยืนยันแผน" — แก้จุดนี้แล้ว
  *
  * หมายเหตุ: place หนึ่งอาจมีได้หลาย category ใน place_categories (many-to-many) แต่ในทางปฏิบัติ
  * ของโปรเจกต์นี้ query pattern เดิม (poiPlaceQueries.ts) ไม่ dedupe เพิ่ม — ที่นี่ dedupe ด้วย
@@ -40,7 +47,7 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
       .from("place_categories")
       .select(
         `
-        categories!inner(default_duration_min, default_price_level),
+        categories!inner(default_duration_min),
         places!inner(
           place_id,
           place_name,
@@ -77,15 +84,16 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
 
       if (!place || placeMap.has(place.place_id)) continue;
 
-      // ✅ coalesce price_level ให้ตรงกับ getSelectedPlaces() ใน itineraryPlaceQueries.ts เป๊ะ
-      // (places.price_level -> categories.default_price_level -> 0) กันหน้า Editor คำนวณ
-      // placeCost ผิดจากที่ backend re-validate ตอนกด "ยืนยันแผน"
+      // ✅ แก้แล้ว: ไม่ coalesce price_level กับ categories.default_price_level อีกต่อไป
+      // เก็บค่าจริงจาก places.price_level ตรงๆ (null ได้) แล้วแยก has_price_level ไว้ให้
+      // frontend (itineraryBuilder.ts::getPlaceCost) ตัดสินใจว่าจะนับ cost เข้า cumulativeCost
+      // หรือไม่ — mirror ให้ตรงกับ getSelectedPlaces() ใน itineraryPlaceQueries.ts เป๊ะ
       const { price_level: rawPriceLevel, ...placeRest } = place;
-      const coalescedPriceLevel = rawPriceLevel ?? category?.default_price_level ?? 0;
 
       placeMap.set(place.place_id, {
         ...placeRest,
-        price_level: coalescedPriceLevel,
+        price_level: rawPriceLevel,
+        has_price_level: rawPriceLevel !== null,
         default_duration_min: category?.default_duration_min ?? 60,
       });
     }

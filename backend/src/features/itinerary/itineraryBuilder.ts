@@ -1,5 +1,6 @@
 import { checkOpeningStatus, OpeningHours } from "../../utils/openingHoursChecker";
 import { haversineKm } from "../../utils/haversine";
+import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
 
 /**
  * itineraryBuilder.ts
@@ -25,6 +26,11 @@ export interface PlaceInput {
   latitude: number;
   longitude: number;
   priceLevel: number | null;
+  // ✅ เพิ่มใหม่ — ตรงกับ pattern เดียวกับ poiPlaceQueries.ts::PlaceWithScore /
+  // itineraryPlaceQueries.ts::SelectedPlace ไม่ได้ใช้คำนวณอะไรเพิ่มในไฟล์นี้ตอนนี้ (getPlaceCost
+  // เช็คจาก priceLevel === null ตรงๆ พอแล้ว) แต่เก็บไว้ให้ type ตรงกับ SelectedPlace ที่ส่งเข้ามา
+  // เผื่ออนาคตอยากแยก flag "ไม่ทราบราคา" (isCostUnknown) ออกจาก placeCost ในผลลัพธ์ตรงๆ
+  hasPriceLevel: boolean;
   openingHours: OpeningHours | null;
   defaultDurationMin: number;
 }
@@ -58,22 +64,6 @@ export interface ItineraryItemResult {
 /** MVP: haversine ÷ ความเร็วเฉลี่ยสมมติ 25 กม./ชม. — ยังไม่เชื่อม transit API จริง (ดูหัวข้อ 5) */
 const AVG_SPEED_KMH = 25;
 
-/**
- * price_level (0-4) -> บาท — ตาราง conversion เดียวกับที่ใช้ใน poiScoreCalculator.ts
- * ✅ PROJECT_BRIEF.md ข้อ 4.3 ปิดแล้ว: การ coalesce price_level = null ไปเป็นค่า default ตาม category
- * (places.price_level -> categories.default_price_level -> 0) ทำเสร็จแล้วที่ต้นทางใน
- * itineraryPlaceQueries.ts (getSelectedPlaces) ก่อนส่งเข้ามาให้ไฟล์นี้ — priceLevel ที่รับเข้ามาที่นี่
- * จึงแทบไม่มีทาง null จริงในทางปฏิบัติ การเช็ค null ใน getPlaceCost() ด้านล่างเป็นแค่ safety net เผื่อ
- * edge case เท่านั้น ไม่ใช่จุด fallback หลักอีกต่อไป
- */
-const PRICE_LEVEL_TO_BAHT: Record<number, number> = {
-  0: 0,
-  1: 200,
-  2: 450,
-  3: 900,
-  4: 1500,
-};
-
 // ---------- Helpers ----------
 
 function timeStringToMinutes(time: string): number {
@@ -97,8 +87,19 @@ function getDayOfWeek(visitDate: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-// priceLevel ถูก coalesce มาจาก itineraryPlaceQueries.ts แล้ว (ดู comment เหนือ PRICE_LEVEL_TO_BAHT)
-// เช็ค null ตรงนี้เป็นแค่ safety net เผื่อ edge case ไม่ใช่จุด fallback หลัก
+/**
+ * ✅ แก้แล้ว: priceLevel ที่ส่งเข้ามาตอนนี้เป็นค่าจริงจาก Google ตรงๆ (null ได้จริงในทางปฏิบัติ)
+ * ไม่ผ่านการ coalesce กับ categories.default_price_level อีกต่อไป (itineraryPlaceQueries.ts
+ * แก้ตามที่ POI ยกเลิกมติเดิม PROJECT_BRIEF ข้อ 4.3 ไปแล้ว)
+ *
+ * สถานที่ไม่มี price_level จริง (priceLevel === null) → คิดเป็น 0 บาทในการสะสม cumulativeCost
+ * (ไม่เดาราคาจาก default ของ category แทน) — เหตุผลเดียวกับที่ POI ไม่กรอง/ไม่คิดคะแนนงบให้
+ * สถานที่กลุ่มนี้: ไม่มีข้อมูลราคาไม่ควรถูกเดา ⚠️ 0 บาทตรงนี้คือ "ไม่นับเข้า cumulativeCost"
+ * ไม่ใช่การยืนยันว่าสถานที่นั้นฟรีจริง — ถ้าจะแสดงผลต่างระหว่าง "ฟรีจริง (price_level=0)" กับ
+ * "ไม่ทราบราคา (price_level=null)" ให้ user เห็น ต้องเพิ่ม flag แยกต่างหาก (เช่น isCostUnknown
+ * คู่กับ isBudgetConflict เหมือนที่ isHoursUnknown คู่กับ isClosedConflict) ยังไม่ทำในรอบนี้
+ * เพราะต้องเพิ่มคอลัมน์ใหม่ใน itineraries + แก้ insert mapping ใน itineraryController.ts ด้วย
+ */
 function getPlaceCost(priceLevel: number | null): number {
   if (priceLevel === null) return 0;
   return PRICE_LEVEL_TO_BAHT[priceLevel] ?? 0;

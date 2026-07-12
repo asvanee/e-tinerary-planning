@@ -17,6 +17,9 @@ export interface SelectedPlace {
   latitude: number;
   longitude: number;
   priceLevel: number | null;
+  // ✅ เพิ่มใหม่ — ตาม pattern เดียวกับ poiPlaceQueries.ts::PlaceWithScore
+  // null = สถานที่นี้ไม่มี price_level จริงจาก Google เลย (ไม่ใช่ "ฟรี") คู่กับ hasPriceLevel
+  hasPriceLevel: boolean;
   openingHours: OpeningHours | null;
   defaultDurationMin: number; // จาก categories.default_duration_min ผ่าน place_categories
 }
@@ -184,9 +187,13 @@ function mapTripDayRow(row: any): TripDay {
  * แล้วไม่มี category เลยในทางปฏิบัติ จึงไม่ต้องมี fallback/throw พิเศษสำหรับเคสนี้
  * (`!inner` join จึงปลอดภัย ไม่ต้องกังวลว่าจะดรอปสถานที่ที่ user เลือกไว้แบบเงียบๆ)
  *
- * ✅ price_level coalesce (PROJECT_BRIEF ข้อ 4.3 ปิดแล้ว): places.price_level (จริง) ->
- * categories.default_price_level (ตาม category ที่ place นั้นสังกัด) -> 0 (กัน edge case สุดท้าย
- * ถ้า default_price_level หลุด NULL ไปได้ยังไงก็ตาม) แทนการ fallback 0 เฉยๆ แบบเดิม
+ * ✅ แก้แล้ว: ไม่ coalesce price_level กับ categories.default_price_level อีกต่อไป
+ * (ยกเลิกมติเดิม PROJECT_BRIEF ข้อ 4.3 — ตามที่ poiPlaceQueries.ts/poiScoreCalculator.ts
+ * ยกเลิกไปก่อนหน้านี้แล้ว ตอนนี้ itinerary ปรับให้ตรงกัน) เก็บค่าจริงจาก places.price_level
+ * ตรงๆ (null ได้) แล้วแยก hasPriceLevel ไว้ให้ itineraryBuilder.ts ตัดสินใจว่าจะนับ cost
+ * สถานที่นี้เข้า cumulativeCost/isBudgetConflict หรือไม่ — เหตุผลเดียวกับฝั่ง POI: ไม่มีข้อมูล
+ * ราคาจริงไม่ควรถูกเดาจาก default ของ category เพราะจะทำให้ user เห็นค่าใช้จ่าย/conflict ที่ไม่ตรง
+ * กับตอนเลือกจากหน้า POI list มาก่อน (ตอนนั้นสถานที่กลุ่มนี้ไม่เคยถูกกรอง/คิดคะแนนงบเลย)
  */
 export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPlace[]> {
   if (placeIds.length === 0) return [];
@@ -194,7 +201,7 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
   const { data, error } = await supabase
     .from("place_categories")
     .select(
-      "categories!inner(default_duration_min, default_price_level), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
+      "categories!inner(default_duration_min), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
     )
     .in("place_id", placeIds);
 
@@ -202,12 +209,16 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
     throw new Error(`ดึงข้อมูลสถานที่ที่เลือกไม่สำเร็จ: ${error.message}`);
   }
 
-  return (data ?? []).map((row: any) => ({
-    placeId: row.places.place_id,
-    latitude: row.places.latitude,
-    longitude: row.places.longitude,
-    priceLevel: row.places.price_level ?? row.categories.default_price_level ?? 0,
-    openingHours: row.places.opening_hours,
-    defaultDurationMin: row.categories.default_duration_min ?? 60,
-  }));
+  return (data ?? []).map((row: any) => {
+    const rawPriceLevel: number | null = row.places.price_level;
+    return {
+      placeId: row.places.place_id,
+      latitude: row.places.latitude,
+      longitude: row.places.longitude,
+      priceLevel: rawPriceLevel,
+      hasPriceLevel: rawPriceLevel !== null,
+      openingHours: row.places.opening_hours,
+      defaultDurationMin: row.categories.default_duration_min ?? 60,
+    };
+  });
 }

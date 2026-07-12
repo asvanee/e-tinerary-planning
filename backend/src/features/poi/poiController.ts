@@ -66,7 +66,8 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
         place.longitude,
         trip.dailyBudget,
         trip.numberOfPeople,
-        place.priceLevel
+        place.priceLevel,
+        place.hasPriceLevel
       );
 
       return {

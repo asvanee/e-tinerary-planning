@@ -28,6 +28,13 @@ export interface PlaceInput {
   latitude: number;
   longitude: number;
   priceLevel: number | null;
+  // ✅ เพิ่มใหม่ (sync กับ backend) — ตรงกับ pattern เดียวกับ backend
+  // itineraryPlaceQueries.ts::SelectedPlace / poiPlaceQueries.ts::PlaceWithScore
+  // map มาจาก field `has_price_level` ที่ getPlacesByIds (placesController.ts) เพิ่งแก้ให้ส่งมา
+  // ยังไม่ได้ใช้คำนวณอะไรเพิ่มในไฟล์นี้ตอนนี้ (getPlaceCost เช็คจาก priceLevel === null ตรงๆ
+  // พอแล้ว) แต่เก็บไว้ให้ type ตรงกับข้อมูลจริงที่ backend ส่งมา เผื่ออนาคตอยากแสดง badge
+  // "ไม่ทราบราคา" แยกจาก isBudgetConflict ในหน้า editor
+  hasPriceLevel: boolean;
   openingHours: OpeningHours | null;
   defaultDurationMin: number;
 }
@@ -61,7 +68,12 @@ export interface ItineraryItemResult {
 /** MVP: haversine ÷ ความเร็วเฉลี่ยสมมติ 25 กม./ชม. — ต้องตรงกับ backend เป๊ะ */
 const AVG_SPEED_KMH = 25;
 
-/** price_level (0-4) -> บาท — ต้องตรงกับ backend (poiScoreCalculator.ts / itineraryBuilder.ts) เป๊ะ */
+/**
+ * price_level (0-4) -> บาท — ต้องตรงกับ backend เป๊ะ
+ * (backend extract ไปเป็น shared constant ที่ backend/src/utils/priceLevel.ts แล้ว
+ * ไฟล์นี้เป็น frontend port แยก package จึงต้อง declare ค่าเดียวกันไว้เองที่นี่ — ถ้าแก้ราคา
+ * ฝั่ง backend ต้องแก้ที่นี่คู่กันด้วยเสมอ ไม่มี auto-sync ข้าม package)
+ */
 const PRICE_LEVEL_TO_BAHT: Record<number, number> = {
   0: 0,
   1: 200,
@@ -93,6 +105,9 @@ function getDayOfWeek(visitDate: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
+// priceLevel === null ตอนนี้แปลว่า "ไม่ทราบราคาจริง" (backend เลิก coalesce กับ
+// categories.default_price_level แล้ว — ดู placesController.ts::getPlacesByIds)
+// คิดเป็น 0 บาทในการสะสม cumulativeCost (ไม่เดาราคาแทน) ไม่ใช่การยืนยันว่าฟรีจริง
 function getPlaceCost(priceLevel: number | null): number {
   if (priceLevel === null) return 0;
   return PRICE_LEVEL_TO_BAHT[priceLevel] ?? 0;

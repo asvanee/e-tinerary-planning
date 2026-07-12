@@ -85,6 +85,31 @@ function displayName(row: CsvRow): string {
   return row.ATT_NAME_TH || row.ATT_NAME_EN || row.ATT_ID;
 }
 
+// --- junk / test record detection ------------------------------------------
+// ป้องกันเคสที่ auto-merge เอา record ทดสอบ/ขยะ (เช่น "ทดสอบอัพเดทผ่าน API. 17:51")
+// มาเป็นตัวแทนของกลุ่ม แล้วสถานที่จริงที่ถูก merge เข้าไปหายไปเงียบๆ (เจอครั้งแรกตอนเชียงใหม่:
+// Group 13 เอา record ทดสอบมาเป็นตัวแทนแทน "ผาช่อ" ที่เป็นสถานที่จริง)
+const JUNK_NAME_PATTERN = /ทดสอบ|test\b|api\b/i;
+
+export function isJunkName(row: CsvRow): boolean {
+  return JUNK_NAME_PATTERN.test(displayName(row));
+}
+
+// --- manual pair blocking ---------------------------------------------------
+// คู่ ATT_ID ที่คนตรวจสอบแล้วว่า "ห้าม merge เด็ดขาด" แม้ phone/website จะตรงกันและพิกัดใกล้กัน
+// (ตรงข้ามกับ forceMergeGroups ซึ่งบังคับ merge) ใช้เมื่อเจอเคส over-merge: สถานที่คนละที่กัน
+// แต่แชร์เบอร์/เว็บของหน่วยงานกลาง (เช่น สำนักงานอุทยานแห่งชาติ) แล้วบังเอิญพิกัดใกล้กันพอ
+// จน location-based confirm ผ่านไปทั้งที่ไม่ควร
+export type BlockedPair = [string, string];
+
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function buildBlockedSet(blockedPairs: BlockedPair[]): Set<string> {
+  return new Set(blockedPairs.map(([a, b]) => pairKey(a, b)));
+}
+
 /**
  * ตัดสินว่า 2 แถวเป็นสถานที่เดียวกันจริงไหม:
  * - ถ้ามีพิกัด valid ทั้งคู่ -> พิกัดเป็นตัวตัดสินเด็ดขาด (ไม่สนชื่อเลย)
@@ -161,7 +186,17 @@ export interface DedupeResult {
  *    ถ้า match แค่ contact info แต่ยืนยันไม่ได้ -> ไม่ merge, ใส่ไว้ใน reviewFlags แทน
  *    (กันเคส phone/website เป็นของสำนักงาน ททท. จังหวัด ที่ถูกใช้ซ้ำกับหลายสถานที่)
  */
-export function dedupeRows(rows: CsvRow[]): DedupeResult {
+export function dedupeRows(
+  allRows: CsvRow[],
+  excludeIds: string[] = [],
+  blockedPairs: BlockedPair[] = []
+): DedupeResult {
+  // 0) ตัดทิ้ง record ทดสอบ/ขยะที่คนยืนยันแล้วว่าไม่ใช่สถานที่จริง (ดู manualOverrides.ts excludeIds)
+  //    ทำก่อนทุกอย่าง เพื่อไม่ให้มีโอกาสถูกเลือกเป็นตัวแทนของกลุ่มไหนเลย
+  const excludeSet = new Set(excludeIds);
+  const rows = excludeSet.size > 0 ? allRows.filter((r) => !excludeSet.has(r.ATT_ID)) : allRows;
+  const blockedSet = buildBlockedSet(blockedPairs);
+
   const uf = new UnionFind(rows.length); // สำหรับ merge ที่ confirm แล้วจริง
   const reviewUf = new UnionFind(rows.length); // สำหรับจับกลุ่มที่แชร์ contact info แต่ยืนยันไม่ได้ (ไว้แค่ print รวม ไม่ merge)
 
@@ -208,7 +243,8 @@ export function dedupeRows(rows: CsvRow[]): DedupeResult {
         const rowA = rows[i];
         const rowB = rows[j];
 
-        const { confirmed, by } = confirmPair(rowA, rowB);
+        const blocked = blockedSet.has(pairKey(rowA.ATT_ID, rowB.ATT_ID));
+        const { confirmed, by } = blocked ? { confirmed: false, by: [] as ("name" | "location")[] } : confirmPair(rowA, rowB);
 
         if (confirmed) {
           uf.union(i, j);
@@ -265,7 +301,10 @@ export function dedupeRows(rows: CsvRow[]): DedupeResult {
     return parseCoords(row) !== null;
   }
   function pickRepresentative(group: CsvRow[]): CsvRow {
-    return group.find(hasValidLocation) ?? group[0];
+    // อย่าเลือก record ทดสอบ/ขยะเป็นตัวแทนเด็ดขาด แม้จะเป็นแถวเดียวที่มีพิกัด valid ก็ตาม
+    const nonJunk = group.filter((r) => !isJunkName(r));
+    const candidates = nonJunk.length > 0 ? nonJunk : group;
+    return candidates.find(hasValidLocation) ?? candidates[0];
   }
 
   const deduped: CsvRow[] = [];
@@ -368,7 +407,9 @@ export function applyForceMerges(
 
     if (repRows.length === 0) continue; // เผื่อ ATT_ID พิมพ์ผิดในไฟล์ override — เงียบไว้ ไม่ crash
 
-    const finalRep = repRows.find(hasValidLocation) ?? repRows[0];
+    const nonJunkRepRows = repRows.filter((r) => !isJunkName(r));
+    const repCandidates = nonJunkRepRows.length > 0 ? nonJunkRepRows : repRows;
+    const finalRep = repCandidates.find(hasValidLocation) ?? repCandidates[0];
     const droppedIds = currentReps.filter((id) => id !== finalRep.ATT_ID);
 
     deduped = deduped.filter((r) => !droppedIds.includes(r.ATT_ID));

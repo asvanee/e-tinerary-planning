@@ -11,9 +11,16 @@ interface PoiResult {
   categoryScore: number;
   ratingScore: number;
   distanceScore: number;
-  budgetScore: number;
+  // ✅ null = ที่นี่ไม่มี price_level จริง สูตรจึงตัด budget ออกไปเลย (ดู poiScoreCalculator.ts)
+  // ไม่ใช่ 0 — 0 จะสื่อผิดว่า "แพงเกินงบ"
+  budgetScore: number | null;
   weatherScore: number;
   poiScore: number;
+  // ✅ เพิ่มใหม่ — ค่าดิบเป็นบาท ใช้แสดง "placeCost/perPersonDailyBudget บาท" แทนเปอร์เซ็นต์
+  // null ทั้งคู่เมื่อ budgetScore เป็น null (ไม่มี price_level จริง)
+  // perPersonDailyBudget เป็น null ได้อีกกรณี: trip ไม่ได้ตั้ง daily budget ไว้เลย
+  placeCost: number | null;
+  perPersonDailyBudget: number | null;
 }
 
 interface PlaceInfo {
@@ -249,7 +256,7 @@ export default function TripRecommendations() {
   return (
     <div className="font-sarabun min-h-screen bg-[#fcedd3]">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 pt-6">
+      <div className="max-w-6xl mx-auto px-4 pt-6">
         <button
           onClick={() => navigate(-1)}
           className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md hover:shadow-lg hover:-translate-x-1 transition-all duration-200"
@@ -262,7 +269,7 @@ export default function TripRecommendations() {
       </div>
 
       {/* เว้นที่ด้านล่างให้ sticky bar ตอน custom mode ไม่บังการ์ดล่างสุด */}
-      <div className={`max-w-4xl mx-auto px-4 py-6 ${isCustomMode ? "pb-28" : ""}`}>
+      <div className={`max-w-6xl mx-auto px-4 py-6 ${isCustomMode ? "pb-28" : ""}`}>
         <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
           <h2 className="font-prompt font-bold text-2xl text-white mb-1">
             สถานที่ที่ตรงใจคุณ
@@ -355,8 +362,17 @@ export default function TripRecommendations() {
               )}
             </div>
 
-            <div className="flex flex-col gap-4">
-              {places.map((item, index) => (
+            {(() => {
+              // ✅ แบ่ง 2 ฝั่ง: ที่มี budgetScore จริง (มี price_level → สูตร 5 มิติ)
+              // vs ที่ไม่มี (budgetScore = null → สูตร 4 มิติ ไม่มี "ความคุ้มงบ")
+              // เลข rank อ้างอิงอันดับรวมเดิม (ก่อนแบ่งฝั่ง) ไม่ใช่อันดับแยกในแต่ละคอลัมน์
+              const rankOf = new Map(
+                places.map((p, i) => [p.placeId, i + 1])
+              );
+              const withBudget = places.filter((p) => p.budgetScore !== null);
+              const noBudget = places.filter((p) => p.budgetScore === null);
+
+              const renderCard = (item: MergedPlace) => (
                 <div
                   key={item.placeId}
                   className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-colors ${
@@ -368,10 +384,10 @@ export default function TripRecommendations() {
                   }`}
                 >
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#102a6b] text-white font-prompt font-bold flex items-center justify-center">
-                    {index + 1}
+                    {rankOf.get(item.placeId)}
                   </div>
 
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h3 className="font-prompt font-bold text-base text-[#102a6b]">
                       {item.place?.place_name ?? "ไม่พบชื่อสถานที่"}
                     </h3>
@@ -390,6 +406,12 @@ export default function TripRecommendations() {
                       {item.place?.att_category_label && (
                         <div className="inline-block px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
                           {item.place.att_category_label}
+                        </div>
+                      )}
+                      {/* ✅ บอกให้ชัดว่าที่นี่ไม่มีข้อมูลราคาจริง เลยไม่ได้คิด budget ในคะแนน */}
+                      {item.budgetScore === null && (
+                        <div className="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-500 text-xs">
+                          ไม่มีข้อมูลราคา
                         </div>
                       )}
                     </div>
@@ -422,8 +444,21 @@ export default function TripRecommendations() {
                     <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#015185]">
                       <span>ความตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</span>
                       <span>คะแนนรีวิว {(item.ratingScore * 5).toFixed(1)}/5</span>
-                      <span>ความใกล้ {(item.distanceScore * 100).toFixed(0)}%</span>
-                      <span>ความคุ้มงบ {(item.budgetScore * 100).toFixed(0)}%</span>
+                      {/* ✅ แปลง distanceScore กลับเป็นระยะทางจริง (กม.) จากสูตร distanceScore = 1/(1+km)
+                          ของ backend (poiScoreCalculator.ts) เลย -> km = 1/distanceScore - 1
+                          ไม่ต้องแก้ backend หรือดึงพิกัดมาคำนวณซ้ำฝั่ง frontend */}
+                      <span>ระยะทาง {(1 / item.distanceScore - 1).toFixed(1)} กม.</span>
+                      {/* ✅ ใช้ค่าดิบจาก backend ตรงๆ (placeCost/perPersonDailyBudget) ไม่ derive
+                          กลับจาก budgetScore แล้ว เพราะ ratio เดียวคำนวณย้อนกลับเป็น 2 ค่าดิบ
+                          แยกกันจริงไม่ได้ — แสดงเฉพาะตอนมีค่าจริง (hasPriceLevel = true) */}
+                      {item.placeCost !== null && (
+                        <span>
+                          งบประมาณ {item.placeCost.toLocaleString()}/
+                          {item.perPersonDailyBudget !== null
+                            ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
+                            : "ไม่จำกัดงบ"}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -450,8 +485,44 @@ export default function TripRecommendations() {
                     <div className="text-xs text-[#5990c0]">คะแนนรวม</div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  <div>
+                    <h4 className="font-prompt font-bold text-sm text-[#102a6b] mb-3 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#102a6b]" />
+                      มีข้อมูลราคา ({withBudget.length})
+                    </h4>
+                    {withBudget.length === 0 ? (
+                      <div className="bg-white/60 rounded-2xl px-5 py-8 text-center text-xs text-[#5990c0]">
+                        ไม่มีสถานที่ในกลุ่มนี้
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        {withBudget.map((item) => renderCard(item))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-prompt font-bold text-sm text-[#102a6b] mb-3 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                      ไม่มีข้อมูลราคา ({noBudget.length})
+                    </h4>
+                    {noBudget.length === 0 ? (
+                      <div className="bg-white/60 rounded-2xl px-5 py-8 text-center text-xs text-[#5990c0]">
+                        ไม่มีสถานที่ในกลุ่มนี้
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        {noBudget.map((item) => renderCard(item))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
@@ -459,7 +530,7 @@ export default function TripRecommendations() {
       {/* ✅ ปุ่ม "สร้างเส้นทาง" ลอย — โผล่เฉพาะตอนอยู่ในโหมดจัดทริปเอง และเลือกอย่างน้อย 1 ที่ */}
       {isCustomMode && selectedPlaceIds.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-20">
-          <div className="max-w-4xl mx-auto px-4 pb-5">
+          <div className="max-w-6xl mx-auto px-4 pb-5">
             <div className="bg-white rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4 border border-black/5">
               <div className="text-sm text-[#102a6b] font-prompt font-semibold">
                 เลือกแล้ว {selectedPlaceIds.length} สถานที่

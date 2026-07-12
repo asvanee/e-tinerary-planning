@@ -4,7 +4,7 @@ import { parse } from "csv-parse/sync";
 import * as dotenv from "dotenv";
 import { CsvRow, PlaceRecord } from "./types";
 import { dedupeRows, applyLocationOverrides, applyForceMerges } from "./dedupe";
-import { locationOverrides, forceMergeGroups } from "./manualOverrides";
+import { locationOverrides, forceMergeGroups, excludeIds, blockedMergePairs } from "./manualOverrides";
 
 dotenv.config();
 
@@ -96,7 +96,7 @@ function main() {
   const overriddenRows = applyLocationOverrides(rawProvinceRows, locationOverrides);
 
   // 2) dedupe อัตโนมัติ (website/phone + พิกัด/ชื่อยืนยัน)
-  const autoResult = dedupeRows(overriddenRows);
+  const autoResult = dedupeRows(overriddenRows, excludeIds, blockedMergePairs);
 
   // 3) บังคับ merge กลุ่มที่คนตรวจสอบแล้วว่าเป็นที่เดียวกันจริง แต่อัลกอริทึมมองไม่ออก
   const relevantForceMergeGroups = forceMergeGroups.filter((group) =>
