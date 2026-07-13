@@ -65,27 +65,27 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
   }
 
   const {
-    province,
-    // ✅ เปลี่ยนชื่อ field จาก city เป็น district แล้ว (rename ทั้งระบบ กันความสับสน
-    // เพราะค่านี้คืออำเภอ/เขต ไม่ใช่เมือง — คอลัมน์ DB เปลี่ยนชื่อจาก trips.city
-    // เป็น trips.district ด้วย ต้องรัน SQL migration ก่อน deploy โค้ดนี้)
-    district,
-    start_date,
-    end_date,
-    start_time,
-    number_of_people,
-    total_budget,
-    budget_scope,
-    budget_period,
-    daily_budget,
-    available_time_per_day,
-    category_ids,
+  province,
+  district,
+  start_date,
+  end_date,
+  start_time,
+  number_of_people,
 
-    // ✅ เพิ่ม field ใหม่
-    start_lat,
-    start_lng,
-    start_address,
-  } = req.body;
+  use_budget,
+
+  total_budget,
+  budget_scope,
+  budget_period,
+  daily_budget,
+
+  available_time_per_day,
+  category_ids,
+
+  start_lat,
+  start_lng,
+  start_address,
+} = req.body;
 
   // ✅ validate budget_scope / budget_period (แยกจาก budget_type เดิม)
   const VALID_SCOPES = ["GROUP", "PER_PERSON"];
@@ -168,26 +168,29 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
     const { data, error } = await supabase
       .from("trips")
       .insert([
-        {
-          user_id: userId,
-          province, // บังคับกรอกแล้ว การันตีไม่ว่างจาก validation ด้านบน
-          district: district || null,
-          start_date,
-          end_date,
-          start_time,
-          number_of_people,
-          total_budget,
-          budget_scope: budget_scope || null,
-          budget_period: budget_period || null,
-          daily_budget,
-          available_time_per_day,
+  {
+    user_id: userId,
+    province,
+    district: district || null,
+    start_date,
+    end_date,
+    start_time,
+    number_of_people,
 
-          // ✅ บันทึกพิกัด
-          start_lat,
-          start_lng,
-          start_address: start_address || null,
-        },
-      ])
+    use_budget: !!use_budget,
+
+    total_budget,
+    budget_scope: budget_scope || null,
+    budget_period: budget_period || null,
+    daily_budget,
+
+    available_time_per_day,
+
+    start_lat,
+    start_lng,
+    start_address: start_address || null,
+  },
+])
       .select()
       .single();
 
@@ -310,8 +313,228 @@ export const getTripById = async (req: AuthRequest, res: Response) => {
       .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์เข้าถึง" });
   }
 
-  res.json({ trip: data });
+  // ✅ เพิ่มใหม่: ดึง category_ids ของทริปนี้แนบไปด้วย — หน้า TripDetail ต้องใช้ prefill
+  // checkbox ตอนเปิดโหมดแก้ไข ไม่งั้นจะไม่รู้ว่าทริปนี้เลือก category อะไรไว้บ้าง
+  // (ไม่ error ถ้าดึงไม่สำเร็จ แค่ส่ง array ว่างกลับไป ไม่ทำให้ทั้ง endpoint ล่ม)
+  const { data: categoryRows, error: categoryFetchError } = await supabase
+    .from("trip_categories")
+    .select("category_id")
+    .eq("trip_id", tripId);
+
+  if (categoryFetchError) {
+    console.error("Get trip_categories error:", categoryFetchError.message);
+  }
+
+  res.json({
+    trip: {
+      ...data,
+      category_ids: (categoryRows ?? []).map((row) => row.category_id),
+    },
+  });
 };
+/**
+ * PUT /api/trips/:tripId
+ *
+ * ✅ เพิ่มใหม่: แก้ไขทริปที่มีอยู่แล้ว — ใช้กับหน้า TripDetail (ปุ่ม "แก้ไขข้อมูลทริป")
+ * รับ field ชุดเดียวกับ createTrip ทั้งหมด (ยกเว้น user_id ที่ยึดจาก req.user.id เสมอ) แล้ว
+ * validate ด้วยกฎเดียวกับตอนสร้างทริปทุกข้อ เพื่อกันข้อมูลผิดหลุดเข้ามาตอนแก้ไขเหมือนกับตอนสร้าง
+ *
+ * ตรวจสิทธิ์ด้วย pattern เดียวกับ getTripById/deleteTrip: eq("trip_id", tripId)
+ * คู่กับ eq("user_id", userId) เสมอ กัน user แก้ทริปคนอื่น
+ *
+ * category_ids: ใช้วิธี "ลบของเดิมทั้งหมดแล้ว insert ใหม่" (ง่ายกว่า diff ทีละรายการ
+ * และจำนวน category ต่อทริปมีไม่เยอะ ไม่กระทบ performance) — เป็น best-effort เหมือน createTrip
+ * คือถ้า insert รอบใหม่ fail จะไม่ rollback การ update ทริปหลัก แค่แจ้งเตือนกลับไป
+ */
+export const updateTrip = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
+  }
+
+  const { tripId } = req.params;
+
+  if (!tripId || Array.isArray(tripId)) {
+    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
+  }
+
+  const {
+    province,
+    district,
+    start_date,
+    end_date,
+    start_time,
+    number_of_people,
+    use_budget,
+    total_budget,
+    budget_scope,
+    budget_period,
+    daily_budget,
+    available_time_per_day,
+    category_ids,
+    start_lat,
+    start_lng,
+    start_address,
+  } = req.body;
+
+  // ✅ validate ชุดเดียวกับ createTrip ทุกข้อ (ดูคอมเมนต์เต็มในฟังก์ชัน createTrip ด้านบน)
+  const VALID_SCOPES = ["GROUP", "PER_PERSON"];
+  const VALID_PERIODS = ["TOTAL_TRIP", "PER_DAY"];
+
+  if (budget_scope && !VALID_SCOPES.includes(budget_scope)) {
+    return res.status(400).json({ message: "ขอบเขตงบประมาณไม่ถูกต้อง" });
+  }
+
+  if (budget_period && !VALID_PERIODS.includes(budget_period)) {
+    return res.status(400).json({ message: "ช่วงเวลาของงบประมาณไม่ถูกต้อง" });
+  }
+
+  if (total_budget && (!budget_scope || !budget_period)) {
+    return res
+      .status(400)
+      .json({ message: "กรุณาเลือกขอบเขตและช่วงเวลาของงบประมาณให้ครบ" });
+  }
+
+  if (!start_date || !end_date || !start_time || !number_of_people) {
+    return res.status(400).json({ message: "ข้อมูลไม่ครบถ้วน" });
+  }
+
+  if (
+    typeof number_of_people !== "number" ||
+    !Number.isInteger(number_of_people) ||
+    number_of_people < 1
+  ) {
+    return res
+      .status(400)
+      .json({ message: "จำนวนผู้เดินทางต้องเป็นจำนวนเต็มตั้งแต่ 1 คนขึ้นไป" });
+  }
+
+  if (!province) {
+    return res.status(400).json({ message: "กรุณาเลือกจังหวัด" });
+  }
+
+  if (
+    start_lat === null ||
+    start_lng === null ||
+    start_lat === undefined ||
+    start_lng === undefined
+  ) {
+    return res.status(400).json({
+      message: "กรุณาปักหมุดจุดเริ่มต้นก่อนบันทึกทริป",
+    });
+  }
+
+  if (
+    start_lat < -90 ||
+    start_lat > 90 ||
+    start_lng < -180 ||
+    start_lng > 180
+  ) {
+    return res.status(400).json({
+      message: "พิกัดจุดเริ่มต้นไม่ถูกต้อง",
+    });
+  }
+
+  const midnightCrossingError = validateNoMidnightCrossing(
+    start_time,
+    available_time_per_day ?? null
+  );
+
+  if (midnightCrossingError) {
+    return res.status(400).json({ message: midnightCrossingError });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("trips")
+      .update({
+  province,
+  district: district || null,
+  start_date,
+  end_date,
+  start_time,
+  number_of_people,
+
+  use_budget: !!use_budget,
+
+  total_budget,
+  budget_scope: budget_scope || null,
+  budget_period: budget_period || null,
+  daily_budget,
+
+  available_time_per_day,
+
+  start_lat,
+  start_lng,
+  start_address: start_address || null,
+})
+      .eq("trip_id", tripId)
+      .eq("user_id", userId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("Update trip error:", error);
+      return res.status(500).json({ message: error.message });
+    }
+
+    if (!data) {
+      return res
+        .status(404)
+        .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    }
+
+    // ✅ อัปเดต trip_categories: ลบของเดิมทั้งหมดแล้ว insert ชุดใหม่ (best-effort เหมือน createTrip)
+    let categoryWarning = false;
+
+    const { error: deleteCategoryError } = await supabase
+      .from("trip_categories")
+      .delete()
+      .eq("trip_id", tripId);
+
+    if (deleteCategoryError) {
+      console.error(
+        "Delete old trip_categories error:",
+        deleteCategoryError.message
+      );
+      categoryWarning = true;
+    } else if (Array.isArray(category_ids) && category_ids.length > 0) {
+      const tripCategoryRows = category_ids.map((categoryId: number) => ({
+        trip_id: tripId,
+        category_id: categoryId,
+      }));
+
+      const { error: insertCategoryError } = await supabase
+        .from("trip_categories")
+        .insert(tripCategoryRows);
+
+      if (insertCategoryError) {
+        console.error(
+          "Insert trip_categories error:",
+          insertCategoryError.message
+        );
+        categoryWarning = true;
+      }
+    }
+
+    return res.status(200).json({
+      message: categoryWarning
+        ? "บันทึกทริปสำเร็จ แต่บันทึกหมวดหมู่ความสนใจไม่สำเร็จ กรุณาลองแก้ไขอีกครั้ง"
+        : "บันทึกการแก้ไขทริปสำเร็จ",
+      trip: data,
+      categoryWarning,
+    });
+  } catch (err: any) {
+    console.error("Update trip exception:", err);
+    return res.status(500).json({
+      message: err.message || "เกิดข้อผิดพลาดภายในระบบ",
+    });
+  }
+};
+
 /**
  * DELETE /api/trips/:tripId
  * ลบทริปของ user เอง — ตรวจสิทธิ์ด้วย eq("user_id", userId) เสมอ กัน user ลบทริปคนอื่น

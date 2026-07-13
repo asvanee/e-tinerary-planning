@@ -77,6 +77,10 @@ export default function CreateTrip() {
     const [endDate, setEndDate] = useState("");
     const [startTime, setStartTime] = useState("");
     const [numberOfPeople, setNumberOfPeople] = useState("");
+
+    // ✅ ใหม่: ปุ่มติ๊ก "ต้องการกำหนดงบประมาณไหม" — default ไม่ติ๊ก (ไม่จำกัดงบ)
+    // ติ๊กแล้วค่อยเด้งช่องกรอกงบ/ขอบเขต/ช่วงเวลาให้กรอก (บังคับกรอกครบเฉพาะตอนติ๊ก)
+    const [useBudget, setUseBudget] = useState(false);
     const [totalBudget, setTotalBudget] = useState("");
     const [budgetScope, setBudgetScope] = useState("");
     const [budgetPeriod, setBudgetPeriod] = useState("");
@@ -170,6 +174,17 @@ export default function CreateTrip() {
         setPinConfirmed(true);
     };
 
+    // ✅ toggle ปุ่มติ๊กงบประมาณ — ยกเลิกติ๊กแล้วเคลียร์ค่าทันที กัน state ค้างจากรอบก่อน
+    // (เผื่อ user กรอกงบไว้ก่อนแล้วค่อยติ๊กออก ไม่ให้ค่าเก่าหลุดไปคำนวณ)
+    const handleUseBudgetChange = (checked: boolean) => {
+        setUseBudget(checked);
+        if (!checked) {
+            setTotalBudget("");
+            setBudgetScope("");
+            setBudgetPeriod("");
+        }
+    };
+
     const calculateTripDays = (start: string, end: string): number => {
         if (!start || !end) return 1;
         const diff = (new Date(end).getTime() - new Date(start).getTime()) / 86400000;
@@ -199,8 +214,10 @@ export default function CreateTrip() {
             return;
         }
 
-        if (totalBudget && (!budgetScope || !budgetPeriod)) {
-            alert("กรุณาเลือกขอบเขตและช่วงเวลาของงบประมาณให้ครบ");
+        // ✅ เปลี่ยนจากเช็ค totalBudget ตรงๆ มาเช็คจาก useBudget แทน
+        // (ติ๊กว่าต้องการกำหนดงบ แต่กรอกไม่ครบ = บล็อก / ไม่ติ๊ก = ข้ามไปเลย)
+        if (useBudget && (!totalBudget || !budgetScope || !budgetPeriod)) {
+            alert("กรุณากรอกงบประมาณและเลือกขอบเขต/ช่วงเวลาให้ครบ");
             return;
         }
 
@@ -217,7 +234,10 @@ export default function CreateTrip() {
 
         const people = Number(numberOfPeople);
         const tripDays = calculateTripDays(startDate, endDate);
-        const rawBudget = totalBudget ? Number(totalBudget) : null;
+
+        // ✅ rawBudget เคารพ useBudget เป็นด่านแรกเสมอ — ไม่ติ๊ก = null เสมอ
+        // ไม่ว่า state totalBudget จะมีเลขค้างอยู่หรือไม่ก็ตาม (safety net อีกชั้น)
+        const rawBudget = useBudget && totalBudget ? Number(totalBudget) : null;
 
         let dailyBudget: number | null = null;
         let normalizedTotalBudget: number | null = rawBudget;
@@ -247,26 +267,30 @@ export default function CreateTrip() {
         }
 
         const payload = {
-            province, // บังคับกรอกแล้ว การันตีไม่ว่างจาก validation ด้านบน
-            district: district || null,
-            start_date: startDate,
-            end_date: endDate,
-            start_time: startTime,
-            number_of_people: people,
-            total_budget: normalizedTotalBudget,
-            budget_scope: budgetScope || null,
-            budget_period: budgetPeriod || null,
-            daily_budget: dailyBudget,
-            available_time_per_day: availableTimePerDay
-                ? Number(availableTimePerDay)
-                : null,
-            category_ids: selectedCategoryIds,
-            // ✅ จุดเริ่มต้นสำหรับคำนวณ distance score
-            start_lat: startLat,
-            start_lng: startLng,
-            start_address: startAddress,
-        };
+    province,
+    district: district || null,
+    start_date: startDate,
+    end_date: endDate,
+    start_time: startTime,
+    number_of_people: people,
 
+    use_budget: useBudget,
+
+    total_budget: normalizedTotalBudget,
+    budget_scope: useBudget ? budgetScope || null : null,
+    budget_period: useBudget ? budgetPeriod || null : null,
+    daily_budget: dailyBudget,
+
+    available_time_per_day: availableTimePerDay
+        ? Number(availableTimePerDay)
+        : null,
+
+    category_ids: selectedCategoryIds,
+
+    start_lat: startLat,
+    start_lng: startLng,
+    start_address: startAddress,
+};
         try {
             const res = await fetch("/api/trips", {
                 method: "POST",
@@ -424,39 +448,62 @@ export default function CreateTrip() {
                             </div>
                         </div>
 
-                        <div className="flex gap-4">
-                            <div className="flex-1">
-                                <label className={labelClass}>💰 งบประมาณ (บาท)</label>
-                                <input type="number" min={0} className={inputClass}
-                                    value={totalBudget}
-                                    onChange={(e) => setTotalBudget(e.target.value)} />
-                            </div>
-                            <div className="flex-1">
-                                <label className={labelClass}>ขอบเขตงบ</label>
-                                <select
-                                    value={budgetScope}
-                                    onChange={(e) => setBudgetScope(e.target.value)}
-                                    className={inputClass}
-                                >
-                                    <option value="">เลือกขอบเขต...</option>
-                                    {BUDGET_SCOPES.map((b) => (
-                                        <option key={b.value} value={b.value}>{b.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex-1">
-                                <label className={labelClass}>ช่วงเวลา</label>
-                                <select
-                                    value={budgetPeriod}
-                                    onChange={(e) => setBudgetPeriod(e.target.value)}
-                                    className={inputClass}
-                                >
-                                    <option value="">เลือกช่วงเวลา...</option>
-                                    {BUDGET_PERIODS.map((b) => (
-                                        <option key={b.value} value={b.value}>{b.label}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        {/* ✅ ปุ่มติ๊ก "ต้องการกำหนดงบประมาณ" — ติ๊กแล้วค่อยเด้งช่องกรอกงบขึ้นมา */}
+                        <div>
+                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                <input
+                                    type="checkbox"
+                                    checked={useBudget}
+                                    onChange={(e) => handleUseBudgetChange(e.target.checked)}
+                                    className="w-4 h-4 accent-[#015185]"
+                                />
+                                <span className={labelClass + " mb-0"}>
+                                    💰 ต้องการกำหนดงบประมาณ
+                                </span>
+                            </label>
+                            <p className="text-xs text-[#5990c0]/80 font-sarabun">
+                                ถ้าไม่ติ๊ก ระบบจะแนะนำสถานที่โดยไม่กรองตามราคา
+                            </p>
+
+                            {useBudget && (
+                                <div className="flex gap-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="flex-1">
+                                        <label className={labelClass}>งบประมาณ (บาท)</label>
+                                        <input type="number" min={0} className={inputClass}
+                                            value={totalBudget}
+                                            onChange={(e) => setTotalBudget(e.target.value)}
+                                            required={useBudget} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className={labelClass}>ขอบเขตงบ</label>
+                                        <select
+                                            value={budgetScope}
+                                            onChange={(e) => setBudgetScope(e.target.value)}
+                                            className={inputClass}
+                                            required={useBudget}
+                                        >
+                                            <option value="">เลือกขอบเขต...</option>
+                                            {BUDGET_SCOPES.map((b) => (
+                                                <option key={b.value} value={b.value}>{b.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className={labelClass}>ช่วงเวลา</label>
+                                        <select
+                                            value={budgetPeriod}
+                                            onChange={(e) => setBudgetPeriod(e.target.value)}
+                                            className={inputClass}
+                                            required={useBudget}
+                                        >
+                                            <option value="">เลือกช่วงเวลา...</option>
+                                            {BUDGET_PERIODS.map((b) => (
+                                                <option key={b.value} value={b.value}>{b.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -553,24 +600,30 @@ export default function CreateTrip() {
                             <div className="border-t border-[#5990c0]/30 my-1 pt-2">
                                 <div className="flex justify-between">
                                     <span className="text-[#5990c0]">ประเภทงบประมาณ</span>
-                                    <span className="font-semibold">{budgetTypeLabel}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-[#5990c0]">งบต่อวัน</span>
                                     <span className="font-semibold">
-                                        {summary.dailyBudget !== null
-                                            ? `${Math.round(summary.dailyBudget).toLocaleString()} บาท`
-                                            : "-"}
+                                        {useBudget ? budgetTypeLabel : "ไม่จำกัดงบประมาณ"}
                                     </span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-[#5990c0]">งบต่อวันต่อคน</span>
-                                    <span className="font-semibold">
-                                        {summary.perPersonPerDay !== null
-                                            ? `${Math.round(summary.perPersonPerDay).toLocaleString()} บาท`
-                                            : "-"}
-                                    </span>
-                                </div>
+                                {useBudget && (
+                                    <>
+                                        <div className="flex justify-between">
+                                            <span className="text-[#5990c0]">งบต่อวัน</span>
+                                            <span className="font-semibold">
+                                                {summary.dailyBudget !== null
+                                                    ? `${Math.round(summary.dailyBudget).toLocaleString()} บาท`
+                                                    : "-"}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-[#5990c0]">งบต่อวันต่อคน</span>
+                                            <span className="font-semibold">
+                                                {summary.perPersonPerDay !== null
+                                                    ? `${Math.round(summary.perPersonPerDay).toLocaleString()} บาท`
+                                                    : "-"}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {selectedCategoryNames.length > 0 && (

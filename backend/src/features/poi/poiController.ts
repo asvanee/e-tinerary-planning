@@ -58,17 +58,17 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
     // 3. คำนวณคะแนนทุก place
     const scoredPlaces = places.map((place) => {
       const breakdown = calculatePoiScore(
-        place.confidenceScore,
-        place.rating,
-        trip.startLat,
-        trip.startLng,
-        place.latitude,
-        place.longitude,
-        trip.dailyBudget,
-        trip.numberOfPeople,
-        place.priceLevel,
-        place.hasPriceLevel
-      );
+  place.confidenceScore,
+  place.rating,
+  trip.startLat,
+  trip.startLng,
+  place.latitude,
+  place.longitude,
+  trip.dailyBudget,
+  trip.numberOfPeople,
+  place.priceLevel,
+  trip.useBudget
+);
 
       return {
         placeId: place.placeId,

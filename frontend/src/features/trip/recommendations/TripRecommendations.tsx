@@ -13,13 +13,13 @@ interface PoiResult {
   distanceScore: number;
   // ✅ null = ที่นี่ไม่มี price_level จริง สูตรจึงตัด budget ออกไปเลย (ดู poiScoreCalculator.ts)
   // ไม่ใช่ 0 — 0 จะสื่อผิดว่า "แพงเกินงบ"
-  budgetScore: number | null;
+  budgetScore: number;
   weatherScore: number;
   poiScore: number;
   // ✅ เพิ่มใหม่ — ค่าดิบเป็นบาท ใช้แสดง "placeCost/perPersonDailyBudget บาท" แทนเปอร์เซ็นต์
   // null ทั้งคู่เมื่อ budgetScore เป็น null (ไม่มี price_level จริง)
   // perPersonDailyBudget เป็น null ได้อีกกรณี: trip ไม่ได้ตั้ง daily budget ไว้เลย
-  placeCost: number | null;
+  placeCost: number;
   perPersonDailyBudget: number | null;
 }
 
@@ -96,15 +96,15 @@ export default function TripRecommendations() {
 
       try {
 
-        const poiRes = await fetch(
-          `/api/poi/trips/${tripId}/calculate-poi`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }
-        );
+          const poiRes = await fetch(
+            `/api/poi/trips/${tripId}/calculate-poi`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }
+          );
         const responseText = await poiRes.text();
 
         let poiData;
@@ -369,8 +369,7 @@ export default function TripRecommendations() {
               const rankOf = new Map(
                 places.map((p, i) => [p.placeId, i + 1])
               );
-              const withBudget = places.filter((p) => p.budgetScore !== null);
-              const noBudget = places.filter((p) => p.budgetScore === null);
+
 
               const renderCard = (item: MergedPlace) => (
                 <div
@@ -408,12 +407,8 @@ export default function TripRecommendations() {
                           {item.place.att_category_label}
                         </div>
                       )}
-                      {/* ✅ บอกให้ชัดว่าที่นี่ไม่มีข้อมูลราคาจริง เลยไม่ได้คิด budget ในคะแนน */}
-                      {item.budgetScore === null && (
-                        <div className="inline-block px-2 py-1 rounded-full bg-gray-100 text-gray-500 text-xs">
-                          ไม่มีข้อมูลราคา
-                        </div>
-                      )}
+                      
+                      
                     </div>
                     {item.place?.phone_number && (
                       <div className="text-xs text-[#015185] mt-1">
@@ -453,11 +448,11 @@ export default function TripRecommendations() {
                           แยกกันจริงไม่ได้ — แสดงเฉพาะตอนมีค่าจริง (hasPriceLevel = true) */}
                       {item.placeCost !== null && (
                         <span>
-                          งบประมาณ {item.placeCost.toLocaleString()}/
-                          {item.perPersonDailyBudget !== null
-                            ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
-                            : "ไม่จำกัดงบ"}
-                        </span>
+  งบประมาณ {item.placeCost.toLocaleString()}/
+  {item.perPersonDailyBudget !== null
+    ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
+    : "ไม่จำกัดงบ"}
+</span>
                       )}
                     </div>
                   </div>
@@ -488,40 +483,10 @@ export default function TripRecommendations() {
               );
 
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                  <div>
-                    <h4 className="font-prompt font-bold text-sm text-[#102a6b] mb-3 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#102a6b]" />
-                      มีข้อมูลราคา ({withBudget.length})
-                    </h4>
-                    {withBudget.length === 0 ? (
-                      <div className="bg-white/60 rounded-2xl px-5 py-8 text-center text-xs text-[#5990c0]">
-                        ไม่มีสถานที่ในกลุ่มนี้
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-4">
-                        {withBudget.map((item) => renderCard(item))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <h4 className="font-prompt font-bold text-sm text-[#102a6b] mb-3 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-                      ไม่มีข้อมูลราคา ({noBudget.length})
-                    </h4>
-                    {noBudget.length === 0 ? (
-                      <div className="bg-white/60 rounded-2xl px-5 py-8 text-center text-xs text-[#5990c0]">
-                        ไม่มีสถานที่ในกลุ่มนี้
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-4">
-                        {noBudget.map((item) => renderCard(item))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
+  <div className="flex flex-col gap-4">
+    {places.map((item) => renderCard(item))}
+  </div>
+);
             })()}
           </>
         )}

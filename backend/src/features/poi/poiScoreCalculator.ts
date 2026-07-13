@@ -48,12 +48,14 @@ export function calculateDistanceScore(
  * ("ใช้งบเกือบหมด" ≈ 0, "ถูกกว่ามาก" ≈ 1) แทนการเทียบกับราคาแพงสุดที่มีในระบบ (hardcode)
  *
  * หมายเหตุ: getFilteredPlaces() ใน poiPlaceQueries.ts กรอง hard filter ตัด
- * placeCost > perPersonDailyBudget ออกไปก่อนแล้วเสมอ (เฉพาะสถานที่ที่มี price_level จริง —
- * ดู hasPriceLevel) ดังนั้นในทางปฏิบัติ placeCost จะ ≤ perPersonDailyBudget เสมอ ผลลัพธ์จึง
+ * placeCost > dailyBudget ออกไปก่อนแล้วใน getFilteredPlaces()
+ * เมื่อ trip.useBudget = true
  * ไม่มีทางติดลบ — guard ด้านล่างกันไว้เผื่อฟังก์ชันนี้ถูกเรียกตรงๆ โดยไม่ผ่าน filter
  * (เช่น unit test ในอนาคต)
  *
- * ⚠️ ฟังก์ชันนี้ถูกเรียกเฉพาะตอน hasPriceLevel = true เท่านั้น (ดู calculatePoiScore ด้านล่าง)
+ * ⚠️ ฟังก์ชันนี้ถูกเรียกเฉพาะเมื่อ useBudget = true เท่านั้น
+* โดย priceLevel จะเป็น effectivePriceLevel ที่ผ่านการ fallback
+* จาก categories.default_price_level มาแล้วถ้าสถานที่ไม่มี price_level จริง
  * priceLevel รับเป็น number ตรงๆ ไม่ nullable เพราะผู้เรียกรับประกันแล้วว่ามีค่าจริง
  */
 export function calculateBudgetScore(
@@ -118,7 +120,7 @@ export interface PoiScoreBreakdown {
   poiScore: number;
   // ✅ เพิ่มใหม่ — ค่าดิบเป็นบาท ให้ frontend แสดงผลแบบ "placeCost/perPersonDailyBudget บาท"
   // แทนเปอร์เซ็นต์ ไม่ต้อง derive กลับจาก budgetScore (ซึ่งมีแค่สัดส่วน ไม่มีทางคำนวณ
-  // ย้อนกลับเป็น 2 ค่าดิบแยกกันได้จริง) — null ทั้งคู่เมื่อ hasPriceLevel = false
+  // ย้อนกลับเป็น 2 ค่าดิบแยกกันได้จริง) — * null ทั้งคู่เมื่อ useBudget = false
   // perPersonDailyBudget เป็น null ได้อีกกรณี (แม้ hasPriceLevel = true): ตอน trip.dailyBudget
   // เป็น null เอง (ไม่ได้ตั้งงบไว้เลย) placeCost ยังคำนวณได้ตามปกติ
   placeCost: number | null;
@@ -128,9 +130,9 @@ export interface PoiScoreBreakdown {
 /**
  * คำนวณคะแนนรวม POI_SCORE
  *
- * ✅ แก้แล้ว: เพิ่ม hasPriceLevel เข้ามาแยกสูตร
- * - hasPriceLevel = true  -> สูตรเต็ม 5 มิติ (WEIGHTS เดิม, มี budget_score)
- * - hasPriceLevel = false -> สูตร 4 มิติ ไม่มี budget_score (WEIGHTS_NO_BUDGET) — priceLevel
+ * ✅ แก้แล้ว: ใช้ useBudget เป็นตัวเลือกสูตร
+ * - useBudget = true  -> สูตรเต็ม 5 มิติ (WEIGHTS เดิม, มี budget_score)
+ * - useBudget = false -> สูตร 4 มิติ ไม่มี budget_score (WEIGHTS_NO_BUDGET) — priceLevel
  *   ที่ส่งเข้ามาตอนนั้นจะเป็น null และไม่ถูกใช้เลย
  *
  * รับ input แบบ primitive ตรงๆ ไม่ใช่ object ก้อนใหญ่ ตามที่ตกลงกัน
@@ -144,8 +146,8 @@ export function calculatePoiScore(
   placeLng: number,
   dailyBudget: number | null,
   numberOfPeople: number,
-  priceLevel: number | null,
-  hasPriceLevel: boolean
+  priceLevel: number,
+  useBudget: boolean
 ): PoiScoreBreakdown {
   const categoryScore = calculateCategoryScore(confidenceScore);
   const ratingScore = calculateRatingScore(rating);
@@ -157,34 +159,34 @@ export function calculatePoiScore(
   );
   const weatherScore = calculateWeatherScore();
 
-  if (!hasPriceLevel) {
-    const poiScore =
-      WEIGHTS_NO_BUDGET.category * categoryScore +
-      WEIGHTS_NO_BUDGET.rating * ratingScore +
-      WEIGHTS_NO_BUDGET.distance * distanceScore +
-      WEIGHTS_NO_BUDGET.weather * weatherScore;
+  if (!useBudget) {
+  const poiScore =
+    WEIGHTS_NO_BUDGET.category * categoryScore +
+    WEIGHTS_NO_BUDGET.rating * ratingScore +
+    WEIGHTS_NO_BUDGET.distance * distanceScore +
+    WEIGHTS_NO_BUDGET.weather * weatherScore;
 
-    return {
-      categoryScore,
-      ratingScore,
-      distanceScore,
-      budgetScore: null,
-      weatherScore,
-      poiScore,
-      placeCost: null,
-      perPersonDailyBudget: null,
-    };
-  }
+  return {
+    categoryScore,
+    ratingScore,
+    distanceScore,
+    budgetScore: null,
+    weatherScore,
+    poiScore,
+    placeCost: null,
+    perPersonDailyBudget: null,
+  };
+}
 
-  const budgetScore = calculateBudgetScore(
-    dailyBudget,
-    numberOfPeople,
-    priceLevel as number
-  );
-
+const budgetScore = calculateBudgetScore(
+  dailyBudget,
+  numberOfPeople,
+  priceLevel
+);
   // ✅ ค่าดิบสำหรับ frontend แสดงเป็น "placeCost/perPersonDailyBudget บาท"
   // (คำนวณตามสูตรเดียวกับใน calculateBudgetScore เป๊ะ ให้ตัวเลขสอดคล้องกัน)
-  const placeCost = PRICE_LEVEL_TO_BAHT[priceLevel as number] ?? 0;
+const placeCost =
+  PRICE_LEVEL_TO_BAHT[priceLevel] ?? 0;
   const perPersonDailyBudget =
     dailyBudget === null ? null : dailyBudget / numberOfPeople;
 

@@ -17,6 +17,7 @@ export interface TripInfo {
   numberOfPeople: number;
   // ✅ แก้แล้ว: nullable เพราะ tripController.ts ไม่ได้บังคับกรอก available_time_per_day
   availableTimePerDay: number | null; // ชั่วโมง ตาม schema ของ trips
+  useBudget: boolean;
 }
 
 export interface PlaceWithScore {
@@ -24,18 +25,11 @@ export interface PlaceWithScore {
   latitude: number;
   longitude: number;
   rating: number | null;
-  // ✅ แก้แล้ว: ไม่ coalesce กับ categories.default_price_level อีกต่อไป (ยกเลิกมติเดิมที่ปิดไว้
-  // ใน PROJECT_BRIEF ข้อ 4.3 — เปลี่ยนใหม่ทั้งระบบร่วมกับ itineraryPlaceQueries.ts)
-  // null = สถานที่นี้ไม่มี price_level จริงจาก Google เลย คู่กับ hasPriceLevel ด้านล่าง
-  priceLevel: number | null;
-  // ✅ เพิ่มใหม่ — ใช้เลือกสูตรใน poiScoreCalculator.ts (5 มิติ vs 4 มิติ) และตัดสิน
-  // hard filter งบใน getFilteredPlaces() ด้านล่าง
-  hasPriceLevel: boolean;
-  confidenceScore: number | null; // null = ไม่กรอง category เลย หรือใช้ fallback แล้ว
-  defaultDurationMin: number; // จาก categories.default_duration_min ของ category ของ place
-  // ✅ เพิ่มใหม่ — จาก categories.category_name ใช้แสดง badge หมวดหมู่ที่ตรงกับความสนใจที่เลือกไว้
-  // ในหน้า Recommendation (แยกจาก att_category_label ที่มาจาก Google) — schema ปัจจุบัน
-  // 1 place : 1 category เท่านั้น จึงมีค่าเดียวแน่นอน ไม่ต้องกังวลเรื่องหลาย category ต่อ place
+
+  priceLevel: number;
+
+  confidenceScore: number | null;
+  defaultDurationMin: number;
   categoryName: string;
 }
 
@@ -51,8 +45,8 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "user_id, province, district, start_lat, start_lng, daily_budget, number_of_people, available_time_per_day"
-    )
+  "user_id, province, district, start_lat, start_lng, daily_budget, number_of_people, available_time_per_day, use_budget"
+)
     .eq("trip_id", tripId)
     .single();
 
@@ -61,15 +55,16 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
   }
 
   return {
-    userId: data.user_id,
-    province: data.province,
-    district: data.district,
-    startLat: data.start_lat,
-    startLng: data.start_lng,
-    dailyBudget: data.daily_budget,
-    numberOfPeople: data.number_of_people,
-    availableTimePerDay: data.available_time_per_day,
-  };
+  userId: data.user_id,
+  province: data.province,
+  district: data.district,
+  startLat: data.start_lat,
+  startLng: data.start_lng,
+  dailyBudget: data.daily_budget,
+  numberOfPeople: data.number_of_people,
+  availableTimePerDay: data.available_time_per_day,
+  useBudget: data.use_budget ?? false,
+};
 }
 
 /**
@@ -145,13 +140,19 @@ export async function getFilteredPlaces(
   //
   // ✅ แก้แล้ว: สถานที่ที่ไม่มี price_level จริง (hasPriceLevel = false) จะไม่ถูกกรองงบเลย
   // ปล่อยผ่าน hard filter เสมอ (ยกเลิกการใช้ default_price_level ของ category มาเดาแทน)
-  if (trip.dailyBudget !== null) {
-    places = places.filter((place) => {
-      if (!place.hasPriceLevel) return true;
-      const placeCost = PRICE_LEVEL_TO_BAHT[place.priceLevel as number] ?? 0;
-      return placeCost <= trip.dailyBudget!;
-    });
-  }
+  if (
+  trip.useBudget &&
+  trip.dailyBudget !== null
+) {
+  const dailyBudget = trip.dailyBudget;
+
+  places = places.filter((place) => {
+    const placeCost =
+      PRICE_LEVEL_TO_BAHT[place.priceLevel] ?? 0;
+
+    return placeCost <= dailyBudget;
+  });
+}
 
   // ---- ขั้น 4: กรองเวลา (hard filter) ----
   if (trip.availableTimePerDay !== null) {
@@ -208,17 +209,31 @@ async function queryPlacesWithCategoryInfo(
   // hard filter งบไหมด้านบน — categories.default_price_level ยังอยู่ใน select เผื่อใช้ที่อื่น
   // ในอนาคต แต่ไม่ถูกใช้คำนวณคะแนน/กรองงบในไฟล์นี้แล้ว
   return (data ?? []).map((row: any) => {
-    const rawPriceLevel: number | null = row.places.price_level;
+    const rawPriceLevel: number | null =
+  row.places.price_level;
+
+const effectivePriceLevel =
+  rawPriceLevel ??
+  row.categories.default_price_level ??
+  0;
     return {
-      placeId: row.places.place_id,
-      latitude: row.places.latitude,
-      longitude: row.places.longitude,
-      rating: row.places.rating,
-      priceLevel: rawPriceLevel,
-      hasPriceLevel: rawPriceLevel !== null,
-      confidenceScore: categoryIds === null ? null : row.confidence_score,
-      defaultDurationMin: row.categories.default_duration_min ?? 60,
-      categoryName: row.categories.category_name,
-    };
+  placeId: row.places.place_id,
+  latitude: row.places.latitude,
+  longitude: row.places.longitude,
+  rating: row.places.rating,
+
+  priceLevel: effectivePriceLevel,
+
+  confidenceScore:
+    categoryIds === null
+      ? null
+      : row.confidence_score,
+
+  defaultDurationMin:
+    row.categories.default_duration_min ?? 60,
+
+  categoryName:
+    row.categories.category_name,
+};
   });
 }
