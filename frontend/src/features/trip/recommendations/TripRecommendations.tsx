@@ -374,7 +374,8 @@ export default function TripRecommendations() {
               const renderCard = (item: MergedPlace) => (
                 <div
                   key={item.placeId}
-                  className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-colors ${
+                  className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-colors transition-all duration-300
+                    hover:shadow-xl hover:-translate-y-1 ${
                     isCustomMode
                       ? selectedPlaceIds.includes(item.placeId)
                         ? "border-green-500"

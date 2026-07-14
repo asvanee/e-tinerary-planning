@@ -19,7 +19,7 @@ const mapContainerStyle = {
 // สีประจำวัน วนซ้ำถ้าทริปเกิน 6 วัน
 const DAY_COLORS = [
   "#102a6b", // navy (โทนหลักของระบบ)
-  "#015185",
+  "#99CCFF",
   "#c2410c",
   "#7c3aed",
   "#059669",
@@ -153,6 +153,8 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
       ? { lat: startLat, lng: startLng }
       : { lat: daysWithItems[0].items[0].lat, lng: daysWithItems[0].items[0].lng };
 
+console.log(days);
+console.log(daysWithItems);
   return (
     <div className="bg-white rounded-2xl shadow-md px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
