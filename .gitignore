@@ -4,6 +4,7 @@ node_modules/
 # Environment variables
 backend/.env
 frontend/.env
+data-pipeline/.env
 
 # Build outputs
 dist/
