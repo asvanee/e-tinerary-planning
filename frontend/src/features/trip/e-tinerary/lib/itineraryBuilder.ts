@@ -19,6 +19,13 @@ import { haversineKm } from "./haversine";
  * pool ฝั่ง frontend) ตั้งแต่เริ่ม ให้ user ลากเข้าไปจัดวันเองทุกที่ตั้งแต่แรก ไม่มี default ให้เลย
  * `buildNearestNeighborOrder()` ยังคง export ไว้เผื่ออนาคตทำปุ่ม "จัดลำดับอัตโนมัติ" ให้ user
  * กดเลือกใช้เองภายหลัง แต่ไม่ได้เรียกใช้ใน buildInitialDraft() แล้ว
+ *
+ * ✅ อัปเดตมติล่าสุด #2 (sync กับ backend itineraryPlaceQueries.ts::getSelectedPlaces):
+ * priceLevel coalesce กับ categories.default_price_level เสมอแล้ว เหมือน POI stage — ไม่ nullable
+ * ในทางปฏิบัติอีกต่อไป (เดิมเคยตัดสินใจไม่ coalesce แล้วคิดเป็น 0 บาท มติเปลี่ยนแล้ว)
+ *
+ * ✅ อัปเดตมติล่าสุด #3: isBudgetConflict เช็คจาก day.useBudget ตรงๆ ก่อนเสมอ ไม่ใช่เดาจาก
+ * dailyBudget !== null เฉยๆ แบบเดิม (เปราะบางถ้ามี daily_budget ค้างอยู่ทั้งที่ useBudget = false)
  */
 
 // ---------- Types ----------
@@ -27,13 +34,11 @@ export interface PlaceInput {
   placeId: string;
   latitude: number;
   longitude: number;
-  priceLevel: number | null;
-  // ✅ เพิ่มใหม่ (sync กับ backend) — ตรงกับ pattern เดียวกับ backend
-  // itineraryPlaceQueries.ts::SelectedPlace / poiPlaceQueries.ts::PlaceWithScore
-  // map มาจาก field `has_price_level` ที่ getPlacesByIds (placesController.ts) เพิ่งแก้ให้ส่งมา
-  // ยังไม่ได้ใช้คำนวณอะไรเพิ่มในไฟล์นี้ตอนนี้ (getPlaceCost เช็คจาก priceLevel === null ตรงๆ
-  // พอแล้ว) แต่เก็บไว้ให้ type ตรงกับข้อมูลจริงที่ backend ส่งมา เผื่ออนาคตอยากแสดง badge
-  // "ไม่ทราบราคา" แยกจาก isBudgetConflict ในหน้า editor
+  // ✅ มติล่าสุด (sync กับ backend itineraryPlaceQueries.ts::getSelectedPlaces): coalesce กับ
+  // categories.default_price_level เสมอแล้ว เหมือน POI stage — ไม่ nullable ในทางปฏิบัติอีกต่อไป
+  priceLevel: number;
+  // ✅ เก็บ hasPriceLevel ไว้เผื่ออนาคตอยากแสดง badge "ราคาโดยประมาณ" แยกจาก isBudgetConflict
+  // แต่ getPlaceCost() ด้านล่างไม่ได้ใช้ hasPriceLevel ตัดสินใจอะไรแล้ว นับ cost เสมอทั้งสองกรณี
   hasPriceLevel: boolean;
   openingHours: OpeningHours | null;
   defaultDurationMin: number;
@@ -45,6 +50,8 @@ export interface DayAssignment {
   startTime: string | null; // trip_days.start_time "HH:MM:SS"
   endTime: string | null; // trip_days.end_time "HH:MM:SS"
   dailyBudget: number | null;
+  // ✅ เพิ่มใหม่ — เช็ค isBudgetConflict จากค่านี้ตรงๆ แทนการเดาจาก dailyBudget !== null เฉยๆ
+  useBudget: boolean;
   orderedPlaceIds: string[]; // ลำดับ = visit_order (index 0 = visit_order 1, ...)
 }
 
@@ -105,9 +112,10 @@ function getDayOfWeek(visitDate: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-// priceLevel === null ตอนนี้แปลว่า "ไม่ทราบราคาจริง" (backend เลิก coalesce กับ
-// categories.default_price_level แล้ว — ดู placesController.ts::getPlacesByIds)
-// คิดเป็น 0 บาทในการสะสม cumulativeCost (ไม่เดาราคาแทน) ไม่ใช่การยืนยันว่าฟรีจริง
+// ✅ priceLevel coalesce กับ default_price_level ของหมวดหมู่มาจาก backend เสมอแล้ว
+// (ดู itineraryPlaceQueries.ts::getSelectedPlaces) เหมือน POI stage — ไม่ nullable ในทางปฏิบัติ
+// พารามิเตอร์ยังรับ `| null` ไว้เป็น defensive fallback เผื่อข้อมูลผิดปกติหลุดเข้ามา
+// (เช่น หน้า editor ส่ง object ที่ยังไม่ผ่าน backend มา) ไม่ได้แปลว่า "ฟรี" จริง แค่กันพัง
 function getPlaceCost(priceLevel: number | null): number {
   if (priceLevel === null) return 0;
   return PRICE_LEVEL_TO_BAHT[priceLevel] ?? 0;
@@ -222,7 +230,11 @@ export function buildDayItems(
 
     const placeCost = getPlaceCost(place.priceLevel);
     cumulativeCost += placeCost;
-    const isBudgetConflict = day.dailyBudget !== null ? cumulativeCost > day.dailyBudget : false;
+    // ✅ เช็ค day.useBudget ตรงๆ ก่อนเสมอ — ไม่พึ่งแค่ dailyBudget !== null (เดิม) เพราะเปราะบาง
+    // ถ้าในอนาคตมี daily_budget ค้างอยู่ทั้งที่ useBudget = false (เช่น bug จุดอื่นไม่เคลียร์ค่า)
+    // จะทำให้ conflict โผล่มาทั้งที่ user เลือกไม่ใช้งบไว้ตั้งแต่แรก
+    const isBudgetConflict =
+      day.useBudget && day.dailyBudget !== null ? cumulativeCost > day.dailyBudget : false;
 
     results.push({
       tripDayId: day.tripDayId,

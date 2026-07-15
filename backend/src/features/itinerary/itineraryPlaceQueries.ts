@@ -10,15 +10,22 @@ export interface TripDay {
   startTime: string | null; // "HH:MM:SS" — null ถ้า trips.start_time ไม่มี (ไม่ควรเกิดจริงเพราะ createTrip บังคับกรอก)
   endTime: string | null; // "HH:MM:SS" — null ถ้า trips.available_time_per_day เป็น null
   dailyBudget: number | null; // copy จาก trips.daily_budget ตรงๆ ทุกวัน (คำนวณเสร็จจาก frontend แล้ว)
+  // ✅ เพิ่มใหม่ — copy จาก trips.use_budget ตรงๆ ทุกวันเหมือน dailyBudget เพื่อให้
+  // itineraryBuilder.ts::buildDayItems เช็ค isBudgetConflict จาก "ทริปนี้เลือกใช้งบไหม" ตรงๆ
+  // ไม่ใช่เดาจาก dailyBudget !== null เฉยๆ (เปราะบางถ้าในอนาคตมี daily_budget ค้างอยู่ทั้งที่
+  // useBudget = false — เช่น bug ฝั่งไหนไม่เคลียร์ค่าตอน toggle ปิด)
+  useBudget: boolean;
 }
 
 export interface SelectedPlace {
   placeId: string;
   latitude: number;
   longitude: number;
-  priceLevel: number | null;
-  // ✅ เพิ่มใหม่ — ตาม pattern เดียวกับ poiPlaceQueries.ts::PlaceWithScore
-  // null = สถานที่นี้ไม่มี price_level จริงจาก Google เลย (ไม่ใช่ "ฟรี") คู่กับ hasPriceLevel
+  // ✅ coalesce กับ categories.default_price_level เสมอแล้ว (ดู getSelectedPlaces ด้านล่าง)
+  // ไม่ nullable อีกต่อไป — ตรงกับ poiPlaceQueries.ts::PlaceWithScore.priceLevel
+  priceLevel: number;
+  // เก็บไว้เผื่อ UI อยากแยกแสดง "ราคาโดยประมาณ" vs "ราคาจริง" — ไม่ได้ใช้ตัดสินใจเรื่อง
+  // cumulativeCost/isBudgetConflict แล้ว (นับ cost เสมอทั้งสองกรณี ดูคอมเมนต์ getSelectedPlaces)
   hasPriceLevel: boolean;
   openingHours: OpeningHours | null;
   defaultDurationMin: number; // จาก categories.default_duration_min ผ่าน place_categories
@@ -110,6 +117,22 @@ export async function getTripOwnerAndStart(tripId: string): Promise<TripOwnerAnd
  * แต่ในทางปฏิบัติเช็ค existing ก่อนแล้วจึงไม่ควรชนบ่อย
  */
 export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
+  // ✅ ดึง use_budget ของทริปนี้ไว้ก่อนเลย ต้องแนบไปกับทุก TripDay เสมอ (ทั้ง 2 branch ด้านล่าง —
+  // ไม่ว่า trip_days จะเคยถูกสร้างไว้แล้วหรือเพิ่งสร้างรอบนี้) ดูเหตุผลที่ TripDay.useBudget ด้านบน
+  const { data: tripMeta, error: tripMetaError } = await supabase
+    .from("trips")
+    .select("use_budget")
+    .eq("trip_id", tripId)
+    .single();
+
+  if (tripMetaError || !tripMeta) {
+    throw new Error(
+      `ดึงข้อมูลทริปไม่สำเร็จ: ${tripMetaError?.message ?? "ไม่พบทริป"}`
+    );
+  }
+
+  const useBudget = tripMeta.use_budget ?? false;
+
   // 1. เช็คว่ามี trip_days อยู่แล้วหรือยัง
   const { data: existingRows, error: existingError } = await supabase
     .from("trip_days")
@@ -122,7 +145,7 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
   }
 
   if (existingRows && existingRows.length > 0) {
-    return existingRows.map(mapTripDayRow);
+    return existingRows.map((row) => mapTripDayRow(row, useBudget));
   }
 
   // 2. ยังไม่มี -> ดึงข้อมูล trips มาคำนวณแล้วสร้างให้ครบทุกวัน
@@ -164,10 +187,12 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
     throw new Error(`สร้าง trip_days ไม่สำเร็จ: ${insertError.message}`);
   }
 
-  return (insertedRows ?? []).map(mapTripDayRow).sort((a, b) => a.dayNumber - b.dayNumber);
+  return (insertedRows ?? [])
+    .map((row) => mapTripDayRow(row, useBudget))
+    .sort((a, b) => a.dayNumber - b.dayNumber);
 }
 
-function mapTripDayRow(row: any): TripDay {
+function mapTripDayRow(row: any, useBudget: boolean): TripDay {
   return {
     tripDayId: row.trip_day_id,
     dayNumber: row.day_number,
@@ -175,6 +200,7 @@ function mapTripDayRow(row: any): TripDay {
     startTime: row.start_time,
     endTime: row.end_time,
     dailyBudget: row.daily_budget,
+    useBudget,
   };
 }
 
@@ -187,13 +213,14 @@ function mapTripDayRow(row: any): TripDay {
  * แล้วไม่มี category เลยในทางปฏิบัติ จึงไม่ต้องมี fallback/throw พิเศษสำหรับเคสนี้
  * (`!inner` join จึงปลอดภัย ไม่ต้องกังวลว่าจะดรอปสถานที่ที่ user เลือกไว้แบบเงียบๆ)
  *
- * ✅ แก้แล้ว: ไม่ coalesce price_level กับ categories.default_price_level อีกต่อไป
- * (ยกเลิกมติเดิม PROJECT_BRIEF ข้อ 4.3 — ตามที่ poiPlaceQueries.ts/poiScoreCalculator.ts
- * ยกเลิกไปก่อนหน้านี้แล้ว ตอนนี้ itinerary ปรับให้ตรงกัน) เก็บค่าจริงจาก places.price_level
- * ตรงๆ (null ได้) แล้วแยก hasPriceLevel ไว้ให้ itineraryBuilder.ts ตัดสินใจว่าจะนับ cost
- * สถานที่นี้เข้า cumulativeCost/isBudgetConflict หรือไม่ — เหตุผลเดียวกับฝั่ง POI: ไม่มีข้อมูล
- * ราคาจริงไม่ควรถูกเดาจาก default ของ category เพราะจะทำให้ user เห็นค่าใช้จ่าย/conflict ที่ไม่ตรง
- * กับตอนเลือกจากหน้า POI list มาก่อน (ตอนนั้นสถานที่กลุ่มนี้ไม่เคยถูกกรอง/คิดคะแนนงบเลย)
+ * ✅ มติล่าสุด (sync กับ poiPlaceQueries.ts): coalesce price_level กับ categories.default_price_level
+ * เสมอ เหมือนฝั่ง POI stage — เหตุผล: สถานที่กลุ่มที่ไม่มีราคาจริงถูกกรอง/คิดคะแนนด้วยราคา default
+ * ของหมวดหมู่มาตั้งแต่ตอนแนะนำในหน้า POI list แล้ว (เมื่อ trip.useBudget = true) พอมาถึงขั้นจัด
+ * itinerary ก็ต้องคิดราคาต่อเนื่องด้วยตัวเลขเดียวกัน ไม่ใช่จู่ๆ กลายเป็น 0 บาท (ฟรี) เพราะจะทำให้
+ * isBudgetConflict ที่คำนวณตอน confirm ไม่ตรงกับที่ user เห็นตอนเลือกสถานที่มาจากหน้า POI list
+ * (เดิมเคยตัดสินใจไม่ coalesce ที่นี่ — มติเปลี่ยนแล้ว ให้ตรงกับ poiPlaceQueries.ts เป๊ะ)
+ * hasPriceLevel ยังคงส่งกลับไว้ (เผื่อ UI อยากแสดง badge "ราคาโดยประมาณ" แยกจากราคาจริง)
+ * แต่ไม่ได้ใช้ตัดสินใจว่าจะนับ cost เข้า cumulativeCost หรือไม่แล้ว — นับเสมอทั้งสองกรณี
  */
 export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPlace[]> {
   if (placeIds.length === 0) return [];
@@ -201,7 +228,7 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
   const { data, error } = await supabase
     .from("place_categories")
     .select(
-      "categories!inner(default_duration_min), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
+      "categories!inner(default_duration_min, default_price_level), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
     )
     .in("place_id", placeIds);
 
@@ -211,11 +238,13 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
 
   return (data ?? []).map((row: any) => {
     const rawPriceLevel: number | null = row.places.price_level;
+    const effectivePriceLevel: number =
+      rawPriceLevel ?? row.categories.default_price_level ?? 0;
     return {
       placeId: row.places.place_id,
       latitude: row.places.latitude,
       longitude: row.places.longitude,
-      priceLevel: rawPriceLevel,
+      priceLevel: effectivePriceLevel,
       hasPriceLevel: rawPriceLevel !== null,
       openingHours: row.places.opening_hours,
       defaultDurationMin: row.categories.default_duration_min ?? 60,

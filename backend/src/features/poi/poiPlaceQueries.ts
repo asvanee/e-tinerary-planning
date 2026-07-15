@@ -138,8 +138,10 @@ export async function getFilteredPlaces(
   // ให้ตรงกับ itineraryBuilder.ts (เทียบ cumulativeCost กับ day.dailyBudget ตรงๆ เช่นกัน)
   // ไม่งั้น hard filter ตอนเลือก POI กับผลจริงตอนจัด itinerary จะขัดกันเรื่องงบ
   //
-  // ✅ แก้แล้ว: สถานที่ที่ไม่มี price_level จริง (hasPriceLevel = false) จะไม่ถูกกรองงบเลย
-  // ปล่อยผ่าน hard filter เสมอ (ยกเลิกการใช้ default_price_level ของ category มาเดาแทน)
+  // place.priceLevel ตรงนี้คือ effectivePriceLevel ที่ผ่าน fallback มาจาก
+  // queryPlacesWithCategoryInfo() แล้ว (ราคาจริงถ้ามี, ไม่งั้นใช้ categories.default_price_level)
+  // ดังนั้นทุกสถานที่ถูกกรองงบด้วยตัวเลขราคาเสมอ ไม่มีสถานที่ไหนหลุดผ่าน filter นี้ไปเฉยๆ
+  // เพราะ "ไม่มีข้อมูลราคา" — กรณีนั้นถือว่าใช้ราคาโดยประมาณของหมวดหมู่แทน
   if (
   trip.useBudget &&
   trip.dailyBudget !== null
@@ -203,11 +205,11 @@ async function queryPlacesWithCategoryInfo(
     throw new Error(`ดึง place_categories ไม่สำเร็จ: ${error.message}`);
   }
 
-  // ✅ แก้แล้ว: ไม่ coalesce price_level กับ categories.default_price_level อีกต่อไป
-  // (ยกเลิกมติเดิมใน PROJECT_BRIEF ข้อ 4.3) เก็บค่าจริงจาก places.price_level ตรงๆ (null ได้)
-  // แล้วแยก hasPriceLevel ไว้ตัดสินใจว่าจะใช้สูตรไหนใน poiScoreCalculator.ts และจะ
-  // hard filter งบไหมด้านบน — categories.default_price_level ยังอยู่ใน select เผื่อใช้ที่อื่น
-  // ในอนาคต แต่ไม่ถูกใช้คำนวณคะแนน/กรองงบในไฟล์นี้แล้ว
+  // ✅ มติปัจจุบัน: coalesce price_level กับ categories.default_price_level เสมอ
+  // ("มีราคาจริงก็ใช้ราคาจริง / ไม่มีก็ใช้ default price level ของหมวดหมู่แทน")
+  // effectivePriceLevel ตัวนี้ถูกใช้ทั้งใน budget hard filter (ด้านบน) และส่งต่อเข้า
+  // calculatePoiScore()/calculateBudgetScore() เป็น priceLevel ตรงๆ เมื่อ useBudget = true
+  // เท่านั้น — ถ้า trip.useBudget = false ค่านี้จะไม่ถูกใช้เลย (ดู poiScoreCalculator.ts)
   return (data ?? []).map((row: any) => {
     const rawPriceLevel: number | null =
   row.places.price_level;

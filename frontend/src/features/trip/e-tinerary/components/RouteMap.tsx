@@ -153,8 +153,6 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
       ? { lat: startLat, lng: startLng }
       : { lat: daysWithItems[0].items[0].lat, lng: daysWithItems[0].items[0].lng };
 
-console.log(days);
-console.log(daysWithItems);
   return (
     <div className="bg-white rounded-2xl shadow-md px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">

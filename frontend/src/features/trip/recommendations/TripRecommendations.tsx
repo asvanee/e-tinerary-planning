@@ -11,15 +11,17 @@ interface PoiResult {
   categoryScore: number;
   ratingScore: number;
   distanceScore: number;
-  // ✅ null = ที่นี่ไม่มี price_level จริง สูตรจึงตัด budget ออกไปเลย (ดู poiScoreCalculator.ts)
-  // ไม่ใช่ 0 — 0 จะสื่อผิดว่า "แพงเกินงบ"
-  budgetScore: number;
+  // ✅ null = ทริปนี้เลือก "ไม่ใช้งบประมาณ" (trip.useBudget = false) สูตรจึงตัด budget
+  // ออกจากการคำนวณทั้งทริป — ไม่ใช่เพราะสถานที่ไหนไม่มีราคา (backend coalesce ราคาให้
+  // ทุกที่เสมอแล้วเมื่อ useBudget = true ดู poiPlaceQueries.ts/poiScoreCalculator.ts)
+  // ดังนั้น field นี้จะเป็น null "ทุกการ์ดพร้อมกัน" หรือ "มีค่าทุกการ์ดพร้อมกัน" ไม่ผสมกันในทริปเดียว
+  budgetScore: number | null;
   weatherScore: number;
   poiScore: number;
   // ✅ เพิ่มใหม่ — ค่าดิบเป็นบาท ใช้แสดง "placeCost/perPersonDailyBudget บาท" แทนเปอร์เซ็นต์
-  // null ทั้งคู่เมื่อ budgetScore เป็น null (ไม่มี price_level จริง)
-  // perPersonDailyBudget เป็น null ได้อีกกรณี: trip ไม่ได้ตั้ง daily budget ไว้เลย
-  placeCost: number;
+  // null พร้อมกันทั้งคู่เมื่อ budgetScore เป็น null (trip.useBudget = false)
+  // perPersonDailyBudget เป็น null ได้อีกกรณี: trip ตั้ง useBudget = true แต่ไม่ได้กรอก daily budget ไว้
+  placeCost: number | null;
   perPersonDailyBudget: number | null;
 }
 
@@ -363,9 +365,10 @@ export default function TripRecommendations() {
             </div>
 
             {(() => {
-              // ✅ แบ่ง 2 ฝั่ง: ที่มี budgetScore จริง (มี price_level → สูตร 5 มิติ)
-              // vs ที่ไม่มี (budgetScore = null → สูตร 4 มิติ ไม่มี "ความคุ้มงบ")
-              // เลข rank อ้างอิงอันดับรวมเดิม (ก่อนแบ่งฝั่ง) ไม่ใช่อันดับแยกในแต่ละคอลัมน์
+              // ✅ แสดงเป็น list เดียวแบนตามลำดับคะแนนรวมที่ backend เรียงมาให้แล้ว (ไม่มีการ
+              // แบ่ง 2 คอลัมน์อีกต่อไป — ตัด budget ออกจากสูตรทั้งทริปหรือใช้ทั้งทริปตาม
+              // trip.useBudget ตัวเดียว ไม่ใช่แยกตามสถานที่ ดู PoiResult.budgetScore ด้านบน)
+              // rankOf เก็บไว้แค่โชว์เลขอันดับ 1, 2, 3... ตามตำแหน่งใน array ผลลัพธ์
               const rankOf = new Map(
                 places.map((p, i) => [p.placeId, i + 1])
               );
@@ -446,7 +449,7 @@ export default function TripRecommendations() {
                       <span>ระยะทาง {(1 / item.distanceScore - 1).toFixed(1)} กม.</span>
                       {/* ✅ ใช้ค่าดิบจาก backend ตรงๆ (placeCost/perPersonDailyBudget) ไม่ derive
                           กลับจาก budgetScore แล้ว เพราะ ratio เดียวคำนวณย้อนกลับเป็น 2 ค่าดิบ
-                          แยกกันจริงไม่ได้ — แสดงเฉพาะตอนมีค่าจริง (hasPriceLevel = true) */}
+                          แยกกันจริงไม่ได้ — แสดงเฉพาะตอนทริปนี้ใช้งบประมาณ (trip.useBudget = true) */}
                       {item.placeCost !== null && (
                         <span>
   งบประมาณ {item.placeCost.toLocaleString()}/

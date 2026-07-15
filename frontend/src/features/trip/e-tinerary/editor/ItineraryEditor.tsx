@@ -62,6 +62,9 @@ interface DraftTripDay {
   startTime: string | null;
   endTime: string | null;
   dailyBudget: number | null;
+  // ✅ เพิ่มใหม่ — ต้องส่งต่อเข้า DayAssignment ตอน recompute client-side ให้ isBudgetConflict
+  // ตรงกับที่ backend คำนวณ (ดู itineraryBuilder.ts::buildDayItems)
+  useBudget: boolean;
 }
 
 interface DraftResponse {
@@ -321,6 +324,13 @@ export default function ItineraryEditor() {
         latitude: p.place.latitude,
         longitude: p.place.longitude,
         priceLevel: p.place.price_level,
+        // ✅ เพิ่มที่ขาดไป — PlaceInput.hasPriceLevel เป็น required field ใน itineraryBuilder.ts
+        // ไม่ใส่มาก่อนหน้านี้ทำให้ type ไม่ครบ p.place.price_level ตอนนี้ coalesce จาก backend
+        // เสมอแล้ว (ไม่ nullable ในทางปฏิบัติ) แต่ hasPriceLevel ยังมีประโยชน์เผื่ออนาคตอยากโชว์
+        // badge "ราคาโดยประมาณ" แยกจากราคาจริง — เทียบจาก opening_hours/price_level ที่ backend
+        // เคยส่ง raw price_level มา (ตอนนี้ placesController.ts coalesce แล้วจึงเป็น true เสมอ
+        // ในทางปฏิบัติ แต่เก็บไว้ให้ type ตรงตาม contract ของ itineraryBuilder.ts)
+        hasPriceLevel: p.place.price_level !== null,
         openingHours: p.place.opening_hours ?? null,
         defaultDurationMin: p.place.default_duration_min,
       });
@@ -347,6 +357,7 @@ export default function ItineraryEditor() {
         startTime: day.startTime,
         endTime: day.endTime,
         dailyBudget: day.dailyBudget,
+        useBudget: day.useBudget,
         orderedPlaceIds: containers[key] ?? [],
       };
       result[key] = buildDayItems(assignment, placesById);

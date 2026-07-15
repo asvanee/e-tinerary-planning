@@ -16,9 +16,10 @@ import {
  * POST /api/itinerary/trips/:tripId/draft
  * body: { place_ids: string[] }
  *
- * รัน placement algorithm ครั้งแรก (ดู itineraryBuilder.ts — buildInitialDraft: ยัดทุกที่ไว้วันแรก
- * เรียงด้วย Nearest-Neighbor TSP heuristic จากจุดที่ user ปักหมุด) คืนแผนต่อวัน + validation status
- * ต่อจุด — ยังไม่บันทึกลง itineraries (ตามหัวข้อ 4 ใน itineraries_feature_status.md)
+ * สร้าง trip_days (ถ้ายังไม่มี) แล้วคืนสถานที่ที่เลือกไว้ทั้งหมดกลับไปแบบยังไม่จัดลงวันไหนเลย
+ * (ดู itineraryBuilder.ts::buildInitialDraft — เปลี่ยนมติแล้ว ไม่ auto-place/ไม่รัน Nearest-Neighbor
+ * TSP heuristic ตอน build draft ครั้งแรกอีกต่อไป ให้ user ลากจัดเองทุกที่ตั้งแต่แรกในหน้า editor)
+ * ยังไม่บันทึกลง itineraries (ตามหัวข้อ 4 ใน itineraries_feature_status.md)
  */
 export const buildDraft = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
@@ -71,6 +72,7 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
       startTime: day.startTime,
       endTime: day.endTime,
       dailyBudget: day.dailyBudget,
+      useBudget: day.useBudget,
       orderedPlaceIds: [], // buildInitialDraft() จะเติมให้เอง (วันแรกเท่านั้น วันอื่นว่างเปล่า)
     }));
 
@@ -95,6 +97,9 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
         startTime: day.startTime,
         endTime: day.endTime,
         dailyBudget: day.dailyBudget,
+        // ✅ เพิ่มใหม่ — หน้า editor ต้องใช้ค่านี้ประกอบ DayAssignment ตอน recompute
+        // client-side เอง (buildDayItems) ให้ isBudgetConflict ตรงกับที่ backend คำนวณ
+        useBudget: day.useBudget,
       })),
       items: draftItems,
     });
@@ -173,6 +178,7 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
         startTime: day.startTime,
         endTime: day.endTime,
         dailyBudget: day.dailyBudget,
+        useBudget: day.useBudget,
         orderedPlaceIds: dayInput.place_ids,
       };
     });
@@ -311,6 +317,9 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
       dayNumber: day.dayNumber,
       visitDate: day.visitDate,
       dailyBudget: day.dailyBudget,
+      // ✅ เพิ่มใหม่ — ให้ shape ตรงกับ buildDraft response เผื่ออนาคตหน้าไหนเอา saved itinerary
+      // นี้ไปสร้าง DayAssignment ต่อ (เช่น เปิดแก้ไขแผนที่ยืนยันแล้วซ้ำในหน้า editor)
+      useBudget: day.useBudget,
       items: (itemsByDay.get(day.tripDayId) ?? []).map((row: any) => ({
         placeId: row.place_id,
         // ✅ Supabase embed คืนเป็น object เดี่ยวปกติ แต่บาง version คืนเป็น array ถ้า
