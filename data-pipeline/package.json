@@ -14,7 +14,8 @@
     "test:dedupe": "cross-env TARGET_PROVINCE=ชลบุรี ts-node src/testDedupe.ts",
     "test:province:chiangmai": "cross-env TARGET_PROVINCE=เชียงใหม่ SAMPLE_LIMIT=200 ts-node src/testProvinceSample.ts",
     "test:dedupe:chiangmai": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/testDedupe.ts",
-    "find:collisions:chiangmai": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/findGoogleCollisionCandidates.ts"
+    "find:collisions:chiangmai": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/findGoogleCollisionCandidates.ts",
+    "fetch-gmaps-categories:chiangmai": "cross-env TARGET_PROVINCE=เชียงใหม่ ts-node src/fetchGmapsCategories.ts"
   },
   "keywords": [],
   "author": "",

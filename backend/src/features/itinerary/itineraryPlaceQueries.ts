@@ -212,6 +212,19 @@ function mapTripDayRow(row: any, useBudget: boolean): TripDay {
  * pipeline คำนวณ place_categories จาก att_type_label เสร็จสมบูรณ์แล้ว — ไม่มีเคส place ที่เลือกมา
  * แล้วไม่มี category เลยในทางปฏิบัติ จึงไม่ต้องมี fallback/throw พิเศษสำหรับเคสนี้
  * (`!inner` join จึงปลอดภัย ไม่ต้องกังวลว่าจะดรอปสถานที่ที่ user เลือกไว้แบบเงียบๆ)
+ * — หมายเหตุ: 689/689 พูดถึงแค่ "มี category อย่างน้อย 1 อัน" คนละเรื่องกับ "มีมากกว่า 1
+ * category" ที่แก้ด้านล่าง (ดู multi-category dedupe)
+ *
+ * ✅ แก้บั๊ก (sync กับ poiPlaceQueries.ts::queryPlacesWithCategoryInfo): เดิม query นี้ไม่ group
+ * by place_id เลย — เชียงใหม่ผ่าน Stage 3 แล้ว (DATA_PREPARATION_4.md หัวข้อ 8.2) place หนึ่ง
+ * มีได้หลาย category จริง ทำให้ query คืนหลายแถวซ้ำ place_id เดียวกัน (แถวละ
+ * default_duration_min ต่างกันไปตาม category) แล้ว `new Map(places.map(p => [p.placeId, p]))`
+ * ที่ itineraryController.ts (ทั้ง buildDraft และ confirmItinerary) จะเก็บแค่แถวสุดท้ายที่ query
+ * คืนมาแบบสุ่ม (ลำดับจาก Supabase ไม่การันตี) ทำให้ duration ที่ใช้คำนวณตารางเวลาจริงเพี้ยน
+ * ไม่คงที่ — และไม่ตรงกับ duration ที่ user เห็นตอนอยู่หน้า POI list ด้วย (ฝั่งนั้นใช้ MAX
+ * confidence_score เลือก category ตัวแทนแล้ว) ตอนนี้ group by place_id แล้วเลือกแถวที่
+ * confidence_score สูงสุดเป็นตัวแทน — เกณฑ์เดียวกับ poiPlaceQueries.ts เป๊ะ เพื่อให้
+ * duration/ราคาที่เห็นตอน POI list กับตอนจัด itinerary เป็นตัวเลขเดียวกันเสมอ
  *
  * ✅ มติล่าสุด (sync กับ poiPlaceQueries.ts): coalesce price_level กับ categories.default_price_level
  * เสมอ เหมือนฝั่ง POI stage — เหตุผล: สถานที่กลุ่มที่ไม่มีราคาจริงถูกกรอง/คิดคะแนนด้วยราคา default
@@ -228,7 +241,7 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
   const { data, error } = await supabase
     .from("place_categories")
     .select(
-      "categories!inner(default_duration_min, default_price_level), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
+      "confidence_score, categories!inner(default_duration_min, default_price_level), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
     )
     .in("place_id", placeIds);
 
@@ -236,7 +249,27 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
     throw new Error(`ดึงข้อมูลสถานที่ที่เลือกไม่สำเร็จ: ${error.message}`);
   }
 
-  return (data ?? []).map((row: any) => {
+  // ✅ Multi-category dedupe — group by place_id แล้วเลือกแถวที่ confidence_score สูงสุด
+  // (เกณฑ์เดียวกับ poiPlaceQueries.ts::queryPlacesWithCategoryInfo) กัน place เดียวกันโผล่ซ้ำ
+  // และกัน defaultDurationMin/priceLevel สุ่มมาจากคนละ category ทุกครั้งที่ query
+  const bestRowByPlaceId = new Map<string, any>();
+
+  // ✅ แก้ TS2339: (data ?? []) ที่ไม่ cast จะโดน Supabase infer ว่า row.places เป็น array
+  // (relation ไม่ได้ตั้ง one-to-one ชัดเจน) ทั้งที่รันจริงเป็น object เดี่ยว — cast เป็น any[]
+  // ตรงนี้เหมือนกับที่ .map((row: any) => ...) ด้านล่างทำอยู่แล้ว ให้ทั้งไฟล์สม่ำเสมอกัน
+  for (const row of (data ?? []) as any[]) {
+    const placeId = row.places.place_id;
+    const existing = bestRowByPlaceId.get(placeId);
+
+    if (
+      !existing ||
+      (row.confidence_score ?? 0) > (existing.confidence_score ?? 0)
+    ) {
+      bestRowByPlaceId.set(placeId, row);
+    }
+  }
+
+  return Array.from(bestRowByPlaceId.values()).map((row: any) => {
     const rawPriceLevel: number | null = row.places.price_level;
     const effectivePriceLevel: number =
       rawPriceLevel ?? row.categories.default_price_level ?? 0;

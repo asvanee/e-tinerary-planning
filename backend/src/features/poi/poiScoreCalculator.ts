@@ -11,7 +11,13 @@ import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
 
 /**
  * category_score: ถ้าไม่ได้เลือก category เลย (confidenceScore = null) → default 1.0 ไม่ตัดคะแนน
- * ถ้าเลือกแล้ว match → ใช้ confidence_score ตรงๆ (schema ปัจจุบัน 1 place : 1 category)
+ * ถ้าเลือกแล้ว match → ใช้ confidence_score ตรงๆ
+ * ✅ แก้คอมเมนต์ (ของเดิมเข้าใจผิด): place หนึ่งมีได้หลาย category จริง (ดู
+ * DATA_PREPARATION_4.md หัวข้อ 8.2 — เชียงใหม่ผ่าน Stage 3 แล้ว 429/429) แต่ฟังก์ชันนี้
+ * ไม่ต้องรู้เรื่อง multi-category เลย เพราะ MAX aggregation (เลือก confidence_score สูงสุด
+ * ต่อ place เมื่อแมทช์ได้หลาย category) ทำเสร็จแล้วตั้งแต่ต้นทางใน
+ * queryPlacesWithCategoryInfo() (poiPlaceQueries.ts) — confidenceScore ที่ส่งเข้ามาที่นี่
+ * จึงเป็นค่า best-match เดียวเสมอ ไม่ใช่ raw score ดิบที่อาจมีหลายค่าต่อ place
  */
 export function calculateCategoryScore(confidenceScore: number | null): number {
   if (confidenceScore === null) return 1.0;

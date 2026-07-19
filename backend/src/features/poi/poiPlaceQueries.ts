@@ -28,6 +28,9 @@ export interface PlaceWithScore {
 
   priceLevel: number;
 
+  // ✅ place อาจมีได้หลาย category จริง (ดู DATA_PREPARATION_4.md หัวข้อ 8.2) — ค่าที่นี่คือ
+  // ของ category ที่ confidence_score สูงสุด (best match) ต่อ place นั้น ไม่ใช่ค่าเดียว
+  // ที่มีของ place (ดู bestRowByPlaceId ใน queryPlacesWithCategoryInfo)
   confidenceScore: number | null;
   defaultDurationMin: number;
   categoryName: string;
@@ -187,7 +190,7 @@ async function queryPlacesWithCategoryInfo(
   let query = supabase
     .from("place_categories")
     .select(
-      "confidence_score, categories!inner(default_duration_min, default_price_level, category_name), places!inner(place_id, latitude, longitude, rating, price_level, province, district)"
+      "category_id, confidence_score, categories!inner(default_duration_min, default_price_level, category_name), places!inner(place_id, latitude, longitude, rating, price_level, province, district)"
     )
     .eq("places.province", locationFilter.province);
 
@@ -205,12 +208,47 @@ async function queryPlacesWithCategoryInfo(
     throw new Error(`ดึง place_categories ไม่สำเร็จ: ${error.message}`);
   }
 
+  // ✅ เพิ่มใหม่ — Multi-category support (ดู DATA_PREPARATION_4.md หัวข้อ 8.2/8.7):
+  // ตั้งแต่ Stage 3 (gmaps_types weighted scoring) place หนึ่งเก็บได้หลาย category พร้อมกัน
+  // (ทุก category ที่ score >= 0.5 * max_score ของ place นั้น) เชียงใหม่ผ่าน Stage 3 แล้ว
+  // (429/429) ดังนั้น place_categories ของเชียงใหม่มีโอกาสจริงที่ 1 place จะมีหลายแถว —
+  // ถ้าไม่ group ตรงนี้ place เดียวกันจะโผล่ซ้ำในผลลัพธ์เท่าจำนวน category ที่แมทช์
+  // (โดยเฉพาะตอน user เลือกหลาย interest พร้อมกันแล้ว place แมทช์มากกว่า 1 interest)
+  //
+  // มติ: group by place_id แล้วเลือกแถวที่ confidence_score สูงสุด (MAX aggregation) เป็น
+  // ตัวแทนของ place นั้น — ใช้ categoryName + defaultDurationMin ของ category ที่ match
+  // แน่นสุด (คะแนนสูงสุด) เป็นตัวแทนการแสดงผล ไม่ sum/average ข้าม category กัน
+  //
+  // หมายเหตุ: กรุงเทพฯ/ชลบุรียังไม่ผ่าน Stage 3 (ดู DATA_PREPARATION_4.md หัวข้อ 8.4) ตอนนี้
+  // ยังไม่มี place ไหนของ 2 จังหวัดนี้ที่จะมีหลายแถวจริง แต่โค้ดนี้เขียนให้ถูกต้องล่วงหน้า
+  // ไว้เลย ไม่ต้องมาแก้ซ้ำตอนกรุงเทพฯ/ชลบุรีผ่าน Stage 3 ทีหลัง
+  const bestRowByPlaceId = new Map<string, any>();
+
+  // ✅ แก้ TS2339: (data ?? []) ที่ไม่ cast จะโดน Supabase infer ว่า row.places เป็น array
+  // (relation ไม่ได้ตั้ง one-to-one ชัดเจน) ทั้งที่รันจริงเป็น object เดี่ยว — cast เป็น any[]
+  // ตรงนี้เหมือนกับที่ .map((row: any) => ...) ด้านล่างทำอยู่แล้ว ให้ทั้งไฟล์สม่ำเสมอกัน
+  // (sync กับ itineraryPlaceQueries.ts::getSelectedPlaces ที่แก้จุดเดียวกันไปแล้ว)
+  for (const row of (data ?? []) as any[]) {
+    const placeId = row.places.place_id;
+    const existing = bestRowByPlaceId.get(placeId);
+
+    // confidence_score เป็น null ได้ตอน categoryIds === null (ไม่ได้กรอง category เลย
+    // เห็นทุกแถวของ place นั้น) กรณีนั้นไม่มีเกณฑ์เทียบความมั่นใจ ใช้แถวแรกที่เจอไปเลย
+    // เพราะ confidenceScore สุดท้ายจะถูกบังคับเป็น null อยู่ดี (ดูด้านล่าง) ไม่ถูกใช้คำนวณ
+    if (
+      !existing ||
+      (row.confidence_score ?? 0) > (existing.confidence_score ?? 0)
+    ) {
+      bestRowByPlaceId.set(placeId, row);
+    }
+  }
+
   // ✅ มติปัจจุบัน: coalesce price_level กับ categories.default_price_level เสมอ
   // ("มีราคาจริงก็ใช้ราคาจริง / ไม่มีก็ใช้ default price level ของหมวดหมู่แทน")
   // effectivePriceLevel ตัวนี้ถูกใช้ทั้งใน budget hard filter (ด้านบน) และส่งต่อเข้า
   // calculatePoiScore()/calculateBudgetScore() เป็น priceLevel ตรงๆ เมื่อ useBudget = true
   // เท่านั้น — ถ้า trip.useBudget = false ค่านี้จะไม่ถูกใช้เลย (ดู poiScoreCalculator.ts)
-  return (data ?? []).map((row: any) => {
+  return Array.from(bestRowByPlaceId.values()).map((row: any) => {
     const rawPriceLevel: number | null =
   row.places.price_level;
 
