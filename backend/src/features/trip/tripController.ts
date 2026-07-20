@@ -317,21 +317,31 @@ export const getTripById = async (req: AuthRequest, res: Response) => {
   // checkbox ตอนเปิดโหมดแก้ไข ไม่งั้นจะไม่รู้ว่าทริปนี้เลือก category อะไรไว้บ้าง
   // (ไม่ error ถ้าดึงไม่สำเร็จ แค่ส่ง array ว่างกลับไป ไม่ทำให้ทั้ง endpoint ล่ม)
   const { data: categoryRows, error: categoryFetchError } = await supabase
-    .from("trip_categories")
-    .select("category_id")
-    .eq("trip_id", tripId);
+  .from("trip_categories")
+  .select(`
+    category:categories (
+      category_id,
+      category_name
+    )
+  `)
+  .eq("trip_id", tripId);
 
   if (categoryFetchError) {
     console.error("Get trip_categories error:", categoryFetchError.message);
   }
 
-  res.json({
-    trip: {
-      ...data,
-      category_ids: (categoryRows ?? []).map((row) => row.category_id),
-    },
-  });
-};
+      res.json({
+        trip: {
+          ...data,
+          category_ids: (categoryRows ?? []).map(
+            (row: any) => row.category.category_id
+          ),
+          categories: (categoryRows ?? []).map(
+            (row: any) => row.category
+          ),
+        },
+      });
+    };
 /**
  * PUT /api/trips/:tripId
  *

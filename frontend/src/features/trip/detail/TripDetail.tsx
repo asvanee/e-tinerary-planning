@@ -53,14 +53,32 @@ interface TripDay {
 
 interface TripSummary {
   tripId: string;
+
   province: string;
-  city: string | null;
+  city: string |null;
+
   startDate: string;
   endDate: string;
+
+  startTime: string;
+
   numberOfPeople: number;
+
+  useBudget: boolean;
   totalBudget: number;
-  tripStartLat: number;
-  tripStartLng: number;
+
+  budgetScope: string | null;
+  budgetPeriod: string | null;
+
+  availableTimePerDay: number | null;
+
+  categories?: {
+      category_id:number;
+      category_name:string;
+  }[];
+
+  tripStartLat:number;
+  tripStartLng:number;
 }
 
 // ---------- Raw response types จาก backend (snake_case ตรงกับ DB) ----------
@@ -69,12 +87,28 @@ interface TripRow {
   trip_id: string;
   province: string;
   district: string | null;
+
   start_date: string;
   end_date: string;
+  start_time: string;
+
   number_of_people: number;
+
+  use_budget: boolean;
   total_budget: number | null;
+
+  budget_scope: string | null;
+  budget_period: string | null;
+
+  available_time_per_day: number | null;
+
   start_lat: number;
   start_lng: number;
+
+  categories?: {
+      category_id: number;
+      category_name: string;
+  }[];
 }
 
 interface SavedItineraryItemRow {
@@ -114,15 +148,29 @@ interface SavedItineraryResponse {
 function mapTripRow(row: TripRow): TripSummary {
   return {
     tripId: row.trip_id,
+
     province: row.province,
     city: row.district,
+
     startDate: row.start_date,
     endDate: row.end_date,
+    startTime: row.start_time,
+
     numberOfPeople: row.number_of_people,
+
+    useBudget: row.use_budget,
     totalBudget: row.total_budget ?? 0,
+
+    budgetScope: row.budget_scope,
+    budgetPeriod: row.budget_period,
+
+    availableTimePerDay: row.available_time_per_day,
+
+    categories: row.categories ?? [],
+
     tripStartLat: row.start_lat,
     tripStartLng: row.start_lng,
-  };
+};
 }
 
 // mapper: SavedItineraryDayRow (จาก GET /api/itinerary/trips/:tripId) -> TripDay ที่ component ใช้
@@ -490,10 +538,32 @@ export default function TripDetail() {
               </span>
               <h2 className="font-prompt font-bold text-2xl text-white mb-1">
                 {trip.province}
-                {trip.city && <span className="text-[#5990c0] font-normal text-lg"> · {trip.city}</span>}
+                {trip.city && <span className="text-[#d0d9ff] font-normal text-lg"> · {trip.city}</span>}
               </h2>
-              <p className="text-[#5990c0] text-sm">
-                {formatDateRange(trip.startDate, trip.endDate)} · {trip.numberOfPeople} คน
+              <p className="text-[#d0d9ff] text-sm">
+                <div>📅 {formatDateRange(trip.startDate, trip.endDate)}</div>
+
+                👤 {trip.numberOfPeople} คน
+
+                <br />
+
+                🕒 เวลาเริ่ม: {trip.startTime}
+
+                <br />
+
+                💰 งบประมาณ: {
+                  trip.useBudget
+                    ? `${trip.totalBudget.toLocaleString()} บาท`
+                    : "ไม่จำกัดงบ"
+                }
+
+                <br />
+
+                🏷️ หมวดหมู่: {
+                  trip.categories?.length
+                    ? trip.categories.map(c => c.category_name).join(", ")
+                    : "-"
+                }
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">
