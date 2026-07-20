@@ -504,6 +504,22 @@ export default function TripDetail() {
                 >
                   🔍 แสดงสถานที่แนะนำ
                 </button>
+
+                {/* เพิ่มตรงนี้ */}
+                <button
+                  onClick={() =>
+                    navigate(`/trip/${tripIdParam}/edit`, {
+                      state: {
+                        editMode: true,
+                        trip,
+                      },
+                    })
+                  }
+                  className="px-5 py-2.5 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold text-sm shadow-md hover:bg-gray-100 transition-colors whitespace-nowrap"
+>
+                ✏️ แก้ไขข้อมูลทริป
+                </button>
+
                 <button
                   onClick={handleEditRoute}
                   disabled={preparingEdit}

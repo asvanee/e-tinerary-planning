@@ -1,27 +1,18 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, href } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 
 interface PoiResult {
   placeId: string;
-  // ✅ เพิ่มใหม่ — หมวดหมู่ที่ตรงกับความสนใจที่ user เลือกไว้ตอนสร้างทริป (เช่น "Viewpoint")
-  // แยกจาก place.att_category_label ที่มาจาก Google
   categoryName: string;
   categoryScore: number;
   ratingScore: number;
   distanceScore: number;
-  // ✅ null = ทริปนี้เลือก "ไม่ใช้งบประมาณ" (trip.useBudget = false) สูตรจึงตัด budget
-  // ออกจากการคำนวณทั้งทริป — ไม่ใช่เพราะสถานที่ไหนไม่มีราคา (backend coalesce ราคาให้
-  // ทุกที่เสมอแล้วเมื่อ useBudget = true ดู poiPlaceQueries.ts/poiScoreCalculator.ts)
-  // ดังนั้น field นี้จะเป็น null "ทุกการ์ดพร้อมกัน" หรือ "มีค่าทุกการ์ดพร้อมกัน" ไม่ผสมกันในทริปเดียว
-  budgetScore: number | null;
+  budgetScore: number;
   weatherScore: number;
   poiScore: number;
-  // ✅ เพิ่มใหม่ — ค่าดิบเป็นบาท ใช้แสดง "placeCost/perPersonDailyBudget บาท" แทนเปอร์เซ็นต์
-  // null พร้อมกันทั้งคู่เมื่อ budgetScore เป็น null (trip.useBudget = false)
-  // perPersonDailyBudget เป็น null ได้อีกกรณี: trip ตั้ง useBudget = true แต่ไม่ได้กรอก daily budget ไว้
-  placeCost: number | null;
+  placeCost: number;
   perPersonDailyBudget: number | null;
 }
 
@@ -33,21 +24,14 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  // ✅ coalesce เสร็จจาก backend เสมอแล้ว (places.price_level -> categories.default_price_level -> 0)
-  // ดู placesController.ts — ไม่มีทาง null จริงในทางปฏิบัติ
   price_level: number;
   formatted_address: string | null;
-
   phone_number?: string | null;
   website?: string | null;
   opening_hours?: any;
   user_ratings_total?: number | null;
-
   att_type_label?: string | null;
   att_category_label?: string | null;
-
-  // ✅ เพิ่มใหม่ — จาก categories.default_duration_min (join ผ่าน place_categories)
-  // จำเป็นสำหรับหน้า itinerary editor ตอน recompute client-side (buildDayItems ต้องใช้คำนวณ endTime)
   default_duration_min: number;
 }
 
@@ -65,21 +49,17 @@ export default function TripRecommendations() {
   const [error, setError] = useState<string | null>(null);
   const [categoryFallbackUsed, setCategoryFallbackUsed] = useState(false);
 
-  // ✅ โหมดจัดทริปเอง — ปิดอยู่ก่อน (แสดงการ์ดแบบดูอย่างเดียว) จนกว่าจะกด "จัดทริปเอง"
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
 
-  // ✅ state สำหรับตอนเรียก POST /draft
   const [creatingRoute, setCreatingRoute] = useState(false);
   const [createRouteError, setCreateRouteError] = useState<string | null>(null);
 
+  // ✅ ตัวกรองหมวดหมู่ที่เลือกไว้ตอนสร้างทริป (categoryName) — null = แสดงทุกหมวดหมู่
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
   useEffect(() => {
-    // ✅ รอ AuthContext อ่าน session จาก localStorage ให้เสร็จก่อน
-    // ไม่งั้น mount ครั้งแรก session จะเป็น null ชั่วคราวเสมอ (แม้ user
-    // จะล็อกอินอยู่จริง) แล้วโดนเด้งไป /login ผิดพลาด
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
 
     if (!session) {
       navigate("/login");
@@ -97,49 +77,37 @@ export default function TripRecommendations() {
       setError(null);
 
       try {
-
-          const poiRes = await fetch(
-            `/api/poi/trips/${tripId}/calculate-poi`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${session.access_token}`,
-              },
-            }
-          );
+        const poiRes = await fetch(
+          `/api/poi/trips/${tripId}/calculate-poi`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
         const responseText = await poiRes.text();
 
         let poiData;
-
         try {
           poiData = JSON.parse(responseText);
         } catch {
-          throw new Error(
-            `API ไม่ได้ส่ง JSON กลับมา (status ${poiRes.status})`
-          );
+          throw new Error(`API ไม่ได้ส่ง JSON กลับมา (status ${poiRes.status})`);
         }
 
-
         if (!poiRes.ok) {
-          throw new Error(
-            poiData.message || "คำนวณคะแนนสถานที่ไม่สำเร็จ"
-          );
+          throw new Error(poiData.message || "คำนวณคะแนนสถานที่ไม่สำเร็จ");
         }
 
         const results: PoiResult[] = poiData.results ?? [];
-
-        setCategoryFallbackUsed(
-          !!poiData.categoryFallbackUsed
-        );
+        setCategoryFallbackUsed(!!poiData.categoryFallbackUsed);
 
         if (results.length === 0) {
           setPlaces([]);
           return;
         }
 
-        const ids = results
-          .map((r) => r.placeId)
-          .join(",");
+        const ids = results.map((r) => r.placeId).join(",");
 
         const placesRes = await fetch(
           `/api/places?ids=${encodeURIComponent(ids)}`,
@@ -153,16 +121,11 @@ export default function TripRecommendations() {
         const placesData = await placesRes.json();
 
         if (!placesRes.ok) {
-          throw new Error(
-            placesData.message || "ดึงข้อมูลสถานที่ไม่สำเร็จ"
-          );
+          throw new Error(placesData.message || "ดึงข้อมูลสถานที่ไม่สำเร็จ");
         }
 
         const placeMap = new Map<string, PlaceInfo>(
-          (placesData.places as PlaceInfo[]).map((p) => [
-            p.place_id,
-            p,
-          ])
+          (placesData.places as PlaceInfo[]).map((p) => [p.place_id, p])
         );
 
         const merged: MergedPlace[] = results.map((r) => ({
@@ -171,14 +134,9 @@ export default function TripRecommendations() {
         }));
 
         setPlaces(merged);
-
-        // ✅ ไม่ pre-select ทุกที่แล้ว — ผู้ใช้ต้องกด "จัดทริปเอง" แล้วเลือกเองทีละที่
-
       } catch (err: any) {
         console.error(err);
-        setError(
-          err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล"
-        );
+        setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
       } finally {
         setLoading(false);
       }
@@ -206,12 +164,8 @@ export default function TripRecommendations() {
     setCreateRouteError(null);
   };
 
-  // ✅ เรียก backend สร้าง draft ก่อน แล้วค่อย navigate ไปหน้า editor พร้อมผลลัพธ์ที่ backend คำนวณแล้ว
-  // (ไม่ส่ง raw places ตรงๆ — editor ต้องได้ draft ที่ผ่าน TSP + validate จาก backend มาแล้ว)
   const handleCreateRoute = async () => {
-    if (!tripId || !session || selectedPlaceIds.length === 0) {
-      return;
-    }
+    if (!tripId || !session || selectedPlaceIds.length === 0) return;
 
     setCreatingRoute(true);
     setCreateRouteError(null);
@@ -240,20 +194,31 @@ export default function TripRecommendations() {
         state: {
           tripId,
           draft: data,
-          // ✅ ส่งแค่สถานที่ที่ user เลือกไว้เท่านั้น (ไม่ใช่ candidate pool ทั้งหมด ~50 ที่)
-          // มี default_duration_min/opening_hours/price_level ติดมาด้วยสำหรับ editor ใช้ recompute
           places: selectedPlaces,
         },
       });
     } catch (err: any) {
       console.error(err);
-      setCreateRouteError(
-        err.message || "เกิดข้อผิดพลาดในการสร้างเส้นทาง"
-      );
+      setCreateRouteError(err.message || "เกิดข้อผิดพลาดในการสร้างเส้นทาง");
     } finally {
       setCreatingRoute(false);
     }
   };
+
+  // ✅ รายการหมวดหมู่ unique จากผลลัพธ์จริง ใช้ทำแถบกรองแนวนอน
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    places.forEach((p) => {
+      if (p.categoryName) set.add(p.categoryName);
+    });
+    return Array.from(set);
+  }, [places]);
+
+  // ✅ การ์ดที่จะแสดงจริงหลังกรองหมวดหมู่ (rank ยังอิงจาก places เต็มชุดเสมอ)
+  const displayedPlaces = useMemo(() => {
+    if (!selectedCategory) return places;
+    return places.filter((p) => p.categoryName === selectedCategory);
+  }, [places, selectedCategory]);
 
   return (
     <div className="font-sarabun min-h-screen bg-[#fcedd3]">
@@ -270,7 +235,6 @@ export default function TripRecommendations() {
         </button>
       </div>
 
-      {/* เว้นที่ด้านล่างให้ sticky bar ตอน custom mode ไม่บังการ์ดล่างสุด */}
       <div className={`max-w-6xl mx-auto px-4 py-6 ${isCustomMode ? "pb-28" : ""}`}>
         <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
           <h2 className="font-prompt font-bold text-2xl text-white mb-1">
@@ -331,7 +295,6 @@ export default function TripRecommendations() {
 
         {!loading && !error && places.length > 0 && (
           <>
-            {/* ✅ แถบปุ่มบนสุด: ก่อนเข้าโหมดจัดทริปเอง แสดง 2 ปุ่ม, หลังเข้าโหมดแล้วแสดงตัวนับ + ยกเลิก */}
             <div className="flex justify-between items-center mb-4 gap-3">
               {!isCustomMode ? (
                 <div className="flex gap-3 ml-auto">
@@ -364,15 +327,40 @@ export default function TripRecommendations() {
               )}
             </div>
 
-            {(() => {
-              // ✅ แสดงเป็น list เดียวแบนตามลำดับคะแนนรวมที่ backend เรียงมาให้แล้ว (ไม่มีการ
-              // แบ่ง 2 คอลัมน์อีกต่อไป — ตัด budget ออกจากสูตรทั้งทริปหรือใช้ทั้งทริปตาม
-              // trip.useBudget ตัวเดียว ไม่ใช่แยกตามสถานที่ ดู PoiResult.budgetScore ด้านบน)
-              // rankOf เก็บไว้แค่โชว์เลขอันดับ 1, 2, 3... ตามตำแหน่งใน array ผลลัพธ์
-              const rankOf = new Map(
-                places.map((p, i) => [p.placeId, i + 1])
-              );
+            {/* ✅ แถบกรองหมวดหมู่แบบเลื่อนแนวนอนเส้นเดียว */}
+            {availableCategories.length > 0 && (
+              <div className="flex gap-2 mb-4 overflow-x-auto flex-nowrap pb-2 -mx-1 px-1">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                    selectedCategory === null
+                      ? "bg-[#102a6b] text-white"
+                      : "bg-white text-[#102a6b] border border-[#102a6b]/20 hover:bg-gray-50"
+                  }`}
+                >
+                  ทั้งหมด ({places.length})
+                </button>
+                {availableCategories.map((cat) => {
+                  const count = places.filter((p) => p.categoryName === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                        selectedCategory === cat
+                          ? "bg-[#102a6b] text-white"
+                          : "bg-white text-[#102a6b] border border-[#102a6b]/20 hover:bg-gray-50"
+                      }`}
+                    >
+                      {cat} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
+            {(() => {
+              const rankOf = new Map(places.map((p, i) => [p.placeId, i + 1]));
 
               const renderCard = (item: MergedPlace) => (
                 <div
@@ -399,20 +387,16 @@ export default function TripRecommendations() {
                       {item.place?.province ?? ""}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {/* ✅ หมวดหมู่ที่ตรงกับความสนใจที่เลือกไว้ตอนสร้างทริป */}
                       {item.categoryName && (
                         <div className="inline-block px-2 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
                           {item.categoryName}
                         </div>
                       )}
-                      {/* ป้ายหมวดหมู่จาก Google (ถ้ามีข้อมูล) */}
                       {item.place?.att_category_label && (
                         <div className="inline-block px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
                           {item.place.att_category_label}
                         </div>
                       )}
-                      
-                      
                     </div>
                     {item.place?.phone_number && (
                       <div className="text-xs text-[#015185] mt-1">
@@ -443,25 +427,18 @@ export default function TripRecommendations() {
                     <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#015185]">
                       <span>ความตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</span>
                       <span>คะแนนรีวิว {(item.ratingScore * 5).toFixed(1)}/5</span>
-                      {/* ✅ แปลง distanceScore กลับเป็นระยะทางจริง (กม.) จากสูตร distanceScore = 1/(1+km)
-                          ของ backend (poiScoreCalculator.ts) เลย -> km = 1/distanceScore - 1
-                          ไม่ต้องแก้ backend หรือดึงพิกัดมาคำนวณซ้ำฝั่ง frontend */}
                       <span>ระยะทาง {(1 / item.distanceScore - 1).toFixed(1)} กม.</span>
-                      {/* ✅ ใช้ค่าดิบจาก backend ตรงๆ (placeCost/perPersonDailyBudget) ไม่ derive
-                          กลับจาก budgetScore แล้ว เพราะ ratio เดียวคำนวณย้อนกลับเป็น 2 ค่าดิบ
-                          แยกกันจริงไม่ได้ — แสดงเฉพาะตอนทริปนี้ใช้งบประมาณ (trip.useBudget = true) */}
                       {item.placeCost !== null && (
                         <span>
-  งบประมาณ {item.placeCost.toLocaleString()}/
-  {item.perPersonDailyBudget !== null
-    ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
-    : "ไม่จำกัดงบ"}
-</span>
+                          งบประมาณ {item.placeCost.toLocaleString()}/
+                          {item.perPersonDailyBudget !== null
+                            ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
+                            : "ไม่จำกัดงบ"}
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  {/* ✅ ปุ่มเลือก แสดงเฉพาะตอนอยู่ในโหมดจัดทริปเองเท่านั้น */}
                   {isCustomMode && (
                     <div className="flex-shrink-0">
                       <button
@@ -486,17 +463,29 @@ export default function TripRecommendations() {
                 </div>
               );
 
+              
+
+              if (displayedPlaces.length === 0) {
+                return (
+                  <div className="bg-white rounded-2xl shadow-md px-8 py-12 flex flex-col items-center justify-center text-center gap-2">
+                    <div className="text-4xl">🗂️</div>
+                    <p className="text-sm text-[#5990c0]">
+                      ไม่มีสถานที่ในหมวดหมู่นี้
+                    </p>
+                  </div>
+                );
+              }
+
               return (
-  <div className="flex flex-col gap-4">
-    {places.map((item) => renderCard(item))}
-  </div>
-);
+                <div className="flex flex-col gap-4">
+                  {displayedPlaces.map((item) => renderCard(item))}
+                </div>
+              );
             })()}
           </>
         )}
       </div>
 
-      {/* ✅ ปุ่ม "สร้างเส้นทาง" ลอย — โผล่เฉพาะตอนอยู่ในโหมดจัดทริปเอง และเลือกอย่างน้อย 1 ที่ */}
       {isCustomMode && selectedPlaceIds.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-20">
           <div className="max-w-6xl mx-auto px-4 pb-5">

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 import LocationPinPicker from "../../trip/create/components/LocationPinPicker"; // ปรับ path ตามตำแหน่งจริงที่วางไฟล์
 import "./createTrip.css";
+
 
 // ✅ เอา PROVINCES hardcode 77 จังหวัดออกแล้ว — ดึงจาก /api/places-dropdown/provinces แทน
 // เพราะข้อมูลจริงตอนนี้มีแค่กรุงเทพฯ จังหวัดเดียว ถ้าให้เลือกจังหวัดที่ยังไม่มีข้อมูล
@@ -64,6 +65,15 @@ export default function CreateTrip() {
     const navigate = useNavigate();
     const { session } = useAuth();
 
+
+    const location = useLocation();
+    const { tripId } = useParams();
+
+    //const isEdit = !!tripId; //ถ้า isEdit === true ให้โหลดข้อมูลจาก GET /api/trips/:tripId
+
+    const editMode = location.state?.editMode ?? false;
+    const trip = location.state?.trip;
+
     const [province, setProvince] = useState("");
     const [provinces, setProvinces] = useState<string[]>([]);
     const [provincesLoading, setProvincesLoading] = useState(true);
@@ -118,6 +128,44 @@ export default function CreateTrip() {
         fetchCategories();
     }, []);
 
+    useEffect(() => {
+    if (!editMode || !trip) return;
+
+    setProvince(trip.province ?? "");
+    setDistrict(trip.district ?? "");
+    setStartDate(trip.start_date ?? "");
+    setEndDate(trip.end_date ?? "");
+    setStartTime(trip.start_time ?? "");
+    setNumberOfPeople(String(trip.number_of_people ?? ""));
+
+    setUseBudget(trip.use_budget ?? false);
+
+    setTotalBudget(
+        trip.total_budget != null ? String(trip.total_budget) : ""
+    );
+
+    setBudgetScope(trip.budget_scope ?? "");
+    setBudgetPeriod(trip.budget_period ?? "");
+
+    setAvailableTimePerDay(
+        trip.available_time_per_day != null
+            ? String(trip.available_time_per_day)
+            : ""
+    );
+
+    setStartLat(trip.start_lat);
+    setStartLng(trip.start_lng);
+    setStartAddress(trip.start_address);
+
+    if (trip.start_lat && trip.start_lng) {
+        setPinConfirmed(true);
+    }
+
+    setSelectedCategoryIds(
+        trip.category_ids?.map((c: any) => c.category_id) ?? []
+    );
+}, [editMode, trip]);
+
     // ✅ ดึงรายชื่อจังหวัดจริงจาก DB แทน hardcode 77 จังหวัด — กันเลือกจังหวัดที่ยัง
     // ไม่มีข้อมูลใน places แล้วได้ 0 ที่แบบเงียบๆ ตอนคำนวณ POI score
     useEffect(() => {
@@ -156,8 +204,10 @@ export default function CreateTrip() {
             }
         };
         fetchDistricts();
+        if (!editMode || trip?.province !== province) {
         setDistrict("");
-    }, [province]);
+        }
+    }, [province, editMode, trip]);
     const toggleCategory = (categoryId: number) => {
         setSelectedCategoryIds((prev) =>
             prev.includes(categoryId)
@@ -292,21 +342,39 @@ export default function CreateTrip() {
     start_address: startAddress,
 };
         try {
-            const res = await fetch("/api/trips", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify(payload),
-            });
+            const url = editMode
+                ? `/api/trips/${tripId}`
+                : "/api/trips";
+
+            const method = editMode ? "PUT" : "POST";
+
+            const res = await fetch(url, {
+                method,
+        headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
+});
+
 
             const result = await res.json();
 
-            if (!res.ok) {
-                alert(result.message || "เกิดข้อผิดพลาดในการสร้างทริป");
+                if (!res.ok) {
+                    alert(
+                        result.message ||
+                        (editMode
+                            ? "เกิดข้อผิดพลาดในการแก้ไขทริป"
+                            : "เกิดข้อผิดพลาดในการสร้างทริป")
+                    );
+                    return;
+                }
+            // แก้ไขทริป
+                if (editMode) {
+                    navigate(`/trip/${tripId}/recommendations`);
                 return;
-            }
+                }
+                
 
             // ✅ เก็บข้อมูลสรุปไว้แสดงใน modal แทนการ navigate ทันที
             setCreatedTrip(result.trip);
@@ -318,6 +386,7 @@ export default function CreateTrip() {
             });
             // ✅ backend อาจสร้าง trip สำเร็จ แต่บันทึก category ไม่สำเร็จ (best-effort)
             setCategoryWarning(!!result.categoryWarning);
+            
             setShowSuccessModal(true);
         } catch (err) {
             console.error("Create trip error:", err);
@@ -348,10 +417,12 @@ export default function CreateTrip() {
 
                 <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
                     <h2 className="font-prompt font-bold text-2xl text-white mb-1">
-                        วางแผนการเดินทาง
+                        {editMode ? "แก้ไขข้อมูลทริป" : "วางแผนการเดินทาง"}
                     </h2>
                     <p className="text-[#5990c0] text-sm">
-                        กรอกรายละเอียดเพื่อวางแผนทริปของคุณ
+                            {editMode
+                                ? "แก้ไขรายละเอียดของทริป"
+                                : "กรอกรายละเอียดเพื่อวางแผนทริปของคุณ"}
                     </p>
                 </div>
 
@@ -544,7 +615,7 @@ export default function CreateTrip() {
                             type="submit"
                             className="font-bold w-full py-4 rounded-xl text-white bg-gradient-to-r from-[#102a6b] to-[#015185]"
                         >
-                            วางแผนการเดินทาง 🗺️
+                            {editMode ? "บันทึกการแก้ไข ✏️" : "วางแผนการเดินทาง 🗺️"}
                         </button>
 
                     </form>

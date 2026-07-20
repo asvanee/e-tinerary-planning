@@ -6,7 +6,7 @@ import { useAuth } from "../../auth/hooks/useAuth";
 interface Trip {
     trip_id: string;
     province: string | null;
-    city: string | null;
+    district: string | null;
     start_date: string;
     end_date: string;
     start_time: string;
@@ -173,7 +173,7 @@ export default function MyTrips() {
                                 <div className="flex-1">
                                     <h3 className="font-prompt font-bold text-lg text-[#102a6b] mb-1">
                                         📍 {trip.province || "-"}
-                                        {trip.city ? ` / ${trip.city}` : ""}
+                                        {trip.district ? ` / ${trip.district}` : ""}
                                     </h3>
                                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#5990c0]">
                                         <span>
