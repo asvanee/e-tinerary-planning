@@ -5,11 +5,13 @@ node_modules/
 backend/.env
 frontend/.env
 data-pipeline/.env
+data-pipeline/
 
 # Build outputs
 dist/
 dist-ssr/
 build/
+
 
 # TypeScript
 *.tsbuildinfo
