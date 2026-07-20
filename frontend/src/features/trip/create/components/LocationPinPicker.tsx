@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     GoogleMap,
     Marker,
@@ -48,6 +48,22 @@ export default function LocationPinPicker({
 
     const mapRef = useRef<google.maps.Map | null>(null);
     const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+    // ✅ เพิ่มใหม่: แก้บั๊กหมุดค้างที่ตำแหน่ง default ตอน edit mode
+    // useState ด้านบนคำนวณค่าเริ่มต้นแค่ตอน mount ครั้งเดียว แต่ initialLat/initialLng
+    // ใน edit mode มาจาก fetch แบบ async ใน createTrip.tsx (setStartLat/setStartLng เกิด
+    // "หลัง" LocationPinPicker mount ไปแล้ว) พอ prop เปลี่ยนทีหลัง useState เดิมไม่รู้ด้วย
+    // เลยต้องมี effect นี้คอย sync ทุกครั้งที่ initialLat/initialLng เปลี่ยนจริง
+    // (เช่น จาก null -> ค่าจริงที่โหลดมาจาก API)
+    useEffect(() => {
+        if (initialLat == null || initialLng == null) return;
+
+        const pos = { lat: initialLat, lng: initialLng };
+        setMarkerPos(pos);
+        setConfirmed(true); // ค่านี้มาจากทริปที่บันทึกไว้แล้ว ถือว่ายืนยันอยู่แล้ว
+        mapRef.current?.panTo(pos);
+        mapRef.current?.setZoom(16);
+    }, [initialLat, initialLng]);
 
     const onMapLoad = useCallback((map: google.maps.Map) => {
         mapRef.current = map;

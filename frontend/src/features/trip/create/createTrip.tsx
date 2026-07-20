@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -6,7 +6,8 @@ import LocationPinPicker from "../../trip/create/components/LocationPinPicker"; 
 import "./createTrip.css";
 
 
-// ✅ เอา PROVINCES hardcode 77 จังหวัดออกแล้ว — ดึงจาก /api/places-dropdown/provinces แทน
+// ✅ เอา PROVINCES hardcode 77 จังหวัดออกแล้ว — ดึงจาก /api/place-dropdown/provinces แทน
+// (ตั้งใจตั้งชื่อ path แยกจาก /api/places เดิม — ดู placeDropdownRoutes.ts)
 // เพราะข้อมูลจริงตอนนี้มีแค่กรุงเทพฯ จังหวัดเดียว ถ้าให้เลือกจังหวัดที่ยังไม่มีข้อมูล
 // จะได้ 0 ที่แบบเงียบๆ เหมือนบั๊กที่เคยเจอกับ district (ดู PROJECT_BRIEF หัวข้อ 3.11)
 
@@ -71,8 +72,12 @@ export default function CreateTrip() {
 
     //const isEdit = !!tripId; //ถ้า isEdit === true ให้โหลดข้อมูลจาก GET /api/trips/:tripId
 
-    const editMode = location.state?.editMode ?? false;
+
+const editMode = !!tripId;
     const trip = location.state?.trip;
+
+    console.log("editMode =", editMode);
+console.log("trip =", trip);
 
     const [province, setProvince] = useState("");
     const [provinces, setProvinces] = useState<string[]>([]);
@@ -102,6 +107,13 @@ export default function CreateTrip() {
     const [startAddress, setStartAddress] = useState<string | null>(null);
     const [pinConfirmed, setPinConfirmed] = useState(false);
 
+    // ✅ เพิ่มใหม่: กันบั๊ก district หายตอน refresh หน้า edit
+    // เดิมเช็คว่า province ที่โหลดมาตรงกับ location.state?.trip.province ไหม แต่ state นี้
+    // หายไปทันทีถ้า refresh หน้า/เข้าลิงก์ตรง ทำให้ district ที่เพิ่งโหลดมาจาก API ถูกเคลียร์ทิ้ง
+    // เปลี่ยนมาใช้ ref ธรรมดา: set true ก่อนเซ็ต province จาก loadTrip() เท่านั้น
+    // ถ้า effect ด้านล่างเห็น flag นี้เป็น true ให้ "ข้าม" การเคลียร์ district ไปหนึ่งรอบ
+    const skipDistrictResetRef = useRef(false);
+
     const [categories, setCategories] = useState<Category[]>([]);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -114,57 +126,73 @@ export default function CreateTrip() {
     const [categoryWarning, setCategoryWarning] = useState(false);
 
     useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                const res = await fetch("/api/categories");
-                const data = await res.json();
-                setCategories(data.categories || []);
-            } catch (err) {
-                console.error("Fetch categories error:", err);
-            } finally {
-                setCategoriesLoading(false);
-            }
-        };
-        fetchCategories();
-    }, []);
+  if (!editMode || !tripId || !session) return;
 
-    useEffect(() => {
-    if (!editMode || !trip) return;
+  const loadTrip = async () => {
+    try {
+      const res = await fetch(`/api/trips/${tripId}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-    setProvince(trip.province ?? "");
-    setDistrict(trip.district ?? "");
-    setStartDate(trip.start_date ?? "");
-    setEndDate(trip.end_date ?? "");
-    setStartTime(trip.start_time ?? "");
-    setNumberOfPeople(String(trip.number_of_people ?? ""));
+      const data = await res.json();
 
-    setUseBudget(trip.use_budget ?? false);
+      if (!res.ok) {
+        throw new Error(data.message);
+      }
 
-    setTotalBudget(
-        trip.total_budget != null ? String(trip.total_budget) : ""
-    );
+      const trip = data.trip;
 
-    setBudgetScope(trip.budget_scope ?? "");
-    setBudgetPeriod(trip.budget_period ?? "");
+      // ✅ บอก effect ที่ดึง district ว่ารอบนี้ province ถูกตั้งค่าจากการโหลดข้อมูลเดิม
+      // ไม่ใช่ user เลือกเอง อย่าเพิ่งเคลียร์ district ที่กำลังจะ set ด้านล่าง
+      skipDistrictResetRef.current = true;
 
-    setAvailableTimePerDay(
+      setProvince(trip.province ?? "");
+      setDistrict(trip.district ?? "");
+
+      setStartDate(trip.start_date ?? "");
+      setEndDate(trip.end_date ?? "");
+      setStartTime(trip.start_time ?? "");
+
+      setNumberOfPeople(
+        String(trip.number_of_people ?? "")
+      );
+
+      setUseBudget(trip.use_budget ?? false);
+
+      setTotalBudget(
+        trip.total_budget != null
+          ? String(trip.total_budget)
+          : ""
+      );
+
+      setBudgetScope(trip.budget_scope ?? "");
+      setBudgetPeriod(trip.budget_period ?? "");
+
+      setAvailableTimePerDay(
         trip.available_time_per_day != null
-            ? String(trip.available_time_per_day)
-            : ""
-    );
+          ? String(trip.available_time_per_day)
+          : ""
+      );
 
-    setStartLat(trip.start_lat);
-    setStartLng(trip.start_lng);
-    setStartAddress(trip.start_address);
+      setStartLat(trip.start_lat);
+      setStartLng(trip.start_lng);
+      setStartAddress(trip.start_address);
 
-    if (trip.start_lat && trip.start_lng) {
+      if (trip.start_lat && trip.start_lng) {
         setPinConfirmed(true);
+      }
+    } catch (err) {
+      console.error(err);
+      // ✅ เพิ่มใหม่: เดิมเงียบไปเฉยๆ ถ้าโหลดข้อมูลทริปเดิมไม่สำเร็จ user จะเห็นฟอร์มว่างเปล่า
+      // โดยไม่รู้สาเหตุ — แจ้งเตือนให้สอดคล้องกับจุดอื่นในไฟล์นี้ที่ alert ตอน fetch fail
+      alert("ไม่สามารถโหลดข้อมูลทริปเดิมได้ กรุณาลองใหม่อีกครั้ง");
     }
+  };
 
-    setSelectedCategoryIds(
-        trip.category_ids?.map((c: any) => c.category_id) ?? []
-    );
-}, [editMode, trip]);
+  loadTrip();
+}, [editMode, tripId, session]);
 
     // ✅ ดึงรายชื่อจังหวัดจริงจาก DB แทน hardcode 77 จังหวัด — กันเลือกจังหวัดที่ยัง
     // ไม่มีข้อมูลใน places แล้วได้ 0 ที่แบบเงียบๆ ตอนคำนวณ POI score
@@ -182,6 +210,31 @@ export default function CreateTrip() {
             }
         };
         fetchProvinces();
+    }, []);
+
+    // ✅ เพิ่มใหม่: ดึงรายการหมวดหมู่ความสนใจจาก backend
+    // (เดิมไฟล์นี้ตั้ง categoriesLoading = true ไว้ตั้งแต่ต้น แต่ไม่มี useEffect
+    // ไหนยิง fetch("/api/categories") หรือเรียก setCategoriesLoading(false) เลย
+    // ทำให้ UI ค้างที่ "กำลังโหลดหมวดหมู่..." ตลอดไป — นี่คือจุดที่แก้)
+    useEffect(() => {
+        const fetchCategories = async () => {
+            setCategoriesLoading(true);
+            try {
+                const res = await fetch("/api/categories");
+                const data = await res.json();
+                // รองรับทั้งกรณี backend คืน array ตรงๆ หรือคืนใน { categories: [...] }
+                const list: Category[] = Array.isArray(data)
+                    ? data
+                    : data.categories || [];
+                setCategories(list);
+            } catch (err) {
+                console.error("Fetch categories error:", err);
+                setCategories([]);
+            } finally {
+                setCategoriesLoading(false);
+            }
+        };
+        fetchCategories();
     }, []);
 
     // ✅ ดึงรายชื่อ district จริงจาก DB แทน free-text เดิม — ดึงใหม่ทุกครั้งที่
@@ -204,10 +257,19 @@ export default function CreateTrip() {
             }
         };
         fetchDistricts();
-        if (!editMode || trip?.province !== province) {
-        setDistrict("");
+
+        // ✅ แก้บั๊ก: เดิมเช็ค `trip?.province !== province` โดย trip มาจาก location.state
+        // ซึ่งหายไปเมื่อ refresh หน้า/เข้าลิงก์ตรงตอน edit mode ทำให้ district ที่เพิ่งโหลดมา
+        // จาก API ถูกเคลียร์ทิ้งทันทีทุกครั้งที่ refresh หน้าแก้ไขทริป
+        // ตอนนี้เช็คจาก ref แทน: ถ้ารอบนี้ province ถูกตั้งจาก loadTrip() (skipDistrictResetRef
+        // เป็น true) ให้ข้ามการเคลียร์ไปหนึ่งรอบ แล้ว reset flag ทันที ส่วนกรณี user เลือก
+        // province เองจาก dropdown (ปกติ หรือหลังโหลดทริปเสร็จแล้ว) จะยังเคลียร์ district ตามเดิม
+        if (skipDistrictResetRef.current) {
+            skipDistrictResetRef.current = false;
+        } else {
+            setDistrict("");
         }
-    }, [province, editMode, trip]);
+    }, [province]);
     const toggleCategory = (categoryId: number) => {
         setSelectedCategoryIds((prev) =>
             prev.includes(categoryId)

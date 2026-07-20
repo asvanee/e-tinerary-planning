@@ -508,12 +508,7 @@ export default function TripDetail() {
                 {/* เพิ่มตรงนี้ */}
                 <button
                   onClick={() =>
-                    navigate(`/trip/${tripIdParam}/edit`, {
-                      state: {
-                        editMode: true,
-                        trip,
-                      },
-                    })
+                    navigate(`/trip/${tripIdParam}/edit`)
                   }
                   className="px-5 py-2.5 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold text-sm shadow-md hover:bg-gray-100 transition-colors whitespace-nowrap"
 >
