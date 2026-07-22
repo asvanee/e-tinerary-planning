@@ -3,17 +3,24 @@ import { useParams, useNavigate, href } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 
+// ✅ ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
+type PriceConfidence = "real" | "inferred_high" | "inferred_mid" | "inferred_low" | null;
+
 interface PoiResult {
   placeId: string;
   categoryName: string;
   categoryScore: number;
   ratingScore: number;
   distanceScore: number;
-  budgetScore: number;
+  budgetScore: number | null;
   weatherScore: number;
   poiScore: number;
-  placeCost: number;
+  // ✅ แก้ type: null ได้จริง (food/paid_other ที่ไม่มี price_level จริง) — ไม่ใช่ number เสมอ
+  // เดิม type ผิด ทำให้ TS ไม่เตือนตอนใช้งานแบบไม่เช็ค null
+  placeCost: number | null;
   perPersonDailyBudget: number | null;
+  // ✅ ใหม่: ใช้บอก user ว่าราคาที่เห็นเป็นราคาจริง หรือประมาณ หรือไม่รู้เลย
+  priceConfidence: PriceConfidence;
 }
 
 interface PlaceInfo {
@@ -428,12 +435,27 @@ export default function TripRecommendations() {
                       <span>ความตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</span>
                       <span>คะแนนรีวิว {(item.ratingScore * 5).toFixed(1)}/5</span>
                       <span>ระยะทาง {(1 / item.distanceScore - 1).toFixed(1)} กม.</span>
-                      {item.placeCost !== null && (
+                      {item.placeCost !== null ? (
                         <span>
                           งบประมาณ {item.placeCost.toLocaleString()}/
                           {item.perPersonDailyBudget !== null
                             ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
                             : "ไม่จำกัดงบ"}
+                        </span>
+                      ) : (
+                        // ✅ ใหม่: บอก user ตรงๆ ว่าไม่รู้ราคา แทนที่จะซ่อนแท็กนี้ไปเงียบๆ
+                        // (ตาม comment ฝั่ง backend poiScoreCalculator.ts — null ต้องแสดงผล
+                        // ไม่ใช่ถูกซ่อน) ใส่คำใบ้ต่างกันตาม priceConfidence ของ category
+                        <span
+                          className="text-gray-400 italic"
+                          title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google ระบบไม่เดาราคาแทนคุณ"
+                        >
+                          💸{" "}
+                          {item.priceConfidence === "inferred_high"
+                            ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่มีค่าใช้จ่าย)"
+                            : item.priceConfidence === "inferred_mid"
+                            ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่แพง)"
+                            : "ไม่ทราบราคาแน่ชัด"}
                         </span>
                       )}
                     </div>

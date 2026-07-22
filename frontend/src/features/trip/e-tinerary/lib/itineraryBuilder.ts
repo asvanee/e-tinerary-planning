@@ -20,9 +20,13 @@ import { haversineKm } from "./haversine";
  * `buildNearestNeighborOrder()` ยังคง export ไว้เผื่ออนาคตทำปุ่ม "จัดลำดับอัตโนมัติ" ให้ user
  * กดเลือกใช้เองภายหลัง แต่ไม่ได้เรียกใช้ใน buildInitialDraft() แล้ว
  *
- * ✅ อัปเดตมติล่าสุด #2 (sync กับ backend itineraryPlaceQueries.ts::getSelectedPlaces):
- * priceLevel coalesce กับ categories.default_price_level เสมอแล้ว เหมือน POI stage — ไม่ nullable
- * ในทางปฏิบัติอีกต่อไป (เดิมเคยตัดสินใจไม่ coalesce แล้วคิดเป็น 0 บาท มติเปลี่ยนแล้ว)
+ * ✅ อัปเดตมติล่าสุด #2 (v2, sync กับ PRICE_SCORE_REDESIGN.md + backend itineraryPlaceQueries.ts::
+ * getSelectedPlaces): เลิก coalesce priceLevel กับ categories.default_price_level แล้ว (column
+ * กำลังจะถูก drop) — เปลี่ยนเป็นรับ rawPriceLevel + priceNature แยก ไม่เดาราคาเมื่อไม่มีข้อมูลจริง
+ * (ยกเว้น free category ที่มั่นใจได้สูงว่าใกล้ 0 บาท) placeCost เป็น null ได้แล้ว (เดิม non-nullable)
+ * แยก isCostUnknown ออกจาก isBudgetConflict ชัดเจน — cumulativeCost/isBudgetConflict คำนวณจาก
+ * ยอดที่ "รู้จริง" เท่านั้น ไม่รวมของที่ไม่ทราบราคา (มติ B ที่ล็อกไว้ — ดู decision log ใน
+ * PRICE_SCORE_REDESIGN.md: ปฏิเสธการเดาแล้ว "ลงโทษผิดๆ" ใช้หลักเดียวกันฝั่ง cost)
  *
  * ✅ อัปเดตมติล่าสุด #3: isBudgetConflict เช็คจาก day.useBudget ตรงๆ ก่อนเสมอ ไม่ใช่เดาจาก
  * dailyBudget !== null เฉยๆ แบบเดิม (เปราะบางถ้ามี daily_budget ค้างอยู่ทั้งที่ useBudget = false)
@@ -30,16 +34,20 @@ import { haversineKm } from "./haversine";
 
 // ---------- Types ----------
 
+// ✅ ใหม่ — mirror จาก backend (features/poi/poiPlaceQueries.ts::PriceNature) ไฟล์นี้เป็น
+// frontend port แยก package จึง import ข้าม package ไม่ได้ ต้อง declare ค่าเดียวกันไว้เองที่นี่
+// (เหมือนที่ PRICE_LEVEL_TO_BAHT ด้านล่างทำอยู่แล้ว) — ถ้าแก้ค่าที่เป็นไปได้ฝั่ง backend ต้องแก้
+// ที่นี่คู่กันด้วยเสมอ ไม่มี auto-sync ข้าม package
+export type PriceNature = "free" | "food" | "paid_other";
+
 export interface PlaceInput {
   placeId: string;
   latitude: number;
   longitude: number;
-  // ✅ มติล่าสุด (sync กับ backend itineraryPlaceQueries.ts::getSelectedPlaces): coalesce กับ
-  // categories.default_price_level เสมอแล้ว เหมือน POI stage — ไม่ nullable ในทางปฏิบัติอีกต่อไป
-  priceLevel: number;
-  // ✅ เก็บ hasPriceLevel ไว้เผื่ออนาคตอยากแสดง badge "ราคาโดยประมาณ" แยกจาก isBudgetConflict
-  // แต่ getPlaceCost() ด้านล่างไม่ได้ใช้ hasPriceLevel ตัดสินใจอะไรแล้ว นับ cost เสมอทั้งสองกรณี
-  hasPriceLevel: boolean;
+  // ✅ v2 (เลิก coalesce กับ default_price_level แล้ว — ดู PRICE_SCORE_REDESIGN.md):
+  // rawPriceLevel = null หมายถึง "ไม่มีราคาจริงจาก Google" จริงๆ ไม่ใช่ fallback อีกต่อไป
+  rawPriceLevel: number | null;
+  priceNature: PriceNature; // ตัดสินจาก category ที่ confidence_score สูงสุด (มาจาก query layer)
   openingHours: OpeningHours | null;
   defaultDurationMin: number;
 }
@@ -63,9 +71,14 @@ export interface ItineraryItemResult {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  placeCost: number;
+  // ✅ v2: null = ไม่ทราบราคาแน่ชัด (เดิม number เสมอ) — UI ต้องเช็ค isCostUnknown ก่อนแสดงผล
+  // ไม่ใช่แสดง null/0 ตรงๆ (เช่น `place.isCostUnknown ? "ไม่ทราบราคาแน่ชัด" : `${placeCost} บาท``)
+  placeCost: number | null;
+  // ✅ ใหม่ — badge ให้ frontend เตือนแยกจาก isBudgetConflict ("ไม่ทราบราคา" ≠ "เกินงบ")
+  isCostUnknown: boolean;
   isTimeConflict: boolean;
   isClosedConflict: boolean;
+  // ยังคำนวณจากยอดที่ "รู้จริง" เท่านั้น (ดู getPlaceCost) — ที่ไม่ทราบราคาไม่ถูกนับเข้ายอดสะสม
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
 }
@@ -112,13 +125,25 @@ function getDayOfWeek(visitDate: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-// ✅ priceLevel coalesce กับ default_price_level ของหมวดหมู่มาจาก backend เสมอแล้ว
-// (ดู itineraryPlaceQueries.ts::getSelectedPlaces) เหมือน POI stage — ไม่ nullable ในทางปฏิบัติ
-// พารามิเตอร์ยังรับ `| null` ไว้เป็น defensive fallback เผื่อข้อมูลผิดปกติหลุดเข้ามา
-// (เช่น หน้า editor ส่ง object ที่ยังไม่ผ่าน backend มา) ไม่ได้แปลว่า "ฟรี" จริง แค่กันพัง
-function getPlaceCost(priceLevel: number | null): number {
-  if (priceLevel === null) return 0;
-  return PRICE_LEVEL_TO_BAHT[priceLevel] ?? 0;
+/**
+ * ✅ v2 — เลิก coalesce กับ default_price_level แล้ว (ดู PRICE_SCORE_REDESIGN.md decision log)
+ * ไม่เดาตัวเลขบาทเมื่อไม่มีข้อมูลจริง (สอดคล้องกับหลักการเดียวกับ backend
+ * poiScoreCalculator.ts::calculatePriceScore — "การเดาแล้วลงโทษผิดๆ" ถูกปฏิเสธไปแล้วที่นั่น
+ * ใช้หลักเดียวกันที่นี่ฝั่ง cost)
+ *
+ * free + missing -> ยังคืน 0 บาทตรงๆ (ไม่ถือว่า unknown) เพราะ free category (วัด/สวนสาธารณะ)
+ * มั่นใจได้สูงอยู่แล้วว่าราคาจริงเข้าใกล้ 0 — ต่างจาก food/paid_other ที่ range กว้างเกินจะเดา
+ * food/paid_other + missing -> null (ไม่ทราบราคาแน่ชัด) ไม่ใช่ 0 บาท
+ */
+function getPlaceCost(
+  rawPriceLevel: number | null,
+  priceNature: PriceNature
+): number | null {
+  if (rawPriceLevel !== null) {
+    return PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? 0;
+  }
+  if (priceNature === "free") return 0;
+  return null; // food/paid_other missing = unknown จริง
 }
 
 /**
@@ -228,11 +253,16 @@ export function buildDayItems(
     const isClosedConflict = hasData ? !isOpen : false;
     const isHoursUnknown = !hasData;
 
-    const placeCost = getPlaceCost(place.priceLevel);
-    cumulativeCost += placeCost;
+    // ✅ v2: rawPriceLevel + priceNature แทน priceLevel เดี่ยวๆ — คืน null ได้เมื่อไม่ทราบราคาจริง
+    const placeCost = getPlaceCost(place.rawPriceLevel, place.priceNature);
+    const isCostUnknown = placeCost === null;
+    // ✅ unknown ไม่กระทบยอดสะสม (ไม่เดาว่าฟรี ไม่เดาว่าแพง) — ต่างจากเดิมที่ coalesce เป็น 0 บาทเสมอ
+    cumulativeCost += placeCost ?? 0;
+
     // ✅ เช็ค day.useBudget ตรงๆ ก่อนเสมอ — ไม่พึ่งแค่ dailyBudget !== null (เดิม) เพราะเปราะบาง
     // ถ้าในอนาคตมี daily_budget ค้างอยู่ทั้งที่ useBudget = false (เช่น bug จุดอื่นไม่เคลียร์ค่า)
-    // จะทำให้ conflict โผล่มาทั้งที่ user เลือกไม่ใช้งบไว้ตั้งแต่แรก
+    // จะทำให้ conflict โผล่มาทั้งที่ user เลือกไม่ใช้งบไว้ตั้งแต่แรก — cumulativeCost เองก็เปลี่ยน
+    // ความหมายแล้ว (ไม่รวมของที่ไม่รู้ราคา) จึง isBudgetConflict ยังคำนวณแบบเดิมได้ตรงๆ
     const isBudgetConflict =
       day.useBudget && day.dailyBudget !== null ? cumulativeCost > day.dailyBudget : false;
 
@@ -245,6 +275,7 @@ export function buildDayItems(
       travelTimeFromPrev,
       distanceFromPrev,
       placeCost,
+      isCostUnknown,
       isTimeConflict,
       isClosedConflict,
       isBudgetConflict,

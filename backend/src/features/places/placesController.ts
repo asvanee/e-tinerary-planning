@@ -12,19 +12,27 @@ import { supabase } from "../../config/db";
  * buildDayItems/buildItinerary เอง (client-side, ไม่รอ network) ต้องการ field นี้เพื่อคำนวณ
  * endTime ต่อกันเป็นลูกโซ่ทั้งวัน
  *
- * ✅ แก้แล้ว: เลิก coalesce price_level กับ categories.default_price_level อีกต่อไป
- * (ยกเลิกมติเดิม PROJECT_BRIEF ข้อ 4.3 — ตามที่ poiPlaceQueries.ts/poiScoreCalculator.ts/
- * itineraryPlaceQueries.ts::getSelectedPlaces() ยกเลิกไปแล้ว ตอนนี้ endpoint นี้ปรับให้ตรงกัน)
- * คืนค่า price_level จริงตรงๆ (null ได้) + เพิ่ม has_price_level ให้ frontend ใช้ตัดสินใจแทนการเดา
- * — join pattern มิเรอร์ให้ตรงกับ getSelectedPlaces() เป๊ะ (ไฟล์เดียวกับที่ buildDraft/
- * confirmItinerary controller เรียกใช้จริง) กันค่าเพี้ยนกันระหว่าง endpoint นี้ (ที่ ItineraryEditor.tsx
- * ใช้ recompute ตอน user ลากปรับ) กับตอน backend re-validate ซ้ำก่อน save — ก่อนหน้านี้ทั้งสองจุด
- * เคย coalesce ไม่ตรงกัน (endpoint นี้ยัง coalesce แต่ getSelectedPlaces() เลิกไปแล้ว) ทำให้ user
- * เห็นราคา/isBudgetConflict กะพริบเปลี่ยนตอนกด "ยืนยันแผน" — แก้จุดนี้แล้ว
+ * ✅ v2 (แก้จริงรอบนี้ — รอบก่อนแก้ไม่ครบ เหลือ has_price_level ค้างอยู่ ทำให้ frontend เอาไป
+ * สร้าง PlaceInput สำหรับ itineraryBuilder.ts::getPlaceCost(rawPriceLevel, priceNature) ไม่ได้):
+ * เลิก coalesce price_level กับ categories.default_price_level (column กำลังจะ drop ตาม
+ * PRICE_SCORE_REDESIGN.md) คืนค่า price_level จริงตรงๆ (null ได้) + เปลี่ยนจาก has_price_level
+ * (boolean เดิม) เป็น price_nature ("free" | "food" | "paid_other") ให้ตรงกับ contract ใหม่ที่
+ * poiPlaceQueries.ts / poiScoreCalculator.ts / itineraryPlaceQueries.ts::getSelectedPlaces() /
+ * itineraryBuilder.ts ใช้กันอยู่แล้วทั้งระบบ
  *
- * หมายเหตุ: place หนึ่งอาจมีได้หลาย category ใน place_categories (many-to-many) แต่ในทางปฏิบัติ
- * ของโปรเจกต์นี้ query pattern เดิม (poiPlaceQueries.ts) ไม่ dedupe เพิ่ม — ที่นี่ dedupe ด้วย
- * placeId กันเผื่อไว้ (ใช้ default_duration_min จากแถวแรกที่เจอ) ไม่ให้ response มี place ซ้ำ
+ * join pattern มิเรอร์ให้ตรงกับ getSelectedPlaces() เป๊ะ (ไฟล์เดียวกับที่ buildDraft/
+ * confirmItinerary controller เรียกใช้จริง) กันค่าเพี้ยนกันระหว่าง endpoint นี้ (ที่ ItineraryEditor.tsx
+ * ใช้ recompute ตอน user ลากปรับ) กับตอน backend re-validate ซ้ำก่อน save
+ *
+ * ✅ แก้เพิ่มรอบนี้: select confidence_score มาด้วย แล้ว dedupe ด้วยแถวที่ confidence_score
+ * สูงสุดต่อ place_id (เกณฑ์เดียวกับ poiPlaceQueries.ts::queryPlacesWithCategoryInfo และ
+ * itineraryPlaceQueries.ts::getSelectedPlaces()) — เดิม dedupe ด้วย "แถวแรกที่เจอ" ซึ่งลำดับจาก
+ * Supabase ไม่การันตี ทำให้ place ที่มีหลาย category อาจได้ default_duration_min/price_nature
+ * คนละค่ากับตอน backend re-validate (getSelectedPlaces) ได้ — ทำให้ user เห็นค่ากะพริบเปลี่ยน
+ * ตอนกด "ยืนยันแผน" เหมือนบั๊กเดิมที่เคยแก้ไปแล้วฝั่ง itineraryPlaceQueries.ts
+ *
+ * หมายเหตุ: place หนึ่งอาจมีได้หลาย category ใน place_categories (many-to-many) — ตอนนี้ dedupe
+ * ตามเกณฑ์ confidence_score สูงสุดแล้ว ไม่ใช่แถวแรกที่เจอแบบเดิม
  */
 export const getPlacesByIds = async (req: Request, res: Response) => {
   const { ids } = req.query;
@@ -47,7 +55,8 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
       .from("place_categories")
       .select(
         `
-        categories!inner(default_duration_min),
+        confidence_score,
+        categories!inner(default_duration_min, price_nature),
         places!inner(
           place_id,
           place_name,
@@ -74,31 +83,41 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "ดึงข้อมูลสถานที่ไม่สำเร็จ" });
     }
 
-    // dedupe ตาม place_id เผื่อ place หนึ่งมีได้หลาย category (ใช้แถวแรกที่เจอ — ตรงกับ
-    // สมมติฐานเดียวกับ itineraryPlaceQueries.ts / poiPlaceQueries.ts)
-    const placeMap = new Map<string, any>();
+    // ✅ Multi-category dedupe — group by place_id แล้วเลือกแถวที่ confidence_score สูงสุด
+    // (เกณฑ์เดียวกับ poiPlaceQueries.ts / itineraryPlaceQueries.ts::getSelectedPlaces()) กัน
+    // default_duration_min/price_nature สุ่มมาจากคนละ category ทุกครั้งที่ query
+    const bestRowByPlaceId = new Map<string, any>();
 
-    for (const row of data ?? []) {
-      const place = (row as any).places;
-      const category = (row as any).categories;
+    for (const row of (data ?? []) as any[]) {
+      const place = row.places;
+      if (!place) continue;
 
-      if (!place || placeMap.has(place.place_id)) continue;
-
-      // ✅ แก้แล้ว: ไม่ coalesce price_level กับ categories.default_price_level อีกต่อไป
-      // เก็บค่าจริงจาก places.price_level ตรงๆ (null ได้) แล้วแยก has_price_level ไว้ให้
-      // frontend (itineraryBuilder.ts::getPlaceCost) ตัดสินใจว่าจะนับ cost เข้า cumulativeCost
-      // หรือไม่ — mirror ให้ตรงกับ getSelectedPlaces() ใน itineraryPlaceQueries.ts เป๊ะ
-      const { price_level: rawPriceLevel, ...placeRest } = place;
-
-      placeMap.set(place.place_id, {
-        ...placeRest,
-        price_level: rawPriceLevel,
-        has_price_level: rawPriceLevel !== null,
-        default_duration_min: category?.default_duration_min ?? 60,
-      });
+      const existing = bestRowByPlaceId.get(place.place_id);
+      if (
+        !existing ||
+        (row.confidence_score ?? 0) > (existing.confidence_score ?? 0)
+      ) {
+        bestRowByPlaceId.set(place.place_id, row);
+      }
     }
 
-    return res.status(200).json({ places: Array.from(placeMap.values()) });
+    // ✅ v2: price_level จริงตรงๆ (null ได้ ไม่ coalesce กับ default_price_level อีกต่อไป) +
+    // price_nature แทน has_price_level เดิม — ตรงกับ contract ที่ itineraryBuilder.ts::
+    // getPlaceCost(rawPriceLevel, priceNature) ต้องการ
+    const places = Array.from(bestRowByPlaceId.values()).map((row: any) => {
+      const place = row.places;
+      const category = row.categories;
+      const { price_level: rawPriceLevel, ...placeRest } = place;
+
+      return {
+        ...placeRest,
+        price_level: rawPriceLevel,
+        price_nature: category?.price_nature ?? null,
+        default_duration_min: category?.default_duration_min ?? 60,
+      };
+    });
+
+    return res.status(200).json({ places });
   } catch (err: any) {
     console.error("getPlacesByIds exception:", err);
     return res.status(500).json({ message: err.message || "เกิดข้อผิดพลาดภายในระบบ" });
