@@ -25,7 +25,7 @@ export interface SelectedPlace {
   // ✅ v2 (เลิก coalesce กับ categories.default_price_level แล้ว — ดู PRICE_SCORE_REDESIGN.md
   // + มติ B ที่ล็อกไว้): ส่ง rawPriceLevel ดิบๆ ไม่ fallback ที่ query layer อีกต่อไป
   // null = ไม่มีราคาจริงจาก Google จริงๆ ให้ itineraryBuilder.ts เป็นคนตัดสินใจต่อ
-  // (free -> ถือเป็น 0 บาท, food/paid_other -> unknown ไม่เดา — ดู getPlaceCost ฝั่งนั้น)
+  // (free -> ถือเป็น 0 บาท, paid -> unknown ไม่เดา — ดู getPlaceCost ฝั่งนั้น)
   rawPriceLevel: number | null;
   // ✅ ใหม่ — ตัดสินจาก category ที่ confidence_score สูงสุด (เกณฑ์เดียวกับ multi-category
   // dedupe ด้านล่าง) แทนที่ hasPriceLevel เดิม — itineraryBuilder.ts ต้องรู้ priceNature เพื่อ
@@ -233,7 +233,7 @@ function mapTripDayRow(row: any, useBudget: boolean): TripDay {
  * ✅ มติ v2 (sync กับ poiPlaceQueries.ts + PRICE_SCORE_REDESIGN.md, ตัดสินใจแล้วใน itinerary
  * budget-conflict decision B): เลิก coalesce price_level กับ categories.default_price_level
  * แล้ว — ส่ง rawPriceLevel + priceNature ดิบๆ ให้ itineraryBuilder.ts::getPlaceCost() เป็นคน
- * ตัดสินใจแทน (free missing -> 0 บาท, food/paid_other missing -> null/unknown ไม่เดา)
+ * ตัดสินใจแทน (free missing -> 0 บาท, paid missing -> null/unknown ไม่เดา)
  * เหตุผล: การ coalesce ที่ query layer แบบเดิมซ่อนความไม่รู้ไว้เป็นตัวเลขปลอมที่ดูน่าเชื่อถือ
  * (เช่น shopping ที่จริงไม่รู้ราคาเลย กลายเป็นราคา default ของหมวด) ทำให้ isBudgetConflict
  * เข้าใจผิดว่า "รู้ราคาแน่นอน" ทั้งที่จริงเป็นการเดา — v2 แยกสองเรื่องนี้ออกจากกันชัดเจนแทน

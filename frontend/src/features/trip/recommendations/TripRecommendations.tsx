@@ -454,7 +454,7 @@ export default function TripRecommendations() {
                           {item.priceConfidence === "inferred_high"
                             ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่มีค่าใช้จ่าย)"
                             : item.priceConfidence === "inferred_mid"
-                            ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่แพง)"
+                            ? "ไม่ทราบราคาแน่ชัด (หมวดนี้เป็นร้านอาหาร)"
                             : "ไม่ทราบราคาแน่ชัด"}
                         </span>
                       )}

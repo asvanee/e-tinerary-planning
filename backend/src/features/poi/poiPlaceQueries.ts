@@ -1,22 +1,26 @@
 import { supabase } from "../../config/db";
 import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
 
-export type PriceNature = "free" | "food" | "paid_other";
+// ✅ ยุบเหลือ 2 หมวดแล้ว (เดิม "free" | "food" | "paid_other") — ดูเหตุผลที่
+// poiScoreCalculator.ts::calculatePriceScore (food กับ paid_other มี logic เหมือนกันทุกกรณี
+// ทั้งฝั่ง price_score และฝั่ง hard filter งบด้านล่าง จึงไม่มีเหตุผลต้องแยกกันอีก)
+// ✅ DB migration รันไปแล้ว (categories.price_nature เก็บแค่ free/paid ตรงๆ) จึงไม่ต้องมี
+// mapping/normalize ชั้นพิเศษในโค้ด — อ่านค่าดิบจาก DB มาใช้ตรงๆ ได้เลย
+export type PriceNature = "free" | "paid";
 
 /**
  * ✅ ใหม่: ใช้แทน categories.default_price_level ที่เลิกใช้แล้ว (ดู PRICE_SCORE_REDESIGN.md)
  * ใช้เฉพาะตอน place ไม่มี price_level จริง เพื่อประมาณราคาให้ hard filter งบเทียบได้
  * (ไม่ใช่ตัวที่ใช้คำนวณ price_score — price_score ใช้ lookup คนละตารางใน poiScoreCalculator.ts)
  *
- * ✅ มติ (ข) ล็อกแล้ว + ขยายผลถึง food: ตัดทั้ง food และ paid_other ออกจากตารางนี้แล้ว — เลิก
- * เดาราคาเมื่อไม่มีข้อมูลจริงทั้งคู่ (เดิมรอบแรกตัดแค่ paid_other ออก ยังเดา food เป็นค่ากลาง
- * level 1 อยู่ ทำให้ food missing ยังถูกกรองออกจากหน้า POI list ได้ ทั้งที่ตอนคิด price_score
- * และตอนคำนวณ budget conflict ต่างก็ตัดสินใจไม่เดา food missing ไปแล้วทั้งคู่ — ตอนนี้ทำให้
- * ตรงกันทั้ง 3 จุด: food/paid_other + ไม่มีราคาจริง = ไม่มีใครเดาแทน user เลยทั้งระบบ)
+ * ✅ มติ (ข) ล็อกแล้ว + ขยายผลถึง food/paid_other (ตอนนี้รวมเป็นหมวด "paid" เดียว): ตัดออกจาก
+ * ตารางนี้แล้ว — เลิกเดาราคาเมื่อไม่มีข้อมูลจริง (เดิมรอบแรกตัดแค่ paid_other ออก ยังเดา food
+ * เป็นค่ากลาง level 1 อยู่ ทำให้ food missing ยังถูกกรองออกจากหน้า POI list ได้ ทั้งที่ตอนคิด
+ * price_score และตอนคำนวณ budget conflict ต่างก็ตัดสินใจไม่เดา food missing ไปแล้วทั้งคู่ —
+ * ตอนนี้ทำให้ตรงกันทั้ง 3 จุด: paid + ไม่มีราคาจริง = ไม่มีใครเดาแทน user เลยทั้งระบบ)
  *
  * เหลือแค่ free เท่านั้นที่ยังประมาณต่อ เพราะมั่นใจทิศทางราคาได้สูงกว่ามาก (มักฟรีจริง) — ต่างจาก
- * food/paid_other ที่ range กว้างพอจะเดาผิดได้ทั้งคู่ (food: ร้านข้างทาง 20 บาท ถึงร้านหรู
- * หลักร้อย, paid_other: ตลาดนัด 20 บาท ถึงห้างหรูหลักพัน)
+ * paid ที่ range กว้างพอจะเดาผิดได้ (ร้านข้างทาง/ตลาดนัด 20 บาท ถึงร้านหรู/ห้างหรูหลักพัน)
  */
 const PRICE_NATURE_ESTIMATED_LEVEL: Partial<Record<PriceNature, number>> = {
   free: 0,
@@ -51,7 +55,7 @@ export interface PlaceWithScore {
   // ใช้กับ hard filter งบเท่านั้น (ดู getFilteredPlaces ขั้น 3) ห้ามส่งเข้า
   // calculatePoiScore() โดยตรงอีกต่อไป เพราะ price_score คำนวณจาก rawPriceLevel + priceNature
   // คนละ lookup table กัน (ดู PRICE_SCORE_REDESIGN.md)
-  // ✅ มติ (ข): เปลี่ยนเป็น nullable แล้ว — null = paid_other ที่ไม่มีราคาจริง (ไม่เดาอีกต่อไป)
+  // ✅ มติ (ข): เปลี่ยนเป็น nullable แล้ว — null = paid ที่ไม่มีราคาจริง (ไม่เดาอีกต่อไป)
   // getFilteredPlaces ขั้น 3 ต้องปล่อยผ่าน hard filter งบเมื่อเจอ null ไม่ใช่ตัดออก
   priceLevel: number | null;
 
@@ -110,7 +114,7 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
  * 1. กรอง province (บังคับเสมอ) + กรอง district ซ้อนแบบ AND ถ้า user ระบุมา
  * 2. กรอง category (ถ้า user เลือกไว้) พร้อม fallback ถ้ากรองแล้วเหลือ 0 ที่
  * 3. กรองงบ (hard filter): ตัดสถานที่ที่ place_cost > per_person_daily_budget
- *    (ข้ามถ้า daily_budget null "หรือ" ถ้าเป็น paid_other ที่ไม่มี price_level จริง — มติ (ข)
+ *    (ข้ามถ้า daily_budget null "หรือ" ถ้าเป็น paid ที่ไม่มี price_level จริง — มติ (ข)
  *    ไม่เดาราคาแทน user ปล่อยผ่าน filter ไปเลย — ดู PRICE_NATURE_ESTIMATED_LEVEL ด้านล่าง)
  * 4. กรองเวลา (hard filter): ตัดสถานที่ที่ default_duration_min > available_time_per_day (แปลงเป็นนาที)
  *
@@ -181,8 +185,8 @@ export async function getFilteredPlaces(
   // queryPlacesWithCategoryInfo() แล้ว (ราคาจริงถ้ามี ไม่งั้นประมาณตาม priceNature ของ
   // category ผ่าน PRICE_NATURE_ESTIMATED_LEVEL — ดู PRICE_SCORE_REDESIGN.md หัวข้อ 3)
   //
-  // ✅ มติ (ข) ล็อกแล้ว + ขยายถึง food: priceLevel เป็น null ได้ทั้งกรณี food และ paid_other
-  // ที่ไม่มีราคาจริง (ดู PRICE_NATURE_ESTIMATED_LEVEL ด้านบน) ทั้งสองกรณี "ไม่รู้จริงๆ" ไม่เดา
+  // ✅ มติ (ข) ล็อกแล้ว: priceLevel เป็น null ได้เมื่อเป็น paid (รวม food/paid_other เดิม)
+  // ที่ไม่มีราคาจริง (ดู PRICE_NATURE_ESTIMATED_LEVEL ด้านบน) — "ไม่รู้จริงๆ" ไม่เดา
   // ปล่อยผ่าน hard filter งบไปเลย ให้ user เห็นตัวเลือกในหน้า POI list แล้วตัดสินใจเอง —
   // เหลือแค่ free เท่านั้นที่ priceLevel ไม่มีทาง null (มี fallback ใน
   // PRICE_NATURE_ESTIMATED_LEVEL) จึงยังกรองด้วยราคาประมาณตามปกติ
@@ -193,7 +197,7 @@ export async function getFilteredPlaces(
   const dailyBudget = trip.dailyBudget;
 
   places = places.filter((place) => {
-    if (place.priceLevel === null) return true; // paid_other + ไม่รู้ราคาจริง — ปล่อยผ่าน ไม่เดา
+    if (place.priceLevel === null) return true; // paid + ไม่รู้ราคาจริง — ปล่อยผ่าน ไม่เดา
 
     const placeCost =
       PRICE_LEVEL_TO_BAHT[place.priceLevel] ?? 0;
@@ -294,10 +298,12 @@ async function queryPlacesWithCategoryInfo(
   // (ดู PRICE_SCORE_REDESIGN.md หัวข้อ 3)
   //
   // ✅ มติ (ข): PRICE_NATURE_ESTIMATED_LEVEL[priceNature] คืน undefined เมื่อ priceNature ===
-  // "paid_other" แล้ว (ตัด entry นี้ออกจากตารางแล้ว) — effectivePriceLevel จึงเป็น null ได้
-  // ในเคสนี้ (rawPriceLevel null + paid_other) ให้ getFilteredPlaces ขั้น 3 ปล่อยผ่าน filter
+  // "paid" แล้ว (ตัด entry นี้ออกจากตารางแล้ว) — effectivePriceLevel จึงเป็น null ได้
+  // ในเคสนี้ (rawPriceLevel null + paid) ให้ getFilteredPlaces ขั้น 3 ปล่อยผ่าน filter
   return Array.from(bestRowByPlaceId.values()).map((row: any) => {
     const rawPriceLevel: number | null = row.places.price_level;
+    // ✅ DB migration รันแล้ว — row.categories.price_nature เป็น "free" | "paid" ตรงๆ
+    // ไม่ต้อง normalize/map จาก 3 หมวดเดิมอีกต่อไป (เทียบกับตอนที่ DB ยังไม่ migrate)
     const priceNature: PriceNature = row.categories.price_nature;
 
     const effectivePriceLevel: number | null =

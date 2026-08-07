@@ -64,13 +64,11 @@ export function calculateWeatherScore(): number {
  * signal ใหม่ ตอนนี้ price_score ตอบคำถามคนละแบบ: "ราคานี้น่าสนใจแค่ไหนโดยทั่วไป" ไม่ขึ้นกับ
  * user คนไหนเลย เหมือน rating_score
  *
- * ✅ มติล่าสุด (revert บางส่วน): food missing กลับไปใช้ weight 0.08 เหมือนเดิม (ไม่ใช่ 0) —
- * ต่างจาก paid_other missing ที่ยังตัด weight ทิ้งทั้งหมด (=0) เหตุผลที่ยังแยก food ออกจาก
- * paid_other ตรงนี้: price_score เป็นมิติ "ความน่าสนใจ" ไม่ใช่เงินจริง เดาผิดเสี่ยงต่ำกว่า
- * hard filter/budget conflict มาก และ food range แคบกว่า paid_other พอจะให้เครดิตบางส่วนได้
- * (ต่างจาก hard filter งบ + itinerary budget conflict ที่ยังไม่เดา food missing เหมือนเดิม
- * เพราะเป็นตัวเลขบาทจริงเทียบกับงบจริง ผิดพลาดได้แพงกว่า — ตอนนี้ food ปฏิบัติต่างกันระหว่าง
- * 3 จุดโดยตั้งใจ ไม่ใช่ inconsistency ที่ตกหล่น)
+ * ✅ มติล่าสุด: ยุบ priceNature จาก 3 หมวด (free / food / paid_other) เหลือ 2 หมวด
+ * (free / paid) — เพราะหลังจากตัดเครดิตของ food-missing ออกไปแล้ว food กับ paid_other
+ * มี logic เหมือนกันทุกกรณี (ทั้งตอนมีข้อมูลราคาจริงและตอนไม่มี) จึงไม่มีเหตุผลต้องแยกกันอีก
+ * รวมเป็นหมวด "paid" หมวดเดียว — ต้องอัปเดต PriceNature type ที่ poiPlaceQueries.ts ให้เหลือ
+ * แค่ "free" | "paid" ด้วย (ไฟล์นั้นไม่ได้อยู่ใน context นี้ ยังไม่ได้แก้ให้)
  *
  * Lookup table (ตัดสินจาก priceNature ของ category ที่ confidence_score สูงสุด):
  *
@@ -78,15 +76,12 @@ export function calculateWeatherScore(): number {
  * |-------------|--------------|-------|-----------------|--------|
  * | free        | จริง = 0     | 90    | real            | 0.15   |
  * | free        | missing      | 80    | inferred_high   | 0.15   |
- * | food        | จริง 0-4     | 80/60/40/20/0 (linear) | real | 0.15 |
- * | food        | missing      | 60    | inferred_mid    | 0.08   |
- * | paid_other  | จริง 0-4     | 80/60/40/20/0 (linear) | real | 0.15 |
- * | paid_other  | missing      | 0     | inferred_low    | 0      |
+ * | paid        | จริง 0-4     | 80/60/40/20/0 (linear) | real | 0.15 |
+ * | paid        | missing      | 0     | inferred_low    | 0      |
  *
- * free ไม่มี fallback ที่ "ลงโทษ" เพราะรู้อยู่แล้วว่าธรรมชาติราคาของหมวดเอนไปทางไหน — food
- * missing ยังพอเดาได้บ้าง (ลด weight ไม่ตัดทิ้ง) มีแค่ paid_other missing เท่านั้นที่ไม่มี
- * หลักฐานพอจะเดาเลย จึงตัด weight ออกทั้งมิติ (=0) — weight ที่ไม่ครบ 0.15 จะถูก renormalize
- * คืนให้ 4 มิติที่เหลือใน calculatePoiScore() (ดู computeWeights ด้านล่าง)
+ * free ไม่มี fallback ที่ "ลงโทษ" เพราะรู้อยู่แล้วว่าธรรมชาติราคาของหมวดเอนไปทางไหน — paid
+ * ที่ missing ไม่มีหลักฐานพอจะเดา จึงตัด weight ออกทั้งมิติ (=0) — weight ที่ไม่ครบ 0.15
+ * จะถูก renormalize คืนให้ 4 มิติที่เหลือใน calculatePoiScore() (ดู computeWeights ด้านล่าง)
  */
 function priceLevelToGradientScore(priceLevel: number): number {
   // price_level 0→80, 1→60, 2→40, 3→20, 4→0 (linear เท่ากันทุกขั้น ตามที่ล็อกไว้)
@@ -96,7 +91,6 @@ function priceLevelToGradientScore(priceLevel: number): number {
 export type PriceConfidence =
   | "real"
   | "inferred_high"
-  | "inferred_mid"
   | "inferred_low";
 
 export interface PriceScoreResult {
@@ -116,20 +110,7 @@ export function calculatePriceScore(
     return { score: 80 / 100, weight: 0.15, confidence: "inferred_high" };
   }
 
-  if (priceNature === "food") {
-    if (rawPriceLevel !== null) {
-      return {
-        score: priceLevelToGradientScore(rawPriceLevel) / 100,
-        weight: 0.15,
-        confidence: "real",
-      };
-    }
-    // ✅ revert กลับมาแล้ว: food missing ยังให้เครดิตบางส่วน (weight 0.08 ไม่ใช่ 0) ต่างจาก
-    // paid_other missing ที่ตัด weight ทิ้งทั้งหมด — ดู comment หัวฟังก์ชันสำหรับเหตุผล
-    return { score: 60 / 100, weight: 0.08, confidence: "inferred_mid" };
-  }
-
-  // priceNature === "paid_other"
+  // priceNature === "paid" (รวม food + paid_other เดิมเข้าด้วยกันแล้ว — logic เหมือนกันทุกกรณี)
   if (rawPriceLevel !== null) {
     return {
       score: priceLevelToGradientScore(rawPriceLevel) / 100,
@@ -155,13 +136,13 @@ const REMAINING_BASE_SUM =
 
 /**
  * ✅ Generalize จาก WEIGHTS_NO_BUDGET เดิม (ที่รองรับแค่ 0 หรือ 0.15) ให้รับ budgetWeight
- * เป็นเศษส่วนใดก็ได้ระหว่าง 0-0.15 (ค่าที่เป็นไปได้จริงตอนนี้มี 3 ค่า: 0, 0.08, 0.15 — เขียน
+ * เป็นเศษส่วนใดก็ได้ระหว่าง 0-0.15 (ค่าที่เป็นไปได้จริงตอนนี้มี 2 ค่า: 0, 0.15 — เขียน
  * เป็นสูตรทั่วไปไว้เผื่ออนาคตมีค่าอื่นเพิ่ม) กระจายส่วนต่างคืนให้ 4 มิติที่เหลือตามสัดส่วนเดิม
  * ของมันเอง (renormalize ให้ผลรวม weight กลับมาเป็น 1 พอดีเสมอ)
  *
  * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> เหมือนสูตรเดิมทุกประการ (ไม่กระทบ real/inferred_high)
  * budgetWeight = 0    (ตัดทิ้ง) -> เหมือน WEIGHTS_NO_BUDGET เดิมทุกประการ (useBudget=false หรือ
- * paid_other missing)
+ * paid+missing)
  */
 function computeWeights(budgetWeight: number) {
   const scale = (1 - budgetWeight) / REMAINING_BASE_SUM;
@@ -183,7 +164,7 @@ export interface PoiScoreBreakdown {
   // "จ่ายไหวไหม" (นั่นคือหน้าที่ของ hard filter ใน poiPlaceQueries.ts) แต่วัดว่า "ราคานี้
   // น่าสนใจแค่ไหนโดยทั่วไป" ไม่ขึ้นกับ dailyBudget ของ user คนไหนเลย
   // null = ไม่ได้คิดในสูตรนี้เลย (useBudget=false เท่านั้น — ต่างจาก weight=0 ของ
-  // paid_other+missing ซึ่งยังคำนวณ score ได้ (=0) แค่ไม่ถูกใช้ในสูตรรวม)
+  // paid+missing ซึ่งยังคำนวณ score ได้ (=0) แค่ไม่ถูกใช้ในสูตรรวม)
   budgetScore: number | null;
   // ✅ ใหม่: ความมั่นใจของ budgetScore — null เมื่อ useBudget=false (ไม่ได้คิดเลย)
   priceConfidence: PriceConfidence | null;
