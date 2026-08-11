@@ -25,6 +25,7 @@ import {
   type DayAssignment,
   type ItineraryItemResult,
   type PlaceInput,
+  type PriceNature,
 } from "../lib/itineraryBuilder";
 
 // ---------- Types ----------
@@ -37,8 +38,13 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  // ✅ coalesce เสร็จจาก backend เสมอแล้ว (places.price_level -> categories.default_price_level -> 0)
-  price_level: number;
+  // ✅ v2 (sync กับ placesController.ts): เลิก coalesce กับ categories.default_price_level แล้ว —
+  // ราคาจริงจาก Google ตรงๆ null ได้จริง (เดิม comment นี้บอกว่า coalesce เสร็จจาก backend เสมอ
+  // ซึ่งไม่ตรงกับ backend เวอร์ชันปัจจุบันแล้ว)
+  price_level: number | null;
+  // ✅ ใหม่ — แทน has_price_level เดิม backend ส่งมาให้ตัดสิน cost แทนการเดา (ดู
+  // itineraryBuilder.ts::getPlaceCost) — null ได้เผื่อ category ไม่ครบ (ไม่ควรเกิดจริง)
+  price_nature: PriceNature | null;
   formatted_address: string | null;
   phone_number?: string | null;
   website?: string | null;
@@ -134,6 +140,13 @@ function ConflictBadges({ item }: { item: ItineraryItemResult }) {
       className: "bg-amber-50 text-amber-700 border border-amber-300",
     });
   }
+  // ✅ ใหม่ (v2) — แยกจาก isBudgetConflict ชัดเจน: "ไม่ทราบราคา" ≠ "เกินงบ" ที่รู้ตัวเลขแน่นอนแล้ว
+  if (item.isCostUnknown) {
+    badges.push({
+      label: "ไม่ทราบราคา",
+      className: "bg-gray-100 text-gray-600 border border-gray-300",
+    });
+  }
 
   if (badges.length === 0) return null;
 
@@ -205,7 +218,11 @@ function PlaceCard({
             {item.travelTimeFromPrev !== null && (
               <span>เดินทาง {item.travelTimeFromPrev} นาที</span>
             )}
-            <span>{formatBaht(item.placeCost)}</span>
+            {/* ✅ v2: placeCost เป็น number | null แล้ว — ไม่ทราบราคาแน่ชัดต้องบอกตรงๆ
+                ไม่ใช่แสดง "0 ฿"/"null ฿" (ดู badge "ไม่ทราบราคา" ใน ConflictBadges เพิ่มเติม) */}
+            <span>
+              {item.isCostUnknown ? "ไม่ทราบราคา" : formatBaht(item.placeCost as number)}
+            </span>
           </div>
         )}
 
@@ -323,14 +340,14 @@ export default function ItineraryEditor() {
         placeId: p.placeId,
         latitude: p.place.latitude,
         longitude: p.place.longitude,
-        priceLevel: p.place.price_level,
-        // ✅ เพิ่มที่ขาดไป — PlaceInput.hasPriceLevel เป็น required field ใน itineraryBuilder.ts
-        // ไม่ใส่มาก่อนหน้านี้ทำให้ type ไม่ครบ p.place.price_level ตอนนี้ coalesce จาก backend
-        // เสมอแล้ว (ไม่ nullable ในทางปฏิบัติ) แต่ hasPriceLevel ยังมีประโยชน์เผื่ออนาคตอยากโชว์
-        // badge "ราคาโดยประมาณ" แยกจากราคาจริง — เทียบจาก opening_hours/price_level ที่ backend
-        // เคยส่ง raw price_level มา (ตอนนี้ placesController.ts coalesce แล้วจึงเป็น true เสมอ
-        // ในทางปฏิบัติ แต่เก็บไว้ให้ type ตรงตาม contract ของ itineraryBuilder.ts)
-        hasPriceLevel: p.place.price_level !== null,
+        // ✅ v2 (sync กับ itineraryBuilder.ts frontend port + placesController.ts): เลิกส่ง
+        // priceLevel/hasPriceLevel (contract เก่า) — ส่ง rawPriceLevel ดิบๆ ไม่เดา ให้
+        // getPlaceCost() ในนั้นเป็นคนตัดสินใจแปลงเป็นบาทเอง
+        rawPriceLevel: p.place.price_level,
+        // priceNature ไม่ควรเป็น null จริงในทางปฏิบัติ (categories!inner บังคับมีเสมอฝั่ง backend)
+        // แต่ fallback เป็น "paid_other" กันไว้เผื่อข้อมูลผิดปกติ — เลือกฝั่งนี้เพราะ
+        // "ไม่รู้ว่าฟรีไหม" ควรถือว่าไม่ฟรีไว้ก่อน (ปลอดภัยกับ isBudgetConflict มากกว่าเดาว่าฟรี)
+        priceNature: p.place.price_nature ?? "paid_other",
         openingHours: p.place.opening_hours ?? null,
         defaultDurationMin: p.place.default_duration_min,
       });

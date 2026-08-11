@@ -1,28 +1,39 @@
 import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { haversineKm } from "../../utils/haversine";
+import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
+import type { PriceNature } from "../poi/poiPlaceQueries";
 
 /**
- * itineraryBuilder.ts (frontend port)
+ * itineraryBuilder.ts (backend — source of truth)
  *
- * Port จาก backend/src/features/itinerary/itineraryBuilder.ts — logic เดิม 100%
- * (pure function ล้วน ไม่แตะ DB) ใช้ตอน user ลาก/สลับ/ลบ/เพิ่ม/ย้ายวันในหน้า itinerary editor
- * เพื่อ recompute ให้เห็นผลทันที (ไม่รอ network) — backend ยัง re-validate ซ้ำด้วยฟังก์ชัน
- * เดิมฝั่ง server ก่อน save จริงเสมอ (ดูมติใน itineraries_feature_status.md)
+ * มี frontend port อยู่ที่ frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts
+ * (logic ต้องตรงกันเป๊ะ — pure function ล้วน ไม่แตะ DB) frontend ใช้ตัว port เพื่อ recompute
+ * ให้เห็นผลทันทีตอน user ลาก/สลับ/ลบ/เพิ่ม/ย้ายวันในหน้า itinerary editor (ไม่รอ network) —
+ * ไฟล์นี้ (backend) ยัง re-validate ซ้ำด้วยฟังก์ชันเดิมก่อน save จริงเสมอ (ดูมติใน
+ * itineraries_feature_status.md)
  *
- * ⚠️ ถ้าแก้ logic ไฟล์นี้ฝั่ง backend ต้องแก้ไฟล์นี้คู่กันเสมอ ไม่งั้นผลลัพธ์ที่ user เห็นตอนลากปรับ
- * (client) จะเพี้ยนจากที่ backend ยืนยันตอนกด "ยืนยันแผน" (re-validate)
+ * ⚠️ ถ้าแก้ logic ไฟล์นี้ ต้องแก้ frontend port คู่กันเสมอ ไม่งั้นผลลัพธ์ที่ user เห็นตอนลากปรับ
+ * (client) จะเพี้ยนจากที่ backend ยืนยันตอนกด "ยืนยันแผน" (re-validate) — frontend port เป็นคนละ
+ * package จึง import ข้าม package ไม่ได้ ต้อง mirror โค้ดไว้เอง (ดู PRICE_LEVEL_TO_BAHT ฝั่งนั้น)
  *
- * ✅ อัปเดตมติล่าสุดเรื่อง placement algorithm ตอน build draft ครั้งแรก (sync กับ backend):
+ * ✅ มติล่าสุดเรื่อง placement algorithm ตอน build draft ครั้งแรก (sync กับ frontend port,
+ * ยืนยันแล้วว่าเป็น final design ไม่ใช่ทางเลือกชั่วคราว):
  * เปลี่ยนจากเดิม (ยัดทุกที่ไว้วันแรก + เรียงด้วย Nearest-Neighbor TSP heuristic) เป็น
  * **ไม่ auto-place ที่ไหนเลย** — สถานที่ที่เลือกมาทั้งหมดอยู่ใน "สถานที่ที่ยังไม่จัดลงวัน" (unassigned
  * pool ฝั่ง frontend) ตั้งแต่เริ่ม ให้ user ลากเข้าไปจัดวันเองทุกที่ตั้งแต่แรก ไม่มี default ให้เลย
- * `buildNearestNeighborOrder()` ยังคง export ไว้เผื่ออนาคตทำปุ่ม "จัดลำดับอัตโนมัติ" ให้ user
- * กดเลือกใช้เองภายหลัง แต่ไม่ได้เรียกใช้ใน buildInitialDraft() แล้ว
+ * หน้า itinerary editor จะไม่มีปุ่ม "จัดลำดับอัตโนมัติ" ด้วย — เป็น manual drag เพียงอย่างเดียว
+ * `buildNearestNeighborOrder()` ไม่ได้เรียกใช้ที่ไหนในระบบแล้ว เก็บไว้เผื่อ reuse ใน scope อื่น
+ * (ดู comment ที่ตัวฟังก์ชันด้านล่าง)
  *
- * ✅ อัปเดตมติล่าสุด #2 (sync กับ backend itineraryPlaceQueries.ts::getSelectedPlaces):
- * priceLevel coalesce กับ categories.default_price_level เสมอแล้ว เหมือน POI stage — ไม่ nullable
- * ในทางปฏิบัติอีกต่อไป (เดิมเคยตัดสินใจไม่ coalesce แล้วคิดเป็น 0 บาท มติเปลี่ยนแล้ว)
+ * ✅ อัปเดตมติล่าสุด #2 (v2, sync กับ PRICE_SCORE_REDESIGN.md + itineraryPlaceQueries.ts::
+ * getSelectedPlaces): เลิก coalesce priceLevel กับ categories.default_price_level แล้ว (column
+ * กำลังจะถูก drop) — เปลี่ยนเป็นรับ rawPriceLevel + priceNature แยก ไม่เดาราคาเมื่อไม่มีข้อมูลจริง
+ * (ยกเว้น free category ที่มั่นใจได้สูงว่าใกล้ 0 บาท) placeCost เป็น null ได้แล้ว (เดิม non-nullable)
+ * แยก isCostUnknown ออกจาก isBudgetConflict ชัดเจน — cumulativeCost/isBudgetConflict คำนวณจาก
+ * ยอดที่ "รู้จริง" เท่านั้น ไม่รวมของที่ไม่ทราบราคา (มติ B ที่ล็อกไว้ — ดู decision log ใน
+ * PRICE_SCORE_REDESIGN.md: ปฏิเสธการเดาแล้ว "ลงโทษผิดๆ" ใช้หลักเดียวกันฝั่ง cost เหมือน
+ * poiScoreCalculator.ts::calculatePriceScore)
  *
  * ✅ อัปเดตมติล่าสุด #3: isBudgetConflict เช็คจาก day.useBudget ตรงๆ ก่อนเสมอ ไม่ใช่เดาจาก
  * dailyBudget !== null เฉยๆ แบบเดิม (เปราะบางถ้ามี daily_budget ค้างอยู่ทั้งที่ useBudget = false)
@@ -34,12 +45,10 @@ export interface PlaceInput {
   placeId: string;
   latitude: number;
   longitude: number;
-  // ✅ มติล่าสุด (sync กับ backend itineraryPlaceQueries.ts::getSelectedPlaces): coalesce กับ
-  // categories.default_price_level เสมอแล้ว เหมือน POI stage — ไม่ nullable ในทางปฏิบัติอีกต่อไป
-  priceLevel: number;
-  // ✅ เก็บ hasPriceLevel ไว้เผื่ออนาคตอยากแสดง badge "ราคาโดยประมาณ" แยกจาก isBudgetConflict
-  // แต่ getPlaceCost() ด้านล่างไม่ได้ใช้ hasPriceLevel ตัดสินใจอะไรแล้ว นับ cost เสมอทั้งสองกรณี
-  hasPriceLevel: boolean;
+  // ✅ v2 (เลิก coalesce กับ default_price_level แล้ว — ดู PRICE_SCORE_REDESIGN.md):
+  // rawPriceLevel = null หมายถึง "ไม่มีราคาจริงจาก Google" จริงๆ ไม่ใช่ fallback อีกต่อไป
+  rawPriceLevel: number | null;
+  priceNature: PriceNature; // ตัดสินจาก category ที่ confidence_score สูงสุด (มาจาก query layer)
   openingHours: OpeningHours | null;
   defaultDurationMin: number;
 }
@@ -63,31 +72,22 @@ export interface ItineraryItemResult {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  placeCost: number;
+  // ✅ v2: null = ไม่ทราบราคาแน่ชัด (เดิม number เสมอ) — caller ต้องเช็ค isCostUnknown ก่อนแสดงผล
+  // ไม่ใช่แสดง null/0 ตรงๆ
+  placeCost: number | null;
+  // ✅ ใหม่ — badge ให้ frontend เตือนแยกจาก isBudgetConflict ("ไม่ทราบราคา" ≠ "เกินงบ")
+  isCostUnknown: boolean;
   isTimeConflict: boolean;
   isClosedConflict: boolean;
+  // ยังคำนวณจากยอดที่ "รู้จริง" เท่านั้น (ดู getPlaceCost) — ที่ไม่ทราบราคาไม่ถูกนับเข้ายอดสะสม
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
 }
 
 // ---------- Constants ----------
 
-/** MVP: haversine ÷ ความเร็วเฉลี่ยสมมติ 25 กม./ชม. — ต้องตรงกับ backend เป๊ะ */
+/** MVP: haversine ÷ ความเร็วเฉลี่ยสมมติ 25 กม./ชม. — ต้องตรงกับ frontend port เป๊ะ */
 const AVG_SPEED_KMH = 25;
-
-/**
- * price_level (0-4) -> บาท — ต้องตรงกับ backend เป๊ะ
- * (backend extract ไปเป็น shared constant ที่ backend/src/utils/priceLevel.ts แล้ว
- * ไฟล์นี้เป็น frontend port แยก package จึงต้อง declare ค่าเดียวกันไว้เองที่นี่ — ถ้าแก้ราคา
- * ฝั่ง backend ต้องแก้ที่นี่คู่กันด้วยเสมอ ไม่มี auto-sync ข้าม package)
- */
-const PRICE_LEVEL_TO_BAHT: Record<number, number> = {
-  0: 0,
-  1: 200,
-  2: 450,
-  3: 900,
-  4: 1500,
-};
 
 // ---------- Helpers ----------
 
@@ -112,19 +112,36 @@ function getDayOfWeek(visitDate: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-// ✅ priceLevel coalesce กับ default_price_level ของหมวดหมู่มาจาก backend เสมอแล้ว
-// (ดู itineraryPlaceQueries.ts::getSelectedPlaces) เหมือน POI stage — ไม่ nullable ในทางปฏิบัติ
-// พารามิเตอร์ยังรับ `| null` ไว้เป็น defensive fallback เผื่อข้อมูลผิดปกติหลุดเข้ามา
-// (เช่น หน้า editor ส่ง object ที่ยังไม่ผ่าน backend มา) ไม่ได้แปลว่า "ฟรี" จริง แค่กันพัง
-function getPlaceCost(priceLevel: number | null): number {
-  if (priceLevel === null) return 0;
-  return PRICE_LEVEL_TO_BAHT[priceLevel] ?? 0;
+/**
+ * ✅ v2 — เลิก coalesce กับ default_price_level แล้ว (ดู PRICE_SCORE_REDESIGN.md decision log)
+ * ไม่เดาตัวเลขบาทเมื่อไม่มีข้อมูลจริง (สอดคล้องกับหลักการเดียวกับ poiScoreCalculator.ts::
+ * calculatePriceScore — "การเดาแล้วลงโทษผิดๆ" ถูกปฏิเสธไปแล้วที่นั่น ใช้หลักเดียวกันที่นี่ฝั่ง cost)
+ *
+ * free + missing -> ยังคืน 0 บาทตรงๆ (ไม่ถือว่า unknown) เพราะ free category (วัด/สวนสาธารณะ)
+ * มั่นใจได้สูงอยู่แล้วว่าราคาจริงเข้าใกล้ 0 — ต่างจาก paid ที่ range กว้างเกินจะเดา (เดิมแยก
+ * food/paid_other ไว้ 2 หมวด ตอนนี้รวมเป็น "paid" หมวดเดียวแล้ว — logic ไม่เปลี่ยน)
+ * paid + missing -> null (ไม่ทราบราคาแน่ชัด) ไม่ใช่ 0 บาท
+ */
+function getPlaceCost(
+  rawPriceLevel: number | null,
+  priceNature: PriceNature
+): number | null {
+  if (rawPriceLevel !== null) {
+    return PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? 0;
+  }
+  if (priceNature === "free") return 0;
+  return null; // paid + missing = unknown จริง (เดิม food/paid_other missing)
 }
 
 /**
- * Nearest-Neighbor Heuristic — **ไม่ได้ถูกเรียกใช้ใน buildInitialDraft() อีกต่อไป** (ดูมติใหม่
- * หัวไฟล์) เก็บไว้ export เผื่ออนาคตทำปุ่ม "จัดลำดับอัตโนมัติ" ให้ user เลือกกดใช้เองในหน้า editor
- * แทนการ auto-run ตอน build draft ครั้งแรก — ให้ logic ตรงกับ backend เป๊ะ
+ * Nearest-Neighbor Heuristic — **เลิกใช้ในหน้า itinerary editor แล้วถาวร** (ไม่ใช่แค่ปิดชั่วคราว)
+ * หน้า editor ใช้ manual drag-and-drop ล้วนๆ เป็น final design ไม่มีแผนจะเพิ่มปุ่ม
+ * "จัดลำดับอัตโนมัติ" ในหน้านั้นอีก
+ *
+ * เก็บฟังก์ชันนี้ไว้ (ไม่ลบ) เพราะอาจนำ logic ไปใช้กับฟีเจอร์ "จัดทริปอัตโนมัติ" ในอนาคต
+ * (ปุ่มแยกต่างหากที่ TripRecommendations.tsx — ปัจจุบัน disabled, ยังไม่เริ่มพัฒนา) ซึ่งเป็นคนละ
+ * scope กับหน้า editor นี้: ฟีเจอร์นั้นจะเลือก+จัดลำดับสถานที่ให้ทั้งหมดตั้งแต่ต้น ไม่ใช่แค่จัดลำดับ
+ * สถานที่ที่ user เลือกไว้แล้วเหมือนที่ฟังก์ชันนี้เคยถูกออกแบบมาใช้ตอนแรก
  */
 export function buildNearestNeighborOrder(
   startLat: number,
@@ -228,11 +245,16 @@ export function buildDayItems(
     const isClosedConflict = hasData ? !isOpen : false;
     const isHoursUnknown = !hasData;
 
-    const placeCost = getPlaceCost(place.priceLevel);
-    cumulativeCost += placeCost;
+    // ✅ v2: rawPriceLevel + priceNature แทน priceLevel เดี่ยวๆ — คืน null ได้เมื่อไม่ทราบราคาจริง
+    const placeCost = getPlaceCost(place.rawPriceLevel, place.priceNature);
+    const isCostUnknown = placeCost === null;
+    // ✅ unknown ไม่กระทบยอดสะสม (ไม่เดาว่าฟรี ไม่เดาว่าแพง) — ต่างจากเดิมที่ coalesce เป็น 0 บาทเสมอ
+    cumulativeCost += placeCost ?? 0;
+
     // ✅ เช็ค day.useBudget ตรงๆ ก่อนเสมอ — ไม่พึ่งแค่ dailyBudget !== null (เดิม) เพราะเปราะบาง
     // ถ้าในอนาคตมี daily_budget ค้างอยู่ทั้งที่ useBudget = false (เช่น bug จุดอื่นไม่เคลียร์ค่า)
-    // จะทำให้ conflict โผล่มาทั้งที่ user เลือกไม่ใช้งบไว้ตั้งแต่แรก
+    // จะทำให้ conflict โผล่มาทั้งที่ user เลือกไม่ใช้งบไว้ตั้งแต่แรก — cumulativeCost เองก็เปลี่ยน
+    // ความหมายแล้ว (ไม่รวมของที่ไม่รู้ราคา) จึง isBudgetConflict ยังคำนวณแบบเดิมได้ตรงๆ
     const isBudgetConflict =
       day.useBudget && day.dailyBudget !== null ? cumulativeCost > day.dailyBudget : false;
 
@@ -245,6 +267,7 @@ export function buildDayItems(
       travelTimeFromPrev,
       distanceFromPrev,
       placeCost,
+      isCostUnknown,
       isTimeConflict,
       isClosedConflict,
       isBudgetConflict,
@@ -272,13 +295,13 @@ export function buildItinerary(
 /**
  * Build draft ครั้งแรกตอน user กด "จัดเส้นทาง" จากหน้า POI list
  *
- * ✅ เปลี่ยนมติแล้ว (ดู comment หัวไฟล์, sync กับ backend): ไม่ auto-place สถานที่ที่เลือกมาไว้วัน
- * ไหนเลยอีกต่อไป (เดิม: ยัดวันแรกทั้งหมด + เรียงด้วย Nearest-Neighbor TSP heuristic) — คืน items
+ * ✅ เปลี่ยนมติแล้ว (ดู comment หัวไฟล์, sync กับ frontend port): ไม่ auto-place สถานที่ที่เลือกมาไว้
+ * วันไหนเลยอีกต่อไป (เดิม: ยัดวันแรกทั้งหมด + เรียงด้วย Nearest-Neighbor TSP heuristic) — คืน items
  * ว่างเปล่าเสมอ ทำให้ทุกที่ที่เลือกมาไปอยู่ใน "สถานที่ที่ยังไม่จัดลงวัน" ฝั่ง frontend โดยอัตโนมัติ
  * (ItineraryEditor.tsx คำนวณ unassigned pool จากสถานที่ที่ไม่ปรากฏใน items อยู่แล้ว)
  *
  * เก็บ signature เดิมไว้ทั้งหมด (แม้พารามิเตอร์ส่วนใหญ่จะไม่ได้ใช้แล้ว) กัน breaking change กับ
- * จุดที่เรียกใช้ฝั่ง frontend — พารามิเตอร์ที่ไม่ใช้แล้วขึ้นต้นด้วย `_` ตาม convention
+ * จุดที่เรียกใช้ — พารามิเตอร์ที่ไม่ใช้แล้วขึ้นต้นด้วย `_` ตาม convention
  */
 export function buildInitialDraft(
   tripDays: DayAssignment[],

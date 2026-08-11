@@ -36,11 +36,16 @@ interface ScheduleItem {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  placeCost: number;
+  // ✅ แก้บั๊ก: null ได้จริง (food/paid_other ที่ไม่มี price_level จริง) — เดิม type ผิดเป็น
+  // number เฉยๆ ทำให้ formatBaht(null) พังตอน render (ดู comment ที่ TimelineStop ด้านล่าง)
+  placeCost: number | null;
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
+  // ✅ เพิ่มใหม่: มาจาก getSavedItinerary() ที่แก้ให้ derive จาก place_cost === null
+  // (ดู itineraryController.ts) — ใช้แยก "ไม่ทราบราคา" ออกจาก "รู้ว่าฟรี/0 บาท"
+  isCostUnknown: boolean;
 }
 
 interface TripDay {
@@ -123,11 +128,14 @@ interface SavedItineraryItemRow {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  placeCost: number;
+  // ✅ แก้บั๊ก: null ได้จริงจาก DB (place_cost คอลัมน์ nullable) — ดู comment ที่ ScheduleItem
+  placeCost: number | null;
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
+  // ✅ เพิ่มใหม่ — ต้องตรงกับ field ใหม่ที่ getSavedItinerary() ส่งมา
+  isCostUnknown: boolean;
 }
 
 interface SavedItineraryDayRow {
@@ -199,6 +207,7 @@ function mapSavedDay(row: SavedItineraryDayRow): TripDay {
       isClosedConflict: item.isClosedConflict,
       isBudgetConflict: item.isBudgetConflict,
       isHoursUnknown: item.isHoursUnknown,
+      isCostUnknown: item.isCostUnknown,
     })),
   };
 }
@@ -250,6 +259,11 @@ function ConflictBadges({ item }: { item: ScheduleItem }) {
   if (item.isHoursUnknown) {
     badges.push({ label: "ไม่ทราบเวลาเปิด-ปิด", className: "bg-amber-50 text-amber-700 border border-amber-300" });
   }
+  // ✅ เพิ่มใหม่ — ไฟล์นี้เดิมไม่มี badge นี้เลย (ต่างจาก ItineraryEditor.tsx ที่มีอยู่แล้ว) ทำให้
+  // "ไม่ทราบราคา" ≠ "เกินงบ" ไม่ถูกสื่อสารให้ user เห็นความต่างในหน้านี้เลย
+  if (item.isCostUnknown) {
+    badges.push({ label: "ไม่ทราบราคา", className: "bg-gray-100 text-gray-600 border border-gray-300" });
+  }
 
   if (badges.length === 0) return null;
 
@@ -289,7 +303,18 @@ function TimelineStop({ item, isLast }: { item: ScheduleItem; isLast: boolean })
           {item.province ?? ""}
         </p>
         <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-[#015185]">
-          <span>{formatBaht(item.placeCost)}</span>
+          {/* ✅ แก้บั๊กหลัก: เดิมเรียก formatBaht(item.placeCost) ตรงๆ โดยไม่เช็ค null ก่อน —
+              ถ้า item.placeCost เป็น null (food/paid_other ไม่มีราคาจริง) amount.toLocaleString()
+              จะ throw ("Cannot read properties of null") กลางการ render แล้วทั้งหน้า /detail
+              crash เป็นจอเปล่าทันที เพราะไม่มี Error Boundary ครอบไว้ — นี่คือสาเหตุที่หน้า
+              /detail ไม่ขึ้นหลังยืนยันแผนที่มีสถานที่ราคาไม่ทราบแน่ชัดอยู่ในนั้น */}
+          {item.isCostUnknown ? (
+            <span className="text-gray-400 italic" title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google">
+              💸 ไม่ทราบราคาแน่ชัด
+            </span>
+          ) : (
+            <span>{formatBaht(item.placeCost as number)}</span>
+          )}
         </div>
         <ConflictBadges item={item} />
       </div>
@@ -402,7 +427,10 @@ export default function TripDetail() {
     let places = 0;
     for (const day of days) {
       for (const item of day.items) {
-        cost += item.placeCost;
+        // ✅ แก้บั๊ก: item.placeCost เป็น number | null แล้ว — ไม่นับที่ "ไม่ทราบราคา" เข้ายอดรวม
+        // (เดิม `cost += item.placeCost` รอด runtime เพราะ JS coerce null -> 0 ได้เอง แต่ตอนนี้ type
+        // ถูกต้องแล้วต้องเขียนให้ TS ผ่านด้วย — ใช้เกณฑ์เดียวกับ itineraryBuilder.ts::cumulativeCost)
+        cost += item.placeCost ?? 0;
         places += 1;
       }
     }

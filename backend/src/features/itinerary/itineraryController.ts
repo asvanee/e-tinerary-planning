@@ -17,8 +17,9 @@ import {
  * body: { place_ids: string[] }
  *
  * สร้าง trip_days (ถ้ายังไม่มี) แล้วคืนสถานที่ที่เลือกไว้ทั้งหมดกลับไปแบบยังไม่จัดลงวันไหนเลย
- * (ดู itineraryBuilder.ts::buildInitialDraft — เปลี่ยนมติแล้ว ไม่ auto-place/ไม่รัน Nearest-Neighbor
- * TSP heuristic ตอน build draft ครั้งแรกอีกต่อไป ให้ user ลากจัดเองทุกที่ตั้งแต่แรกในหน้า editor)
+ * (ดู itineraryBuilder.ts::buildInitialDraft — final design แล้ว ไม่ auto-place และไม่รัน
+ * Nearest-Neighbor/TSP heuristic ใดๆ ตอน build draft ครั้งแรก ให้ user ลากจัดเองทุกที่ตั้งแต่แรก
+ * ในหน้า editor เสมอ ไม่มีแผนเปลี่ยนกลับ)
  * ยังไม่บันทึกลง itineraries (ตามหัวข้อ 4 ใน itineraries_feature_status.md)
  */
 export const buildDraft = async (req: AuthRequest, res: Response) => {
@@ -87,7 +88,8 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({
       message: "จัดร่างเส้นทางสำเร็จ (ยังไม่บันทึก)",
       // ✅ เพิ่ม — จำเป็นสำหรับหน้า itinerary editor วาดจุดเริ่มต้นบน RouteMap
-      // (backend ใช้ค่านี้คำนวณ TSP ตอน buildInitialDraft อยู่แล้ว แต่เดิมไม่เคย return ออกมา)
+      // (แค่ใช้แสดงผลบนแผนที่เท่านั้น — buildInitialDraft ไม่ได้คำนวณ TSP หรือใช้พิกัดนี้
+      // ในการจัดลำดับใดๆ แล้ว เดิมไม่เคย return ค่านี้ออกมาให้ frontend เลย)
       tripStartLat: tripOwner.startLat,
       tripStartLng: tripOwner.startLng,
       tripDays: tripDays.map((day) => ({
@@ -339,6 +341,13 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
         isClosedConflict: row.is_closed_conflict,
         isBudgetConflict: row.is_budget_conflict,
         isHoursUnknown: row.is_hours_unknown,
+        // ✅ แก้บั๊ก: เดิม endpoint นี้ไม่ส่ง isCostUnknown มาเลย ทั้งที่ place_cost เก็บ null
+        // ลง DB จริงตอน confirmItinerary (เมื่อ paid ไม่มี price_level จริง — เดิมเรียก
+        // food/paid_other) —
+        // ไม่ต้องเพิ่ม column ใหม่ใน DB เลย แค่ derive จาก place_cost === null ตรงๆ (เกณฑ์
+        // เดียวกับ itineraryBuilder.ts::isCostUnknown) ทำให้ frontend (TripDetail.tsx) แยก
+        // "ไม่ทราบราคา" ออกจากตัวเลขจริงได้ ไม่ใช่พัง null.toLocaleString() ตอน render
+        isCostUnknown: row.place_cost === null,
       })),
     }));
 
