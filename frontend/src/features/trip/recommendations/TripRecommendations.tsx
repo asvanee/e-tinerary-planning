@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate, href } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 
@@ -15,11 +15,8 @@ interface PoiResult {
   budgetScore: number | null;
   weatherScore: number;
   poiScore: number;
-  // ✅ แก้ type: null ได้จริง (food/paid_other ที่ไม่มี price_level จริง) — ไม่ใช่ number เสมอ
-  // เดิม type ผิด ทำให้ TS ไม่เตือนตอนใช้งานแบบไม่เช็ค null
   placeCost: number | null;
   perPersonDailyBudget: number | null;
-  // ✅ ใหม่: ใช้บอก user ว่าราคาที่เห็นเป็นราคาจริง หรือประมาณ หรือไม่รู้เลย
   priceConfidence: PriceConfidence;
 }
 
@@ -51,10 +48,12 @@ export default function TripRecommendations() {
   const navigate = useNavigate();
   const { session, isLoading: authLoading } = useAuth();
 
-  const [places, setPlaces] = useState<MergedPlace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFallbackUsed, setCategoryFallbackUsed] = useState(false);
+
+  // State สำหรับเก็บรายการสถานที่ทั้งหมด
+  const [places, setPlaces] = useState<MergedPlace[]>([]);
 
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
@@ -62,7 +61,10 @@ export default function TripRecommendations() {
   const [creatingRoute, setCreatingRoute] = useState(false);
   const [createRouteError, setCreateRouteError] = useState<string | null>(null);
 
-  // ✅ ตัวกรองหมวดหมู่ที่เลือกไว้ตอนสร้างทริป (categoryName) — null = แสดงทุกหมวดหมู่
+  const [autoCreatingRoute, setAutoCreatingRoute] = useState(false);
+  const [autoTripError, setAutoTripError] = useState<string | null>(null);
+
+  // ✅ ตัวกรองหมวดหมู่ที่เลือกไว้ — null = แสดงทุกหมวดหมู่
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
@@ -212,6 +214,49 @@ export default function TripRecommendations() {
     }
   };
 
+  const handleAutoTrip = async () => {
+    if (!tripId || !session) return;
+
+    setAutoCreatingRoute(true);
+    setAutoTripError(null);
+
+    try {
+      const res = await fetch(
+        `/api/itinerary/trips/${tripId}/auto-places`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.message || "จัดทริปอัตโนมัติไม่สำเร็จ"
+        );
+      }
+
+      console.log("Auto Trip result:", data);
+
+      navigate(`/trip/${tripId}/auto`, {
+        state: {
+          autoTrip: data,
+        },
+      });
+    } catch (err: any) {
+      console.error("Auto Trip error:", err);
+
+      setAutoTripError(
+        err.message || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ"
+      );
+    } finally {
+      setAutoCreatingRoute(false);
+    }
+  };
+
   // ✅ รายการหมวดหมู่ unique จากผลลัพธ์จริง ใช้ทำแถบกรองแนวนอน
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
@@ -256,6 +301,12 @@ export default function TripRecommendations() {
         {categoryFallbackUsed && (
           <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-5 py-3 mb-6 text-sm">
             ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในจังหวัดนี้ ระบบจึงแสดงผลแบบตรงใจน้อยลง
+          </div>
+        )}
+
+        {autoTripError && (
+          <div className="bg-red-50 border border-red-300 text-red-800 rounded-xl px-5 py-3 mb-6 text-sm">
+            {autoTripError}
           </div>
         )}
 
@@ -306,11 +357,13 @@ export default function TripRecommendations() {
               {!isCustomMode ? (
                 <div className="flex gap-3 ml-auto">
                   <button
-                    disabled
-                    title="เร็วๆ นี้"
-                    className="px-5 py-3 rounded-xl font-bold bg-white text-[#5990c0] border-2 border-[#5990c0]/30 cursor-not-allowed opacity-60"
+                    onClick={handleAutoTrip}
+                    disabled={autoCreatingRoute}
+                    className="px-5 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#5990c0] to-[#015185] shadow-md hover:shadow-lg transition-shadow disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    จัดทริปอัตโนมัติ
+                    {autoCreatingRoute
+                      ? "กำลังจัดทริป..."
+                      : "จัดทริปอัตโนมัติ"}
                   </button>
                   <button
                     onClick={handleStartCustomMode}
@@ -334,7 +387,7 @@ export default function TripRecommendations() {
               )}
             </div>
 
-            {/* ✅ แถบกรองหมวดหมู่แบบเลื่อนแนวนอนเส้นเดียว */}
+            {/* แถบกรองหมวดหมู่แบบเลื่อนแนวนอน */}
             {availableCategories.length > 0 && (
               <div className="flex gap-2 mb-4 overflow-x-auto flex-nowrap pb-2 -mx-1 px-1">
                 <button
@@ -372,7 +425,7 @@ export default function TripRecommendations() {
               const renderCard = (item: MergedPlace) => (
                 <div
                   key={item.placeId}
-                  className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-colors transition-all duration-300
+                  className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-all duration-300
                     hover:shadow-xl hover:-translate-y-1 ${
                     isCustomMode
                       ? selectedPlaceIds.includes(item.placeId)
@@ -443,9 +496,6 @@ export default function TripRecommendations() {
                             : "ไม่จำกัดงบ"}
                         </span>
                       ) : (
-                        // ✅ ใหม่: บอก user ตรงๆ ว่าไม่รู้ราคา แทนที่จะซ่อนแท็กนี้ไปเงียบๆ
-                        // (ตาม comment ฝั่ง backend poiScoreCalculator.ts — null ต้องแสดงผล
-                        // ไม่ใช่ถูกซ่อน) ใส่คำใบ้ต่างกันตาม priceConfidence ของ category
                         <span
                           className="text-gray-400 italic"
                           title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google ระบบไม่เดาราคาแทนคุณ"
@@ -484,8 +534,6 @@ export default function TripRecommendations() {
                   </div>
                 </div>
               );
-
-              
 
               if (displayedPlaces.length === 0) {
                 return (

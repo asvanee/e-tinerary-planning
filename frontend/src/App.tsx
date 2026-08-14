@@ -10,7 +10,7 @@ import TripRecommendations from "./features/trip/recommendations/TripRecommendat
 import MyTrips from "./features/trip/myTrips/MyTrips";
 import ItineraryEditor from "./features/trip/e-tinerary/editor/ItineraryEditor";
 import TripDetail from "./features/trip/detail/TripDetail";
-
+import AutoTrip from "./features/trip/e-tinerary/auto/auto";
 
 export default function App() {
   return (
@@ -71,6 +71,12 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+
+          <Route
+            path="/trip/:tripId/auto"
+            element={<AutoTrip />}
+          />
 
         <Route
           path="/trip/:tripId/edit"

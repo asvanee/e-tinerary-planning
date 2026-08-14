@@ -287,3 +287,126 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
     };
   });
 }
+export interface AutoTripPlace {
+  placeId: string;
+  placeName: string;
+
+  categoryName: string;
+
+  poiScore: number;
+
+  latitude: number;
+  longitude: number;
+
+  openingHours: OpeningHours | null;
+
+  defaultDurationMin: number;
+
+  rawPriceLevel: number | null;
+  priceNature: PriceNature;
+}
+
+export async function getAutoTripPlaces(
+  tripId: string
+): Promise<AutoTripPlace[]> {
+  const { data, error } = await supabase
+    .from("poi_scores")
+    .select(`
+      poi_score,
+      places!inner(
+        place_id,
+        place_name,
+        latitude,
+        longitude,
+        opening_hours,
+        place_categories!inner(
+          confidence_score,
+          categories!inner(
+            category_id,
+            category_name,
+            default_duration_min,
+            price_nature
+          )
+        )
+      )
+    `)
+    .eq("trip_id", tripId);
+
+  if (error) {
+    throw new Error(
+      `ดึงข้อมูล Auto Trip ไม่สำเร็จ: ${error.message}`
+    );
+  }
+
+  const result: AutoTripPlace[] = [];
+
+  for (const row of (data ?? []) as any[]) {
+    const place = row.places;
+
+    if (!place) {
+      continue;
+    }
+
+    const categories =
+      Array.isArray(place.place_categories)
+        ? place.place_categories
+        : [place.place_categories];
+
+    if (categories.length === 0) {
+      continue;
+    }
+
+    /**
+     * ถ้าสถานที่มีหลาย category
+     * ใช้ category ที่ confidence_score สูงที่สุด
+     */
+    const bestCategory =
+      [...categories].sort(
+        (a, b) =>
+          (b.confidence_score ?? 0) -
+          (a.confidence_score ?? 0)
+      )[0];
+
+    if (!bestCategory?.categories) {
+      continue;
+    }
+
+    const category =
+      bestCategory.categories;
+
+    result.push({
+      placeId: place.place_id,
+
+      placeName:
+        place.place_name,
+
+      categoryName:
+        category.category_name,
+
+      poiScore:
+        Number(row.poi_score ?? 0),
+
+      latitude:
+        Number(place.latitude),
+
+      longitude:
+        Number(place.longitude),
+
+      openingHours:
+        place.opening_hours ?? null,
+
+      defaultDurationMin:
+        Number(
+          category.default_duration_min ?? 60
+        ),
+
+      rawPriceLevel:
+        place.price_level ?? null,
+
+      priceNature:
+        category.price_nature as PriceNature,
+    });
+  }
+
+  return result;
+}
