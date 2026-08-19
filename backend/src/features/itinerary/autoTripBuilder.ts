@@ -72,6 +72,8 @@ export interface AutoTripStop {
 
   travel_distance_km: number;
   travel_time_min: number;
+
+  previous_place_name: string;
 }
 
 export interface AutoTripDay {
@@ -263,6 +265,8 @@ function buildDayRoute(
     longitude: Number(startLng),
   };
 
+  let previousPlaceName = "จุดเริ่มต้นทริป";
+
   for (const place of route) {
     const pId = (place.place_id ?? place.placeId)!;
     const pName = (place.place_name ?? place.placeName)!;
@@ -295,6 +299,7 @@ function buildDayRoute(
       duration_min: durationMin,
       travel_distance_km: Number(distanceKm.toFixed(2)),
       travel_time_min: travelTimeMin,
+      previous_place_name: previousPlaceName,
     });
 
     currentTime = visitEnd;
@@ -303,6 +308,8 @@ function buildDayRoute(
     totalVisitTimeMin += durationMin;
 
     previousPoint = to;
+
+    previousPlaceName = pName;
   }
 
   return {
