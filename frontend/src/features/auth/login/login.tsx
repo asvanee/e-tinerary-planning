@@ -2,32 +2,50 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import "./login.css";
+<img
+  src="/images/logo.png"
+  alt="E-tinerary Logo"
+  className="animate-slide-up-2 w-28 h-28 object-contain mx-auto mb-5"
+/>
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [shakeKey, setShakeKey] = useState(0);
+
   const navigate = useNavigate();
   const { login } = useAuth();
+
   const API_URL = import.meta.env.VITE_API_URL || "";
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.status === 200) {
-      login(data.user, data.session); // ✅ เก็บ user + session ลง context + localStorage
-      navigate("/home");
-    } else {
-      setMessage(data.message);
+      if (res.status === 200) {
+        login(data.user, data.session);
+        navigate("/home");
+      } else {
+        setMessage(data.message);
+        setShakeKey((k) => k + 1);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setMessage("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
       setShakeKey((k) => k + 1);
     }
   };
@@ -37,18 +55,28 @@ export default function Login() {
 
       {/* Background blobs */}
       <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[#5990c0] opacity-30 blur-[70px] pointer-events-none" />
+
       <div className="absolute -bottom-16 -right-16 w-72 h-72 rounded-full bg-[#015185] opacity-25 blur-[70px] pointer-events-none" />
+
       <div className="absolute top-16 right-24 w-52 h-52 rounded-full bg-[#102a6b] opacity-20 blur-[60px] pointer-events-none" />
 
-      {/* Card */}
+      {/* Login Card */}
       <div className="animate-slide-up-1 relative z-10 w-[90%] max-w-md px-12 py-14 rounded-[36px] border border-[#5990c0]/30 shadow-2xl bg-white/80 backdrop-blur-xl">
 
         {/* Header */}
         <div className="text-center mb-10">
-          <span className="block text-5xl mb-4">🔑</span>
+
+          {/* Logo */}
+          <img
+            src="/images/logo.png"
+            alt="E-tinerary Logo"
+            className="animate-slide-up-2 w-28 h-28 object-contain mx-auto mb-5"
+          />
+
           <h2 className="animate-slide-up-2 font-prompt font-extrabold text-3xl text-[#102a6b]">
             เข้าสู่ระบบ
           </h2>
+
           <p className="animate-slide-up-3 text-[#5990c0] text-sm mt-1">
             ยินดีต้อนรับกลับมา!
           </p>
@@ -62,6 +90,7 @@ export default function Login() {
             <label className="font-prompt text-sm font-semibold text-[#102a6b]">
               อีเมล
             </label>
+
             <input
               type="email"
               placeholder="example@email.com"
@@ -77,6 +106,7 @@ export default function Login() {
             <label className="font-prompt text-sm font-semibold text-[#102a6b]">
               รหัสผ่าน
             </label>
+
             <input
               type="password"
               placeholder="••••••••"
@@ -106,7 +136,7 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer */}
+        {/* Register */}
         <p className="animate-slide-up-6 text-center text-sm text-[#5990c0] mt-6">
           ยังไม่มีบัญชี?{" "}
           <span
@@ -124,6 +154,7 @@ export default function Login() {
           <div className="w-2 h-2 rounded-full bg-[#5990c0]" />
           <div className="w-2 h-2 rounded-full bg-[#cfe5f6]" />
         </div>
+
       </div>
     </div>
   );

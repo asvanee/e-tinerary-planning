@@ -16,28 +16,41 @@ export default function Welcome() {
       {/* Card */}
       <div className="animate-slide-up-1 relative z-10 w-[90%] max-w-md text-center px-12 py-14 rounded-[36px] border border-white/80 shadow-2xl bg-white/70 backdrop-blur-2xl">
 
+        {/* Logo */}
+        <img
+          src="/images/logo.png"
+          alt="E-tinerary Logo"
+          className="animate-slide-up-2 w-32 h-32 object-contain mx-auto mb-5"
+        />
+
         {/* Title */}
         <h1 className="animate-slide-up-2 font-prompt font-extrabold text-4xl text-[#102a6b] mb-2">
           ยินดีต้อนรับ!
         </h1>
+
         <p className="animate-slide-up-3 text-[#015185] text-base mb-10">
           เริ่มต้นการเดินทางของคุณกับเรา
         </p>
 
         {/* Buttons */}
         <div className="flex flex-col gap-4">
+
+          {/* Register */}
           <button
             onClick={() => navigate("/register")}
-            className="animate-slide-up-4 font-prompt font-semibold w-full py-4 rounded-2xl text-white bg-gradient-to-r from-[#102a6b] to-[#5990c0] shadow-[0_6px_20px_rgba(16,42,107,0.5)] hover:shadow-[0_10px_28px_rgba(16,42,107,0.65)] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200 text-[#fcedd3]"
+            className="animate-slide-up-4 font-prompt font-semibold w-full py-4 rounded-2xl text-white bg-gradient-to-r from-[#102a6b] to-[#5990c0] shadow-[0_6px_20px_rgba(16,42,107,0.5)] hover:shadow-[0_10px_28px_rgba(16,42,107,0.65)] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200"
           >
             ✨ สมัครสมาชิก
           </button>
+
+          {/* Login */}
           <button
             onClick={() => navigate("/login")}
             className="animate-slide-up-5 font-prompt font-semibold w-full py-4 rounded-2xl text-white bg-gradient-to-r from-[#5990c0] to-[#015185] shadow-[0_6px_20px_rgba(89,144,192,0.4)] hover:shadow-[0_10px_28px_rgba(89,144,192,0.55)] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200"
           >
             🔑 เข้าสู่ระบบ
           </button>
+
         </div>
 
         {/* Dots */}
@@ -47,6 +60,7 @@ export default function Welcome() {
           <div className="w-2 h-2 rounded-full bg-[#015185]" />
           <div className="w-2 h-2 rounded-full bg-[#fcedd3]" />
         </div>
+
       </div>
     </div>
   );
