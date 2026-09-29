@@ -1,79 +1,109 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Home, FolderOpen, Plane, LogOut } from "lucide-react";
 import { useAuth } from "../features/auth/hooks/useAuth";
-import "./navbar.css";
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const API_URL = import.meta.env.VITE_API_URL || "";
-  const { logout, session, user } = useAuth(); // ดึง user จาก useAuth เลย
+  const { logout, session, user } = useAuth();
 
-  const username = user?.username || "ผู้ใช้"; // fallback เผื่อยังไม่มีค่า
+  const username = user?.username || "ผู้ใช้";
 
   const handleLogout = async () => {
-    await fetch(`${API_URL}/api/auth/logout`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-    });
-    logout(); // clear context
-    navigate("/"); // กลับหน้า login/home
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+    } catch (error) {
+      // ต่อให้เรียก server ไม่สำเร็จ ก็ต้องออกจากระบบฝั่งเครื่องได้
+      console.error("Logout error:", error);
+    } finally {
+      logout(); // clear context
+      navigate("/");
+    }
   };
 
-  return (
-    <nav className="animate-slide-down font-sarabun sticky top-0 z-50 w-full px-6 py-3 flex items-center justify-between bg-[#102a6b]/95 backdrop-blur-xl border-b border-[#5990c0]/30 shadow-md">
+  const btnBase =
+    "font-prompt text-sm font-medium min-h-10 min-w-10 px-3 md:px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98]";
+  const btnGhost =
+    "text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)]";
+  const btnActive = "bg-[color:var(--sky-soft)]";
+  const btnPrimary =
+    "text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)]";
 
+  return (
+    <nav className="font-sarabun sticky top-0 z-50 w-full h-16 px-4 sm:px-6 flex items-center justify-between bg-white border-b border-[color:var(--line)]">
       {/* Logo */}
-      <div
-        className="animate-fade-in-1 flex items-center gap-2 cursor-pointer"
+      <button
         onClick={() => navigate("/home")}
+        aria-label="ไปหน้าหลัก"
+        className="flex items-center gap-2 cursor-pointer"
       >
-        {/* ใช้รูปแทน emoji */}
         <img
           src="/images/logo.png"
           alt="E-tinerary Logo"
-          className="object-contain max-h-15"
+          className="h-10 w-auto object-contain"
         />
-        <span className="font-prompt font-extrabold text-lg text-white">
-          E-tinerary Planing Trip
+        <span className="hidden sm:inline font-prompt font-semibold text-lg text-[color:var(--navy)]">
+          E-tinerary
         </span>
-      </div>
+      </button>
 
       {/* Right side */}
-      <div className="animate-fade-in-2 flex items-center gap-3">
-
-        {/* My trips button */}
+      <div className="flex items-center gap-1 sm:gap-2">
+        {/* Home */}
+        <button
+          onClick={() => navigate("/home")}
+          aria-label="หน้าหลัก"
+          className={`${btnBase} ${btnGhost} ${pathname === "/home" ? btnActive : ""
+            }`}
+        >
+          <Home size={20} strokeWidth={1.75} />
+          <span className="hidden md:inline">หน้าหลัก</span>
+        </button>
+        {/* My trips */}
         <button
           onClick={() => navigate("/trips")}
-          className="font-prompt text-sm font-semibold px-4 py-2 rounded-full border border-white/30 text-white bg-white/10 hover:bg-white/20 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200"
+          aria-label="ทริปของฉัน"
+          className={`${btnBase} ${btnGhost} ${pathname === "/trips" ? btnActive : ""}`}
         >
-          🗂️ ทริปของฉัน
+          <FolderOpen size={20} strokeWidth={1.75} />
+          <span className="hidden md:inline">ทริปของฉัน</span>
         </button>
 
-        {/* Create trip button */}
+        {/* Create trip */}
         <button
           onClick={() => navigate("/trip/create")}
-          className="font-prompt text-sm font-semibold px-4 py-2 rounded-full bg-[#cea273] text-[#102a6b] hover:bg-[#d4aa85] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200 shadow-md"
+          aria-label="สร้างทริป"
+          className={`${btnBase} ${btnPrimary}`}
         >
-          ✈️ สร้างทริป
+          <Plane size={20} strokeWidth={1.75} />
+          <span className="hidden md:inline">สร้างทริป</span>
         </button>
 
-        {/* User badge */}
-        <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#cea273] to-[#5990c0] flex items-center justify-center text-white text-xs font-bold font-prompt">
+        {/* User */}
+        <div
+          className="flex items-center gap-2 pl-2 ml-1 sm:ml-2 border-l border-[color:var(--line)]"
+          title={username}
+        >
+          <span className="w-9 h-9 rounded-full flex items-center justify-center bg-[color:var(--sky-soft)] text-[color:var(--navy)] font-prompt font-semibold text-sm">
             {username.charAt(0).toUpperCase()}
-          </div>
-          <span className="font-prompt text-sm font-semibold text-white">
+          </span>
+          <span className="hidden lg:inline font-prompt text-sm font-medium text-[color:var(--navy)] max-w-32 truncate">
             {username}
           </span>
         </div>
 
-        {/* Logout button */}
+        {/* Logout */}
         <button
           onClick={handleLogout}
-          className="font-prompt text-sm font-semibold px-4 py-1.5 rounded-full border border-white/30 text-white bg-white/10 hover:bg-white/20 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200"
+          aria-label="ออกจากระบบ"
+          className={`${btnBase} ${btnGhost}`}
         >
-          ออกจากระบบ
+          <LogOut size={20} strokeWidth={1.75} />
+          <span className="hidden md:inline">ออกจากระบบ</span>
         </button>
       </div>
     </nav>

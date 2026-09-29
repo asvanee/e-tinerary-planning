@@ -1,13 +1,40 @@
 import { useNavigate } from "react-router-dom";
+import {
+  Plane,
+  CalendarDays,
+  SlidersHorizontal,
+  Route,
+  Sailboat,
+  Trees,
+  Waves,
+  Mountain,
+} from "lucide-react";
 import { useAuth } from "../auth/hooks/useAuth";
 import Navbar from "../../components/navbar";
-import "./Home.css";
+
+const steps = [
+  {
+    icon: CalendarDays,
+    title: "ระบุปลายทางและวันเดินทาง",
+    desc: "เลือกจังหวัด วันเริ่ม-วันสิ้นสุด และจำนวนคนที่ไปด้วยกัน",
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "เลือกความสนใจและงบประมาณ",
+    desc: "บอกหมวดหมู่ที่ชอบและงบที่ตั้งไว้ เราจะใช้จัดอันดับสถานที่",
+  },
+  {
+    icon: Route,
+    title: "รับแผนเที่ยวรายวัน",
+    desc: "ได้สถานที่แนะนำพร้อมเส้นทางเรียงตามลำดับในแต่ละวัน",
+  },
+];
 
 const demoPlaces = [
-  { name: "ตลาดน้ำอัมพวา", location: "สมุทรสงคราม", emoji: "🛶" },
-  { name: "เขาใหญ่", location: "นครราชสีมา", emoji: "🏞️" },
-  { name: "ภูเก็ต", location: "ภูเก็ต", emoji: "🏝️" },
-  { name: "เชียงใหม่", location: "เชียงใหม่", emoji: "🌄" },
+  { name: "ตลาดน้ำอัมพวา", location: "สมุทรสงคราม", icon: Sailboat },
+  { name: "เขาใหญ่", location: "นครราชสีมา", icon: Trees },
+  { name: "ภูเก็ต", location: "ภูเก็ต", icon: Waves },
+  { name: "เชียงใหม่", location: "เชียงใหม่", icon: Mountain },
 ];
 
 export default function Home() {
@@ -16,64 +43,89 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="font-sarabun relative min-h-screen bg-[#fcedd3] overflow-hidden">
-
-      {/* Background blobs */}
-      <div className="blob-1 absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[#5990c0] opacity-20 blur-[80px] pointer-events-none" />
-      <div className="blob-2 absolute bottom-0 -right-16 w-72 h-72 rounded-full bg-[#015185] opacity-20 blur-[80px] pointer-events-none" />
-      <div className="blob-3 absolute bottom-32 left-20 w-60 h-60 rounded-full bg-[#cea273] opacity-20 blur-[70px] pointer-events-none" />
-
-      {/* Navbar */}
+    <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
       <Navbar />
 
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-64px)] px-6 text-center">
+      <main className="min-h-[calc(100vh-64px)] flex items-center px-4 sm:px-8 py-8">
+        <div className="fade-in w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-10 items-center">
+          {/* ซ้าย: ทักทาย + เริ่มวางแผน + ขั้นตอน */}
+          <section className="lg:col-span-3">
+            <p className="text-sm text-[color:var(--deep)] mb-2">
+              สวัสดี{" "}
+              <span className="font-prompt font-semibold text-[color:var(--navy)]">
+                {username || "นักท่องเที่ยว"}
+              </span>
+            </p>
 
-        {/* Greeting */}
-        <div className="animate-slide-up-1 mb-4 text-6xl">🌍</div>
+            <h1 className="font-prompt font-semibold text-3xl sm:text-4xl text-[color:var(--navy)] mb-3">
+              วางแผนเที่ยวกับเรา
+            </h1>
 
-        <h2 className="animate-slide-up-2 font-prompt font-extrabold text-4xl text-[#102a6b] mb-3">
-          วางแผนเที่ยวกับเรา
-        </h2>
+            <p className="text-[color:var(--muted)] text-base max-w-xl mb-6">
+              ระบุปลายทาง วันเดินทาง และงบประมาณ
+              แล้วเราจะแนะนำสถานที่และจัดเส้นทางให้ในแต่ละวัน
+            </p>
 
-        <p className="animate-slide-up-3 text-[#015185] text-lg mb-8">
-          ยินดีต้อนรับ{" "}
-          <span className="font-prompt font-bold text-[#102a6b]">
-            {username || "นักท่องเที่ยว"}
-          </span>{" "}
-          ✈️ ลองดูตัวอย่างสถานที่น่าสนใจสำหรับคุณ
-        </p>
-
-        {/* Demo places */}
-        <div className="animate-slide-up-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-10 w-full max-w-3xl">
-          {demoPlaces.map((place, idx) => (
-            <div
-              key={idx}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-md border border-[#5990c0]/20 hover:scale-105 hover:shadow-lg transition-all duration-200 cursor-pointer"
+            <button
+              onClick={() => navigate("/trip/create")}
+              className="font-prompt font-medium w-full sm:w-auto sm:px-10 min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200"
             >
-              <div className="text-4xl mb-2">{place.emoji}</div>
-              <div className="font-prompt font-bold text-[#102a6b] text-base">{place.name}</div>
-              <div className="text-sm text-[#5990c0] mt-1">{place.location}</div>
+              <Plane size={20} strokeWidth={1.75} />
+              เริ่มวางแผนเที่ยว
+            </button>
+
+            <ol className="mt-8 pt-6 border-t border-[color:var(--line)] flex flex-col gap-4">
+              {steps.map(({ icon: Icon, title, desc }) => (
+                <li key={title} className="flex items-start gap-4">
+                  <span className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-[color:var(--line)]">
+                    <Icon
+                      size={20}
+                      strokeWidth={1.75}
+                      className="text-[color:var(--sky)]"
+                    />
+                  </span>
+                  <div>
+                    <p className="font-prompt font-medium text-[color:var(--navy)]">
+                      {title}
+                    </p>
+                    <p className="text-sm text-[color:var(--muted)] mt-0.5">
+                      {desc}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {/* ขวา: ตัวอย่างสถานที่ */}
+          <aside className="lg:col-span-2">
+            <h2 className="font-prompt text-xs font-medium tracking-wide text-[color:var(--muted)] mb-3">
+              ตัวอย่างสถานที่ท่องเที่ยว
+            </h2>
+
+            <div className="grid grid-cols-2 gap-3">
+              {demoPlaces.map(({ name, location, icon: Icon }) => (
+                <div
+                  key={name}
+                  className="bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] p-5"
+                >
+                  <Icon
+                    size={28}
+                    strokeWidth={1.5}
+                    className="text-[color:var(--sky)] mb-3"
+                  />
+                  <p className="font-prompt font-medium text-[color:var(--navy)]">
+                    {name}
+                  </p>
+                  <p className="text-sm text-[color:var(--muted)] mt-0.5">
+                    {location}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
+          </aside>
         </div>
-
-        {/* Start planning button */}
-        <button
-          onClick={() => navigate("/trip/create")}
-          className="animate-slide-up-4 font-prompt font-bold px-8 py-4 rounded-2xl bg-gradient-to-r from-[#102a6b] to-[#015185] text-white shadow-[0_6px_20px_rgba(1,81,133,0.4)] hover:shadow-[0_10px_28px_rgba(1,81,133,0.55)] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200 text-base"
-        >
-          ✈️ เริ่มวางแผนเที่ยว
-        </button>
-
-        {/* Dots */}
-        <div className="animate-slide-up-3 flex justify-center gap-2 mt-10">
-          <div className="w-2 h-2 rounded-full bg-[#102a6b]" />
-          <div className="w-2 h-2 rounded-full bg-[#cea273]" />
-          <div className="w-2 h-2 rounded-full bg-[#015185]" />
-          <div className="w-2 h-2 rounded-full bg-[#5990c0]" />
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

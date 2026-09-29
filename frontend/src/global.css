@@ -1,0 +1,86 @@
+/* ==========================================================
+   global.css — E-tinerary
+   เฉพาะสี ฟอนต์ และ base สำคัญ (component ทำในแต่ละหน้า)
+   ========================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap");
+
+/* Tailwind v4 */
+@import "tailwindcss";
+
+@theme {
+  --font-sarabun: "Sarabun", system-ui, sans-serif;
+  --font-prompt: "Prompt", "Sarabun", sans-serif;
+}
+
+/* ---------- สี ---------- */
+:root {
+  --navy: #102a6b;
+  --deep: #015185;
+  --sky: #5990c0;
+  --cream: #fcedd3;
+
+  --navy-dark: #0c2054;                  /* hover ของ navy */
+  --line: rgba(89, 144, 192, 0.25);      /* เส้นขอบบาง */
+  --sky-soft: rgba(89, 144, 192, 0.1);   /* พื้น hover อ่อน ๆ */
+  --shadow: 0 2px 12px rgba(16, 42, 107, 0.08);
+
+  --text: #16213e;
+  --muted: #4b5f7a;
+  --danger: #c0392b;
+  --success: #1e8e5a;
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  body {
+    margin: 0;
+    font-family: "Sarabun", system-ui, sans-serif;
+    color: var(--text);
+    background-color: var(--cream);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: "Prompt", "Sarabun", sans-serif;
+    color: var(--navy);
+  }
+
+  a { color: var(--deep); }
+
+  :focus-visible {
+    outline: 3px solid var(--sky);
+    outline-offset: 2px;
+  }
+}
+
+/* ---------- Animation ---------- */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* ปิดการเคลื่อนไหวสำหรับผู้ที่ตั้งค่าไว้ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

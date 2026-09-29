@@ -7,7 +7,7 @@
  * ทั้งสองไฟล์ต้อง import จากที่นี่แทนการประกาศเองซ้ำ — กันปัญหาแก้ราคาที่เดียวแล้วอีกที่ไม่ตรง
  * (เคยเสี่ยงทำให้ budget hard filter กับ budget_score คำนวณคนละราคากันได้)
  *
- * ที่มาของตัวเลข: price_level_cost จริงใน Supabase (0->0, 1->200, 2->450, 3->900, 4->1500)
+ * // Mapping price_level (0-4) จาก Google Places เป็นราคาบาทโดยประมาณ
  */
 export const PRICE_LEVEL_TO_BAHT: Record<number, number> = {
   0: 0,

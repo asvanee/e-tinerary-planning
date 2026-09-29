@@ -1,20 +1,45 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-// ต้องตรงกับชื่อ key ที่ตั้งใน .env (Vite ต้องขึ้นต้นด้วย VITE_) — ตัวเดียวกับ LocationPinPicker.tsx
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+// ---------------------------------------------------------------------------
+// OpenRouteService config (ตั้งใน .env — Vite ต้องขึ้นต้นด้วย VITE_)
+//   VITE_ORS_API_KEY    : key จาก openrouteservice.org (ถ้าใช้ proxy ฝั่ง backend ไม่ต้องใส่)
+//   VITE_ORS_BASE_URL   : default https://api.heigit.org/openrouteservice (ไม่ต้องมี / ท้ายสุด)
+//                         เปลี่ยนเป็น proxy ของ backend ได้ — โดเมนเก่า api.openrouteservice.org ถูกปิดแล้ว
+//   VITE_ORS_PROFILE    : default driving-car (driving-car | foot-walking | cycling-regular ...)
+// ---------------------------------------------------------------------------
+const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY as string | undefined;
+const ORS_BASE_URL = (
+  (import.meta.env.VITE_ORS_BASE_URL as string | undefined) ??
+  "https://api.heigit.org/openrouteservice"
+).replace(/\/+$/, "");
+const ORS_PROFILE =
+  (import.meta.env.VITE_ORS_PROFILE as string | undefined) ?? "driving-car";
 
-// ✅ ใช้ libraries ค่าเดียวกับ LocationPinPicker.tsx ("places") เจตนา — @react-google-maps/api
-// เป็น singleton loader ทั้งแอป ถ้าคนละหน้าเรียก useJsApiLoader ด้วย libraries คนละชุดกัน (เช่น
-// หน้านี้ใช้แค่ [] แต่หน้า create trip ใช้ ["places"]) จะโดน error "Loader must not be called
-// again with different options" ตอน user เดินหน้า-ถอยหลังระหว่างหน้าใน SPA เดียวกัน
-const LIBRARIES: ("places")[] = ["places"];
+// ORS directions รับได้สูงสุด 50 waypoints ต่อ request — เกินจากนี้ใช้เส้นตรงแทน
+const ORS_MAX_WAYPOINTS = 50;
 
-const mapContainerStyle = {
-  width: "100%",
-  height: "420px",
-  borderRadius: "16px",
-};
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Routing by <a href="https://openrouteservice.org">openrouteservice</a>';
+
+type LatLng = [number, number]; // [lat, lng] (รูปแบบของ Leaflet)
 
 // สีประจำวัน วนซ้ำถ้าทริปเกิน 6 วัน
 const DAY_COLORS = [
@@ -52,13 +77,109 @@ interface RouteMapProps {
   days: RouteMapDay[];
 }
 
-export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES,
+// ---------------------------------------------------------------------------
+// ORS: ขอเส้นทางจริงตามถนน + cache ระดับ module (อยู่ข้าม re-render / ข้ามการ mount ใหม่)
+// ---------------------------------------------------------------------------
+interface RouteResult {
+  /** geometry ทั้งเส้น [lat, lng][] */
+  coords: LatLng[];
+  /** index ใน coords ของแต่ละ waypoint ที่ส่งไป (ใช้แยกช่วง start -> จุดแรก) */
+  wayPoints: number[];
+}
+
+const routeCache = new Map<string, RouteResult>();
+
+function routeKey(points: LatLng[]): string {
+  return `${ORS_PROFILE}:${points
+    .map(([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`)
+    .join("|")}`;
+}
+
+async function fetchRoute(
+  points: LatLng[],
+  signal: AbortSignal
+): Promise<RouteResult> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (ORS_API_KEY) headers.Authorization = ORS_API_KEY;
+
+  const res = await fetch(`${ORS_BASE_URL}/v2/directions/${ORS_PROFILE}/geojson`, {
+    method: "POST",
+    headers,
+    signal,
+    body: JSON.stringify({
+      // ORS ใช้ [lng, lat]
+      coordinates: points.map(([lat, lng]) => [lng, lat]),
+      // -1 = ไม่จำกัดระยะ snap เข้าถนน (ค่า default 350 ม. ทำให้จุดกลางเกาะ/ป่า 404)
+      radiuses: points.map(() => -1),
+    }),
   });
 
-  const mapRef = useRef<google.maps.Map | null>(null);
+  if (!res.ok) {
+    throw new Error(`ORS ${res.status}: ${await res.text().catch(() => "")}`);
+  }
+
+  const json = await res.json();
+  const feature = json?.features?.[0];
+  const raw = feature?.geometry?.coordinates as [number, number][] | undefined;
+  if (!raw || raw.length < 2) throw new Error("ORS: empty geometry");
+
+  return {
+    coords: raw.map(([lng, lat]) => [lat, lng] as LatLng),
+    wayPoints: (feature.properties?.way_points as number[] | undefined) ?? [],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Marker icons (divIcon — ไม่ต้องพึ่งไฟล์รูป default ของ Leaflet ที่มักพังใน Vite)
+// ---------------------------------------------------------------------------
+const iconCache = new Map<string, L.DivIcon>();
+
+function numberIcon(order: number, color: string): L.DivIcon {
+  const key = `${order}-${color}`;
+  let icon = iconCache.get(key);
+  if (!icon) {
+    icon = L.divIcon({
+      className: "",
+      html: `<div style="width:26px;height:26px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);color:#fff;font:700 12px/22px sans-serif;text-align:center;">${order}</div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+    iconCache.set(key, icon);
+  }
+  return icon;
+}
+
+const startIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:18px;height:18px;border-radius:9999px;background:#102a6b;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+// ---------------------------------------------------------------------------
+// fit bounds ให้เห็นทุก marker ที่โชว์อยู่ — ทำงานเฉพาะเมื่อ "ชุดจุด" เปลี่ยนจริง
+// (ไม่ refit ทุก re-render เหมือนเดิม เลย user ซูม/แพนแล้วไม่เด้งกลับ)
+// ---------------------------------------------------------------------------
+function FitBounds({ points }: { points: LatLng[] }) {
+  const map = useMap();
+  const signature = points.map(([a, b]) => `${a},${b}`).join("|");
+
+  useEffect(() => {
+    if (points.length === 0) return;
+    if (points.length === 1) {
+      map.setView(points[0], 14);
+      return;
+    }
+    map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 16 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, signature]);
+
+  return null;
+}
+
+export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
+  const hasStart = startLat != null && startLng != null;
+  const startPoint: LatLng | null = hasStart ? [startLat!, startLng!] : null;
 
   const daysWithItems = useMemo(
     () => days.filter((d) => d.items.length > 0),
@@ -96,47 +217,89 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     });
   };
 
-  const visibleDays = daysWithItems.filter((d) => visibleDayNumbers.has(d.dayNumber));
+  const visibleDays = useMemo(
+    () => daysWithItems.filter((d) => visibleDayNumbers.has(d.dayNumber)),
+    [daysWithItems, visibleDayNumbers]
+  );
 
-  // ---- fit bounds ให้เห็นทุก marker ที่โชว์อยู่ ----
-  useEffect(() => {
-    if (!isLoaded || !mapRef.current) return;
+  // ---- จุดของแต่ละวัน (เรียงตาม visitOrder) + request ที่ต้องยิง ORS ----
+  const dayRoutes = useMemo(() => {
+    return visibleDays.map((day) => {
+      const dayIndex = daysWithItems.findIndex((d) => d.tripDayId === day.tripDayId);
+      const sortedItems = [...day.items].sort((a, b) => a.visitOrder - b.visitOrder);
+      const itemPoints: LatLng[] = sortedItems.map((i) => [i.lat, i.lng]);
 
-    const points: { lat: number; lng: number }[] = [];
-    if (startLat != null && startLng != null) {
-      points.push({ lat: startLat, lng: startLng });
-    }
-    for (const day of visibleDays) {
-      for (const item of day.items) {
-        points.push({ lat: item.lat, lng: item.lng });
-      }
-    }
+      // วันที่ 1 ใส่จุดเริ่มต้นเป็น waypoint แรก แล้วค่อยแยกช่วงเส้นประตอนวาด
+      const withStart = day.dayNumber === 1 && startPoint != null && itemPoints.length > 0;
+      const routePoints: LatLng[] = withStart ? [startPoint!, ...itemPoints] : itemPoints;
 
-    if (points.length === 0) return;
-
-    if (points.length === 1) {
-      mapRef.current.panTo(points[0]);
-      mapRef.current.setZoom(14);
-      return;
-    }
-
-    const bounds = new window.google.maps.LatLngBounds();
-    points.forEach((p) => bounds.extend(p));
-    mapRef.current.fitBounds(bounds, 48);
+      return {
+        day,
+        color: getDayColor(dayIndex),
+        sortedItems,
+        withStart,
+        routePoints,
+        key: routePoints.length >= 2 ? routeKey(routePoints) : null,
+      };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, visibleDays, startLat, startLng]);
+  }, [visibleDays, daysWithItems, startLat, startLng]);
 
-  if (loadError) {
-    return (
-      <p className="text-sm text-red-600">
-        โหลดแผนที่ไม่สำเร็จ กรุณาตรวจสอบ VITE_GOOGLE_MAPS_API_KEY ใน .env
-      </p>
+  // ---- ยิง ORS (debounce + abort) — ลากสถานที่ถี่ ๆ จะไม่ยิงรัว ----
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const failedRef = useRef<Set<string>>(new Set());
+  const requestsRef = useRef<{ key: string; points: LatLng[] }[]>([]);
+
+  requestsRef.current = dayRoutes.flatMap((r) =>
+    r.key && r.routePoints.length <= ORS_MAX_WAYPOINTS
+      ? [{ key: r.key, points: r.routePoints }]
+      : []
+  );
+  const requestsSignature = requestsRef.current.map((r) => r.key).join("##");
+
+  useEffect(() => {
+    const pending = requestsRef.current.filter(
+      (r) => !routeCache.has(r.key) && !failedRef.current.has(r.key)
     );
-  }
+    if (pending.length === 0) return;
 
-  if (!isLoaded) {
-    return <p className="text-sm text-[#5990c0]">กำลังโหลดแผนที่...</p>;
-  }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      pending.forEach(async (r) => {
+        try {
+          routeCache.set(r.key, await fetchRoute(r.points, controller.signal));
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          console.warn("[RouteMap] ขอเส้นทางจาก ORS ไม่สำเร็จ ใช้เส้นตรงแทน:", err);
+          failedRef.current.add(r.key);
+        }
+        rerender();
+      });
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [requestsSignature]);
+
+  const isRouting = requestsRef.current.some(
+    (r) => !routeCache.has(r.key) && !failedRef.current.has(r.key)
+  );
+  const hasFallback = dayRoutes.some(
+    (r) => r.key && !routeCache.has(r.key) && !isRouting
+  );
+
+  // ---- จุดทั้งหมดที่ใช้ fit bounds ----
+  const boundsPoints = useMemo<LatLng[]>(() => {
+    const pts: LatLng[] = [];
+    if (startPoint) pts.push(startPoint);
+    for (const day of visibleDays) {
+      for (const item of day.items) pts.push([item.lat, item.lng]);
+    }
+    return pts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleDays, startLat, startLng]);
 
   if (daysWithItems.length === 0) {
     return (
@@ -148,17 +311,25 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     );
   }
 
-  const defaultCenter =
-    startLat != null && startLng != null
-      ? { lat: startLat, lng: startLng }
-      : { lat: daysWithItems[0].items[0].lat, lng: daysWithItems[0].items[0].lng };
+  const defaultCenter: LatLng =
+    startPoint ?? [daysWithItems[0].items[0].lat, daysWithItems[0].items[0].lng];
 
   return (
     <div className="bg-white rounded-2xl shadow-md px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h3 className="font-prompt font-semibold text-sm text-[#102a6b]">
-          เส้นทางบนแผนที่
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-prompt font-semibold text-sm text-[#102a6b]">
+            เส้นทางบนแผนที่
+          </h3>
+          {isRouting && (
+            <span className="text-xs text-[#5990c0]">กำลังคำนวณเส้นทาง...</span>
+          )}
+          {hasFallback && (
+            <span className="text-xs text-amber-600">
+              คำนวณเส้นทางถนนไม่สำเร็จ แสดงเป็นเส้นตรงแทน
+            </span>
+          )}
+        </div>
 
         <div className="flex flex-wrap gap-2">
           {daysWithItems.map((day, index) => {
@@ -187,97 +358,100 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
         </div>
       </div>
 
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={defaultCenter}
-        zoom={12}
-        onLoad={(map) => {
-          mapRef.current = map;
-        }}
-        options={{
-          streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: false,
-        }}
-      >
-        {startLat != null && startLng != null && (
-          <Marker
-            position={{ lat: startLat, lng: startLng }}
-            icon={{
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 9,
-              fillColor: "#102a6b",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 2,
-            }}
-            title="จุดเริ่มต้น"
-            zIndex={999}
-          />
-        )}
+      {/* isolate: กัน z-index ของ Leaflet pane (สูงสุด ~1000) ไปทับ modal / drag overlay ของหน้า */}
+      <div className="isolate">
+        <MapContainer
+          center={defaultCenter}
+          zoom={12}
+          scrollWheelZoom
+          style={{ width: "100%", height: "420px", borderRadius: "16px" }}
+        >
+          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
+          <FitBounds points={boundsPoints} />
 
-        {visibleDays.map((day) => {
-          const dayIndex = daysWithItems.findIndex((d) => d.tripDayId === day.tripDayId);
-          const color = getDayColor(dayIndex);
-          const sortedItems = [...day.items].sort((a, b) => a.visitOrder - b.visitOrder);
+          {startPoint && (
+            <Marker
+              position={startPoint}
+              icon={startIcon}
+              zIndexOffset={1000}
+              title="จุดเริ่มต้น"
+            >
+              <Tooltip direction="top" offset={[0, -10]}>
+                จุดเริ่มต้น
+              </Tooltip>
+            </Marker>
+          )}
 
-          const pathPoints = sortedItems.map((item) => ({ lat: item.lat, lng: item.lng }));
+          {dayRoutes.map(({ day, color, sortedItems, withStart, routePoints, key }) => {
+            const route = key ? routeCache.get(key) : undefined;
 
-          // เส้นประจากจุดเริ่มต้น -> จุดแรกของวัน (เฉพาะวันที่ 1 เท่านั้น — วันอื่นไม่มีจุดเริ่มต้น
-          // ที่ backend ยืนยันชัดเจน)
-          const showStartLine =
-            day.dayNumber === 1 && startLat != null && startLng != null && sortedItems.length > 0;
+            // แยกเส้นเป็น 2 ส่วน: จุดเริ่มต้น -> จุดแรก (เส้นประ) และจุดแรก -> ที่เหลือ (เส้นทึบ)
+            let startLeg: LatLng[] | null = null;
+            let mainLeg: LatLng[] = [];
 
-          return (
-            <div key={day.tripDayId}>
-              {showStartLine && (
-                <Polyline
-                  path={[{ lat: startLat!, lng: startLng! }, pathPoints[0]]}
-                  options={{
-                    strokeColor: color,
-                    strokeOpacity: 0.6,
-                    strokeWeight: 2,
-                    icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.6 }, offset: "0", repeat: "10px" }],
-                  }}
-                />
-              )}
+            if (route) {
+              const splitAt = withStart ? route.wayPoints[1] : undefined;
+              if (withStart && splitAt != null) {
+                startLeg = route.coords.slice(0, splitAt + 1);
+                mainLeg = route.coords.slice(splitAt);
+              } else {
+                mainLeg = route.coords;
+              }
+            } else {
+              // ยังไม่ได้เส้นทางจาก ORS (กำลังโหลด / ล้มเหลว) -> เส้นตรงจางๆ ไปก่อน
+              if (withStart) {
+                startLeg = routePoints.slice(0, 2);
+                mainLeg = routePoints.slice(1);
+              } else {
+                mainLeg = routePoints;
+              }
+            }
 
-              {pathPoints.length > 1 && (
-                <Polyline
-                  path={pathPoints}
-                  options={{
-                    strokeColor: color,
-                    strokeOpacity: 0.9,
-                    strokeWeight: 3,
-                  }}
-                />
-              )}
+            return (
+              <Fragment key={day.tripDayId}>
+                {startLeg && startLeg.length > 1 && (
+                  <Polyline
+                    positions={startLeg}
+                    pathOptions={{
+                      color,
+                      opacity: 0.6,
+                      weight: 3,
+                      dashArray: "6 8",
+                    }}
+                  />
+                )}
 
-              {sortedItems.map((item) => (
-                <Marker
-                  key={item.placeId}
-                  position={{ lat: item.lat, lng: item.lng }}
-                  label={{
-                    text: String(item.visitOrder),
-                    color: "#ffffff",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                  }}
-                  icon={{
-                    path: window.google.maps.SymbolPath.CIRCLE,
-                    scale: 13,
-                    fillColor: color,
-                    fillOpacity: 1,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2,
-                  }}
-                  title={`${item.visitOrder}. ${item.placeName}`}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </GoogleMap>
+                {mainLeg.length > 1 && (
+                  <Polyline
+                    positions={mainLeg}
+                    pathOptions={{
+                      color,
+                      opacity: route ? 0.9 : 0.45,
+                      weight: 4,
+                      lineCap: "round",
+                      lineJoin: "round",
+                      dashArray: route ? undefined : "2 8",
+                    }}
+                  />
+                )}
+
+                {sortedItems.map((item) => (
+                  <Marker
+                    key={`${day.tripDayId}-${item.placeId}`}
+                    position={[item.lat, item.lng]}
+                    icon={numberIcon(item.visitOrder, color)}
+                    title={`${item.visitOrder}. ${item.placeName}`}
+                  >
+                    <Tooltip direction="top" offset={[0, -12]}>
+                      {`${item.visitOrder}. ${item.placeName}`}
+                    </Tooltip>
+                  </Marker>
+                ))}
+              </Fragment>
+            );
+          })}
+        </MapContainer>
+      </div>
     </div>
   );
 }

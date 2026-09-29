@@ -40,7 +40,6 @@ export interface TripInfo {
   startLng: number;
   dailyBudget: number | null;
   numberOfPeople: number;
-  // ✅ แก้แล้ว: nullable เพราะ tripController.ts ไม่ได้บังคับกรอก available_time_per_day
   availableTimePerDay: number | null; // ชั่วโมง ตาม schema ของ trips
   useBudget: boolean;
 }

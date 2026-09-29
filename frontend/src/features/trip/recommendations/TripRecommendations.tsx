@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import {
+  ArrowLeft, Check, Globe, Info, ListChecks, Loader2, MapPin, Navigation, Phone,
+  Plus, Route, SearchX, Sparkles, Star, Tag, TriangleAlert, Wallet, X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 
 // ✅ ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
-type PriceConfidence = "real" | "inferred_high" | "inferred_mid" | "inferred_low" | null;
+type PriceConfidence = "real" | "inferred_high" | "inferred_low" | null;
+
+// ✅ ตรงกับ DistanceSource ฝั่ง backend (orsDistance.ts) — ors = ระยะทางถนนจริงทั้งหมด
+type DistanceSource = "ors" | "haversine" | "mixed";
 
 interface PoiResult {
   placeId: string;
@@ -18,6 +27,8 @@ interface PoiResult {
   placeCost: number | null;
   perPersonDailyBudget: number | null;
   priceConfidence: PriceConfidence;
+  // ✅ แหล่งของระยะทางรายสถานที่ (backend ใหม่) — ไม่มี = ใช้ distanceSource ระดับหน้าแทน
+  distanceMethod?: "ors" | "haversine";
 }
 
 interface PlaceInfo {
@@ -43,6 +54,69 @@ interface MergedPlace extends PoiResult {
   place?: PlaceInfo;
 }
 
+function StateCard({
+  icon: Icon,
+  iconClass = "text-[color:var(--sky)]",
+  title,
+  text,
+  children,
+}: {
+  icon: LucideIcon;
+  iconClass?: string;
+  title?: string;
+  text: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      role="status"
+      className="fade-in bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-8 py-14 flex flex-col items-center text-center gap-3"
+    >
+      <Icon size={44} strokeWidth={1.5} className={iconClass} />
+      {title && (
+        <h3 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">{title}</h3>
+      )}
+      <p className="text-sm text-[color:var(--muted)] max-w-md">{text}</p>
+      {children}
+    </div>
+  );
+}
+
+function Metric({
+  icon: Icon,
+  tone,
+  title,
+  children,
+}: {
+  icon: LucideIcon;
+  tone?: "warn";
+  title?: string;
+  children: ReactNode;
+}) {
+  const warn = tone === "warn";
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1.5 ${
+        warn ? "text-[color:var(--danger)] font-medium" : ""
+      }`}
+    >
+      <Icon
+        size={16}
+        strokeWidth={1.75}
+        className={`shrink-0 ${warn ? "text-[color:var(--danger)]" : "text-[color:var(--sky)]"}`}
+      />
+      {children}
+    </span>
+  );
+}
+
+const primaryBtn =
+  "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200";
+
+const outlineBtn =
+  "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] bg-transparent border-2 border-[color:var(--sky)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200";
+
 export default function TripRecommendations() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -51,6 +125,7 @@ export default function TripRecommendations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFallbackUsed, setCategoryFallbackUsed] = useState(false);
+  const [distanceSource, setDistanceSource] = useState<DistanceSource | null>(null);
 
   // State สำหรับเก็บรายการสถานที่ทั้งหมด
   const [places, setPlaces] = useState<MergedPlace[]>([]);
@@ -110,6 +185,7 @@ export default function TripRecommendations() {
 
         const results: PoiResult[] = poiData.results ?? [];
         setCategoryFallbackUsed(!!poiData.categoryFallbackUsed);
+        setDistanceSource(poiData.distanceSource ?? null);
 
         if (results.length === 0) {
           setPlaces([]);
@@ -272,131 +348,279 @@ export default function TripRecommendations() {
     return places.filter((p) => p.categoryName === selectedCategory);
   }, [places, selectedCategory]);
 
-  return (
-    <div className="font-sarabun min-h-screen bg-[#fcedd3]">
-      <Navbar />
-      <div className="max-w-6xl mx-auto px-4 pt-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md hover:shadow-lg hover:-translate-x-1 transition-all duration-200"
-        >
-          <span className="text-lg transition-transform duration-200 group-hover:-translate-x-1">
-            ←
-          </span>
-          <span>กลับ</span>
-        </button>
-      </div>
+  const rankOf = new Map(places.map((p, i) => [p.placeId, i + 1]));
 
-      <div className={`max-w-6xl mx-auto px-4 py-6 ${isCustomMode ? "pb-28" : ""}`}>
-        <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
-          <h2 className="font-prompt font-bold text-2xl text-white mb-1">
+
+  const chipClass = (active: boolean) =>
+    `shrink-0 whitespace-nowrap min-h-10 px-4 rounded-full border text-sm active:scale-[0.98] transition-all duration-200 ${
+      active
+        ? "bg-[color:var(--navy)] border-[color:var(--navy)] text-white"
+        : "bg-white border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)]"
+    }`;
+
+  const renderCard = (item: MergedPlace) => {
+    const selected = selectedPlaceIds.includes(item.placeId);
+    const p = item.place;
+    const method =
+      item.distanceMethod ??
+      (distanceSource === "ors" ? "ors" : distanceSource ? "haversine" : null);
+    const approx = method === "haversine";
+
+    return (
+      <li
+        key={item.placeId}
+        className={`flex items-start gap-4 bg-white rounded-2xl border-2 p-4 sm:p-5 [box-shadow:var(--shadow)] transition-colors duration-200 ${
+          isCustomMode && selected
+            ? "border-[color:var(--navy)]"
+            : "border-[color:var(--line)]"
+        } ${isCustomMode && !selected ? "opacity-80" : ""}`}
+      >
+        <span className="shrink-0 w-10 h-10 rounded-full bg-[color:var(--navy)] text-white font-prompt font-semibold flex items-center justify-center">
+          {rankOf.get(item.placeId)}
+        </span>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-prompt font-semibold text-base text-[color:var(--navy)]">
+            {p?.place_name ?? "ไม่พบชื่อสถานที่"}
+          </h3>
+          <p className="flex items-center gap-1 text-sm text-[color:var(--muted)] mt-0.5">
+            <MapPin size={14} strokeWidth={1.75} className="shrink-0" />
+            {p?.district ? `${p.district}, ` : ""}
+            {p?.province ?? ""}
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {item.categoryName && (
+              <span className="px-3 py-1 rounded-full bg-[color:var(--sky-soft)] text-xs font-medium text-[color:var(--navy)]">
+                {item.categoryName}
+              </span>
+            )}
+            {p?.att_category_label && (
+              <span className="px-3 py-1 rounded-full border border-[color:var(--line)] text-xs text-[color:var(--muted)]">
+                {p.att_category_label}
+              </span>
+            )}
+          </div>
+
+          {(p?.phone_number || p?.website) && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[color:var(--deep)]">
+              {p.phone_number && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Phone size={16} strokeWidth={1.75} className="shrink-0" />
+                  {p.phone_number}
+                </span>
+              )}
+              {p.website && (
+                <a
+                  href={p.website.startsWith("http") ? p.website : `https://${p.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 underline underline-offset-2 hover:text-[color:var(--navy)] transition-colors duration-200"
+                >
+                  <Globe size={16} strokeWidth={1.75} className="shrink-0" />
+                  <span className="truncate max-w-[180px]">
+                    {p.website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]}
+                  </span>
+                </a>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3 pt-3 border-t border-[color:var(--line)] flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-[color:var(--muted)]">
+            <Metric icon={Tag}>ตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</Metric>
+            <Metric icon={Star}>รีวิว {(item.ratingScore * 5).toFixed(1)}/5</Metric>
+            <Metric
+              icon={Navigation}
+              tone={approx ? "warn" : undefined}
+              title={approx ? "ระยะทางเส้นตรงโดยประมาณ ไม่ใช่ระยะทางถนน" : undefined}
+            >
+              {method === "ors" ? "ทางถนน " : approx ? "ประมาณ " : ""}
+              {(1 / item.distanceScore - 1).toFixed(1)} กม.
+            </Metric>
+            {item.placeCost !== null ? (
+              <Metric icon={Wallet}>
+                {item.placeCost.toLocaleString()}/
+                {item.perPersonDailyBudget !== null
+                  ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
+                  : "ไม่จำกัดงบ"}
+              </Metric>
+            ) : (
+              <span title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google ระบบไม่เดาราคาแทนคุณ">
+                <Metric icon={Wallet}>
+                  {item.priceConfidence === "inferred_high"
+                    ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่มีค่าใช้จ่าย)"
+                    : "ไม่ทราบราคาแน่ชัด"}
+                </Metric>
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 flex flex-col items-end gap-3">
+          <div className="text-right">
+            <p className="font-prompt font-semibold text-3xl leading-none text-[color:var(--navy)]">
+              {(item.poiScore * 100).toFixed(0)}
+            </p>
+            <p className="text-xs text-[color:var(--muted)] mt-1">คะแนนรวม</p>
+          </div>
+
+          {isCustomMode && (
+            <button
+              type="button"
+              aria-pressed={selected}
+              aria-label={`${selected ? "ยกเลิกเลือก" : "เลือก"} ${p?.place_name ?? "สถานที่"}`}
+              onClick={() => togglePlace(item.placeId)}
+              className={`w-11 h-11 rounded-full border-2 flex items-center justify-center active:scale-95 transition-all duration-200 ${
+                selected
+                  ? "bg-[color:var(--navy)] border-[color:var(--navy)] text-white"
+                  : "bg-white border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)]"
+              }`}
+            >
+              {selected ? <Check size={20} strokeWidth={2} /> : <Plus size={20} strokeWidth={2} />}
+            </button>
+          )}
+        </div>
+      </li>
+    );
+  };
+
+  return (
+    <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
+      <Navbar />
+
+      <main className={`max-w-5xl mx-auto px-4 sm:px-8 py-6 ${isCustomMode ? "pb-28" : ""}`}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="font-prompt font-medium min-h-10 pr-4 pl-3 mb-4 flex items-center gap-1.5 rounded-xl text-[color:var(--navy)] bg-white border border-[color:var(--line)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200"
+        >
+          <ArrowLeft size={18} strokeWidth={1.75} />
+          กลับ
+        </button>
+
+        <div className="fade-in mb-6">
+          <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
             สถานที่ที่ตรงใจคุณ
-          </h2>
-          <p className="text-[#5990c0] text-sm">
-            จัดเรียงตามคะแนนความเหมาะสม (POI Score) ที่คำนวณจากความสนใจ
-            งบประมาณ ระยะทาง และเวลาของทริปนี้
+          </h1>
+          <p className="text-sm text-[color:var(--muted)] mt-1 max-w-2xl">
+            จัดเรียงตามคะแนนความเหมาะสม (POI Score) ที่คำนวณจากความสนใจ งบประมาณ ระยะทาง และเวลาของทริปนี้
           </p>
         </div>
 
         {categoryFallbackUsed && (
-          <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-5 py-3 mb-6 text-sm">
-            ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในจังหวัดนี้ ระบบจึงแสดงผลแบบตรงใจน้อยลง
-          </div>
+          <p className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-4 bg-white border border-[color:var(--sky)] text-[color:var(--deep)]">
+            <Info size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+            <span>ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในจังหวัดนี้ ระบบจึงแสดงผลแบบตรงใจน้อยลง</span>
+          </p>
+        )}
+
+        {(distanceSource === "haversine" || distanceSource === "mixed") && (
+          <p className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-4 bg-white border border-[color:var(--sky)] text-[color:var(--deep)]">
+            <Info size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+            <span>
+              {distanceSource === "haversine"
+                ? "ตอนนี้คำนวณเส้นทางถนนไม่ได้ ระยะทางจึงเป็นค่าประมาณแบบเส้นตรงจากจุดเริ่มต้น"
+                : "บางสถานที่หาเส้นทางถนนจากจุดเริ่มต้นไม่ได้ จึงแสดงระยะทางเส้นตรงโดยประมาณ (ตัวเลขสีแดง)"}
+            </span>
+          </p>
         )}
 
         {autoTripError && (
-          <div className="bg-red-50 border border-red-300 text-red-800 rounded-xl px-5 py-3 mb-6 text-sm">
-            {autoTripError}
-          </div>
+          <p
+            role="alert"
+            className="animate-shake flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-4 bg-white border border-[color:var(--danger)] text-[color:var(--danger)]"
+          >
+            <TriangleAlert size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+            <span>{autoTripError}</span>
+          </p>
         )}
 
         {loading && (
-          <div className="bg-white rounded-2xl shadow-lg px-8 py-16 flex flex-col items-center justify-center text-center gap-3">
-            <div className="text-5xl animate-pulse">🗺️</div>
-            <p className="text-sm text-[#5990c0]">กำลังคำนวณคะแนนสถานที่...</p>
-          </div>
+          <StateCard
+            icon={Loader2}
+            iconClass="text-[color:var(--sky)] animate-spin"
+            text="กำลังคำนวณคะแนนสถานที่..."
+          />
         )}
 
         {!loading && error && (
-          <div className="bg-white rounded-2xl shadow-lg px-8 py-16 flex flex-col items-center justify-center text-center gap-3">
-            <div className="text-5xl">⚠️</div>
-            <h3 className="font-prompt font-bold text-lg text-[#102a6b]">
-              เกิดข้อผิดพลาด
-            </h3>
-            <p className="text-sm text-[#5990c0] max-w-md">{error}</p>
-            <button
-              onClick={() => navigate("/home")}
-              className="mt-4 font-bold px-6 py-3 rounded-xl text-white bg-gradient-to-r from-[#102a6b] to-[#015185]"
-            >
+          <StateCard
+            icon={TriangleAlert}
+            iconClass="text-[color:var(--danger)]"
+            title="เกิดข้อผิดพลาด"
+            text={error}
+          >
+            <button type="button" onClick={() => navigate("/home")} className={`${primaryBtn} mt-3`}>
               กลับหน้าหลัก
             </button>
-          </div>
+          </StateCard>
         )}
 
         {!loading && !error && places.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-lg px-8 py-16 flex flex-col items-center justify-center text-center gap-3">
-            <div className="text-5xl">🔍</div>
-            <h3 className="font-prompt font-bold text-lg text-[#102a6b]">
-              ไม่พบสถานที่ที่ตรงเงื่อนไข
-            </h3>
-            <p className="text-sm text-[#5990c0] max-w-md">
-              ลองปรับงบประมาณ เวลา หรือหมวดหมู่ที่สนใจของทริปนี้ดูอีกครั้ง
-            </p>
-            <button
-              onClick={() => navigate("/home")}
-              className="mt-4 font-bold px-6 py-3 rounded-xl text-white bg-gradient-to-r from-[#102a6b] to-[#015185]"
-            >
+          <StateCard
+            icon={SearchX}
+            title="ไม่พบสถานที่ที่ตรงเงื่อนไข"
+            text="ลองปรับงบประมาณ เวลา หรือหมวดหมู่ที่สนใจของทริปนี้ดูอีกครั้ง"
+          >
+            <button type="button" onClick={() => navigate("/home")} className={`${primaryBtn} mt-3`}>
               กลับหน้าหลัก
             </button>
-          </div>
+          </StateCard>
         )}
 
         {!loading && !error && places.length > 0 && (
           <>
-            <div className="flex justify-between items-center mb-4 gap-3">
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               {!isCustomMode ? (
-                <div className="flex gap-3 ml-auto">
-                  <button
-                    onClick={handleAutoTrip}
-                    disabled={autoCreatingRoute}
-                    className="px-5 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#5990c0] to-[#015185] shadow-md hover:shadow-lg transition-shadow disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {autoCreatingRoute
-                      ? "กำลังจัดทริป..."
-                      : "จัดทริปอัตโนมัติ"}
-                  </button>
-                  <button
-                    onClick={handleStartCustomMode}
-                    className="px-5 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#102a6b] to-[#015185] shadow-md hover:shadow-lg transition-shadow"
-                  >
-                    จัดทริปเอง
-                  </button>
-                </div>
+                <>
+                  <p className="text-sm text-[color:var(--muted)]">พบ {places.length} สถานที่</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAutoTrip}
+                      disabled={autoCreatingRoute}
+                      className={outlineBtn}
+                    >
+                      {autoCreatingRoute ? (
+                        <>
+                          <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
+                          กำลังจัดทริป...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={20} strokeWidth={1.75} />
+                          จัดทริปอัตโนมัติ
+                        </>
+                      )}
+                    </button>
+                    <button type="button" onClick={handleStartCustomMode} className={primaryBtn}>
+                      <ListChecks size={20} strokeWidth={1.75} />
+                      จัดทริปเอง
+                    </button>
+                  </div>
+                </>
               ) : (
                 <>
-                  <div className="text-sm text-[#5990c0]">
-                    เลือกแล้ว {selectedPlaceIds.length} สถานที่
-                  </div>
-                  <button
-                    onClick={handleCancelCustomMode}
-                    className="px-4 py-2 rounded-xl text-[#102a6b] font-semibold bg-white border-2 border-[#102a6b]/20 hover:bg-gray-50 transition-colors"
-                  >
+                  <p className="text-sm text-[color:var(--muted)]">
+                    เลือกสถานที่ที่ต้องการ แล้วกดสร้างเส้นทาง
+                  </p>
+                  <button type="button" onClick={handleCancelCustomMode} className={outlineBtn}>
+                    <X size={20} strokeWidth={1.75} />
                     ยกเลิก
                   </button>
                 </>
               )}
             </div>
 
-            {/* แถบกรองหมวดหมู่แบบเลื่อนแนวนอน */}
+            {/* Category filter */}
             {availableCategories.length > 0 && (
-              <div className="flex gap-2 mb-4 overflow-x-auto flex-nowrap pb-2 -mx-1 px-1">
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-1 px-1">
                 <button
+                  type="button"
+                  aria-pressed={selectedCategory === null}
                   onClick={() => setSelectedCategory(null)}
-                  className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                    selectedCategory === null
-                      ? "bg-[#102a6b] text-white"
-                      : "bg-white text-[#102a6b] border border-[#102a6b]/20 hover:bg-gray-50"
-                  }`}
+                  className={chipClass(selectedCategory === null)}
                 >
                   ทั้งหมด ({places.length})
                 </button>
@@ -405,12 +629,10 @@ export default function TripRecommendations() {
                   return (
                     <button
                       key={cat}
+                      type="button"
+                      aria-pressed={selectedCategory === cat}
                       onClick={() => setSelectedCategory(cat)}
-                      className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                        selectedCategory === cat
-                          ? "bg-[#102a6b] text-white"
-                          : "bg-white text-[#102a6b] border border-[#102a6b]/20 hover:bg-gray-50"
-                      }`}
+                      className={chipClass(selectedCategory === cat)}
                     >
                       {cat} ({count})
                     </button>
@@ -419,161 +641,47 @@ export default function TripRecommendations() {
               </div>
             )}
 
-            {(() => {
-              const rankOf = new Map(places.map((p, i) => [p.placeId, i + 1]));
-
-              const renderCard = (item: MergedPlace) => (
-                <div
-                  key={item.placeId}
-                  className={`bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-5 border-2 transition-all duration-300
-                    hover:shadow-xl hover:-translate-y-1 ${
-                    isCustomMode
-                      ? selectedPlaceIds.includes(item.placeId)
-                        ? "border-green-500"
-                        : "border-transparent opacity-60"
-                      : "border-transparent"
-                  }`}
-                >
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#102a6b] text-white font-prompt font-bold flex items-center justify-center">
-                    {rankOf.get(item.placeId)}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-prompt font-bold text-base text-[#102a6b]">
-                      {item.place?.place_name ?? "ไม่พบชื่อสถานที่"}
-                    </h3>
-                    <p className="text-xs text-[#5990c0] mt-0.5">
-                      {item.place?.district ? `${item.place.district}, ` : ""}
-                      {item.place?.province ?? ""}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {item.categoryName && (
-                        <div className="inline-block px-2 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
-                          {item.categoryName}
-                        </div>
-                      )}
-                      {item.place?.att_category_label && (
-                        <div className="inline-block px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
-                          {item.place.att_category_label}
-                        </div>
-                      )}
-                    </div>
-                    {item.place?.phone_number && (
-                      <div className="text-xs text-[#015185] mt-1">
-                        📞 {item.place.phone_number}
-                      </div>
-                    )}
-                    {item.place?.website && (
-                      <a
-                        href={
-                          item.place.website.startsWith("http")
-                            ? item.place.website
-                            : `https://${item.place.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
-                      >
-                        🌐
-                        <span className="truncate max-w-[180px]">
-                          {item.place.website
-                            .replace(/^https?:\/\//, "")
-                            .replace(/^www\./, "")
-                            .split("/")[0]}
-                        </span>
-                      </a>
-                    )}
-
-                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#015185]">
-                      <span>ความตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</span>
-                      <span>คะแนนรีวิว {(item.ratingScore * 5).toFixed(1)}/5</span>
-                      <span>ระยะทาง {(1 / item.distanceScore - 1).toFixed(1)} กม.</span>
-                      {item.placeCost !== null ? (
-                        <span>
-                          งบประมาณ {item.placeCost.toLocaleString()}/
-                          {item.perPersonDailyBudget !== null
-                            ? `${item.perPersonDailyBudget.toLocaleString()} บาท`
-                            : "ไม่จำกัดงบ"}
-                        </span>
-                      ) : (
-                        <span
-                          className="text-gray-400 italic"
-                          title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google ระบบไม่เดาราคาแทนคุณ"
-                        >
-                          💸{" "}
-                          {item.priceConfidence === "inferred_high"
-                            ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่มีค่าใช้จ่าย)"
-                            : item.priceConfidence === "inferred_mid"
-                            ? "ไม่ทราบราคาแน่ชัด (หมวดนี้เป็นร้านอาหาร)"
-                            : "ไม่ทราบราคาแน่ชัด"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {isCustomMode && (
-                    <div className="flex-shrink-0">
-                      <button
-                        onClick={() => togglePlace(item.placeId)}
-                        className={`w-10 h-10 rounded-full font-bold ${
-                          selectedPlaceIds.includes(item.placeId)
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-200"
-                        }`}
-                      >
-                        {selectedPlaceIds.includes(item.placeId) ? "✓" : "+"}
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="flex-shrink-0 text-right">
-                    <div className="font-prompt font-bold text-2xl text-[#102a6b]">
-                      {(item.poiScore * 100).toFixed(0)}
-                    </div>
-                    <div className="text-xs text-[#5990c0]">คะแนนรวม</div>
-                  </div>
-                </div>
-              );
-
-              if (displayedPlaces.length === 0) {
-                return (
-                  <div className="bg-white rounded-2xl shadow-md px-8 py-12 flex flex-col items-center justify-center text-center gap-2">
-                    <div className="text-4xl">🗂️</div>
-                    <p className="text-sm text-[#5990c0]">
-                      ไม่มีสถานที่ในหมวดหมู่นี้
-                    </p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="flex flex-col gap-4">
-                  {displayedPlaces.map((item) => renderCard(item))}
-                </div>
-              );
-            })()}
+            {displayedPlaces.length === 0 ? (
+              <StateCard icon={SearchX} text="ไม่มีสถานที่ในหมวดหมู่นี้" />
+            ) : (
+              <ul className="flex flex-col gap-3">{displayedPlaces.map(renderCard)}</ul>
+            )}
           </>
         )}
-      </div>
+      </main>
 
       {isCustomMode && selectedPlaceIds.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-20">
-          <div className="max-w-6xl mx-auto px-4 pb-5">
-            <div className="bg-white rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4 border border-black/5">
-              <div className="text-sm text-[#102a6b] font-prompt font-semibold">
-                เลือกแล้ว {selectedPlaceIds.length} สถานที่
+          <div className="max-w-5xl mx-auto px-4 sm:px-8 pb-4">
+            <div className="bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-5 py-3 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-prompt font-medium text-[color:var(--navy)]">
+                  เลือกแล้ว {selectedPlaceIds.length} สถานที่
+                </p>
                 {createRouteError && (
-                  <div className="text-xs text-red-600 font-normal mt-1">
+                  <p role="alert" className="flex items-center gap-1.5 text-xs text-[color:var(--danger)] mt-1">
+                    <TriangleAlert size={14} strokeWidth={1.75} className="shrink-0" />
                     {createRouteError}
-                  </div>
+                  </p>
                 )}
               </div>
               <button
+                type="button"
                 onClick={handleCreateRoute}
                 disabled={creatingRoute}
-                className="px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#102a6b] to-[#015185] shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                className={`${primaryBtn} shrink-0`}
               >
-                {creatingRoute ? "กำลังสร้าง..." : "สร้างเส้นทาง"}
+                {creatingRoute ? (
+                  <>
+                    <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
+                    กำลังสร้าง...
+                  </>
+                ) : (
+                  <>
+                    <Route size={20} strokeWidth={1.75} />
+                    สร้างเส้นทาง
+                  </>
+                )}
               </button>
             </div>
           </div>

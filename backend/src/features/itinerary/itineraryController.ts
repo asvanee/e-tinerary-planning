@@ -21,6 +21,17 @@ import {
   TripInfo,
 } from "./autoTripBuilder";
 
+import { buildTravelMatrix, TRIP_START_ID } from "../../utils/orsTravelMatrix";
+import type { TravelPoint } from "../../utils/orsTravelMatrix";
+
+function toTravelPoint(place: {
+  placeId: string;
+  latitude: number;
+  longitude: number;
+}): TravelPoint {
+  return { id: place.placeId, latitude: place.latitude, longitude: place.longitude };
+}
+
 /**
  * POST /api/itinerary/trips/:tripId/draft
  * body: { place_ids: string[] }
@@ -73,6 +84,7 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
 
     const dayAssignments: DayAssignment[] = tripDays.map((day) => ({
       tripDayId: day.tripDayId,
+      dayNumber: day.dayNumber,
       visitDate: day.visitDate,
       startTime: day.startTime,
       endTime: day.endTime,
@@ -89,6 +101,17 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
       tripOwner.startLng
     );
 
+    // ORS Matrix many-to-many: trip start + สถานที่ที่เลือกทั้งหมด — ส่งให้ frontend ใช้ recompute ตอนลาก
+    // แม้ draftItems จะว่าง (ไม่ throw: ORS พลาดจะ fallback รายคู่เป็น haversine ให้เอง)
+    const travelMatrix = await buildTravelMatrix([
+      {
+        id: TRIP_START_ID,
+        latitude: tripOwner.startLat,
+        longitude: tripOwner.startLng,
+      },
+      ...places.map(toTravelPoint),
+    ]);
+
     return res.status(200).json({
       message: "จัดร่างเส้นทางสำเร็จ (ยังไม่บันทึก)",
       tripStartLat: tripOwner.startLat,
@@ -103,6 +126,7 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
         useBudget: day.useBudget,
       })),
       items: draftItems,
+      travelMatrix,
     });
   } catch (err: any) {
     console.error("Build draft itinerary exception:", err);
@@ -182,6 +206,7 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       const day = tripDaysById.get(dayInput.trip_day_id)!;
       return {
         tripDayId: day.tripDayId,
+        dayNumber: day.dayNumber,
         visitDate: day.visitDate,
         startTime: day.startTime,
         endTime: day.endTime,
@@ -191,7 +216,24 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    const finalItems = buildItinerary(dayAssignments, placesById);
+    // สร้าง travel matrix ใหม่ฝั่ง backend เสมอ (ไม่เชื่อระยะ/เวลาที่ frontend ส่งมา) —
+    // ถ้าไม่มีพิกัดจุดเริ่มต้น จะไม่ใส่ TRIP_START_ID วันแรกจึงเริ่มตามเวลาเดิมโดยไม่มี leg แรก
+    const hasStart =
+      Number.isFinite(tripOwner.startLat) && Number.isFinite(tripOwner.startLng);
+    const travelMatrix = await buildTravelMatrix([
+      ...(hasStart
+        ? [
+            {
+              id: TRIP_START_ID,
+              latitude: tripOwner.startLat,
+              longitude: tripOwner.startLng,
+            },
+          ]
+        : []),
+      ...places.map(toTravelPoint),
+    ]);
+
+    const finalItems = buildItinerary(dayAssignments, placesById, travelMatrix);
 
     // ---- delete-then-insert ทับของเดิมทั้งทริป ----
     const allTripDayIds = tripDays.map((day) => day.tripDayId);

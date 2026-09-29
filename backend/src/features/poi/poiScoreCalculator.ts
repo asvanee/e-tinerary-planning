@@ -1,4 +1,3 @@
-import { haversineKm } from "../../utils/haversine";
 import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
 import type { PriceNature } from "./poiPlaceQueries";
 
@@ -37,14 +36,10 @@ export function calculateRatingScore(rating: number | null): number {
 
 /**
  * distance_score: ยิ่งใกล้ยิ่งคะแนนสูง เข้าใกล้ 1 เมื่อระยะทาง = 0
+ * ✅ รับ distanceKm สำเร็จรูปแล้ว (ระยะทางถนนจาก ORS Matrix — ดู utils/orsDistance.ts ซึ่งมี
+ * fallback เป็น haversine ในตัว) เดิมรับพิกัด 4 ตัวแล้วคิด haversine เองที่นี่
  */
-export function calculateDistanceScore(
-  startLat: number,
-  startLng: number,
-  placeLat: number,
-  placeLng: number
-): number {
-  const distanceKm = haversineKm(startLat, startLng, placeLat, placeLng);
+export function calculateDistanceScore(distanceKm: number): number {
   return 1 / (1 + distanceKm);
 }
 
@@ -192,10 +187,7 @@ export interface PoiScoreBreakdown {
 export function calculatePoiScore(
   confidenceScore: number | null,
   rating: number | null,
-  startLat: number,
-  startLng: number,
-  placeLat: number,
-  placeLng: number,
+  distanceKm: number, // ✅ ระยะทางถนนจากจุดเริ่มต้น (km) — คำนวณนอกฟังก์ชันนี้ทีเดียวทั้งก้อน
   dailyBudget: number | null,
   numberOfPeople: number,
   rawPriceLevel: number | null,
@@ -204,12 +196,7 @@ export function calculatePoiScore(
 ): PoiScoreBreakdown {
   const categoryScore = calculateCategoryScore(confidenceScore);
   const ratingScore = calculateRatingScore(rating);
-  const distanceScore = calculateDistanceScore(
-    startLat,
-    startLng,
-    placeLat,
-    placeLng
-  );
+  const distanceScore = calculateDistanceScore(distanceKm);
   const weatherScore = calculateWeatherScore();
 
   // ✅ placeCost/perPersonDailyBudget เป็นข้อมูลแสดงผลล้วนๆ ไม่เข้าสูตรคะแนนแล้ว —

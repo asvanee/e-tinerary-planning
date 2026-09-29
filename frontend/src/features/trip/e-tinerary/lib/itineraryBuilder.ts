@@ -40,7 +40,8 @@ import { haversineKm } from "./haversine";
 // frontend port แยก package จึง import ข้าม package ไม่ได้ ต้อง declare ค่าเดียวกันไว้เองที่นี่
 // (เหมือนที่ PRICE_LEVEL_TO_BAHT ด้านล่างทำอยู่แล้ว) — ถ้าแก้ค่าที่เป็นไปได้ฝั่ง backend ต้องแก้
 // ที่นี่คู่กันด้วยเสมอ ไม่มี auto-sync ข้าม package
-export type PriceNature = "free" | "food" | "paid_other";
+// ✅ ยุบเหลือ 2 หมวดแล้ว (เดิม "free" | "food" | "paid_other") ให้ตรงกับ backend
+export type PriceNature = "free" | "paid";
 
 export interface PlaceInput {
   placeId: string;
@@ -56,6 +57,8 @@ export interface PlaceInput {
 
 export interface DayAssignment {
   tripDayId: number;
+  // ✅ ใหม่ — ใช้ตัดสินว่าเป็น Day 1 หรือไม่ (เฉพาะ Day 1 ที่มี leg trip start -> สถานที่แรก)
+  dayNumber: number;
   visitDate: string; // "YYYY-MM-DD"
   startTime: string | null; // trip_days.start_time "HH:MM:SS"
   endTime: string | null; // trip_days.end_time "HH:MM:SS"
@@ -87,8 +90,25 @@ export interface ItineraryItemResult {
 
 // ---------- Constants ----------
 
-/** MVP: haversine ÷ ความเร็วเฉลี่ยสมมติ 25 กม./ชม. — ต้องตรงกับ backend เป๊ะ */
-const AVG_SPEED_KMH = 25;
+/** reserved id ของจุดเริ่มต้นทริปใน TravelMatrix — ต้องตรงกับ backend (utils/orsTravelMatrix.ts) */
+export const TRIP_START_ID = "__trip_start__";
+
+/**
+ * ใช้เฉพาะตอนหา metric จาก matrix ไม่เจอ (ป้องกันไว้ เช่น draft เก่าที่ไม่มี matrix) — ปกติทุกคู่มีใน
+ * matrix อยู่แล้ว (backend fallback รายคู่ให้เอง) ห้ามใช้ถ้า matrix มี duration จริง
+ * ต้องตรงกับ backend เป๊ะ
+ */
+const FALLBACK_AVG_SPEED_KMH = 25;
+
+/** ตรงกับ backend TravelMetric/TravelMatrix (JSON serialize ได้ ไม่ใช้ Map) */
+export interface TravelMetric {
+  distanceKm: number;
+  durationMin: number;
+  source: "ors" | "haversine";
+}
+
+/** matrix[fromId][toId] — from/to เป็น placeId หรือ TRIP_START_ID */
+export type TravelMatrix = Record<string, Record<string, TravelMetric>>;
 
 /**
  * price_level (0-4) -> บาท — ต้องตรงกับ backend เป๊ะ
@@ -134,8 +154,8 @@ function getDayOfWeek(visitDate: string): number {
  * ใช้หลักเดียวกันที่นี่ฝั่ง cost)
  *
  * free + missing -> ยังคืน 0 บาทตรงๆ (ไม่ถือว่า unknown) เพราะ free category (วัด/สวนสาธารณะ)
- * มั่นใจได้สูงอยู่แล้วว่าราคาจริงเข้าใกล้ 0 — ต่างจาก food/paid_other ที่ range กว้างเกินจะเดา
- * food/paid_other + missing -> null (ไม่ทราบราคาแน่ชัด) ไม่ใช่ 0 บาท
+ * มั่นใจได้สูงอยู่แล้วว่าราคาจริงเข้าใกล้ 0 — ต่างจาก paid ที่ range กว้างเกินจะเดา
+ * paid + missing -> null (ไม่ทราบราคาแน่ชัด) ไม่ใช่ 0 บาท
  */
 function getPlaceCost(
   rawPriceLevel: number | null,
@@ -145,7 +165,33 @@ function getPlaceCost(
     return PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? 0;
   }
   if (priceNature === "free") return 0;
-  return null; // food/paid_other missing = unknown จริง
+  return null; // paid + missing = unknown จริง
+}
+
+/**
+ * lookup metric ของคู่ from -> to จาก matrix ที่โหลดไว้แล้ว (ไม่ยิง network)
+ * ไม่เจอ -> fallback haversine ÷ FALLBACK_AVG_SPEED_KMH เฉพาะคู่นั้น (pure, ไม่ throw)
+ */
+function resolveTravelMetric(
+  matrix: TravelMatrix,
+  fromId: string,
+  toId: string,
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): TravelMetric {
+  const hit = matrix[fromId]?.[toId];
+  // ขั้นต่ำ 1 นาทีเสมอ แม้ matrix จะมี 0 (เช่น draft เก่าที่สร้างก่อนแก้ toMinutes ฝั่ง backend)
+  if (hit) return hit.durationMin >= 1 ? hit : { ...hit, durationMin: 1 };
+
+  const km = haversineKm(fromLat, fromLng, toLat, toLng);
+  return {
+    distanceKm: Math.round(km * 100) / 100,
+    // ขั้นต่ำ 1 นาที ตรงกับ orsTravelMatrix.ts::toMinutes
+    durationMin: Math.max(1, Math.round((km / FALLBACK_AVG_SPEED_KMH) * 60)),
+    source: "haversine",
+  };
 }
 
 /**
@@ -209,7 +255,10 @@ export function buildNearestNeighborOrder(
  */
 export function buildDayItems(
   day: DayAssignment,
-  placesById: Map<string, PlaceInput>
+  placesById: Map<string, PlaceInput>,
+  // ✅ ระยะทาง/เวลาเดินทางตามถนน (ORS + fallback รายคู่) โหลดไว้ล่วงหน้าแล้ว — ฟังก์ชันนี้ยังเป็น
+  // pure function แค่ lookup ไม่เรียก network เอง (ลากสลับลำดับแล้ว recompute ได้ทันที)
+  travelMatrix: TravelMatrix
 ): ItineraryItemResult[] {
   const results: ItineraryItemResult[] = [];
 
@@ -217,8 +266,7 @@ export function buildDayItems(
   const dayEndMinutes = day.endTime ? timeStringToMinutes(day.endTime) : null;
   const dayStartMinutes = day.startTime ? timeStringToMinutes(day.startTime) : null;
 
-  let prevLat: number | null = null;
-  let prevLng: number | null = null;
+  let prevPlace: PlaceInput | null = null;
   let prevEndMinutes: number | null = dayStartMinutes;
   let cumulativeCost = 0;
 
@@ -233,14 +281,32 @@ export function buildDayItems(
     let distanceFromPrev: number | null = null;
     let travelTimeFromPrev: number | null = null;
 
-    if (!isFirstOfDay && prevLat !== null && prevLng !== null) {
-      distanceFromPrev = haversineKm(prevLat, prevLng, place.latitude, place.longitude);
-      travelTimeFromPrev = Math.round((distanceFromPrev / AVG_SPEED_KMH) * 60);
+    if (!isFirstOfDay && prevPlace !== null) {
+      const metric = resolveTravelMetric(
+        travelMatrix,
+        prevPlace.placeId,
+        place.placeId,
+        prevPlace.latitude,
+        prevPlace.longitude,
+        place.latitude,
+        place.longitude
+      );
+      distanceFromPrev = metric.distanceKm;
+      travelTimeFromPrev = metric.durationMin;
+    } else if (isFirstOfDay && day.dayNumber === 1) {
+      // เฉพาะ Day 1: trip start -> สถานที่แรก (Day 2+ ยังไม่มีนิยามจุดเริ่มต้นของวัน คง null เหมือนเดิม)
+      const startMetric = travelMatrix[TRIP_START_ID]?.[place.placeId];
+      if (startMetric) {
+        distanceFromPrev = startMetric.distanceKm;
+        travelTimeFromPrev = Math.max(1, startMetric.durationMin);
+      }
     }
 
     let startMinutes: number | null;
     if (isFirstOfDay) {
-      startMinutes = dayStartMinutes;
+      // Day 1 มี leg จากจุดเริ่มต้นทริป -> เริ่มเที่ยวหลังเดินทางถึง (Day 2+ travelTimeFromPrev = null -> เวลาเดิม)
+      startMinutes =
+        dayStartMinutes !== null ? dayStartMinutes + (travelTimeFromPrev ?? 0) : null;
     } else if (prevEndMinutes !== null && travelTimeFromPrev !== null) {
       startMinutes = prevEndMinutes + travelTimeFromPrev;
     } else {
@@ -288,8 +354,7 @@ export function buildDayItems(
       isHoursUnknown,
     });
 
-    prevLat = place.latitude;
-    prevLng = place.longitude;
+    prevPlace = place;
     prevEndMinutes = endMinutes;
   });
 
@@ -301,9 +366,10 @@ export function buildDayItems(
  */
 export function buildItinerary(
   dayAssignments: DayAssignment[],
-  placesById: Map<string, PlaceInput>
+  placesById: Map<string, PlaceInput>,
+  travelMatrix: TravelMatrix
 ): ItineraryItemResult[] {
-  return dayAssignments.flatMap((day) => buildDayItems(day, placesById));
+  return dayAssignments.flatMap((day) => buildDayItems(day, placesById, travelMatrix));
 }
 
 /**

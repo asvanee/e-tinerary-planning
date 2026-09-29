@@ -3,7 +3,12 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 import LocationPinPicker from "../../trip/create/components/LocationPinPicker"; // ปรับ path ตามตำแหน่งจริงที่วางไฟล์
-import "./createTrip.css";
+import type { ReactNode } from "react";
+import {
+    ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, CircleCheck, Heart, Loader2,
+    MapPin, MapPinned, Pencil, Plane, Route, Save, TriangleAlert, Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 
 // ✅ เอา PROVINCES hardcode 77 จังหวัดออกแล้ว — ดึงจาก /api/place-dropdown/provinces แทน
@@ -60,6 +65,127 @@ function getMidnightCrossingError(
     }
 
     return null;
+}
+
+const inputClass =
+    "w-full min-h-12 px-4 py-3 rounded-xl border border-[color:var(--line)] bg-white text-[color:var(--text)] placeholder:text-[color:var(--muted)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--navy)] focus:ring-4 focus:ring-[color:var(--line)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200";
+
+const selectClass = `${inputClass} appearance-none pr-11`;
+
+const labelClass = "font-prompt text-sm font-medium text-[color:var(--navy)]";
+
+const hintClass = "text-xs text-[color:var(--muted)]";
+
+function Section({
+    icon: Icon,
+    title,
+    children,
+}: {
+    icon: LucideIcon;
+    title: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="pt-6 border-t border-[color:var(--line)] first:pt-0 first:border-t-0">
+            <h3 className="font-prompt font-semibold text-lg text-[color:var(--navy)] flex items-center gap-2 mb-4">
+                <Icon size={20} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+                {title}
+            </h3>
+            {children}
+        </section>
+    );
+}
+
+function Field({
+    id,
+    label,
+    hint,
+    children,
+}: {
+    id: string;
+    label: string;
+    hint?: string;
+    children: ReactNode;
+}) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            <label htmlFor={id} className={labelClass}>{label}</label>
+            {children}
+            {hint && <p className={hintClass}>{hint}</p>}
+        </div>
+    );
+}
+
+function SelectWrap({ children }: { children: ReactNode }) {
+    return (
+        <div className="relative">
+            {children}
+            <ChevronDown
+                size={18}
+                strokeWidth={1.75}
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--deep)]"
+            />
+        </div>
+    );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex justify-between gap-4">
+            <dt className="text-[color:var(--muted)]">{label}</dt>
+            <dd className="font-semibold text-[color:var(--navy)] text-right">{value}</dd>
+        </div>
+    );
+}
+
+const STEPS = ["จังหวัดปลายทางและจุดเริ่มต้น", "วันเวลาและจำนวนคน", "งบและความสนใจ"];
+
+function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }) {
+    return (
+        <ol className="flex items-center gap-2 mb-6" aria-label="ขั้นตอนการกรอก">
+            {STEPS.map((label, i) => {
+                const done = i < step;
+                const active = i === step;
+                return (
+                    <li key={label} className="flex items-center gap-2 flex-1 last:flex-none">
+                        <button
+                            type="button"
+                            disabled={i > step}
+                            onClick={() => onJump(i)}
+                            aria-current={active ? "step" : undefined}
+                            className="flex items-center gap-2 min-h-10 rounded-full disabled:cursor-default"
+                        >
+                            <span
+                                className={`flex items-center justify-center w-8 h-8 shrink-0 rounded-full border text-sm font-prompt font-medium transition-colors duration-200 ${
+                                    active || done
+                                        ? "bg-[color:var(--navy)] border-[color:var(--navy)] text-white"
+                                        : "bg-white border-[color:var(--line)] text-[color:var(--muted)]"
+                                }`}
+                            >
+                                {done ? <Check size={16} strokeWidth={2} /> : i + 1}
+                            </span>
+                            <span
+                                className={`font-prompt text-sm ${
+                                    active
+                                        ? "font-medium text-[color:var(--navy)]"
+                                        : "hidden sm:inline text-[color:var(--muted)]"
+                                }`}
+                            >
+                                {label}
+                            </span>
+                        </button>
+                        {i < STEPS.length - 1 && (
+                            <span
+                                className={`h-px flex-1 ${
+                                    done ? "bg-[color:var(--navy)]" : "bg-[color:var(--line)]"
+                                }`}
+                            />
+                        )}
+                    </li>
+                );
+            })}
+        </ol>
+    );
 }
 
 export default function CreateTrip() {
@@ -124,6 +250,19 @@ console.log("trip =", trip);
     const [summary, setSummary] = useState<TripSummary | null>(null);
     // ✅ เพิ่มใหม่: เตือนกรณีบันทึก category ไม่สำเร็จ (backend best-effort, ไม่ rollback trip หลัก)
     const [categoryWarning, setCategoryWarning] = useState(false);
+
+    // error แบบ inline (แทน alert) + loading ตอนกดบันทึก
+    const [formError, setFormError] = useState("");
+    const [shakeKey, setShakeKey] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // แบ่งฟอร์มเป็นขั้น (เฉพาะ UI ไม่กระทบ state/payload เดิม)
+    const [step, setStep] = useState(0);
+    const stepRef = useRef<HTMLDivElement>(null);
+    const showError = (text: string) => {
+        setFormError(text);
+        setShakeKey((k) => k + 1);
+    };
 
     useEffect(() => {
   if (!editMode || !tripId || !session) return;
@@ -305,18 +444,19 @@ console.log("trip =", trip);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setFormError("");
 
         // ✅ แก้แล้ว: province บังคับกรอกเสมอ (district เลือกเพิ่มหรือไม่ก็ได้)
         // ปกติ <select> จังหวัดมี required อยู่แล้วทำให้ submit ไม่ได้ถ้าไม่เลือก
         // แต่เช็คซ้ำไว้เป็น safety net เผื่อ browser ข้าม native validation ไปได้
         if (!province) {
-            alert("กรุณาเลือกจังหวัด");
+            showError("กรุณาเลือกจังหวัด");
             return;
         }
 
         // ✅ บังคับให้ยืนยันปักหมุดก่อน เพราะไม่มี fallback อื่นแล้ว
         if (!pinConfirmed || startLat === null || startLng === null) {
-            alert("กรุณาปักหมุดจุดเริ่มต้น แล้วกด \"ยืนยันปักหมุด\" ก่อนสร้างทริป");
+            showError("กรุณาปักหมุดจุดเริ่มต้น แล้วกด \"ยืนยันปักหมุด\" ก่อนสร้างทริป");
             return;
         }
 
@@ -329,7 +469,7 @@ console.log("trip =", trip);
         // ✅ เปลี่ยนจากเช็ค totalBudget ตรงๆ มาเช็คจาก useBudget แทน
         // (ติ๊กว่าต้องการกำหนดงบ แต่กรอกไม่ครบ = บล็อก / ไม่ติ๊ก = ข้ามไปเลย)
         if (useBudget && (!totalBudget || !budgetScope || !budgetPeriod)) {
-            alert("กรุณากรอกงบประมาณและเลือกขอบเขต/ช่วงเวลาให้ครบ");
+            showError("กรุณากรอกงบประมาณและเลือกขอบเขต/ช่วงเวลาให้ครบ");
             return;
         }
 
@@ -340,7 +480,7 @@ console.log("trip =", trip);
         );
 
         if (midnightCrossingError) {
-            alert(midnightCrossingError);
+            showError(midnightCrossingError);
             return;
         }
 
@@ -403,6 +543,7 @@ console.log("trip =", trip);
     start_lng: startLng,
     start_address: startAddress,
 };
+        setIsSubmitting(true);
         try {
             const url = editMode
                 ? `/api/trips/${tripId}`
@@ -423,7 +564,7 @@ console.log("trip =", trip);
             const result = await res.json();
 
                 if (!res.ok) {
-                    alert(
+                    showError(
                         result.message ||
                         (editMode
                             ? "เกิดข้อผิดพลาดในการแก้ไขทริป"
@@ -452,7 +593,9 @@ console.log("trip =", trip);
             setShowSuccessModal(true);
         } catch (err) {
             console.error("Create trip error:", err);
-            alert("ไม่สามารถเชื่อมต่อ server ได้");
+            showError("ไม่สามารถเชื่อมต่อ server ได้");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -465,308 +608,484 @@ console.log("trip =", trip);
             ? `${BUDGET_SCOPES.find((b) => b.value === budgetScope)?.label} / ${BUDGET_PERIODS.find((b) => b.value === budgetPeriod)?.label}`
             : "-";
 
-    const inputClass =
-        "w-full px-4 py-3 rounded-xl border border-[#5990c0]/40 bg-white text-[#102a6b] placeholder-[#5990c0]/60 focus:outline-none focus:ring-2 focus:ring-[#015185] transition-all duration-200 font-sarabun";
+    const LAST_STEP = STEPS.length - 1;
 
-    const labelClass =
-        "font-prompt text-sm font-semibold text-[#102a6b] flex items-center gap-2 mb-1";
+    const goToStep = (n: number) => {
+        setFormError("");
+        setStep(n);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    // เช็คเฉพาะช่องในขั้นปัจจุบันก่อนไปขั้นถัดไป (ใช้ native validation + เช็คเดิมที่มีอยู่แล้ว)
+    const validateStep = (): boolean => {
+        const els = stepRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select");
+        if (els) {
+            for (const el of Array.from(els)) {
+                if (!el.reportValidity()) return false;
+            }
+        }
+        if (step === 0 && (!pinConfirmed || startLat === null || startLng === null)) {
+            showError('กรุณาปักหมุดจุดเริ่มต้น แล้วกด "ยืนยันปักหมุด" ก่อนไปขั้นถัดไป');
+            return false;
+        }
+        if (step === 1) {
+            const err = getMidnightCrossingError(
+                startTime,
+                availableTimePerDay ? Number(availableTimePerDay) : null
+            );
+            if (err) {
+                showError(err);
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const goNext = () => {
+        if (validateStep()) goToStep(step + 1);
+    };
+
+    // กด Enter ในขั้นก่อนหน้าไม่ให้ submit ทั้งฟอร์ม (ส่งได้เฉพาะขั้นสุดท้าย)
+    const onFormSubmit = (e: React.FormEvent) => {
+        if (step < LAST_STEP) {
+            e.preventDefault();
+            return;
+        }
+        handleSubmit(e);
+    };
+
+    const HeaderIcon = editMode ? Pencil : Plane;
 
     return (
-        <div className="font-sarabun min-h-screen bg-[#fcedd3]">
+        <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
             <Navbar />
 
-            <div className="max-w-2xl mx-auto px-4 py-10">
-
-                <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
-                    <h2 className="font-prompt font-bold text-2xl text-white mb-1">
-                        {editMode ? "แก้ไขข้อมูลทริป" : "วางแผนการเดินทาง"}
-                    </h2>
-                    <p className="text-[#5990c0] text-sm">
-                            {editMode
-                                ? "แก้ไขรายละเอียดของทริป"
-                                : "กรอกรายละเอียดเพื่อวางแผนทริปของคุณ"}
-                    </p>
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-lg px-8 py-8">
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-
+            <main className="px-4 sm:px-8 py-8">
+                <div className="fade-in w-full max-w-3xl mx-auto bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-12 py-8">
+                    {/* Header */}
+                    <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[color:var(--line)]">
+                        <HeaderIcon size={40} strokeWidth={1.5} className="shrink-0 text-[color:var(--sky)]" />
                         <div>
-                            <label className={labelClass}>📍 จังหวัด</label>
-                            <select
-                                value={province}
-                                onChange={(e) => setProvince(e.target.value)}
-                                required
-                                className={inputClass}
-                                disabled={provincesLoading}
-                            >
-                                <option value="">
-                                    {provincesLoading ? "กำลังโหลด..." : "เลือกจังหวัด..."}
-                                </option>
-                                {provinces.map((p) => (
-                                    <option key={p} value={p}>{p}</option>
-                                ))}
-                            </select>
-                            <p className="text-xs text-[#5990c0]/80 mt-1 font-sarabun">
-                                แสดงเฉพาะจังหวัดที่มีสถานที่แนะนำในระบบแล้วเท่านั้น
+                            <h2 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
+                                {editMode ? "แก้ไขข้อมูลทริป" : "วางแผนการเดินทาง"}
+                            </h2>
+                            <p className="text-[color:var(--deep)] text-sm mt-0.5">
+                                {editMode
+                                    ? "แก้ไขรายละเอียดของทริป"
+                                    : "กรอกรายละเอียดเพื่อวางแผนทริปของคุณ"}
                             </p>
                         </div>
+                    </div>
 
-                        <div>
-                            <label className={labelClass}>📍 อำเภอ / เขต</label>
-                            <select
-                                value={district}
-                                onChange={(e) => setDistrict(e.target.value)}
-                                className={inputClass}
-                                disabled={districtsLoading || districts.length === 0}
-                            >
-                                <option value="">
-                                    {districtsLoading
-                                        ? "กำลังโหลด..."
-                                        : districts.length === 0
-                                        ? "ไม่พบอำเภอ/เขตในระบบ"
-                                        : "เลือกอำเภอ/เขต..."}
-                                </option>
-                                {districts.map((d) => (
-                                    <option key={d} value={d}>{d}</option>
-                                ))}
-                            </select>
-                            <p className="text-xs text-[#5990c0]/80 mt-1 font-sarabun">
-                                รายชื่อดึงจากสถานที่จริงในระบบ เพื่อให้แนะนำสถานที่ในพื้นที่นี้ได้ถูกต้อง
+                    <Stepper step={step} onJump={goToStep} />
+
+                    <form onSubmit={onFormSubmit} className="flex flex-col gap-6">
+                        <div ref={stepRef} className="flex flex-col gap-6">
+{step === 0 && (
+<>
+{/* ปลายทาง */}
+                        <Section icon={MapPin} title="ปลายทาง">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
+                                <Field
+                                    id="province"
+                                    label="จังหวัด"
+                                    hint="แสดงเฉพาะจังหวัดที่มีสถานที่แนะนำในระบบแล้ว"
+                                >
+                                    <SelectWrap>
+                                        <select
+                                            id="province"
+                                            value={province}
+                                            onChange={(e) => setProvince(e.target.value)}
+                                            required
+                                            disabled={provincesLoading}
+                                            className={selectClass}
+                                        >
+                                            <option value="">
+                                                {provincesLoading ? "กำลังโหลด..." : "เลือกจังหวัด..."}
+                                            </option>
+                                            {provinces.map((p) => (
+                                                <option key={p} value={p}>{p}</option>
+                                            ))}
+                                        </select>
+                                    </SelectWrap>
+                                </Field>
+
+                                <Field
+                                    id="district"
+                                    label="อำเภอ / เขต"
+                                    hint="ไม่บังคับ ใช้จำกัดพื้นที่ที่แนะนำสถานที่"
+                                >
+                                    <SelectWrap>
+                                        <select
+                                            id="district"
+                                            value={district}
+                                            onChange={(e) => setDistrict(e.target.value)}
+                                            disabled={districtsLoading || districts.length === 0}
+                                            className={selectClass}
+                                        >
+                                            <option value="">
+                                                {districtsLoading
+                                                    ? "กำลังโหลด..."
+                                                    : districts.length === 0
+                                                    ? "ไม่พบอำเภอ/เขตในระบบ"
+                                                    : "เลือกอำเภอ/เขต..."}
+                                            </option>
+                                            {districts.map((d) => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                    </SelectWrap>
+                                </Field>
+                            </div>
+                        </Section>
+
+                        {/* จุดเริ่มต้น */}
+                        <Section icon={MapPinned} title="จุดเริ่มต้นการเดินทาง">
+                            <p className={`${hintClass} mb-3`}>
+                                เช่น โรงแรมที่พัก ใช้คำนวณระยะทางไปยังสถานที่แนะนำในทริปของคุณ
                             </p>
-                        </div>
-
-                        {/* ✅ ส่วนปักหมุดจุดเริ่มต้น */}
-                        <div>
-                            <label className={labelClass}>
-                                📌 จุดเริ่มต้นการเดินทาง (เช่น โรงแรมที่พัก)
-                            </label>
                             <LocationPinPicker
                                 initialLat={startLat}
                                 initialLng={startLng}
                                 onConfirm={handlePinConfirm}
                             />
-                            <p className="text-xs text-[#5990c0]/80 mt-1 font-sarabun">
-                                ใช้คำนวณระยะทางไปยังสถานที่แนะนำในทริปของคุณ
-                            </p>
-                        </div>
+                        </Section>
 
-                        <div className="flex gap-4">
-                            <div className="flex-1">
-                                <label className={labelClass}>📅 วันที่เริ่มต้น</label>
-                                <input type="date" required className={inputClass}
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)} />
+                        </>
+)}
+{step === 1 && (
+<>
+{/* วัน เวลา ผู้เดินทาง */}
+                        <Section icon={CalendarDays} title="วัน เวลา และผู้เดินทาง">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
+                                <Field id="startDate" label="วันที่เริ่มต้น">
+                                    <input
+                                        id="startDate"
+                                        type="date"
+                                        required
+                                        className={inputClass}
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                    />
+                                </Field>
+                                <Field id="endDate" label="วันที่สิ้นสุด">
+                                    <input
+                                        id="endDate"
+                                        type="date"
+                                        required
+                                        className={inputClass}
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                    />
+                                </Field>
+                                <Field id="startTime" label="เวลาเริ่มต้น">
+                                    <input
+                                        id="startTime"
+                                        type="time"
+                                        required
+                                        className={inputClass}
+                                        value={startTime}
+                                        onChange={(e) => setStartTime(e.target.value)}
+                                    />
+                                </Field>
+                                <Field
+                                    id="availableTimePerDay"
+                                    label="เวลาว่างต่อวัน (ชั่วโมง)"
+                                    hint="เวลาเริ่มต้นรวมกับเวลาว่างต่อวันต้องไม่ข้ามเที่ยงคืน เช่น เริ่ม 20:00 ว่างได้ไม่เกิน 4 ชั่วโมง"
+                                >
+                                    <input
+                                        id="availableTimePerDay"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        max={24}
+                                        className={inputClass}
+                                        value={availableTimePerDay}
+                                        onChange={(e) => setAvailableTimePerDay(e.target.value)}
+                                    />
+                                </Field>
+                                <Field id="numberOfPeople" label="จำนวนผู้เดินทาง">
+                                    <input
+                                        id="numberOfPeople"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        required
+                                        className={inputClass}
+                                        value={numberOfPeople}
+                                        onChange={(e) => setNumberOfPeople(e.target.value)}
+                                    />
+                                </Field>
                             </div>
-                            <div className="flex-1">
-                                <label className={labelClass}>📅 วันที่สิ้นสุด</label>
-                                <input type="date" required className={inputClass}
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)} />
-                            </div>
-                        </div>
+                        </Section>
 
-                        <div className="flex gap-4">
-                            <div className="flex-1">
-                                <label className={labelClass}>⏰ เวลาเริ่มต้น</label>
-                                <input type="time" required className={inputClass}
-                                    value={startTime}
-                                    onChange={(e) => setStartTime(e.target.value)} />
-                            </div>
-                            <div className="flex-1">
-                                <label className={labelClass}>👥 จำนวนผู้เดินทาง</label>
-                                <input type="number" min={1} required className={inputClass}
-                                    value={numberOfPeople}
-                                    onChange={(e) => setNumberOfPeople(e.target.value)} />
-                            </div>
-                        </div>
-
-                        {/* ✅ ปุ่มติ๊ก "ต้องการกำหนดงบประมาณ" — ติ๊กแล้วค่อยเด้งช่องกรอกงบขึ้นมา */}
-                        <div>
-                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                        </>
+)}
+{step === 2 && (
+<>
+{/* งบประมาณ */}
+                        <Section icon={Wallet} title="งบประมาณ">
+                            <label className="flex items-start gap-3 p-4 rounded-xl border border-[color:var(--line)] bg-white cursor-pointer transition-colors duration-200 hover:border-[color:var(--sky)] has-[:checked]:border-[color:var(--navy)] has-[:checked]:bg-[color:var(--sky-soft)] has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[color:var(--line)]">
                                 <input
                                     type="checkbox"
                                     checked={useBudget}
                                     onChange={(e) => handleUseBudgetChange(e.target.checked)}
-                                    className="w-4 h-4 accent-[#015185]"
+                                    className="mt-0.5 w-5 h-5 shrink-0 accent-[color:var(--navy)]"
                                 />
-                                <span className={labelClass + " mb-0"}>
-                                    💰 ต้องการกำหนดงบประมาณ
+                                <span>
+                                    <span className="block font-prompt font-medium text-[color:var(--navy)]">
+                                        กำหนดงบประมาณ
+                                    </span>
+                                    <span className={`${hintClass} block mt-0.5`}>
+                                        ถ้าไม่เลือก ระบบจะแนะนำสถานที่โดยไม่กรองตามราคา
+                                    </span>
                                 </span>
                             </label>
-                            <p className="text-xs text-[#5990c0]/80 font-sarabun">
-                                ถ้าไม่ติ๊ก ระบบจะแนะนำสถานที่โดยไม่กรองตามราคา
-                            </p>
 
                             {useBudget && (
-                                <div className="flex gap-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div className="flex-1">
-                                        <label className={labelClass}>งบประมาณ (บาท)</label>
-                                        <input type="number" min={0} className={inputClass}
+                                <div className="fade-in grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                                    <Field id="totalBudget" label="งบประมาณ (บาท)">
+                                        <input
+                                            id="totalBudget"
+                                            type="number"
+                                            inputMode="numeric"
+                                            min={0}
+                                            required
+                                            className={inputClass}
                                             value={totalBudget}
                                             onChange={(e) => setTotalBudget(e.target.value)}
-                                            required={useBudget} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className={labelClass}>ขอบเขตงบ</label>
-                                        <select
-                                            value={budgetScope}
-                                            onChange={(e) => setBudgetScope(e.target.value)}
-                                            className={inputClass}
-                                            required={useBudget}
-                                        >
-                                            <option value="">เลือกขอบเขต...</option>
-                                            {BUDGET_SCOPES.map((b) => (
-                                                <option key={b.value} value={b.value}>{b.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className={labelClass}>ช่วงเวลา</label>
-                                        <select
-                                            value={budgetPeriod}
-                                            onChange={(e) => setBudgetPeriod(e.target.value)}
-                                            className={inputClass}
-                                            required={useBudget}
-                                        >
-                                            <option value="">เลือกช่วงเวลา...</option>
-                                            {BUDGET_PERIODS.map((b) => (
-                                                <option key={b.value} value={b.value}>{b.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                        />
+                                    </Field>
+                                    <Field id="budgetScope" label="ขอบเขตงบ">
+                                        <SelectWrap>
+                                            <select
+                                                id="budgetScope"
+                                                value={budgetScope}
+                                                onChange={(e) => setBudgetScope(e.target.value)}
+                                                required
+                                                className={selectClass}
+                                            >
+                                                <option value="">เลือกขอบเขต...</option>
+                                                {BUDGET_SCOPES.map((b) => (
+                                                    <option key={b.value} value={b.value}>{b.label}</option>
+                                                ))}
+                                            </select>
+                                        </SelectWrap>
+                                    </Field>
+                                    <Field id="budgetPeriod" label="ช่วงเวลา">
+                                        <SelectWrap>
+                                            <select
+                                                id="budgetPeriod"
+                                                value={budgetPeriod}
+                                                onChange={(e) => setBudgetPeriod(e.target.value)}
+                                                required
+                                                className={selectClass}
+                                            >
+                                                <option value="">เลือกช่วงเวลา...</option>
+                                                {BUDGET_PERIODS.map((b) => (
+                                                    <option key={b.value} value={b.value}>{b.label}</option>
+                                                ))}
+                                            </select>
+                                        </SelectWrap>
+                                    </Field>
                                 </div>
                             )}
-                        </div>
+                        </Section>
 
-                        <div>
-                            <label className={labelClass}>🕐 เวลาว่างต่อวัน (ชั่วโมง)</label>
-                            <input type="number" min={1} max={24} className={inputClass}
-                                value={availableTimePerDay}
-                                onChange={(e) => setAvailableTimePerDay(e.target.value)} />
-                            <p className="text-xs text-[#5990c0]/80 mt-1 font-sarabun">
-                                เวลาเริ่มต้น + เวลาว่างต่อวัน ต้องไม่ข้ามเที่ยงคืน (เช่น เริ่ม 20:00 ต้องมีเวลาว่างไม่เกิน 4 ชั่วโมง)
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className={labelClass}>🏷️ ความสนใจ</label>
+                        {/* ความสนใจ */}
+                        <Section icon={Heart} title="ความสนใจ">
                             {categoriesLoading ? (
-                                <p className="text-sm text-[#5990c0]">กำลังโหลดหมวดหมู่...</p>
+                                <p className="flex items-center gap-2 text-sm text-[color:var(--muted)]">
+                                    <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+                                    กำลังโหลดหมวดหมู่...
+                                </p>
+                            ) : categories.length === 0 ? (
+                                <p className="text-sm text-[color:var(--muted)]">
+                                    ยังไม่มีหมวดหมู่ให้เลือก
+                                </p>
                             ) : (
-                                <div className="flex flex-wrap gap-2">
-                                    {categories.map((cat) => (
-                                        <button
-                                            key={cat.category_id}
-                                            type="button"
-                                            onClick={() => toggleCategory(cat.category_id)}
-                                            className={`px-3 py-1 rounded-full border ${
-                                                selectedCategoryIds.includes(cat.category_id)
-                                                    ? "bg-[#015185] text-white"
-                                                    : ""
-                                            }`}
-                                        >
-                                            {cat.category_name}
-                                        </button>
-                                    ))}
-                                </div>
+                                <>
+                                    <div className="flex flex-wrap gap-2">
+                                        {categories.map((cat) => {
+                                            const selected = selectedCategoryIds.includes(cat.category_id);
+                                            return (
+                                                <button
+                                                    key={cat.category_id}
+                                                    type="button"
+                                                    aria-pressed={selected}
+                                                    onClick={() => toggleCategory(cat.category_id)}
+                                                    className={`flex items-center gap-1.5 min-h-10 px-4 rounded-full border text-sm active:scale-[0.98] transition-all duration-200 ${
+                                                        selected
+                                                            ? "bg-[color:var(--navy)] border-[color:var(--navy)] text-white"
+                                                            : "bg-white border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)]"
+                                                    }`}
+                                                >
+                                                    {selected && <Check size={16} strokeWidth={2} />}
+                                                    {cat.category_name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className={`${hintClass} mt-3`}>
+                                        เลือกแล้ว {selectedCategoryIds.length} จาก {categories.length} หมวด
+                                    </p>
+                                </>
+                            )}
+                        </Section>
+
+                        </>
+)}
+</div>
+
+{/* Error + Nav */}
+                        {formError && (
+                            <p
+                                key={shakeKey}
+                                role="alert"
+                                className="animate-shake flex items-center justify-center gap-2 text-center text-sm rounded-xl px-4 py-3 bg-white border text-[color:var(--danger)] border-[color:var(--danger)]"
+                            >
+                                <TriangleAlert size={18} strokeWidth={1.75} className="shrink-0" />
+                                <span>{formError}</span>
+                            </p>
+                        )}
+
+                        <div className="flex gap-3">
+                            {step > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => goToStep(step - 1)}
+                                    className="font-prompt font-medium min-h-12 px-5 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] bg-transparent border-2 border-[color:var(--sky)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200"
+                                >
+                                    <ArrowLeft size={20} strokeWidth={1.75} />
+                                    ย้อนกลับ
+                                </button>
+                            )}
+
+                            {step < LAST_STEP ? (
+                                <button
+                                    type="button"
+                                    key="next-btn"
+                                    onClick={goNext}
+                                    className="font-prompt font-medium flex-1 min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200"
+                                >
+                                    ถัดไป
+                                    <ArrowRight size={20} strokeWidth={1.75} />
+                                </button>
+                            ) : (
+                                <button
+                                    key="submit-btn"
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="font-prompt font-medium flex-1 min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
+                                            กำลังบันทึก...
+                                        </>
+                                    ) : editMode ? (
+                                        <>
+                                            <Save size={20} strokeWidth={1.75} />
+                                            บันทึกการแก้ไข
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Route size={20} strokeWidth={1.75} />
+                                            วางแผนการเดินทาง
+                                        </>
+                                    )}
+                                </button>
                             )}
                         </div>
-
-                        <button
-                            type="submit"
-                            className="font-bold w-full py-4 rounded-xl text-white bg-gradient-to-r from-[#102a6b] to-[#015185]"
-                        >
-                            {editMode ? "บันทึกการแก้ไข ✏️" : "วางแผนการเดินทาง 🗺️"}
-                        </button>
-
                     </form>
                 </div>
-            </div>
+            </main>
 
+            {/* Success modal */}
             {showSuccessModal && summary && createdTrip && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full px-6 py-7 font-sarabun">
-                        <div className="text-center mb-5">
-                            <div className="text-5xl mb-2">✅</div>
-                            <h3 className="font-prompt font-bold text-xl text-[#102a6b]">
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 bg-[color:var(--navy)]/60">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="trip-success-title"
+                        className="fade-in w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-8 py-8"
+                    >
+                        <div className="text-center mb-6">
+                            <CircleCheck
+                                size={48}
+                                strokeWidth={1.5}
+                                className="mx-auto mb-3 text-[color:var(--success)]"
+                            />
+                            <h3
+                                id="trip-success-title"
+                                className="font-prompt font-semibold text-xl text-[color:var(--navy)]"
+                            >
                                 บันทึกข้อมูลทริปเรียบร้อยแล้ว
                             </h3>
                         </div>
 
-                        {/* ✅ เตือนถ้า backend insert trip_categories ไม่สำเร็จ (best-effort, ไม่ rollback trip) */}
                         {categoryWarning && (
-                            <div className="bg-amber-50 border border-amber-300 text-amber-800 text-xs rounded-lg px-3 py-2 mb-4">
-                                ⚠️ บันทึกหมวดหมู่ความสนใจไม่สำเร็จ ทริปของคุณยังถูกสร้างเรียบร้อย
-                                แต่อาจไม่มีหมวดหมู่ผูกไว้ — สามารถแก้ไขเพิ่มเติมภายหลังได้
+                            <div
+                                role="alert"
+                                className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-5 bg-white border text-[color:var(--danger)] border-[color:var(--danger)]"
+                            >
+                                <TriangleAlert size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+                                <span>
+                                    บันทึกหมวดหมู่ความสนใจไม่สำเร็จ ทริปของคุณถูกสร้างเรียบร้อยแล้ว
+                                    แต่อาจไม่มีหมวดหมู่ผูกไว้ สามารถแก้ไขภายหลังได้
+                                </span>
                             </div>
                         )}
 
-                        <div className="bg-[#fcedd3]/50 rounded-xl px-5 py-4 mb-5 flex flex-col gap-2 text-sm text-[#102a6b]">
-                            <div className="flex justify-between">
-                                <span className="text-[#5990c0]">จังหวัด / อำเภอ</span>
-                                <span className="font-semibold">
-                                    {province || "-"} {district ? `/ ${district}` : ""}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-[#5990c0]">ช่วงวันที่</span>
-                                <span className="font-semibold">{startDate} ถึง {endDate}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-[#5990c0]">จำนวนวัน</span>
-                                <span className="font-semibold">{summary.tripDays} วัน</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-[#5990c0]">เวลาเริ่มต้น</span>
-                                <span className="font-semibold">{startTime}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-[#5990c0]">จำนวนผู้เดินทาง</span>
-                                <span className="font-semibold">{summary.people} คน</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-[#5990c0]">เวลาว่างต่อวัน</span>
-                                <span className="font-semibold">{availableTimePerDay || "-"} ชม.</span>
-                            </div>
+                        <dl className="flex flex-col gap-2.5 text-sm rounded-xl px-5 py-4 mb-6 bg-[color:var(--sky-soft)]">
+                            <SummaryRow
+                                label="จังหวัด / อำเภอ"
+                                value={`${province || "-"}${district ? ` / ${district}` : ""}`}
+                            />
+                            <SummaryRow label="ช่วงวันที่" value={`${startDate} ถึง ${endDate}`} />
+                            <SummaryRow label="จำนวนวัน" value={`${summary.tripDays} วัน`} />
+                            <SummaryRow label="เวลาเริ่มต้น" value={startTime} />
+                            <SummaryRow label="จำนวนผู้เดินทาง" value={`${summary.people} คน`} />
+                            <SummaryRow
+                                label="เวลาว่างต่อวัน"
+                                value={`${availableTimePerDay || "-"} ชม.`}
+                            />
 
-                            <div className="border-t border-[#5990c0]/30 my-1 pt-2">
-                                <div className="flex justify-between">
-                                    <span className="text-[#5990c0]">ประเภทงบประมาณ</span>
-                                    <span className="font-semibold">
-                                        {useBudget ? budgetTypeLabel : "ไม่จำกัดงบประมาณ"}
-                                    </span>
-                                </div>
+                            <div className="flex flex-col gap-2.5 border-t border-[color:var(--line)] pt-2.5">
+                                <SummaryRow
+                                    label="ประเภทงบประมาณ"
+                                    value={useBudget ? budgetTypeLabel : "ไม่จำกัดงบประมาณ"}
+                                />
                                 {useBudget && (
                                     <>
-                                        <div className="flex justify-between">
-                                            <span className="text-[#5990c0]">งบต่อวัน</span>
-                                            <span className="font-semibold">
-                                                {summary.dailyBudget !== null
+                                        <SummaryRow
+                                            label="งบต่อวัน"
+                                            value={
+                                                summary.dailyBudget !== null
                                                     ? `${Math.round(summary.dailyBudget).toLocaleString()} บาท`
-                                                    : "-"}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-[#5990c0]">งบต่อวันต่อคน</span>
-                                            <span className="font-semibold">
-                                                {summary.perPersonPerDay !== null
+                                                    : "-"
+                                            }
+                                        />
+                                        <SummaryRow
+                                            label="งบต่อวันต่อคน"
+                                            value={
+                                                summary.perPersonPerDay !== null
                                                     ? `${Math.round(summary.perPersonPerDay).toLocaleString()} บาท`
-                                                    : "-"}
-                                            </span>
-                                        </div>
+                                                    : "-"
+                                            }
+                                        />
                                     </>
                                 )}
                             </div>
 
                             {selectedCategoryNames.length > 0 && (
-                                <div className="border-t border-[#5990c0]/30 mt-1 pt-2">
-                                    <span className="text-[#5990c0]">ความสนใจที่เลือก</span>
-                                    <div className="flex flex-wrap gap-1 mt-1">
+                                <div className="border-t border-[color:var(--line)] pt-2.5">
+                                    <p className="text-[color:var(--muted)]">ความสนใจที่เลือก</p>
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
                                         {selectedCategoryNames.map((name) => (
                                             <span
                                                 key={name}
-                                                className="px-2 py-0.5 rounded-full bg-[#015185]/10 text-[#015185] text-xs"
+                                                className="px-3 py-1 rounded-full bg-white border border-[color:var(--line)] text-xs text-[color:var(--navy)]"
                                             >
                                                 {name}
                                             </span>
@@ -774,13 +1093,15 @@ console.log("trip =", trip);
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </dl>
 
                         <button
+                            type="button"
                             onClick={() => navigate(`/trip/${createdTrip.trip_id}/recommendations`)}
-                            className="font-bold w-full py-3 rounded-xl text-white bg-gradient-to-r from-[#102a6b] to-[#015185]"
+                            className="font-prompt font-medium w-full min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200"
                         >
-                            ดูสถานที่ที่ตรงใจ →
+                            ดูสถานที่ที่ตรงใจ
+                            <ArrowRight size={20} strokeWidth={1.75} />
                         </button>
                     </div>
                 </div>

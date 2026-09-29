@@ -2,7 +2,15 @@ import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { haversineKm } from "../../utils/haversine";
 import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
+import {
+  TRIP_START_ID,
+  FALLBACK_AVG_SPEED_KMH,
+  type TravelMatrix,
+  type TravelMetric,
+} from "../../utils/orsTravelMatrix";
 import type { PriceNature } from "../poi/poiPlaceQueries";
+
+export type { TravelMatrix, TravelMetric };
 
 /**
  * itineraryBuilder.ts (backend — source of truth)
@@ -37,6 +45,11 @@ import type { PriceNature } from "../poi/poiPlaceQueries";
  *
  * ✅ อัปเดตมติล่าสุด #3: isBudgetConflict เช็คจาก day.useBudget ตรงๆ ก่อนเสมอ ไม่ใช่เดาจาก
  * dailyBudget !== null เฉยๆ แบบเดิม (เปราะบางถ้ามี daily_budget ค้างอยู่ทั้งที่ useBudget = false)
+ *
+ * ✅ อัปเดตมติล่าสุด #4 (ORS travel matrix): เลิกคำนวณ haversine ÷ 25 km/h ภายใน buildDayItems —
+ * ระยะทาง/เวลาเดินทางมาจาก TravelMatrix ที่สร้างไว้ก่อนแล้ว (utils/orsTravelMatrix.ts: ORS Matrix
+ * many-to-many + fallback รายคู่) buildDayItems ยังเป็น pure function แค่ lookup ไม่เรียก ORS เอง
+ * Day 1 มี leg TRIP_START_ID -> สถานที่แรกด้วย (Day 2+ สถานที่แรกยังเป็น null เหมือนเดิม)
  */
 
 // ---------- Types ----------
@@ -55,6 +68,8 @@ export interface PlaceInput {
 
 export interface DayAssignment {
   tripDayId: number;
+  // ✅ ใหม่ — ใช้ตัดสินว่าเป็น Day 1 หรือไม่ (เฉพาะ Day 1 ที่มี leg trip start -> สถานที่แรก)
+  dayNumber: number;
   visitDate: string; // "YYYY-MM-DD"
   startTime: string | null; // trip_days.start_time "HH:MM:SS"
   endTime: string | null; // trip_days.end_time "HH:MM:SS"
@@ -72,8 +87,8 @@ export interface ItineraryItemResult {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  // ✅ v2: null = ไม่ทราบราคาแน่ชัด (เดิม number เสมอ) — caller ต้องเช็ค isCostUnknown ก่อนแสดงผล
-  // ไม่ใช่แสดง null/0 ตรงๆ
+  // ✅ v2: null = ไม่ทราบราคาแน่ชัด (เดิม number เสมอ) — UI ต้องเช็ค isCostUnknown ก่อนแสดงผล
+  // ไม่ใช่แสดง null/0 ตรงๆ (เช่น `place.isCostUnknown ? "ไม่ทราบราคาแน่ชัด" : `${placeCost} บาท``)
   placeCost: number | null;
   // ✅ ใหม่ — badge ให้ frontend เตือนแยกจาก isBudgetConflict ("ไม่ทราบราคา" ≠ "เกินงบ")
   isCostUnknown: boolean;
@@ -83,11 +98,6 @@ export interface ItineraryItemResult {
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
 }
-
-// ---------- Constants ----------
-
-/** MVP: haversine ÷ ความเร็วเฉลี่ยสมมติ 25 กม./ชม. — ต้องตรงกับ frontend port เป๊ะ */
-const AVG_SPEED_KMH = 25;
 
 // ---------- Helpers ----------
 
@@ -114,12 +124,12 @@ function getDayOfWeek(visitDate: string): number {
 
 /**
  * ✅ v2 — เลิก coalesce กับ default_price_level แล้ว (ดู PRICE_SCORE_REDESIGN.md decision log)
- * ไม่เดาตัวเลขบาทเมื่อไม่มีข้อมูลจริง (สอดคล้องกับหลักการเดียวกับ poiScoreCalculator.ts::
- * calculatePriceScore — "การเดาแล้วลงโทษผิดๆ" ถูกปฏิเสธไปแล้วที่นั่น ใช้หลักเดียวกันที่นี่ฝั่ง cost)
+ * ไม่เดาตัวเลขบาทเมื่อไม่มีข้อมูลจริง (สอดคล้องกับหลักการเดียวกับ backend
+ * poiScoreCalculator.ts::calculatePriceScore — "การเดาแล้วลงโทษผิดๆ" ถูกปฏิเสธไปแล้วที่นั่น
+ * ใช้หลักเดียวกันที่นี่ฝั่ง cost)
  *
  * free + missing -> ยังคืน 0 บาทตรงๆ (ไม่ถือว่า unknown) เพราะ free category (วัด/สวนสาธารณะ)
- * มั่นใจได้สูงอยู่แล้วว่าราคาจริงเข้าใกล้ 0 — ต่างจาก paid ที่ range กว้างเกินจะเดา (เดิมแยก
- * food/paid_other ไว้ 2 หมวด ตอนนี้รวมเป็น "paid" หมวดเดียวแล้ว — logic ไม่เปลี่ยน)
+ * มั่นใจได้สูงอยู่แล้วว่าราคาจริงเข้าใกล้ 0 — ต่างจาก paid ที่ range กว้างเกินจะเดา
  * paid + missing -> null (ไม่ทราบราคาแน่ชัด) ไม่ใช่ 0 บาท
  */
 function getPlaceCost(
@@ -130,7 +140,33 @@ function getPlaceCost(
     return PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? 0;
   }
   if (priceNature === "free") return 0;
-  return null; // paid + missing = unknown จริง (เดิม food/paid_other missing)
+  return null; // paid + missing = unknown จริง
+}
+
+/**
+ * lookup metric ของคู่ from -> to จาก matrix ที่โหลดไว้แล้ว (ไม่ยิง network)
+ * ไม่เจอ -> fallback haversine ÷ FALLBACK_AVG_SPEED_KMH เฉพาะคู่นั้น (pure, ไม่ throw)
+ */
+function resolveTravelMetric(
+  matrix: TravelMatrix,
+  fromId: string,
+  toId: string,
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): TravelMetric {
+  const hit = matrix[fromId]?.[toId];
+  // ขั้นต่ำ 1 นาทีเสมอ แม้ matrix จะมี 0 (เช่น draft เก่าที่สร้างก่อนแก้ toMinutes ฝั่ง backend)
+  if (hit) return hit.durationMin >= 1 ? hit : { ...hit, durationMin: 1 };
+
+  const km = haversineKm(fromLat, fromLng, toLat, toLng);
+  return {
+    distanceKm: Math.round(km * 100) / 100,
+    // ขั้นต่ำ 1 นาที ตรงกับ orsTravelMatrix.ts::toMinutes
+    durationMin: Math.max(1, Math.round((km / FALLBACK_AVG_SPEED_KMH) * 60)),
+    source: "haversine",
+  };
 }
 
 /**
@@ -140,8 +176,7 @@ function getPlaceCost(
  *
  * เก็บฟังก์ชันนี้ไว้ (ไม่ลบ) เพราะอาจนำ logic ไปใช้กับฟีเจอร์ "จัดทริปอัตโนมัติ" ในอนาคต
  * (ปุ่มแยกต่างหากที่ TripRecommendations.tsx — ปัจจุบัน disabled, ยังไม่เริ่มพัฒนา) ซึ่งเป็นคนละ
- * scope กับหน้า editor นี้: ฟีเจอร์นั้นจะเลือก+จัดลำดับสถานที่ให้ทั้งหมดตั้งแต่ต้น ไม่ใช่แค่จัดลำดับ
- * สถานที่ที่ user เลือกไว้แล้วเหมือนที่ฟังก์ชันนี้เคยถูกออกแบบมาใช้ตอนแรก
+ * scope กับหน้า editor นี้ — ให้ logic ตรงกับ backend เป๊ะถ้ายังเก็บไว้
  */
 export function buildNearestNeighborOrder(
   startLat: number,
@@ -195,7 +230,10 @@ export function buildNearestNeighborOrder(
  */
 export function buildDayItems(
   day: DayAssignment,
-  placesById: Map<string, PlaceInput>
+  placesById: Map<string, PlaceInput>,
+  // ✅ ระยะทาง/เวลาเดินทางตามถนน (ORS + fallback รายคู่) โหลดไว้ล่วงหน้าแล้ว — ฟังก์ชันนี้ยังเป็น
+  // pure function แค่ lookup ไม่เรียก network เอง (ลากสลับลำดับแล้ว recompute ได้ทันที)
+  travelMatrix: TravelMatrix
 ): ItineraryItemResult[] {
   const results: ItineraryItemResult[] = [];
 
@@ -203,8 +241,7 @@ export function buildDayItems(
   const dayEndMinutes = day.endTime ? timeStringToMinutes(day.endTime) : null;
   const dayStartMinutes = day.startTime ? timeStringToMinutes(day.startTime) : null;
 
-  let prevLat: number | null = null;
-  let prevLng: number | null = null;
+  let prevPlace: PlaceInput | null = null;
   let prevEndMinutes: number | null = dayStartMinutes;
   let cumulativeCost = 0;
 
@@ -219,14 +256,32 @@ export function buildDayItems(
     let distanceFromPrev: number | null = null;
     let travelTimeFromPrev: number | null = null;
 
-    if (!isFirstOfDay && prevLat !== null && prevLng !== null) {
-      distanceFromPrev = haversineKm(prevLat, prevLng, place.latitude, place.longitude);
-      travelTimeFromPrev = Math.round((distanceFromPrev / AVG_SPEED_KMH) * 60);
+    if (!isFirstOfDay && prevPlace !== null) {
+      const metric = resolveTravelMetric(
+        travelMatrix,
+        prevPlace.placeId,
+        place.placeId,
+        prevPlace.latitude,
+        prevPlace.longitude,
+        place.latitude,
+        place.longitude
+      );
+      distanceFromPrev = metric.distanceKm;
+      travelTimeFromPrev = metric.durationMin;
+    } else if (isFirstOfDay && day.dayNumber === 1) {
+      // เฉพาะ Day 1: trip start -> สถานที่แรก (Day 2+ ยังไม่มีนิยามจุดเริ่มต้นของวัน คง null เหมือนเดิม)
+      const startMetric = travelMatrix[TRIP_START_ID]?.[place.placeId];
+      if (startMetric) {
+        distanceFromPrev = startMetric.distanceKm;
+        travelTimeFromPrev = Math.max(1, startMetric.durationMin);
+      }
     }
 
     let startMinutes: number | null;
     if (isFirstOfDay) {
-      startMinutes = dayStartMinutes;
+      // Day 1 มี leg จากจุดเริ่มต้นทริป -> เริ่มเที่ยวหลังเดินทางถึง (Day 2+ travelTimeFromPrev = null -> เวลาเดิม)
+      startMinutes =
+        dayStartMinutes !== null ? dayStartMinutes + (travelTimeFromPrev ?? 0) : null;
     } else if (prevEndMinutes !== null && travelTimeFromPrev !== null) {
       startMinutes = prevEndMinutes + travelTimeFromPrev;
     } else {
@@ -274,8 +329,7 @@ export function buildDayItems(
       isHoursUnknown,
     });
 
-    prevLat = place.latitude;
-    prevLng = place.longitude;
+    prevPlace = place;
     prevEndMinutes = endMinutes;
   });
 
@@ -287,21 +341,22 @@ export function buildDayItems(
  */
 export function buildItinerary(
   dayAssignments: DayAssignment[],
-  placesById: Map<string, PlaceInput>
+  placesById: Map<string, PlaceInput>,
+  travelMatrix: TravelMatrix
 ): ItineraryItemResult[] {
-  return dayAssignments.flatMap((day) => buildDayItems(day, placesById));
+  return dayAssignments.flatMap((day) => buildDayItems(day, placesById, travelMatrix));
 }
 
 /**
  * Build draft ครั้งแรกตอน user กด "จัดเส้นทาง" จากหน้า POI list
  *
- * ✅ เปลี่ยนมติแล้ว (ดู comment หัวไฟล์, sync กับ frontend port): ไม่ auto-place สถานที่ที่เลือกมาไว้
- * วันไหนเลยอีกต่อไป (เดิม: ยัดวันแรกทั้งหมด + เรียงด้วย Nearest-Neighbor TSP heuristic) — คืน items
- * ว่างเปล่าเสมอ ทำให้ทุกที่ที่เลือกมาไปอยู่ใน "สถานที่ที่ยังไม่จัดลงวัน" ฝั่ง frontend โดยอัตโนมัติ
- * (ItineraryEditor.tsx คำนวณ unassigned pool จากสถานที่ที่ไม่ปรากฏใน items อยู่แล้ว)
+ * ✅ final design (ดู comment หัวไฟล์, sync กับ backend): ไม่ auto-place สถานที่ที่เลือกมาไว้วัน
+ * ไหนเลย (เดิม: ยัดวันแรกทั้งหมด + เรียงด้วย Nearest-Neighbor TSP heuristic — ตัดสินใจเลิกใช้แล้ว
+ * ถาวร) — คืน items ว่างเปล่าเสมอ ทำให้ทุกที่ที่เลือกมาไปอยู่ใน "สถานที่ที่ยังไม่จัดลงวัน" ฝั่ง frontend
+ * โดยอัตโนมัติ (ItineraryEditor.tsx คำนวณ unassigned pool จากสถานที่ที่ไม่ปรากฏใน items อยู่แล้ว)
  *
  * เก็บ signature เดิมไว้ทั้งหมด (แม้พารามิเตอร์ส่วนใหญ่จะไม่ได้ใช้แล้ว) กัน breaking change กับ
- * จุดที่เรียกใช้ — พารามิเตอร์ที่ไม่ใช้แล้วขึ้นต้นด้วย `_` ตาม convention
+ * จุดที่เรียกใช้ฝั่ง frontend — พารามิเตอร์ที่ไม่ใช้แล้วขึ้นต้นด้วย `_` ตาม convention
  */
 export function buildInitialDraft(
   tripDays: DayAssignment[],

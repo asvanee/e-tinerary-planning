@@ -3,6 +3,7 @@ import { supabase } from "../../config/db";
 import { AuthRequest } from "../auth/authMiddleware";
 import { getTripInfo, getFilteredPlaces } from "./poiPlaceQueries";
 import { calculatePoiScore } from "./poiScoreCalculator";
+import { getRoadDistancesKm } from "../../utils/orsDistance";
 
 const RESULT_LIMIT = 50;
 
@@ -55,15 +56,27 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // 2.5 ระยะทางถนนจากจุดเริ่มต้นไปทุก place (ORS Matrix ยิงครั้งเดียวต่อ chunk + cache)
+    // ไม่ throw — ถ้า ORS พลาดจะ fallback เป็น haversine ให้เอง แล้วบอกผ่าน distanceSource
+    const {
+      distancesKm,
+      source: distanceSource,
+      perPlaceSource,
+    } = await getRoadDistancesKm(
+      trip.startLat,
+      trip.startLng,
+      places
+    );
+
     // 3. คำนวณคะแนนทุก place
     const scoredPlaces = places.map((place) => {
+      // ทุก placeId ใน places มีค่าใน distancesKm เสมอ (รับประกันโดย getRoadDistancesKm)
+      const distanceKm = distancesKm.get(place.placeId) as number;
+
       const breakdown = calculatePoiScore(
   place.confidenceScore,
   place.rating,
-  trip.startLat,
-  trip.startLng,
-  place.latitude,
-  place.longitude,
+  distanceKm,
   trip.dailyBudget,
   trip.numberOfPeople,
   place.rawPriceLevel,
@@ -76,11 +89,13 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
         // ✅ เพิ่ม — ใช้แสดง badge หมวดหมู่ที่ตรงกับความสนใจที่เลือกไว้ในหน้า Recommendation
         // (ไม่ใช่ส่วนหนึ่งของสูตรคะแนน แค่ pass-through ข้อมูล display เฉยๆ)
         categoryName: place.categoryName,
+        // "ors" = ระยะทางถนนจริง, "haversine" = เส้นตรงประมาณ (ORS หาเส้นทางไปสถานที่นี้ไม่ได้)
+        distanceMethod: perPlaceSource.get(place.placeId) ?? "haversine",
         ...breakdown,
       };
     });
 
-    // 4. เรียงคะแนนมากไปน้อย ตัดเหลือ 20-50 อันดับแรก
+    // 4. เรียงคะแนนมากไปน้อย ตัดเหลือ 50 อันดับแรก
     scoredPlaces.sort((a, b) => b.poiScore - a.poiScore);
     const topResults = scoredPlaces.slice(0, RESULT_LIMIT);
 
@@ -111,6 +126,7 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({
       message: "คำนวณคะแนนสถานที่สำเร็จ",
       categoryFallbackUsed,
+      distanceSource, // "ors" | "haversine" | "mixed"
       results: topResults,
     });
   } catch (err: any) {

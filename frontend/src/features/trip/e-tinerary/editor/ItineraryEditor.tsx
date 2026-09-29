@@ -26,6 +26,7 @@ import {
   type ItineraryItemResult,
   type PlaceInput,
   type PriceNature,
+  type TravelMatrix,
 } from "../lib/itineraryBuilder";
 
 // ---------- Types ----------
@@ -79,6 +80,9 @@ interface DraftResponse {
   tripStartLng: number;
   tripDays: DraftTripDay[];
   items: ItineraryItemResult[];
+  // ✅ ระยะทาง/เวลาเดินทางตามถนน (ORS + fallback รายคู่) จาก backend — buildDayItems lookup จากนี้ตอนลาก
+  // ไม่ยิง ORS เอง (มี key __trip_start__ สำหรับ leg แรกของ Day 1)
+  travelMatrix: TravelMatrix;
 }
 
 interface LocationState {
@@ -88,6 +92,9 @@ interface LocationState {
 }
 
 const UNASSIGNED_KEY = "unassigned";
+
+// ref คงที่ กัน useMemo recompute โดยไม่จำเป็นเมื่อ draft ไม่มี matrix (เช่น router state เก่า)
+const EMPTY_TRAVEL_MATRIX: TravelMatrix = {};
 
 function dayKey(tripDayId: number) {
   return `day-${tripDayId}`;
@@ -281,6 +288,7 @@ export default function ItineraryEditor() {
   const tripId = state?.tripId ?? tripIdParam ?? "";
   const tripDaysMeta: DraftTripDay[] = state?.draft?.tripDays ?? [];
   const places: MergedPlace[] = state?.places ?? [];
+  const travelMatrix: TravelMatrix = state?.draft?.travelMatrix ?? EMPTY_TRAVEL_MATRIX;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -345,9 +353,9 @@ export default function ItineraryEditor() {
         // getPlaceCost() ในนั้นเป็นคนตัดสินใจแปลงเป็นบาทเอง
         rawPriceLevel: p.place.price_level,
         // priceNature ไม่ควรเป็น null จริงในทางปฏิบัติ (categories!inner บังคับมีเสมอฝั่ง backend)
-        // แต่ fallback เป็น "paid_other" กันไว้เผื่อข้อมูลผิดปกติ — เลือกฝั่งนี้เพราะ
+        // แต่ fallback เป็น "paid" กันไว้เผื่อข้อมูลผิดปกติ — เลือกฝั่งนี้เพราะ
         // "ไม่รู้ว่าฟรีไหม" ควรถือว่าไม่ฟรีไว้ก่อน (ปลอดภัยกับ isBudgetConflict มากกว่าเดาว่าฟรี)
-        priceNature: p.place.price_nature ?? "paid_other",
+        priceNature: p.place.price_nature ?? "paid",
         openingHours: p.place.opening_hours ?? null,
         defaultDurationMin: p.place.default_duration_min,
       });
@@ -370,6 +378,7 @@ export default function ItineraryEditor() {
       const key = dayKey(day.tripDayId);
       const assignment: DayAssignment = {
         tripDayId: day.tripDayId,
+        dayNumber: day.dayNumber,
         visitDate: day.visitDate,
         startTime: day.startTime,
         endTime: day.endTime,
@@ -377,10 +386,10 @@ export default function ItineraryEditor() {
         useBudget: day.useBudget,
         orderedPlaceIds: containers[key] ?? [],
       };
-      result[key] = buildDayItems(assignment, placesById);
+      result[key] = buildDayItems(assignment, placesById, travelMatrix);
     }
     return result;
-  }, [containers, tripDaysMeta, placesById]);
+  }, [containers, tripDaysMeta, placesById, travelMatrix]);
 
   const itemByPlaceId = useMemo(() => {
     const map = new Map<string, ItineraryItemResult>();

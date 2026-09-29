@@ -5,6 +5,7 @@ import {
     Autocomplete,
     useJsApiLoader,
 } from "@react-google-maps/api";
+import { CircleCheck, Loader2, MapPin, Search, TriangleAlert } from "lucide-react";
 
 // ต้องตรงกับชื่อ key ที่ตั้งใน .env (Vite ต้องขึ้นต้นด้วย VITE_)
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
@@ -15,7 +16,6 @@ const LIBRARIES: ("places")[] = ["places"];
 const mapContainerStyle = {
     width: "100%",
     height: "320px",
-    borderRadius: "16px",
 };
 
 // default center: กรุงเทพมหานคร (กรณียังไม่เคยปักหมุดมาก่อน)
@@ -107,70 +107,106 @@ export default function LocationPinPicker({
 
     if (loadError) {
         return (
-            <p className="text-sm text-red-600">
-                โหลดแผนที่ไม่สำเร็จ กรุณาตรวจสอบ VITE_GOOGLE_MAPS_API_KEY ใน .env
+            <p
+                role="alert"
+                className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 bg-white border text-[color:var(--danger)] border-[color:var(--danger)]"
+            >
+                <TriangleAlert size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+                <span>โหลดแผนที่ไม่สำเร็จ กรุณาตรวจสอบ VITE_GOOGLE_MAPS_API_KEY ใน .env</span>
             </p>
         );
     }
 
     if (!isLoaded) {
-        return <p className="text-sm text-[#5990c0]">กำลังโหลดแผนที่...</p>;
+        return (
+            <div className="flex items-center justify-center gap-2 h-80 rounded-xl border border-[color:var(--line)] bg-[color:var(--sky-soft)] text-sm text-[color:var(--deep)]">
+                <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
+                กำลังโหลดแผนที่...
+            </div>
+        );
     }
 
     return (
         <div className="flex flex-col gap-3">
-            <Autocomplete
-                onLoad={onAutocompleteLoad}
-                onPlaceChanged={handlePlaceChanged}
-            >
-                <input
-                    type="text"
-                    placeholder="ค้นหาโรงแรม/จุดเริ่มต้น เช่น ชื่อโรงแรมหรือสถานที่"
-                    className="w-full px-4 py-3 rounded-xl border border-[#5990c0]/40 bg-white text-[#102a6b] placeholder-[#5990c0]/60 focus:outline-none focus:ring-2 focus:ring-[#015185] transition-all duration-200 font-sarabun"
+            <div className="relative">
+                <Search
+                    size={20}
+                    strokeWidth={1.75}
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 z-10 text-[color:var(--sky)]"
                 />
-            </Autocomplete>
+                <Autocomplete
+                    onLoad={onAutocompleteLoad}
+                    onPlaceChanged={handlePlaceChanged}
+                >
+                    <input
+                        type="text"
+                        aria-label="ค้นหาจุดเริ่มต้น"
+                        placeholder="ค้นหาโรงแรมหรือสถานที่ เช่น ชื่อโรงแรม"
+                        className="w-full min-h-12 pl-12 pr-4 py-3 rounded-xl border border-[color:var(--line)] bg-white text-[color:var(--text)] placeholder:text-[color:var(--muted)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--navy)] focus:ring-4 focus:ring-[color:var(--line)] transition-all duration-200 font-sarabun"
+                    />
+                </Autocomplete>
+            </div>
 
-            <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={markerPos}
-                zoom={initialLat && initialLng ? 16 : 11}
-                onLoad={onMapLoad}
-                options={{
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: false,
-                }}
-            >
-                <Marker
-                    position={markerPos}
-                    draggable
-                    onDragEnd={handleMarkerDragEnd}
-                />
-            </GoogleMap>
+            <div className="overflow-hidden rounded-xl border border-[color:var(--line)]">
+                <GoogleMap
+                    mapContainerStyle={mapContainerStyle}
+                    center={markerPos}
+                    zoom={initialLat && initialLng ? 16 : 11}
+                    onLoad={onMapLoad}
+                    options={{
+                        streetViewControl: false,
+                        mapTypeControl: false,
+                        fullscreenControl: false,
+                    }}
+                >
+                    <Marker
+                        position={markerPos}
+                        draggable
+                        onDragEnd={handleMarkerDragEnd}
+                    />
+                </GoogleMap>
+            </div>
 
-            <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-[#5990c0] font-sarabun">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p
+                    className={`flex items-start gap-2 text-sm ${
+                        confirmed
+                            ? "text-[color:var(--success)] font-medium"
+                            : "text-[color:var(--muted)]"
+                    }`}
+                >
                     {confirmed ? (
-                        <span className="text-green-600 font-semibold">
-                            ✅ ยืนยันจุดเริ่มต้นแล้ว ({markerPos.lat.toFixed(5)}, {markerPos.lng.toFixed(5)})
-                        </span>
+                        <CircleCheck size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
                     ) : (
-                        <span>
-                            ลากหมุดหรือค้นหาสถานที่ แล้วกดยืนยันเพื่อบันทึกจุดเริ่มต้น
-                        </span>
+                        <MapPin size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
                     )}
-                </div>
+                    <span>
+                        {confirmed
+                            ? `ยืนยันจุดเริ่มต้นแล้ว (${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)})`
+                            : "ลากหมุดหรือค้นหาสถานที่ แล้วกดยืนยันเพื่อบันทึกจุดเริ่มต้น"}
+                    </span>
+                </p>
 
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+                    className={`font-prompt font-medium shrink-0 min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-white active:scale-[0.98] transition-all duration-200 ${
                         confirmed
-                            ? "bg-green-600 text-white"
-                            : "bg-gradient-to-r from-[#102a6b] to-[#015185] text-white"
+                            ? "bg-[color:var(--success)]"
+                            : "bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)]"
                     }`}
                 >
-                    {confirmed ? "ยืนยันแล้ว ✓" : "ยืนยันปักหมุด"}
+                    {confirmed ? (
+                        <>
+                            <CircleCheck size={20} strokeWidth={1.75} />
+                            ยืนยันแล้ว
+                        </>
+                    ) : (
+                        <>
+                            <MapPin size={20} strokeWidth={1.75} />
+                            ยืนยันปักหมุด
+                        </>
+                    )}
                 </button>
             </div>
         </div>
