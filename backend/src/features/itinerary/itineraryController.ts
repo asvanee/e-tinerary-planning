@@ -235,6 +235,26 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
 
     const finalItems = buildItinerary(dayAssignments, placesById, travelMatrix);
 
+    // ---- กันแผนที่ยังมีจุดขัดแย้ง (ปิด / เวลาไม่พอ / งบเกิน) ----
+    // ต้องเช็คก่อนลบแผนเดิมด้านล่าง ไม่งั้นถ้าปฏิเสธหลังลบ แผนเก่าของผู้ใช้จะหายไป
+    // ตรงกับกฎที่หน้า ItineraryEditor ปิดปุ่มยืนยันไว้ ("ไม่ทราบเวลา/ราคา" ไม่นับเป็นปัญหา)
+    const conflicts = finalItems.filter(
+      (item) => item.isClosedConflict || item.isTimeConflict || item.isBudgetConflict
+    );
+
+    if (conflicts.length > 0) {
+      return res.status(400).json({
+        message: `แผนเดินทางยังมี ${conflicts.length} จุดที่มีปัญหา (ปิด / เวลาไม่พอ / งบเกิน) กรุณาแก้ไขก่อนยืนยัน`,
+        conflicts: conflicts.map((item) => ({
+          placeId: item.placeId,
+          tripDayId: item.tripDayId,
+          isClosedConflict: item.isClosedConflict,
+          isTimeConflict: item.isTimeConflict,
+          isBudgetConflict: item.isBudgetConflict,
+        })),
+      });
+    }
+
     // ---- delete-then-insert ทับของเดิมทั้งทริป ----
     const allTripDayIds = tripDays.map((day) => day.tripDayId);
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  ArrowLeft, Check, Globe, Info, ListChecks, Loader2, MapPin, Navigation, Phone,
+  ArrowLeft, Check, ChevronDown, Clock, Globe, Info, ListChecks, Loader2, MapPin, Navigation, Phone,
   Plus, Route, SearchX, Sparkles, Star, Tag, TriangleAlert, Wallet, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -52,6 +52,58 @@ interface PlaceInfo {
 
 interface MergedPlace extends PoiResult {
   place?: PlaceInfo;
+}
+
+// ---------- เวลาเปิด-ปิด (places.opening_hours) ----------
+// โครงสร้างจริงตาม openingHoursChecker.ts: periods[{ open:{day,time:"HHMM"}, close?:{day,time} }]
+// day: 0 = อาทิตย์ ... 6 = เสาร์ · เปิด 24 ชม. = มี period เดียวและไม่มี close
+// · วันที่ปิดจะไม่มี period ของวันนั้นเลย · ไม่มี periods (หรือว่าง) = ไม่มีข้อมูล
+// ใช้กติกาเดียวกับ isPlaceOpenAt() เพื่อให้ตัวเลขที่เห็นตรงกับป้าย "ปิดแล้วช่วงนี้" ในหน้าจัดแผน
+
+const DAY_NAMES_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // แสดงจันทร์ -> อาทิตย์
+
+interface HoursView {
+  rows: { day: string; text: string }[];
+  summary: string | null; // ไม่ null = ทุกวันเหมือนกัน แสดงบรรทัดเดียวได้
+}
+
+// "0930" -> "09:30"
+function toHHMM(p: any): string | null {
+  const t = p?.time;
+  return typeof t === "string" && /^\d{4}$/.test(t) ? `${t.slice(0, 2)}:${t.slice(2)}` : null;
+}
+
+function parseOpeningHours(oh: any): HoursView | null {
+  const periods = oh?.periods;
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+
+  if (periods.length === 1 && !periods[0]?.close) {
+    return {
+      rows: DAY_ORDER.map((d) => ({ day: DAY_NAMES_TH[d], text: "เปิด 24 ชั่วโมง" })),
+      summary: "เปิด 24 ชั่วโมง ทุกวัน",
+    };
+  }
+
+  const byDay: string[][] = [[], [], [], [], [], [], []];
+  for (const p of periods) {
+    const day = p?.open?.day;
+    const start = toHHMM(p?.open);
+    if (!Number.isInteger(day) || day < 0 || day > 6 || !start) continue;
+    const end = toHHMM(p?.close);
+    const overnight = p?.close && p.close.day !== day;
+    byDay[day].push(
+      end ? `${start} - ${end}${overnight ? " (ข้ามวัน)" : ""}` : `เปิดเวลา ${start}`
+    );
+  }
+
+  const rows = DAY_ORDER.map((d) => ({
+    day: DAY_NAMES_TH[d],
+    // หลายช่วงในวันเดียว (เช่น พักเที่ยง) เรียงตามเวลาเริ่ม
+    text: byDay[d].length ? [...byDay[d]].sort().join(", ") : "ปิด",
+  }));
+  const same = rows.every((r) => r.text === rows[0].text);
+  return { rows, summary: same ? `เปิดทุกวัน ${rows[0].text}` : null };
 }
 
 function StateCard({
@@ -365,6 +417,7 @@ export default function TripRecommendations() {
       item.distanceMethod ??
       (distanceSource === "ors" ? "ors" : distanceSource ? "haversine" : null);
     const approx = method === "haversine";
+    const hours = parseOpeningHours(p?.opening_hours);
 
     return (
       <li
@@ -424,6 +477,40 @@ export default function TripRecommendations() {
                 </a>
               )}
             </div>
+          )}
+
+          {hours ? (
+            hours.summary ? (
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-[color:var(--deep)]">
+                <Clock size={16} strokeWidth={1.75} className="shrink-0" />
+                {hours.summary}
+              </p>
+            ) : (
+              <details className="group mt-2 text-sm text-[color:var(--deep)]">
+                <summary className="flex items-center gap-1.5 w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  <Clock size={16} strokeWidth={1.75} className="shrink-0" />
+                  เวลาเปิด-ปิด
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={1.75}
+                    className="shrink-0 transition-transform duration-200 group-open:rotate-180"
+                  />
+                </summary>
+                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[color:var(--muted)]">
+                  {hours.rows.map((r, i) => (
+                    <div key={i} className="contents">
+                      <dt>{r.day}</dt>
+                      <dd className="text-[color:var(--text)]">{r.text}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+            )
+          ) : (
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-[color:var(--muted)]">
+              <Clock size={16} strokeWidth={1.75} className="shrink-0" />
+              ไม่ทราบเวลาเปิด-ปิด
+            </p>
           )}
 
           <div className="mt-3 pt-3 border-t border-[color:var(--line)] flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-[color:var(--muted)]">

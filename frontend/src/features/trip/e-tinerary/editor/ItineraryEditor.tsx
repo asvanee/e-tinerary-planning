@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   closestCenter,
   useDroppable,
@@ -13,10 +14,16 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  ArrowLeft, ArrowUpDown, Car, Check, ChevronDown, ChevronUp, CircleCheck, Clock, GripVertical,
+  Info, Loader2, MapPin, TriangleAlert, Wallet, X,
+} from "lucide-react";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../auth/hooks/useAuth";
 import RouteMap from "../components/RouteMap";
@@ -118,42 +125,126 @@ function formatBaht(amount: number): string {
   return amount.toLocaleString("th-TH") + " ฿";
 }
 
+function formatTimeRange(start: string | null, end: string | null): string {
+  if (!start && !end) return "—";
+  return `${start ? start.slice(0, 5) : "—"} - ${end ? end.slice(0, 5) : "—"} น.`;
+}
+
+function formatTravelTime(minutes: number): string {
+  const total = Math.round(minutes);
+  if (total < 1) return "น้อยกว่า 1 นาที";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} นาที`;
+  return m === 0 ? `${h} ชม.` : `${h} ชม. ${m} นาที`;
+}
+
+function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`;
+}
+
+const cardClass =
+  "bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)]";
+
+const primaryBtn =
+  "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
+
+// ---------- แยกเหตุผลที่ "ไม่อยู่ในเวลาเปิด" ----------
+// ใช้ periods ชุดเดียวกับ isPlaceOpenAt() (ดู openingHoursChecker.ts) แต่บอกเหตุผลละเอียดขึ้น:
+// ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่ — คำนวณเพื่อแสดงผลเท่านั้น ไม่กระทบ flag เดิม
+
+const DAY_NAMES_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+
+function hhmmToMin(t: string): number {
+  return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2, 4), 10);
+}
+
+function fmtMin(m: number): string {
+  const x = ((m % 1440) + 1440) % 1440;
+  return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+}
+
+// ช่วงเวลาเปิดที่ทับวัน day (หน่วยนาทีนับจากเที่ยงคืนของวันนั้น) รวมช่วงข้ามเที่ยงคืนจากเมื่อวาน
+function openIntervalsForDay(oh: any, day: number): { start: number; end: number }[] | "24h" | null {
+  const periods = oh?.periods;
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+  if (periods.length === 1 && !periods[0]?.close) return "24h";
+
+  const out: { start: number; end: number }[] = [];
+  for (const p of periods) {
+    if (!p?.close || !p?.open) continue;
+    const openMin = hhmmToMin(p.open.time);
+    let span = ((p.close.day - p.open.day + 7) % 7) * 1440 + hhmmToMin(p.close.time) - openMin;
+    if (span <= 0) span += 7 * 1440;
+    for (const off of [0, 1]) {
+      if ((p.open.day + off) % 7 !== day) continue;
+      const start = openMin - off * 1440;
+      if (start + span > 0) out.push({ start, end: start + span });
+    }
+  }
+  return out;
+}
+
+function describeClosure(
+  oh: any,
+  dayOfWeek: number,
+  startTime: string | null,
+  endTime: string | null
+): { label: string; detail: string } | null {
+  if (!startTime || !endTime) return null;
+  const a = parseInt(startTime.slice(0, 2), 10) * 60 + parseInt(startTime.slice(3, 5), 10);
+  const d = parseInt(endTime.slice(0, 2), 10) * 60 + parseInt(endTime.slice(3, 5), 10);
+
+  const ivs = openIntervalsForDay(oh, dayOfWeek);
+  if (ivs === null || ivs === "24h") return null;
+
+  if (ivs.length === 0) {
+    return {
+      label: "ปิดทั้งวัน",
+      detail: `วัน${DAY_NAMES_TH[dayOfWeek]}สถานที่นี้ปิดทำการ`,
+    };
+  }
+  if (ivs.some((iv) => iv.start <= a && d <= iv.end)) return null; // เปิดครอบคลุมจริง
+
+  const inside = ivs.find((iv) => iv.start <= a && a < iv.end);
+  if (inside) {
+    return {
+      label: "ปิดก่อนจบเวลาที่อยู่",
+      detail: `อยู่ถึง ${fmtMin(d)} น. แต่ปิดเวลา ${fmtMin(inside.end)} น.`,
+    };
+  }
+  const upcoming = ivs.filter((iv) => iv.start > a).sort((x, y) => x.start - y.start)[0];
+  if (upcoming) {
+    return {
+      label: "ยังไม่เปิด",
+      detail: `ไปถึง ${fmtMin(a)} น. แต่เปิด ${fmtMin(upcoming.start)} น.`,
+    };
+  }
+  const lastEnd = Math.max(...ivs.map((iv) => iv.end));
+  return {
+    label: "ปิดแล้ว",
+    detail: `ไปถึง ${fmtMin(a)} น. แต่ปิดเวลา ${fmtMin(lastEnd)} น.`,
+  };
+}
+
 // ---------- Conflict badges ----------
+// ปัญหาที่ต้องระวัง (ปิด/เวลาไม่พอ/งบเกิน) ใช้สีแดง ส่วน "ไม่ทราบข้อมูล" ใช้สีกลาง
 
-function ConflictBadges({ item }: { item: ItineraryItemResult }) {
-  const badges: { label: string; className: string }[] = [];
+function ConflictBadges({
+  item,
+  closedLabel,
+}: {
+  item: ItineraryItemResult;
+  closedLabel?: string;
+}) {
+  const badges: { label: string; warn: boolean }[] = [];
 
-  if (item.isClosedConflict) {
-    badges.push({
-      label: "ปิดแล้วช่วงนี้",
-      className: "bg-red-100 text-red-700 border border-red-200",
-    });
-  }
-  if (item.isTimeConflict) {
-    badges.push({
-      label: "เวลาไม่พอ",
-      className: "bg-orange-100 text-orange-700 border border-orange-200",
-    });
-  }
-  if (item.isBudgetConflict) {
-    badges.push({
-      label: "งบเกิน",
-      className: "bg-purple-100 text-purple-700 border border-purple-200",
-    });
-  }
-  if (item.isHoursUnknown) {
-    badges.push({
-      label: "ไม่ทราบเวลาเปิด-ปิด",
-      className: "bg-amber-50 text-amber-700 border border-amber-300",
-    });
-  }
-  // ✅ ใหม่ (v2) — แยกจาก isBudgetConflict ชัดเจน: "ไม่ทราบราคา" ≠ "เกินงบ" ที่รู้ตัวเลขแน่นอนแล้ว
-  if (item.isCostUnknown) {
-    badges.push({
-      label: "ไม่ทราบราคา",
-      className: "bg-gray-100 text-gray-600 border border-gray-300",
-    });
-  }
+  if (item.isClosedConflict) badges.push({ label: closedLabel ?? "ไม่อยู่ในเวลาเปิด", warn: true });
+  if (item.isTimeConflict) badges.push({ label: "เวลาไม่พอ", warn: true });
+  if (item.isBudgetConflict) badges.push({ label: "งบเกิน", warn: true });
+  if (item.isHoursUnknown) badges.push({ label: "ไม่ทราบเวลาเปิด-ปิด", warn: false });
+  // "ไม่ทราบราคา" ≠ "เกินงบ" — แยกให้ผู้ใช้เห็นความต่าง
+  if (item.isCostUnknown) badges.push({ label: "ไม่ทราบราคา", warn: false });
 
   if (badges.length === 0) return null;
 
@@ -162,8 +253,17 @@ function ConflictBadges({ item }: { item: ItineraryItemResult }) {
       {badges.map((b) => (
         <span
           key={b.label}
-          className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${b.className}`}
+          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-white ${
+            b.warn
+              ? "text-[color:var(--danger)] border-[color:var(--danger)]"
+              : "text-[color:var(--muted)] border-[color:var(--line)]"
+          }`}
         >
+          {b.warn ? (
+            <TriangleAlert size={12} strokeWidth={1.75} />
+          ) : (
+            <Info size={12} strokeWidth={1.75} />
+          )}
           {b.label}
         </span>
       ))}
@@ -172,20 +272,42 @@ function ConflictBadges({ item }: { item: ItineraryItemResult }) {
 }
 
 // ---------- Sortable card ----------
+// ลากได้ที่ไอคอนจับด้านซ้ายเท่านั้น (ส่วนอื่นของการ์ดเลื่อนหน้าจอบนมือถือได้ตามปกติ)
+// เดสก์ท็อป (lg ขึ้นไป): ลากอย่างเดียว (รองรับคีย์บอร์ดที่ไอคอนจับ)
+// จอเล็ก/มือถือ: มีปุ่มจัดลำดับ/ย้ายวัน/เอาออก ซ่อนอยู่หลังปุ่มลูกศรสลับ (กดเพื่อเปิด/ปิด)
 
 function PlaceCard({
   placeId,
   placeInfo,
   item,
+  isFirst,
+  dayOfWeek,
+  currentKey,
+  moveOptions,
+  canUp,
+  canDown,
+  onShift,
+  onMoveTo,
   onRemove,
 }: {
   placeId: string;
   placeInfo?: PlaceInfo;
   item?: ItineraryItemResult;
-  onRemove: () => void;
+  isFirst?: boolean;
+  dayOfWeek?: number; // 0 = อาทิตย์ ... 6 = เสาร์ ใช้แสดงเวลาเปิดของวันนั้นตอนติด conflict
+  currentKey: string;
+  moveOptions: { key: string; label: string }[];
+  canUp?: boolean;
+  canDown?: boolean;
+  onShift?: (delta: -1 | 1) => void;
+  onMoveTo: (toKey: string) => void;
+  onRemove?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: placeId });
+
+  // การ์ดในคลัง (ยังไม่จัดวัน) เปิดแผงไว้เลย เพราะการกระทำหลักคือ "เพิ่มลงวัน"
+  const [showActions, setShowActions] = useState(currentKey === UNASSIGNED_KEY);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -193,56 +315,171 @@ function PlaceCard({
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const name = placeInfo?.place_name ?? "ไม่พบชื่อสถานที่";
+  const hasProblem =
+    !!item && (item.isClosedConflict || item.isTimeConflict || item.isBudgetConflict);
+  const closure =
+    item?.isClosedConflict && dayOfWeek !== undefined
+      ? describeClosure(placeInfo?.opening_hours, dayOfWeek, item.startTime, item.endTime)
+      : null;
+
+  const iconBtn =
+    "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-[color:var(--muted)] hover:text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] disabled:opacity-30 disabled:pointer-events-none transition-colors duration-200";
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white rounded-xl shadow-sm border border-black/5 px-4 py-3 flex items-start gap-3 touch-none"
+      className={`bg-white rounded-xl border p-2.5 ${
+        hasProblem ? "border-[color:var(--danger)]" : "border-[color:var(--line)]"
+      }`}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 w-8 h-8 rounded-full bg-[#102a6b] text-white text-xs font-prompt font-bold flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
-        title="ลากเพื่อจัดลำดับ/ย้ายวัน"
-      >
-        {item ? item.visitOrder : "≡"}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <h4 className="font-prompt font-semibold text-sm text-[#102a6b] truncate">
-          {placeInfo?.place_name ?? "ไม่พบชื่อสถานที่"}
-        </h4>
-        <p className="text-xs text-[#5990c0] mt-0.5 truncate">
-          {placeInfo?.district ? `${placeInfo.district}, ` : ""}
-          {placeInfo?.province ?? ""}
-        </p>
+      <div className="flex items-start gap-1.5">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={`ลากเพื่อจัดลำดับหรือย้ายวัน: ${name}`}
+          className={`${iconBtn} -ml-1 touch-none cursor-grab active:cursor-grabbing`}
+        >
+          <GripVertical size={18} strokeWidth={1.75} />
+        </button>
 
         {item && (
-          <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-[#015185]">
-            <span>
-              {formatTime(item.startTime)} - {formatTime(item.endTime)}
-            </span>
-            {item.travelTimeFromPrev !== null && (
-              <span>เดินทาง {item.travelTimeFromPrev} นาที</span>
-            )}
-            {/* ✅ v2: placeCost เป็น number | null แล้ว — ไม่ทราบราคาแน่ชัดต้องบอกตรงๆ
-                ไม่ใช่แสดง "0 ฿"/"null ฿" (ดู badge "ไม่ทราบราคา" ใน ConflictBadges เพิ่มเติม) */}
-            <span>
-              {item.isCostUnknown ? "ไม่ทราบราคา" : formatBaht(item.placeCost as number)}
-            </span>
-          </div>
+          <span className="shrink-0 mt-1 w-7 h-7 rounded-full bg-[color:var(--navy)] text-white font-prompt font-semibold text-sm flex items-center justify-center">
+            {item.visitOrder}
+          </span>
         )}
 
-        {item && <ConflictBadges item={item} />}
+        <div className="flex-1 min-w-0 pt-0.5">
+          <h4 className="font-prompt font-medium text-[color:var(--navy)] leading-snug">
+            {name}
+          </h4>
+          <p className="flex items-center gap-1 text-xs text-[color:var(--muted)] mt-0.5">
+            <MapPin size={12} strokeWidth={1.75} className="shrink-0" />
+            <span className="truncate">
+              {placeInfo?.district ? `${placeInfo.district}, ` : ""}
+              {placeInfo?.province ?? ""}
+            </span>
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowActions((v) => !v)}
+          aria-expanded={showActions}
+          aria-label={`จัดลำดับหรือย้ายวัน: ${name}`}
+          title="จัดลำดับ / ย้ายวัน"
+          className={`${iconBtn} lg:hidden ${showActions ? "bg-[color:var(--sky-soft)] text-[color:var(--navy)]" : ""}`}
+        >
+          <ArrowUpDown size={18} strokeWidth={1.75} />
+        </button>
       </div>
 
-      <button
-        onClick={onRemove}
-        title="เอาออกจากวันนี้"
-        className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 flex items-center justify-center text-sm transition-colors"
-      >
-        ✕
-      </button>
+      {item && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-[color:var(--deep)]">
+          <span className="flex items-center gap-1 font-prompt font-medium">
+            <Clock size={13} strokeWidth={1.75} className="shrink-0" />
+            {formatTimeRange(item.startTime, item.endTime)}
+          </span>
+
+          {item.travelTimeFromPrev !== null && (
+            <span
+              title={isFirst ? "เดินทางจากจุดเริ่มต้น" : "เดินทางจากสถานที่ก่อนหน้า"}
+              className="flex items-center gap-1 text-[color:var(--muted)]"
+            >
+              <Car size={13} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+              {isFirst && "จากจุดเริ่มต้น "}
+              {formatTravelTime(item.travelTimeFromPrev)}
+              {item.distanceFromPrev !== null && ` · ${formatDistance(item.distanceFromPrev)}`}
+            </span>
+          )}
+
+          {/* ✅ v2: placeCost เป็น number | null — ไม่ทราบราคาแน่ชัดต้องบอกตรงๆ ไม่ใช่ "0 ฿" */}
+          <span className="flex items-center gap-1">
+            <Wallet size={13} strokeWidth={1.75} className="shrink-0" />
+            {item.isCostUnknown ? (
+              <span className="text-[color:var(--muted)]">ไม่ทราบราคาแน่ชัด</span>
+            ) : (
+              formatBaht(item.placeCost as number)
+            )}
+          </span>
+        </div>
+      )}
+
+      {item && <ConflictBadges item={item} closedLabel={closure?.label} />}
+
+      {item?.isClosedConflict && (
+        <p className="mt-2 text-xs text-[color:var(--danger)]">
+          {closure
+            ? closure.detail
+            : `แผน ${formatTimeRange(item.startTime, item.endTime)} อยู่นอกเวลาเปิดของสถานที่`}
+        </p>
+      )}
+
+      {showActions && (
+        <div className="lg:hidden mt-2 pt-2 border-t border-[color:var(--line)] flex flex-wrap items-center gap-1.5">
+          {onShift && (
+            <>
+              <button
+                type="button"
+                onClick={() => onShift(-1)}
+                disabled={!canUp}
+                aria-label={`เลื่อน ${name} ขึ้น`}
+                className={iconBtn}
+              >
+                <ChevronUp size={18} strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onShift(1)}
+                disabled={!canDown}
+                aria-label={`เลื่อน ${name} ลง`}
+                className={iconBtn}
+              >
+                <ChevronDown size={18} strokeWidth={1.75} />
+              </button>
+            </>
+          )}
+
+          <div className="relative">
+            <select
+              aria-label={`ย้าย ${name} ไปวัน`}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) onMoveTo(e.target.value);
+              }}
+              className="appearance-none min-h-9 pl-3 pr-8 rounded-lg border border-[color:var(--line)] bg-white text-sm text-[color:var(--navy)] focus:outline-none focus:border-[color:var(--navy)] focus:ring-4 focus:ring-[color:var(--line)] transition-all duration-200"
+            >
+              <option value="">{currentKey === UNASSIGNED_KEY ? "เพิ่มลงวัน" : "ย้ายไป"}</option>
+              {moveOptions
+                .filter((o) => o.key !== currentKey)
+                .map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+            </select>
+            <ChevronDown
+              size={16}
+              strokeWidth={1.75}
+              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[color:var(--deep)]"
+            />
+          </div>
+
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`เอา ${name} ออกจากวันนี้`}
+              className="ml-auto min-h-9 px-2.5 rounded-lg flex items-center gap-1 text-sm text-[color:var(--muted)] hover:text-[color:var(--danger)] hover:bg-[color:var(--sky-soft)] transition-colors duration-200"
+            >
+              <X size={16} strokeWidth={1.75} />
+              เอาออก
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -251,9 +488,11 @@ function PlaceCard({
 
 function DroppableColumn({
   id,
+  grid,
   children,
 }: {
   id: string;
+  grid?: boolean;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
@@ -261,8 +500,10 @@ function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col gap-2.5 min-h-[80px] rounded-xl transition-colors ${
-        isOver ? "bg-blue-50" : ""
+      className={`${
+        grid ? "grid grid-cols-1 sm:grid-cols-2 items-start" : "flex flex-col"
+      } gap-2 min-h-[40px] rounded-xl transition-colors duration-200 ${
+        isOver ? "bg-[color:var(--sky-soft)] ring-2 ring-[color:var(--sky)]" : ""
       }`}
     >
       {children}
@@ -291,7 +532,8 @@ export default function ItineraryEditor() {
   const travelMatrix: TravelMatrix = state?.draft?.travelMatrix ?? EMPTY_TRAVEL_MATRIX;
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   // ---- init containers จาก draft (ครั้งเดียวตอน mount) ----
@@ -479,8 +721,39 @@ export default function ItineraryEditor() {
     });
   }
 
+  // ย้ายสถานที่ไปอีกวัน/คลัง โดยไม่ต้องลาก (ต่อท้ายลิสต์ปลายทาง) — state shape เดิม ไม่กระทบ payload
+  function movePlace(placeId: string, toKey: string) {
+    setContainers((prev) => {
+      const fromKey = Object.keys(prev).find((k) => prev[k].includes(placeId));
+      if (!fromKey || fromKey === toKey || !prev[toKey]) return prev;
+      return {
+        ...prev,
+        [fromKey]: prev[fromKey].filter((id) => id !== placeId),
+        [toKey]: [...prev[toKey], placeId],
+      };
+    });
+  }
+
+  // สลับลำดับขึ้น/ลงภายในวันเดียวกัน
+  function shiftPlace(placeId: string, key: string, delta: -1 | 1) {
+    setContainers((prev) => {
+      const list = [...(prev[key] ?? [])];
+      const i = list.indexOf(placeId);
+      const j = i + delta;
+      if (i === -1 || j < 0 || j >= list.length) return prev;
+      [list[i], list[j]] = [list[j], list[i]];
+      return { ...prev, [key]: list };
+    });
+  }
+
   async function handleConfirm() {
     if (!session || !tripId) return;
+
+    // กันซ้ำกับปุ่มที่ disable ไว้ — ห้ามบันทึกแผนที่ยังมีจุดขัดแย้ง (ปิด / เวลาไม่พอ / งบเกิน)
+    const hasConflict = Object.values(computedByDay)
+      .flat()
+      .some((i) => i.isClosedConflict || i.isTimeConflict || i.isBudgetConflict);
+    if (hasConflict) return;
 
     setSaving(true);
     setSaveError(null);
@@ -517,8 +790,9 @@ export default function ItineraryEditor() {
 
   if (!state?.draft || !state?.places) {
     return (
-      <div className="font-sarabun min-h-screen bg-[#fcedd3] flex items-center justify-center">
-        <p className="text-[#5990c0]">กำลังตรวจสอบข้อมูล...</p>
+      <div className="font-sarabun min-h-screen bg-[color:var(--cream)] flex items-center justify-center gap-3 text-[color:var(--muted)]">
+        <Loader2 size={20} strokeWidth={1.75} className="animate-spin text-[color:var(--sky)]" />
+        กำลังตรวจสอบข้อมูล...
       </div>
     );
   }
@@ -528,162 +802,246 @@ export default function ItineraryEditor() {
 
   const unassignedIds = containers[UNASSIGNED_KEY] ?? [];
 
+  const moveOptions = [
+    ...tripDaysMeta.map((d) => ({ key: dayKey(d.tripDayId), label: `วันที่ ${d.dayNumber}` })),
+    { key: UNASSIGNED_KEY, label: "ยังไม่จัดลงวัน" },
+  ];
+
+  const placedCount = tripDaysMeta.reduce(
+    (n, d) => n + (containers[dayKey(d.tripDayId)]?.length ?? 0),
+    0
+  );
+  const isProblem = (i: ItineraryItemResult) =>
+    i.isClosedConflict || i.isTimeConflict || i.isBudgetConflict;
+  const conflictCount = Object.values(computedByDay).flat().filter(isProblem).length;
+
   return (
-    <div className="font-sarabun min-h-screen bg-[#fcedd3] pb-32">
+    <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-44">
       <Navbar />
 
-      <div className="max-w-6xl mx-auto px-4 pt-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md hover:shadow-lg hover:-translate-x-1 transition-all duration-200"
-        >
-          <span className="text-lg transition-transform duration-200 group-hover:-translate-x-1">
-            ←
-          </span>
-          <span>กลับ</span>
-        </button>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
-          <h2 className="font-prompt font-bold text-2xl text-white mb-1">
-            จัดเรียงแผนการเดินทาง
-          </h2>
-          <p className="text-[#5990c0] text-sm">
-            ลากสถานที่เพื่อสลับลำดับ หรือย้ายไปวันอื่นได้เลย ระบบคำนวณเวลา/งบให้ทันที
-          </p>
-        </div>
-
-        <div className="mb-6">
-          <RouteMap
-            startLat={state.draft.tripStartLat}
-            startLng={state.draft.tripStartLng}
-            days={mapDays}
-          />
-        </div>
-
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          {/* ---- คลังสถานที่ที่ยังไม่จัดวัน ---- */}
-          <div className="bg-white/60 border-2 border-dashed border-[#5990c0]/40 rounded-2xl px-5 py-4 mb-6">
-            <h3 className="font-prompt font-semibold text-sm text-[#102a6b] mb-3">
-              สถานที่ที่ยังไม่จัดลงวัน ({unassignedIds.length})
-            </h3>
-            <SortableContext
-              items={unassignedIds}
-              strategy={verticalListSortingStrategy}
-            >
-              <DroppableColumn id={UNASSIGNED_KEY}>
-                {unassignedIds.length === 0 ? (
-                  <p className="text-xs text-[#5990c0] py-2">
-                    ลากการ์ดมาวางที่นี่เพื่อเอาออกจากแผนวันนั้นๆ
-                  </p>
-                ) : (
-                  unassignedIds.map((placeId) => (
-                    <PlaceCard
-                      key={placeId}
-                      placeId={placeId}
-                      placeInfo={placesInfoById.get(placeId)}
-                      onRemove={() => {}}
-                    />
-                  ))
-                )}
-              </DroppableColumn>
-            </SortableContext>
+      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-4">
+        <div className="fade-in mb-4 flex items-start gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="กลับ"
+            className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-[color:var(--navy)] bg-white border border-[color:var(--line)] hover:bg-[color:var(--sky-soft)] active:scale-[0.95] transition-all duration-200"
+          >
+            <ArrowLeft size={20} strokeWidth={1.75} />
+          </button>
+          <div>
+            <h1 className="font-prompt font-semibold text-2xl text-[color:var(--navy)] leading-tight">
+              จัดเรียงแผนการเดินทาง
+            </h1>
+            <p className="text-xs sm:text-sm text-[color:var(--muted)] mt-1">
+              <span className="hidden lg:inline">
+                ลากที่ไอคอน <GripVertical size={14} strokeWidth={1.75} className="inline -mt-0.5" /> เพื่อสลับลำดับหรือย้ายวัน
+                (ใช้คีย์บอร์ดได้: โฟกัสที่ไอคอน กด Space แล้วใช้ลูกศรย้าย)
+              </span>
+              <span className="lg:hidden">
+                ลากที่ไอคอน <GripVertical size={14} strokeWidth={1.75} className="inline -mt-0.5" /> หรือกดปุ่ม{" "}
+                <ArrowUpDown size={14} strokeWidth={1.75} className="inline -mt-0.5" /> ในการ์ดเพื่อใช้ปุ่มลูกศร/เมนูย้าย
+              </span>
+            </p>
           </div>
+        </div>
 
-          {/* ---- วันต่างๆ ---- */}
-          <div className="flex gap-5 overflow-x-auto pb-4">
-            {tripDaysMeta.map((day) => {
-              const key = dayKey(day.tripDayId);
-              const items = computedByDay[key] ?? [];
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+          {/* แผนที่: มือถืออยู่บนสุด เดสก์ท็อปอยู่ขวาและติดหน้าจอตอนเลื่อน */}
+          <aside className="lg:col-span-2 order-first lg:order-last lg:sticky lg:top-20">
+            <RouteMap
+              startLat={state.draft.tripStartLat}
+              startLng={state.draft.tripStartLng}
+              days={mapDays}
+            />
+          </aside>
 
-              return (
-                <div
-                  key={day.tripDayId}
-                  className="bg-white rounded-2xl shadow-md px-5 py-4 flex-shrink-0 w-80"
-                >
-                  <div className="mb-3">
-                    <h3 className="font-prompt font-bold text-base text-[#102a6b]">
-                      วันที่ {day.dayNumber}
-                    </h3>
-                    <p className="text-xs text-[#5990c0]">
-                      {formatVisitDate(day.visitDate)}
-                      {day.startTime && day.endTime && (
-                        <> · {formatTime(day.startTime)} - {formatTime(day.endTime)}</>
-                      )}
-                      {day.dailyBudget !== null && (
-                        <> · งบ {formatBaht(day.dailyBudget)}</>
-                      )}
-                    </p>
-                  </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="lg:col-span-3 flex flex-col gap-3">
+              {/* ---- คลังสถานที่ที่ยังไม่จัดวัน ---- */}
+              <section className={`bg-white/60 border-2 border-dashed border-[color:var(--line)] rounded-2xl ${
+                unassignedIds.length === 0 ? "p-2.5" : "p-3"
+              }`}>
+                {unassignedIds.length > 0 && (
+                  <h2 className="font-prompt font-semibold text-base text-[color:var(--navy)] mb-2 flex items-center gap-2">
+                    <MapPin size={18} strokeWidth={1.75} className="text-[color:var(--sky)]" />
+                    ยังไม่จัดลงวัน ({unassignedIds.length})
+                  </h2>
+                )}
+                <SortableContext items={unassignedIds} strategy={rectSortingStrategy}>
+                  <DroppableColumn id={UNASSIGNED_KEY} grid>
+                    {unassignedIds.length === 0 ? (
+                      <p className="col-span-full flex items-center gap-2 text-sm text-[color:var(--muted)] py-0.5">
+                        <CircleCheck size={18} strokeWidth={1.75} className="text-[color:var(--success)]" />
+                        จัดลงวันครบทุกสถานที่แล้ว ลากการ์ดมาวางที่นี่เพื่อเอาออกจากแผน
+                      </p>
+                    ) : (
+                      unassignedIds.map((placeId) => (
+                        <PlaceCard
+                          key={placeId}
+                          placeId={placeId}
+                          placeInfo={placesInfoById.get(placeId)}
+                          currentKey={UNASSIGNED_KEY}
+                          moveOptions={moveOptions}
+                          onMoveTo={(toKey) => movePlace(placeId, toKey)}
+                        />
+                      ))
+                    )}
+                  </DroppableColumn>
+                </SortableContext>
+              </section>
 
-                  <SortableContext
-                    items={containers[key] ?? []}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <DroppableColumn id={key}>
-                      {items.length === 0 ? (
-                        <div className="text-xs text-[#5990c0] py-6 text-center border-2 border-dashed border-[#5990c0]/30 rounded-xl">
-                          ลากสถานที่มาวางที่นี่
+              {/* ---- วันต่างๆ ---- */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                {tripDaysMeta.map((day) => {
+                  const key = dayKey(day.tripDayId);
+                  const items = computedByDay[key] ?? [];
+                  const dayConflicts = items.filter(isProblem).length;
+                  const dayCost = items.reduce((sum, i) => sum + (i.placeCost ?? 0), 0);
+                  const unknownCost = items.filter((i) => i.isCostUnknown).length;
+
+                  return (
+                    <section key={day.tripDayId} className={`${cardClass} p-3`}>
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-prompt font-semibold text-base text-[color:var(--navy)]">
+                            วันที่ {day.dayNumber}
+                          </h3>
+                          <p className="text-xs text-[color:var(--muted)] mt-0.5">
+                            {formatVisitDate(day.visitDate)}
+                            {day.startTime && day.endTime && (
+                              <> · {formatTime(day.startTime)} - {formatTime(day.endTime)}</>
+                            )}
+                            {day.dailyBudget !== null && <> · งบ {formatBaht(day.dailyBudget)}</>}
+                          </p>
+                          {items.length > 0 && (
+                            <p className="text-xs text-[color:var(--muted)] mt-0.5">
+                              {items.length} สถานที่ · รวม {formatBaht(dayCost)}
+                              {unknownCost > 0 && ` (ไม่ทราบราคา ${unknownCost} แห่ง)`}
+                            </p>
+                          )}
                         </div>
-                      ) : (
-                        items.map((item) => (
-                          <PlaceCard
-                            key={item.placeId}
-                            placeId={item.placeId}
-                            placeInfo={placesInfoById.get(item.placeId)}
-                            item={item}
-                            onRemove={() => handleRemoveFromDay(item.placeId, key)}
-                          />
-                        ))
-                      )}
-                    </DroppableColumn>
-                  </SortableContext>
-                </div>
-              );
-            })}
-          </div>
+                        {dayConflicts > 0 && (
+                          <span className="shrink-0 inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-white text-[color:var(--danger)] border-[color:var(--danger)]">
+                            <TriangleAlert size={12} strokeWidth={1.75} />
+                            {dayConflicts} จุด
+                          </span>
+                        )}
+                      </div>
 
-          <DragOverlay>
-            {activeId ? (
-              <div className="bg-white rounded-xl shadow-lg border border-black/10 px-4 py-3 w-72">
-                <h4 className="font-prompt font-semibold text-sm text-[#102a6b] truncate">
-                  {activePlaceInfo?.place_name ?? "สถานที่"}
-                </h4>
-                {activeItem && (
-                  <p className="text-xs text-[#5990c0] mt-1">
-                    {formatTime(activeItem.startTime)} - {formatTime(activeItem.endTime)}
-                  </p>
-                )}
+                      <SortableContext
+                        items={containers[key] ?? []}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <DroppableColumn id={key}>
+                          {items.length === 0 ? (
+                            <div className="text-sm text-[color:var(--muted)] py-6 px-3 text-center border-2 border-dashed border-[color:var(--line)] rounded-xl">
+                              ยังไม่มีสถานที่ ลากมาวางที่นี่
+                              <span className="lg:hidden"> หรือใช้เมนู "เพิ่มลงวัน" ในการ์ดที่ยังไม่จัด</span>
+                            </div>
+                          ) : (
+                            items.map((item, idx) => (
+                              <PlaceCard
+                                key={item.placeId}
+                                placeId={item.placeId}
+                                placeInfo={placesInfoById.get(item.placeId)}
+                                item={item}
+                                isFirst={idx === 0}
+                                dayOfWeek={new Date(day.visitDate + "T00:00:00").getDay()}
+                                currentKey={key}
+                                moveOptions={moveOptions}
+                                canUp={idx > 0}
+                                canDown={idx < items.length - 1}
+                                onShift={(delta) => shiftPlace(item.placeId, key, delta)}
+                                onMoveTo={(toKey) => movePlace(item.placeId, toKey)}
+                                onRemove={() => handleRemoveFromDay(item.placeId, key)}
+                              />
+                            ))
+                          )}
+                        </DroppableColumn>
+                      </SortableContext>
+
+                    </section>
+                  );
+                })}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
+
+              <DragOverlay>
+                {activeId ? (
+                  <div className="bg-white rounded-xl border-2 border-[color:var(--navy)] [box-shadow:var(--shadow)] px-4 py-3 w-72 flex items-center gap-2">
+                    <GripVertical size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--muted)]" />
+                    <div className="min-w-0">
+                      <p className="font-prompt font-medium text-[color:var(--navy)] truncate">
+                        {activePlaceInfo?.place_name ?? "สถานที่"}
+                      </p>
+                      {activeItem && (
+                        <p className="text-xs text-[color:var(--muted)] mt-0.5">
+                          {formatTimeRange(activeItem.startTime, activeItem.endTime)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </div>
+          </DndContext>
+        </div>
+      </main>
 
       {/* ---- แถบยืนยันแผน ---- */}
       <div className="fixed bottom-0 left-0 right-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 pb-5">
-          <div className="bg-white rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4 border border-black/5">
-            <div className="text-sm text-[#102a6b] font-prompt font-semibold">
-              {places.length} สถานที่ · {tripDaysMeta.length} วัน
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-4">
+          <div className={`${cardClass} px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
+            <div className="text-sm flex flex-col gap-1">
+              <p className="font-prompt font-medium text-[color:var(--navy)]">
+                จัดลงวันแล้ว {placedCount}/{places.length} สถานที่ · {tripDaysMeta.length} วัน
+              </p>
+              {unassignedIds.length > 0 && (
+                <p className="flex items-center gap-1.5 text-xs text-[color:var(--muted)]">
+                  <Info size={14} strokeWidth={1.75} className="shrink-0" />
+                  อีก {unassignedIds.length} สถานที่ยังไม่ได้จัดลงวัน จะไม่ถูกบันทึกในแผน
+                </p>
+              )}
+              {conflictCount > 0 && (
+                <p className="flex items-center gap-1.5 text-xs text-[color:var(--danger)]">
+                  <TriangleAlert size={14} strokeWidth={1.75} className="shrink-0" />
+                  <span id="conflict-msg">
+                    ยืนยันแผนไม่ได้ เพราะมี {conflictCount} จุดที่มีปัญหา (ไม่อยู่ในเวลาเปิด / เวลาไม่พอ / งบเกิน)
+                    ให้ย้ายหรือเอาสถานที่นั้นออกก่อน
+                  </span>
+                </p>
+              )}
               {saveError && (
-                <div className="text-xs text-red-600 font-normal mt-1">
+                <p role="alert" className="flex items-center gap-1.5 text-xs text-[color:var(--danger)]">
+                  <TriangleAlert size={14} strokeWidth={1.75} className="shrink-0" />
                   {saveError}
-                </div>
+                </p>
               )}
             </div>
+
             <button
+              type="button"
               onClick={handleConfirm}
-              disabled={saving}
-              className="px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#102a6b] to-[#015185] shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={saving || conflictCount > 0}
+              aria-describedby={conflictCount > 0 ? "conflict-msg" : undefined}
+              className={primaryBtn}
             >
-              {saving ? "กำลังบันทึก..." : "ยืนยันแผน"}
+              {saving ? (
+                <>
+                  <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
+                  กำลังบันทึก...
+                </>
+              ) : (
+                <>
+                  <Check size={20} strokeWidth={1.75} />
+                  ยืนยันแผน
+                </>
+              )}
             </button>
           </div>
         </div>

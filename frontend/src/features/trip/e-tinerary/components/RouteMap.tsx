@@ -16,6 +16,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Loader2, MapPinned, TriangleAlert } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // OpenRouteService config (ตั้งใน .env — Vite ต้องขึ้นต้นด้วย VITE_)
@@ -44,11 +45,11 @@ type LatLng = [number, number]; // [lat, lng] (รูปแบบของ Leafl
 // สีประจำวัน วนซ้ำถ้าทริปเกิน 6 วัน
 const DAY_COLORS = [
   "#102a6b", // navy (โทนหลักของระบบ)
-  "#99CCFF",
   "#c2410c",
-  "#7c3aed",
   "#059669",
+  "#7c3aed",
   "#db2777",
+  "#5990c0",
 ];
 
 function getDayColor(index: number): string {
@@ -303,9 +304,10 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
 
   if (daysWithItems.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-md px-5 py-10 flex items-center justify-center text-center">
-        <p className="text-sm text-[#5990c0]">
-          ยังไม่มีสถานที่จัดลงวันไหนเลย — ลากสถานที่ลงวันเพื่อดูเส้นทางบนแผนที่
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-5 py-10 flex flex-col items-center gap-3 text-center">
+        <MapPinned size={36} strokeWidth={1.5} className="text-[color:var(--sky)]" />
+        <p className="text-sm text-[color:var(--muted)] max-w-xs">
+          ยังไม่มีสถานที่จัดลงวันไหนเลย จัดสถานที่ลงวันเพื่อดูเส้นทางบนแผนที่
         </p>
       </div>
     );
@@ -315,17 +317,22 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     startPoint ?? [daysWithItems[0].items[0].lat, daysWithItems[0].items[0].lng];
 
   return (
-    <div className="bg-white rounded-2xl shadow-md px-5 py-4">
+    <div className="bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="font-prompt font-semibold text-sm text-[#102a6b]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h3 className="font-prompt font-semibold text-base text-[color:var(--navy)] flex items-center gap-2">
+            <MapPinned size={20} strokeWidth={1.75} className="text-[color:var(--sky)]" />
             เส้นทางบนแผนที่
           </h3>
           {isRouting && (
-            <span className="text-xs text-[#5990c0]">กำลังคำนวณเส้นทาง...</span>
+            <span className="flex items-center gap-1.5 text-xs text-[color:var(--muted)]">
+              <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
+              กำลังคำนวณเส้นทาง...
+            </span>
           )}
           {hasFallback && (
-            <span className="text-xs text-amber-600">
+            <span className="flex items-center gap-1.5 text-xs text-[color:var(--danger)]">
+              <TriangleAlert size={14} strokeWidth={1.75} />
               คำนวณเส้นทางถนนไม่สำเร็จ แสดงเป็นเส้นตรงแทน
             </span>
           )}
@@ -339,11 +346,12 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
               <button
                 key={day.tripDayId}
                 type="button"
+                aria-pressed={active}
                 onClick={() => toggleDay(day.dayNumber)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                className={`flex items-center gap-1.5 min-h-9 px-3 rounded-full text-sm font-medium border active:scale-[0.98] transition-all duration-200 ${
                   active
-                    ? "text-white shadow-sm"
-                    : "text-[#5990c0] bg-white border-[#5990c0]/30"
+                    ? "text-white"
+                    : "text-[color:var(--muted)] bg-white border-[color:var(--line)] hover:border-[color:var(--sky)]"
                 }`}
                 style={active ? { backgroundColor: color, borderColor: color } : undefined}
               >
@@ -359,12 +367,12 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
       </div>
 
       {/* isolate: กัน z-index ของ Leaflet pane (สูงสุด ~1000) ไปทับ modal / drag overlay ของหน้า */}
-      <div className="isolate">
+      <div className="isolate overflow-hidden rounded-xl border border-[color:var(--line)]">
         <MapContainer
           center={defaultCenter}
           zoom={12}
           scrollWheelZoom
-          style={{ width: "100%", height: "420px", borderRadius: "16px" }}
+          className="w-full h-52 sm:h-64 lg:h-[420px]"
         >
           <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
           <FitBounds points={boundsPoints} />

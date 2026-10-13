@@ -3,6 +3,24 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
 import RouteMap from "../e-tinerary/components/RouteMap";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Users,
+  Clock,
+  Wallet,
+  Tags,
+  Search,
+  Pencil,
+  Route,
+  MapPin,
+  Compass,
+  Loader2,
+  TriangleAlert,
+  Info,
+  Car,
+  CircleCheck,
+} from "lucide-react";
 
 /**
  * tripDetail.tsx
@@ -242,35 +260,90 @@ function formatBaht(amount: number): string {
   return amount.toLocaleString("th-TH") + " ฿";
 }
 
-// ---------- Conflict badges (คัดลอก convention เดียวกับ ItineraryEditor.tsx) ----------
+function formatTimeRange(start: string | null, end: string | null): string {
+  if (!start && !end) return "—";
+  return `${start ? start.slice(0, 5) : "—"} - ${end ? end.slice(0, 5) : "—"} น.`;
+}
+
+// เวลาเดินทางเป็นนาที -> "6 นาที" / "1 ชม. 5 นาที"
+function formatTravelTime(minutes: number): string {
+  const total = Math.round(minutes);
+  if (total < 1) return "น้อยกว่า 1 นาที";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} นาที`;
+  return m === 0 ? `${h} ชม.` : `${h} ชม. ${m} นาที`;
+}
+
+// ระยะทางเป็นกม. -> น้อยกว่า 1 กม. แสดงเป็นเมตร (เช่น "300 ม.")
+function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`;
+}
+
+const BUDGET_SCOPE_LABELS: Record<string, string> = {
+  GROUP: "ทั้งกลุ่ม",
+  PER_PERSON: "ต่อคน",
+};
+
+const BUDGET_PERIOD_LABELS: Record<string, string> = {
+  TOTAL_TRIP: "ทั้งทริป",
+  PER_DAY: "ต่อวัน",
+};
+
+// เช่น " (ต่อคน · ทั้งทริป)" — ว่างถ้าไม่มีข้อมูล
+function budgetSuffix(scope: string | null, period: string | null): string {
+  const parts = [
+    scope ? BUDGET_SCOPE_LABELS[scope] ?? scope : null,
+    period ? BUDGET_PERIOD_LABELS[period] ?? period : null,
+  ].filter(Boolean);
+  return parts.length ? ` (${parts.join(" · ")})` : "";
+}
+
+// ---------- Style constants (ใช้ token จาก global.css) ----------
+
+const cardClass =
+  "bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)]";
+
+const primaryBtn =
+  "font-prompt font-medium min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
+
+const secondaryBtn =
+  "font-prompt font-medium min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] border-2 border-[color:var(--sky)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
+
+const ghostBtn =
+  "font-prompt font-medium min-h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200 whitespace-nowrap";
+
+// ---------- Conflict badges ----------
+// ปัญหาที่ต้องระวัง (ปิด/เวลาไม่พอ/งบเกิน) ใช้สีแดง ส่วน "ไม่ทราบข้อมูล" ใช้สีกลาง
 
 function ConflictBadges({ item }: { item: ScheduleItem }) {
-  const badges: { label: string; className: string }[] = [];
+  const badges: { label: string; warn: boolean }[] = [];
 
-  if (item.isClosedConflict) {
-    badges.push({ label: "ปิดแล้วช่วงนี้", className: "bg-red-100 text-red-700 border border-red-200" });
-  }
-  if (item.isTimeConflict) {
-    badges.push({ label: "เวลาไม่พอ", className: "bg-orange-100 text-orange-700 border border-orange-200" });
-  }
-  if (item.isBudgetConflict) {
-    badges.push({ label: "งบเกิน", className: "bg-purple-100 text-purple-700 border border-purple-200" });
-  }
-  if (item.isHoursUnknown) {
-    badges.push({ label: "ไม่ทราบเวลาเปิด-ปิด", className: "bg-amber-50 text-amber-700 border border-amber-300" });
-  }
-  // ✅ เพิ่มใหม่ — ไฟล์นี้เดิมไม่มี badge นี้เลย (ต่างจาก ItineraryEditor.tsx ที่มีอยู่แล้ว) ทำให้
-  // "ไม่ทราบราคา" ≠ "เกินงบ" ไม่ถูกสื่อสารให้ user เห็นความต่างในหน้านี้เลย
-  if (item.isCostUnknown) {
-    badges.push({ label: "ไม่ทราบราคา", className: "bg-gray-100 text-gray-600 border border-gray-300" });
-  }
+  if (item.isClosedConflict) badges.push({ label: "ปิดแล้วช่วงนี้", warn: true });
+  if (item.isTimeConflict) badges.push({ label: "เวลาไม่พอ", warn: true });
+  if (item.isBudgetConflict) badges.push({ label: "งบเกิน", warn: true });
+  if (item.isHoursUnknown) badges.push({ label: "ไม่ทราบเวลาเปิด-ปิด", warn: false });
+  // "ไม่ทราบราคา" ≠ "เกินงบ" — แยกให้ผู้ใช้เห็นความต่าง
+  if (item.isCostUnknown) badges.push({ label: "ไม่ทราบราคา", warn: false });
 
   if (badges.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
+    <div className="flex flex-wrap gap-1.5 mt-3">
       {badges.map((b) => (
-        <span key={b.label} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${b.className}`}>
+        <span
+          key={b.label}
+          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-white ${
+            b.warn
+              ? "text-[color:var(--danger)] border-[color:var(--danger)]"
+              : "text-[color:var(--muted)] border-[color:var(--line)]"
+          }`}
+        >
+          {b.warn ? (
+            <TriangleAlert size={12} strokeWidth={1.75} />
+          ) : (
+            <Info size={12} strokeWidth={1.75} />
+          )}
           {b.label}
         </span>
       ))}
@@ -278,51 +351,80 @@ function ConflictBadges({ item }: { item: ScheduleItem }) {
   );
 }
 
-// ---------- Timeline card (ต่างจาก editor: มีเส้น timeline + ระยะทาง/เวลาเดินทางคั่นระหว่างจุด) ----------
+// ---------- Timeline card ----------
 
-function TimelineStop({ item, isLast }: { item: ScheduleItem; isLast: boolean }) {
+// next = สถานที่ถัดไปในวันเดียวกัน — travelTimeFromPrev/distanceFromPrev ของ "next" คือช่วงเดินทาง
+// จากสถานที่นี้ไปหา next (ค่าของ item เองคือช่วงจากสถานที่ก่อนหน้ามาหา item จึงใช้แสดงตรงนี้ไม่ได้)
+function TimelineStop({
+  item,
+  next,
+  isLast,
+}: {
+  item: ScheduleItem;
+  next?: ScheduleItem;
+  isLast: boolean;
+}) {
   return (
-    <div className="relative pl-10">
+    <div className="relative pl-11">
       {/* จุดกลม + เส้นแนวตั้งของ timeline */}
       <div className="absolute left-0 top-0 flex flex-col items-center h-full">
-        <div className="w-7 h-7 rounded-full bg-[#102a6b] text-white text-xs font-prompt font-bold flex items-center justify-center flex-shrink-0">
+        <span className="w-8 h-8 rounded-full bg-[color:var(--navy)] text-white text-sm font-prompt font-semibold flex items-center justify-center shrink-0">
           {item.visitOrder}
-        </div>
-        {!isLast && <div className="w-0.5 flex-1 bg-[#5990c0]/30 mt-1" />}
+        </span>
+        {!isLast && <span className="w-px flex-1 bg-[color:var(--line)] mt-1" />}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-black/5 px-4 py-3 mb-3">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="font-prompt font-semibold text-sm text-[#102a6b]">{item.placeName}</h4>
-          <span className="text-xs font-prompt font-semibold text-[#015185] whitespace-nowrap">
-            {formatTime(item.startTime)} - {formatTime(item.endTime)}
+      <div className="rounded-xl border border-[color:var(--line)] bg-white px-4 py-3 mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
+          <h4 className="font-prompt font-medium text-[color:var(--navy)]">
+            {item.placeName}
+          </h4>
+          <span className="flex items-center gap-1.5 text-sm font-prompt font-medium text-[color:var(--deep)] whitespace-nowrap">
+            <Clock size={14} strokeWidth={1.75} />
+            {formatTimeRange(item.startTime, item.endTime)}
           </span>
         </div>
-        <p className="text-xs text-[#5990c0] mt-0.5">
+
+        <p className="flex items-center gap-1.5 text-sm text-[color:var(--muted)] mt-1">
+          <MapPin size={14} strokeWidth={1.75} className="shrink-0" />
           {item.district ? `${item.district}, ` : ""}
           {item.province ?? ""}
         </p>
-        <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-[#015185]">
-          {/* ✅ แก้บั๊กหลัก: เดิมเรียก formatBaht(item.placeCost) ตรงๆ โดยไม่เช็ค null ก่อน —
-              ถ้า item.placeCost เป็น null (food/paid_other ไม่มีราคาจริง) amount.toLocaleString()
-              จะ throw ("Cannot read properties of null") กลางการ render แล้วทั้งหน้า /detail
-              crash เป็นจอเปล่าทันที เพราะไม่มี Error Boundary ครอบไว้ — นี่คือสาเหตุที่หน้า
-              /detail ไม่ขึ้นหลังยืนยันแผนที่มีสถานที่ราคาไม่ทราบแน่ชัดอยู่ในนั้น */}
+
+        {/* ต้องเช็ก isCostUnknown ก่อนเรียก formatBaht เพราะ placeCost เป็น null ได้
+            (ถ้า null แล้วเรียก toLocaleString จะ throw และทั้งหน้าจะว่างเปล่า) */}
+        <p className="flex items-center gap-1.5 text-sm mt-1">
+          <Wallet size={14} strokeWidth={1.75} className="shrink-0 text-[color:var(--muted)]" />
           {item.isCostUnknown ? (
-            <span className="text-gray-400 italic" title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google">
-              💸 ไม่ทราบราคาแน่ชัด
+            <span
+              className="text-[color:var(--muted)] italic"
+              title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google"
+            >
+              ไม่ทราบราคาแน่ชัด
             </span>
           ) : (
-            <span>{formatBaht(item.placeCost as number)}</span>
+            <span className="text-[color:var(--deep)]">
+              {formatBaht(item.placeCost as number)}
+            </span>
           )}
-        </div>
+        </p>
+
         <ConflictBadges item={item} />
       </div>
 
-      {!isLast && item.travelTimeFromPrev !== null && (
-        <div className="text-[11px] text-[#5990c0] mb-3 -mt-1.5 flex items-center gap-1.5">
-          <span>↳ เดินทางต่อไปอีก {item.travelTimeFromPrev} นาที</span>
-          {item.distanceFromPrev !== null && <span>({item.distanceFromPrev.toFixed(1)} กม.)</span>}
+      {next && (next.travelTimeFromPrev !== null || next.distanceFromPrev !== null) && (
+        <div className="mb-3 flex items-center gap-2 w-fit max-w-full rounded-full bg-[color:var(--sky-soft)] px-3.5 py-1.5 text-sm">
+          <Car size={16} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+          <span className="font-prompt font-medium text-[color:var(--navy)]">
+            {next.travelTimeFromPrev !== null
+              ? `เดินทาง ${formatTravelTime(next.travelTimeFromPrev)}`
+              : "เดินทาง"}
+          </span>
+          {next.distanceFromPrev !== null && (
+            <span className="text-[color:var(--muted)]">
+              · {formatDistance(next.distanceFromPrev)}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -522,12 +624,16 @@ export default function TripDetail() {
 
   if (loadError) {
     return (
-      <div className="font-sarabun min-h-screen bg-[#fcedd3] flex flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-red-600 font-prompt font-semibold">{loadError}</p>
-        <button
-          onClick={() => navigate("/home")}
-          className="px-5 py-2.5 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md"
-        >
+      <div className="font-sarabun min-h-screen bg-[color:var(--cream)] flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <TriangleAlert
+          size={32}
+          strokeWidth={1.5}
+          className="text-[color:var(--danger)]"
+        />
+        <p role="alert" className="text-[color:var(--danger)] font-prompt font-medium">
+          {loadError}
+        </p>
+        <button onClick={() => navigate("/home")} className={secondaryBtn}>
           กลับหน้าหลัก
         </button>
       </div>
@@ -536,158 +642,231 @@ export default function TripDetail() {
 
   if (loading || !trip || !days) {
     return (
-      <div className="font-sarabun min-h-screen bg-[#fcedd3] flex items-center justify-center">
-        <p className="text-[#5990c0]">กำลังโหลดแผนการเดินทาง...</p>
+      <div className="font-sarabun min-h-screen bg-[color:var(--cream)] flex items-center justify-center gap-3 text-[color:var(--muted)]">
+        <Loader2
+          size={20}
+          strokeWidth={1.75}
+          className="animate-spin text-[color:var(--sky)]"
+        />
+        กำลังโหลดแผนการเดินทาง...
       </div>
     );
   }
 
+  const stats = [
+    { icon: CalendarDays, value: String(days.length), label: "วัน" },
+    { icon: MapPin, value: String(totals.places), label: "สถานที่" },
+    { icon: Wallet, value: formatBaht(totals.cost), label: "งบที่ใช้ (ประมาณการ)" },
+  ];
+
   return (
-    <div className="font-sarabun min-h-screen bg-[#fcedd3] pb-16">
+    <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-16">
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-4 pt-6">
+      <div className="fade-in max-w-5xl mx-auto px-4 py-6">
         <button
           onClick={() => navigate("/home")}
-          className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold shadow-md hover:shadow-lg hover:-translate-x-1 transition-all duration-200"
+          className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
         >
-          <span className="text-lg transition-transform duration-200 group-hover:-translate-x-1">←</span>
-          <span>กลับหน้าหลัก</span>
+          <ArrowLeft size={18} strokeWidth={1.75} />
+          กลับหน้าหลัก
         </button>
-      </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
         {/* ---- Header สรุปทริป ---- */}
-        <div className="bg-gradient-to-r from-[#102a6b] to-[#015185] rounded-2xl px-8 py-6 mb-6 shadow-lg">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <span className="inline-block text-[11px] font-prompt font-semibold text-[#fcedd3] bg-white/10 px-2.5 py-1 rounded-full mb-2">
-                {totals.places > 0 ? "แผนยืนยันแล้ว" : "ยังไม่มีแผนเดินทาง"}
+        <section className={`${cardClass} px-6 sm:px-8 py-6 mb-6`}>
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-prompt font-medium px-2.5 py-1 rounded-full border bg-white mb-3 ${
+              totals.places > 0
+                ? "text-[color:var(--success)] border-[color:var(--success)]"
+                : "text-[color:var(--muted)] border-[color:var(--line)]"
+            }`}
+          >
+            {totals.places > 0 ? (
+              <CircleCheck size={14} strokeWidth={1.75} />
+            ) : (
+              <Info size={14} strokeWidth={1.75} />
+            )}
+            {totals.places > 0 ? "แผนยืนยันแล้ว" : "ยังไม่มีแผนเดินทาง"}
+          </span>
+
+          <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
+            {trip.province}
+            {trip.city && (
+              <span className="text-[color:var(--deep)] font-normal text-lg">
+                {" "}
+                · {trip.city}
               </span>
-              <h2 className="font-prompt font-bold text-2xl text-white mb-1">
-                {trip.province}
-                {trip.city && <span className="text-[#d0d9ff] font-normal text-lg"> · {trip.city}</span>}
-              </h2>
-              <p className="text-[#d0d9ff] text-sm">
-                <div>📅 {formatDateRange(trip.startDate, trip.endDate)}</div>
+            )}
+          </h1>
 
-                👤 {trip.numberOfPeople} คน
+          <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[color:var(--muted)]">
+            <li className="flex items-center gap-2">
+              <CalendarDays size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+              {formatDateRange(trip.startDate, trip.endDate)}
+            </li>
+            <li className="flex items-center gap-2">
+              <Users size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+              {trip.numberOfPeople} คน
+            </li>
+            <li className="flex items-center gap-2">
+              <Clock size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+              เวลาเริ่ม {formatTime(trip.startTime)}
+            </li>
+            <li className="flex items-center gap-2">
+              <Wallet size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+              {trip.useBudget
+                ? `${trip.totalBudget.toLocaleString()} บาท${budgetSuffix(
+                    trip.budgetScope,
+                    trip.budgetPeriod
+                  )}`
+                : "ไม่จำกัดงบ"}
+            </li>
+          </ul>
 
-                <br />
-
-                🕒 เวลาเริ่ม: {trip.startTime}
-
-                <br />
-
-                💰 งบประมาณ: {
-                  trip.useBudget
-                    ? `${trip.totalBudget.toLocaleString()} บาท`
-                    : "ไม่จำกัดงบ"
-                }
-
-                <br />
-
-                🏷️ หมวดหมู่: {
-                  trip.categories?.length
-                    ? trip.categories.map(c => c.category_name).join(", ")
-                    : "-"
-                }
-              </p>
+          {trip.categories && trip.categories.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Tags size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+              {trip.categories.map((c) => (
+                <span
+                  key={c.category_id}
+                  className="text-sm px-3 py-1 rounded-full border border-[color:var(--line)] text-[color:var(--navy)] bg-white"
+                >
+                  {c.category_name}
+                </span>
+              ))}
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex flex-wrap gap-2 justify-end">
-                <button
-                  onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
-                  className="px-5 py-2.5 rounded-xl bg-[#cea273] hover:bg-[#d4aa85] text-[#102a6b] font-prompt font-semibold text-sm shadow-md transition-colors whitespace-nowrap"
-                >
-                  🔍 แสดงสถานที่แนะนำ
-                </button>
+          )}
 
-                {/* เพิ่มตรงนี้ */}
-                <button
-                  onClick={() =>
-                    navigate(`/trip/${tripIdParam}/edit`)
-                  }
-                  className="px-5 py-2.5 rounded-xl bg-white text-[#102a6b] font-prompt font-semibold text-sm shadow-md hover:bg-gray-100 transition-colors whitespace-nowrap"
->
-                ✏️ แก้ไขข้อมูลทริป
-                </button>
-
-                <button
-                  onClick={handleEditRoute}
-                  disabled={preparingEdit}
-                  className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-prompt font-semibold text-sm border border-white/20 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {preparingEdit ? "กำลังเตรียมข้อมูล..." : "แก้ไขเส้นทาง"}
-                </button>
-              </div>
-              {editActionError && (
-                <p className="text-xs text-red-200 max-w-xs text-right">
-                  {editActionError}
-                </p>
+          {/* Actions */}
+          <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
+            <button
+              onClick={handleEditRoute}
+              disabled={preparingEdit}
+              className={primaryBtn}
+            >
+              {preparingEdit ? (
+                <>
+                  <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+                  กำลังเตรียมข้อมูล...
+                </>
+              ) : (
+                <>
+                  <Route size={18} strokeWidth={1.75} />
+                  แก้ไขเส้นทาง
+                </>
               )}
-            </div>
+            </button>
+
+            <button
+              onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
+              className={secondaryBtn}
+            >
+              <Search size={18} strokeWidth={1.75} />
+              แสดงสถานที่แนะนำ
+            </button>
+
+            <button
+              onClick={() => navigate(`/trip/${tripIdParam}/edit`)}
+              className={ghostBtn}
+            >
+              <Pencil size={18} strokeWidth={1.75} />
+              แก้ไขข้อมูลทริป
+            </button>
           </div>
-        </div>
+
+          {editActionError && (
+            <p
+              role="alert"
+              className="mt-3 flex items-center gap-2 text-sm text-[color:var(--danger)]"
+            >
+              <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0" />
+              {editActionError}
+            </p>
+          )}
+        </section>
 
         {/* ---- แผนที่รวมทุกวัน ---- */}
         <div className="mb-6">
-          <RouteMap startLat={trip.tripStartLat} startLng={trip.tripStartLng} days={mapDays} />
+          <RouteMap
+            startLat={trip.tripStartLat}
+            startLng={trip.tripStartLng}
+            days={mapDays}
+          />
         </div>
 
         {/* ---- สรุปตัวเลข ---- */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-black/5 px-4 py-3 text-center">
-            <p className="font-prompt font-bold text-lg text-[#102a6b]">{days.length}</p>
-            <p className="text-xs text-[#5990c0]">วัน</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-black/5 px-4 py-3 text-center">
-            <p className="font-prompt font-bold text-lg text-[#102a6b]">{totals.places}</p>
-            <p className="text-xs text-[#5990c0]">สถานที่</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-black/5 px-4 py-3 text-center">
-            <p className="font-prompt font-bold text-lg text-[#102a6b]">{formatBaht(totals.cost)}</p>
-            <p className="text-xs text-[#5990c0]">งบที่ใช้ (ประมาณการ)</p>
-          </div>
-        </div>
+        <ul className="grid grid-cols-3 gap-3 mb-6">
+          {stats.map(({ icon: Icon, value, label }) => (
+            <li key={label} className={`${cardClass} px-3 py-4 text-center`}>
+              <Icon
+                size={20}
+                strokeWidth={1.75}
+                className="mx-auto mb-1.5 text-[color:var(--sky)]"
+              />
+              <p className="font-prompt font-semibold text-xl text-[color:var(--navy)]">
+                {value}
+              </p>
+              <p className="text-sm text-[color:var(--muted)]">{label}</p>
+            </li>
+          ))}
+        </ul>
 
         {/* ---- ตารางเวลารายวัน (timeline) ---- */}
         {totals.places === 0 ? (
-          <div className="bg-white/60 border-2 border-dashed border-[#5990c0]/40 rounded-2xl px-6 py-10 text-center">
-            <p className="font-prompt font-semibold text-[#102a6b] mb-2">
+          <div className="bg-white rounded-2xl border-2 border-dashed border-[color:var(--line)] px-6 py-12 flex flex-col items-center gap-3 text-center">
+            <Compass
+              size={40}
+              strokeWidth={1.5}
+              className="text-[color:var(--sky)]"
+            />
+            <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
               ทริปนี้ยังไม่มีแผนเดินทางที่ยืนยันแล้ว
-            </p>
-            <p className="text-sm text-[#5990c0] mb-4">
+            </h2>
+            <p className="text-sm text-[color:var(--muted)] max-w-md">
               เริ่มจากเลือกสถานที่ที่สนใจก่อน ระบบจะช่วยจัดร่างเส้นทางให้อัตโนมัติ
             </p>
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
-              className="px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#102a6b] to-[#015185] shadow-md"
+              className={`${primaryBtn} mt-2`}
             >
+              <Search size={18} strokeWidth={1.75} />
               ไปเลือกสถานที่แนะนำ
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-6">
             {days.map((day) => (
-              <div key={day.tripDayId} className="bg-white/60 rounded-2xl px-5 py-5">
+              <section key={day.tripDayId} className={`${cardClass} px-5 sm:px-6 py-5`}>
                 <div className="mb-4 flex items-baseline justify-between flex-wrap gap-2">
-                  <h3 className="font-prompt font-bold text-base text-[#102a6b]">
-                    วันที่ {day.dayNumber} — {formatVisitDate(day.visitDate)}
-                  </h3>
+                  <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
+                    วันที่ {day.dayNumber}
+                    <span className="font-normal text-[color:var(--deep)] text-base">
+                      {" "}
+                      — {formatVisitDate(day.visitDate)}
+                    </span>
+                  </h2>
                   {day.dailyBudget !== null && (
-                    <span className="text-xs text-[#5990c0]">งบวันนี้ {formatBaht(day.dailyBudget)}</span>
+                    <span className="text-sm text-[color:var(--muted)]">
+                      งบวันนี้ {formatBaht(day.dailyBudget)}
+                    </span>
                   )}
                 </div>
 
                 {day.items.length === 0 ? (
-                  <p className="text-xs text-[#5990c0] py-4 text-center">ไม่มีสถานที่ในวันนี้</p>
+                  <p className="text-sm text-[color:var(--muted)] py-4 text-center">
+                    ไม่มีสถานที่ในวันนี้
+                  </p>
                 ) : (
                   day.items.map((item, idx) => (
-                    <TimelineStop key={item.placeId} item={item} isLast={idx === day.items.length - 1} />
+                    <TimelineStop
+                      key={item.placeId}
+                      item={item}
+                      next={day.items[idx + 1]}
+                      isLast={idx === day.items.length - 1}
+                    />
                   ))
                 )}
-              </div>
+              </section>
             ))}
           </div>
         )}
