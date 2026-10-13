@@ -1,5 +1,5 @@
 import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
-import type { PriceNature } from "./poiPlaceQueries";
+import type { PriceNature, EnvironmentType } from "./poiPlaceQueries";
 
 /**
  * แปลง price_level (0-4) เป็นราคาบาทโดยประมาณ
@@ -44,10 +44,40 @@ export function calculateDistanceScore(distanceKm: number): number {
 }
 
 /**
- * weather_score: mock คงที่ไปก่อน รอเชื่อม Weather API จริงในอนาคต
+ * สัดส่วนที่สถานที่ได้รับผลจากฝน ตาม categories.environment_type
+ * เกณฑ์จัดกลุ่ม: "ระหว่างทำกิจกรรมหลักของสถานที่นั้น ส่วนใหญ่อยู่ในที่ที่ฝนตกใส่ได้หรือไม่"
+ * OUTDOOR = โดนเต็มที่, MIXED = มีทั้งกลางแจ้ง/ในร่ม (ค่ากลาง ไม่มีข้อมูลว่าส่วนไหนมากกว่า),
+ * INDOOR = ไม่โดนเลย — ค่าเหล่านี้เป็นพารามิเตอร์ที่ทีมกำหนด ไม่มีมาตรฐานกลาง
+ * (ควรทำ sensitivity analysis ของค่า MIXED ที่ 0.3/0.5/0.7 ในรายงาน)
  */
-export function calculateWeatherScore(): number {
-  return 1.0;
+const RAIN_EXPOSURE: Record<EnvironmentType, number> = {
+  OUTDOOR: 1,
+  MIXED: 0.5,
+  INDOOR: 0,
+};
+
+/**
+ * weather_score (0-1, ยิ่งสูงยิ่งดี): พิจารณาโอกาสฝนตกอย่างเดียว (v1)
+ *
+ * สูตร: score = exposure × (1 − rainProbability/100) + (1 − exposure) × 1
+ * - สถานที่ในร่ม (exposure 0) ได้ 1.0 เสมอ ไม่ถูกลงโทษเพราะฝน
+ * - สถานที่กลางแจ้ง (exposure 1) ได้ตามโอกาสฝนจริง
+ * - rainProbability = null (ไม่มีพยากรณ์: API ล่ม/timeout หรือวันเดินทางไกลเกินช่วงพยากรณ์)
+ *   → คืน 1.0 ทุกสถานที่ ค่าเท่ากันหมด อันดับจึงไม่เปลี่ยนและไม่ต้องปรับ weight
+ *
+ * rainProbability รับเป็นเปอร์เซ็นต์ 0-100 (precipitation_probability_max ของ Open-Meteo)
+ * ปัจจัยอื่น (ความร้อน, UV, ลม, PM2.5) ยังไม่รวม — เป็นแนวทางพัฒนาต่อ
+ */
+export function calculateWeatherScore(
+  environmentType: EnvironmentType,
+  rainProbability: number | null
+): number {
+  if (rainProbability === null || !Number.isFinite(rainProbability)) return 1.0;
+
+  const rain = Math.min(1, Math.max(0, rainProbability / 100));
+  const exposure = RAIN_EXPOSURE[environmentType] ?? RAIN_EXPOSURE.MIXED;
+
+  return exposure * (1 - rain) + (1 - exposure) * 1;
 }
 
 // ---------- budget/price score (v2 — เขียนใหม่ทั้งหมด ดู PRICE_SCORE_REDESIGN.md) ----------
@@ -192,12 +222,16 @@ export function calculatePoiScore(
   numberOfPeople: number,
   rawPriceLevel: number | null,
   priceNature: PriceNature,
-  useBudget: boolean
+  useBudget: boolean,
+  // ✅ ใหม่ (weather): environment_type ของ category ที่ชนะ + โอกาสฝน (%) ของวัน/พื้นที่ของ place นี้
+  // rainProbability = null ได้ (ไม่มีพยากรณ์ → weather_score = 1.0 ทุกที่ ตาม fallback)
+  environmentType: EnvironmentType,
+  rainProbability: number | null
 ): PoiScoreBreakdown {
   const categoryScore = calculateCategoryScore(confidenceScore);
   const ratingScore = calculateRatingScore(rating);
   const distanceScore = calculateDistanceScore(distanceKm);
-  const weatherScore = calculateWeatherScore();
+  const weatherScore = calculateWeatherScore(environmentType, rainProbability);
 
   // ✅ placeCost/perPersonDailyBudget เป็นข้อมูลแสดงผลล้วนๆ ไม่เข้าสูตรคะแนนแล้ว —
   // คำนวณแยกจาก useBudget เสมอ (แม้ useBudget=false ก็ยังอยากให้ frontend โชว์ราคาได้ถ้ารู้จริง)

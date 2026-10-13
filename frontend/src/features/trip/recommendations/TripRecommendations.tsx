@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowLeft, Check, ChevronDown, Clock, Globe, Info, ListChecks, Loader2, MapPin, Navigation, Phone,
@@ -8,6 +8,8 @@ import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../auth/hooks/useAuth";
+import RecommendationMap, { categoryColor } from "../recommendations/RecommendationMap";
+import type { MapFocus, MapPlace } from "../recommendations/RecommendationMap";
 
 // ✅ ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
 type PriceConfidence = "real" | "inferred_high" | "inferred_low" | null;
@@ -194,6 +196,13 @@ export default function TripRecommendations() {
   // ✅ ตัวกรองหมวดหมู่ที่เลือกไว้ — null = แสดงทุกหมวดหมู่
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // ✅ แผนที่: view ใช้สลับแท็บรายการ/แผนที่บนมือถือ · focus ใช้สั่งให้แผนที่เลื่อนไปที่หมุด + ไฮไลต์การ์ด
+  const [view, setView] = useState<"list" | "map">("list");
+  const [focus, setFocus] = useState<MapFocus | null>(null);
+
+  // ✅ กันเรียก calculate-poi ซ้ำสำหรับทริปเดิม (StrictMode / session เปลี่ยน reference)
+  const fetchedForTripRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -207,6 +216,9 @@ export default function TripRecommendations() {
       setLoading(false);
       return;
     }
+
+    if (fetchedForTripRef.current === tripId) return;
+    fetchedForTripRef.current = tripId;
 
     const fetchData = async () => {
       setLoading(true);
@@ -400,6 +412,42 @@ export default function TripRecommendations() {
     return places.filter((p) => p.categoryName === selectedCategory);
   }, [places, selectedCategory]);
 
+  // ✅ หมุดบนแผนที่ — ใช้ชุดเดียวกับการ์ดที่แสดงอยู่ (หลังกรองหมวดหมู่) เลขอันดับตรงกับบนการ์ด
+  const mapPlaces = useMemo<MapPlace[]>(() => {
+    const rank = new Map(places.map((p, i) => [p.placeId, i + 1]));
+    return displayedPlaces.flatMap((item) => {
+      const p = item.place;
+      if (!p) return [];
+      return [
+        {
+          placeId: item.placeId,
+          name: p.place_name,
+          lat: Number(p.latitude),
+          lng: Number(p.longitude),
+          categoryName: item.categoryName,
+          rank: rank.get(item.placeId) ?? 0,
+          score: Math.round(item.poiScore * 100),
+        },
+      ];
+    });
+  }, [places, displayedPlaces]);
+
+  const handleShowOnMap = (placeId: string) => {
+    setFocus({ id: placeId, nonce: Date.now() });
+    setView("map");
+  };
+
+  const handleShowCard = (placeId: string) => {
+    setFocus({ id: placeId, nonce: Date.now() });
+    setView("list");
+    // รอให้แท็บรายการ (มือถือ) แสดงก่อนค่อยเลื่อน
+    setTimeout(() => {
+      document
+        .getElementById(`place-card-${placeId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  };
+
   const rankOf = new Map(places.map((p, i) => [p.placeId, i + 1]));
 
 
@@ -422,11 +470,14 @@ export default function TripRecommendations() {
     return (
       <li
         key={item.placeId}
+        id={`place-card-${item.placeId}`}
         className={`flex items-start gap-4 bg-white rounded-2xl border-2 p-4 sm:p-5 [box-shadow:var(--shadow)] transition-colors duration-200 ${
           isCustomMode && selected
             ? "border-[color:var(--navy)]"
             : "border-[color:var(--line)]"
-        } ${isCustomMode && !selected ? "opacity-80" : ""}`}
+        } ${isCustomMode && !selected ? "opacity-80" : ""} ${
+          focus?.id === item.placeId ? "ring-2 ring-[color:var(--sky)]" : ""
+        }`}
       >
         <span className="shrink-0 w-10 h-10 rounded-full bg-[color:var(--navy)] text-white font-prompt font-semibold flex items-center justify-center">
           {rankOf.get(item.placeId)}
@@ -551,6 +602,17 @@ export default function TripRecommendations() {
             <p className="text-xs text-[color:var(--muted)] mt-1">คะแนนรวม</p>
           </div>
 
+          {p && (
+            <button
+              type="button"
+              onClick={() => handleShowOnMap(item.placeId)}
+              aria-label={`ดู ${p.place_name} บนแผนที่`}
+              className="w-11 h-11 rounded-full border-2 border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)] flex items-center justify-center active:scale-95 transition-all duration-200"
+            >
+              <MapPin size={20} strokeWidth={1.75} />
+            </button>
+          )}
+
           {isCustomMode && (
             <button
               type="button"
@@ -575,7 +637,7 @@ export default function TripRecommendations() {
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
       <Navbar />
 
-      <main className={`max-w-5xl mx-auto px-4 sm:px-8 py-6 ${isCustomMode ? "pb-28" : ""}`}>
+      <main className={`max-w-6xl mx-auto px-4 sm:px-8 py-6 ${isCustomMode ? "pb-28" : ""}`}>
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -721,6 +783,10 @@ export default function TripRecommendations() {
                       onClick={() => setSelectedCategory(cat)}
                       className={chipClass(selectedCategory === cat)}
                     >
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
+                        style={{ background: categoryColor(cat) }}
+                      />
                       {cat} ({count})
                     </button>
                   );
@@ -728,11 +794,47 @@ export default function TripRecommendations() {
               </div>
             )}
 
-            {displayedPlaces.length === 0 ? (
-              <StateCard icon={SearchX} text="ไม่มีสถานที่ในหมวดหมู่นี้" />
-            ) : (
-              <ul className="flex flex-col gap-3">{displayedPlaces.map(renderCard)}</ul>
-            )}
+            {/* สลับมุมมองบนมือถือ (จอใหญ่แสดงรายการ + แผนที่คู่กัน) */}
+            <div className="flex gap-2 mb-4 lg:hidden">
+              <button
+                type="button"
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+                className={chipClass(view === "list")}
+              >
+                รายการ
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === "map"}
+                onClick={() => setView("map")}
+                className={chipClass(view === "map")}
+              >
+                แผนที่
+              </button>
+            </div>
+
+            <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+              <div className={view === "map" ? "hidden lg:block" : ""}>
+                {displayedPlaces.length === 0 ? (
+                  <StateCard icon={SearchX} text="ไม่มีสถานที่ในหมวดหมู่นี้" />
+                ) : (
+                  <ul className="flex flex-col gap-3">{displayedPlaces.map(renderCard)}</ul>
+                )}
+              </div>
+
+              <div className={`${view === "list" ? "hidden lg:block" : ""} lg:sticky lg:top-4`}>
+                <RecommendationMap
+                  className="h-[70vh] lg:h-[calc(100vh-2rem)]"
+                  places={mapPlaces}
+                  selectedIds={selectedPlaceIds}
+                  isCustomMode={isCustomMode}
+                  focus={focus}
+                  onShowCard={handleShowCard}
+                  onToggleSelect={togglePlace}
+                />
+              </div>
+            </div>
           </>
         )}
       </main>

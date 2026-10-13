@@ -4,6 +4,12 @@ import { AuthRequest } from "../auth/authMiddleware";
 import { getTripInfo, getFilteredPlaces } from "./poiPlaceQueries";
 import { calculatePoiScore } from "./poiScoreCalculator";
 import { getRoadDistancesKm } from "../../utils/orsDistance";
+import { getAverageRainProbability, gridKey } from "../../utils/weatherForecast";
+import {
+  debugOpenMeteo,
+  debugRainGrid,
+  explainWeatherScore,
+} from "../../utils/weatherDebug";
 
 const RESULT_LIMIT = 50;
 
@@ -68,6 +74,17 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       places
     );
 
+    // 2.6 โอกาสฝนเฉลี่ยของช่วงวันเดินทาง (Open-Meteo, ยิง batch ครั้งเดียวต่อคำขอ + cache)
+    // ไม่ throw — ถ้า API ล่ม/วันเดินทางเกินช่วงพยากรณ์ จะได้ Map ว่าง → rainProbability = null
+    // → weather_score = 1.0 ทุก place (ค่าเท่ากันหมด อันดับไม่เปลี่ยน)
+    const rainByGrid = await getAverageRainProbability(
+      places.map((p) => ({ lat: Number(p.latitude), lng: Number(p.longitude) })),
+      trip.startDate,
+      trip.endDate
+    );
+    await debugOpenMeteo(trip.startLat, trip.startLng, trip.startDate, trip.endDate);
+debugRainGrid(rainByGrid, places, gridKey);
+
     // 3. คำนวณคะแนนทุก place
     const scoredPlaces = places.map((place) => {
       // ทุก placeId ใน places มีค่าใน distancesKm เสมอ (รับประกันโดย getRoadDistancesKm)
@@ -81,7 +98,9 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
   trip.numberOfPeople,
   place.rawPriceLevel,
   place.priceNature,
-  trip.useBudget
+  trip.useBudget,
+  place.environmentType,
+  rainByGrid.get(gridKey(Number(place.latitude), Number(place.longitude))) ?? null
 );
 
       return {
@@ -95,9 +114,42 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    // 4. เรียงคะแนนมากไปน้อย ตัดเหลือ 50 อันดับแรก
+        // 4. เรียงคะแนนมากไปน้อย ตัดเหลือ 50 อันดับแรก
     scoredPlaces.sort((a, b) => b.poiScore - a.poiScore);
     const topResults = scoredPlaces.slice(0, RESULT_LIMIT);
+
+    const logPlace = (r: (typeof topResults)[number], rank: number) => {
+      const p = places.find((x) => x.placeId === r.placeId);
+      console.log(`[POI] #${rank} ${p?.categoryName} | place=${r.placeId}`, {
+        conf: p?.confidenceScore,
+        rating: p?.rating,
+        rawPriceLevel: p?.rawPriceLevel,
+        priceNature: p?.priceNature,
+        env: p?.environmentType,
+        ...r,
+      });
+
+      // ⬇️ ย้ายเข้ามาอยู่ใน logPlace (ต้องใช้ p กับ r ของฟังก์ชันนี้)
+      if (p) {
+        const rain =
+          rainByGrid.get(gridKey(Number(p.latitude), Number(p.longitude))) ?? null;
+        const budgetWeight =
+          r.budgetScore === null || r.priceConfidence === "inferred_low" ? 0 : 0.15;
+        explainWeatherScore(
+          `${p.categoryName} (${r.placeId})`,
+          p.environmentType,
+          rain,
+          budgetWeight,
+          r.weatherScore
+        );
+      }
+    };
+
+    topResults.slice(0, 3).forEach((r, i) => logPlace(r, i + 1));
+    if (topResults.length > 3) {
+      const start = Math.max(3, topResults.length - 3);
+      topResults.slice(start).forEach((r, i) => logPlace(r, start + i + 1));
+    }
 
     // 5. Upsert ลง poi_scores (มี unique constraint (trip_id, place_id) แล้ว)
     const upsertRows = topResults.map((result) => ({
@@ -127,6 +179,8 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       message: "คำนวณคะแนนสถานที่สำเร็จ",
       categoryFallbackUsed,
       distanceSource, // "ors" | "haversine" | "mixed"
+      // true = มีพยากรณ์ฝนอย่างน้อยหนึ่งพื้นที่ (false = ใช้ fallback weather_score 1.0 ทุก place)
+      weatherAvailable: rainByGrid.size > 0,
       results: topResults,
     });
   } catch (err: any) {

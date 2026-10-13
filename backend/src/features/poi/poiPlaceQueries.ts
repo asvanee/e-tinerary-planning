@@ -8,6 +8,11 @@ import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
 // mapping/normalize ชั้นพิเศษในโค้ด — อ่านค่าดิบจาก DB มาใช้ตรงๆ ได้เลย
 export type PriceNature = "free" | "paid";
 
+// ✅ ใหม่ (weather): ตรงกับ CHECK constraint ของ categories.environment_type
+// ใช้บอกว่า category นั้นโดนฝนกระทบแค่ไหน (OUTDOOR=1, MIXED=0.5, INDOOR=0 — แปลงเป็นตัวเลขใน
+// poiScoreCalculator.ts ไม่ใช่ที่นี่ ไฟล์นี้แค่ส่งค่าดิบจาก DB ต่อไปเฉยๆ)
+export type EnvironmentType = "INDOOR" | "OUTDOOR" | "MIXED";
+
 /**
  * ✅ ใหม่: ใช้แทน categories.default_price_level ที่เลิกใช้แล้ว (ดู PRICE_SCORE_REDESIGN.md)
  * ใช้เฉพาะตอน place ไม่มี price_level จริง เพื่อประมาณราคาให้ hard filter งบเทียบได้
@@ -42,6 +47,10 @@ export interface TripInfo {
   numberOfPeople: number;
   availableTimePerDay: number | null; // ชั่วโมง ตาม schema ของ trips
   useBudget: boolean;
+  // ✅ ใหม่ (weather): ช่วงวันเดินทางจาก trips.start_date / end_date (คอลัมน์ date, not null)
+  // รูปแบบ "YYYY-MM-DD" — ใช้ดึงโอกาสฝนเฉลี่ยของช่วงวันเดินทาง (ดู utils/weatherForecast.ts)
+  startDate: string;
+  endDate: string;
 }
 
 export interface PlaceWithScore {
@@ -72,6 +81,10 @@ export interface PlaceWithScore {
   confidenceScore: number | null;
   defaultDurationMin: number;
   categoryName: string;
+
+  // ✅ ใหม่ (weather): environment_type ของ category ที่ confidence_score สูงสุด (best-match
+  // เดียวกับ categoryName/defaultDurationMin/priceNature ด้านบน) ใช้คำนวณ weather_score
+  environmentType: EnvironmentType;
 }
 
 export interface FilteredPlacesResult {
@@ -86,7 +99,7 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
   const { data, error } = await supabase
     .from("trips")
     .select(
-  "user_id, province, district, start_lat, start_lng, daily_budget, number_of_people, available_time_per_day, use_budget"
+  "user_id, province, district, start_lat, start_lng, daily_budget, number_of_people, available_time_per_day, use_budget, start_date, end_date"
 )
     .eq("trip_id", tripId)
     .single();
@@ -105,6 +118,8 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
   numberOfPeople: data.number_of_people,
   availableTimePerDay: data.available_time_per_day,
   useBudget: data.use_budget ?? false,
+  startDate: data.start_date,
+  endDate: data.end_date,
 };
 }
 
@@ -236,7 +251,7 @@ async function queryPlacesWithCategoryInfo(
   let query = supabase
     .from("place_categories")
     .select(
-      "category_id, confidence_score, categories!inner(default_duration_min, price_nature, category_name), places!inner(place_id, latitude, longitude, rating, price_level, province, district)"
+      "category_id, confidence_score, categories!inner(default_duration_min, price_nature, category_name, environment_type), places!inner(place_id, latitude, longitude, rating, price_level, province, district)"
     )
     .eq("places.province", locationFilter.province);
 
@@ -328,6 +343,8 @@ async function queryPlacesWithCategoryInfo(
 
   categoryName:
     row.categories.category_name,
+
+  environmentType: row.categories.environment_type as EnvironmentType,
 };
   });
 }
