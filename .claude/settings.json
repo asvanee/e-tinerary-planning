@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./backend/.env)",
+      "Read(./frontend/.env)",
+      "Read(./data-pipeline/.env)",
+      "Read(./**/.env)",
+      "Read(./**/.env.local)"
+    ],
+    "ask": [
+      "Bash(npm run upload:*)",
+      "Bash(npm run fetch-gmaps-categories:*)",
+      "Bash(npm run find:collisions:*)",
+      "Bash(npm run test:province*)",
+      "Bash(npm run test:dedupe*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git rebase:*)",
+      "Bash(git filter-repo:*)",
+      "Bash(rm -rf:*)"
+    ]
+  }
+}

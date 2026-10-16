@@ -1,0 +1,85 @@
+# CLAUDE.md — E-tinerary Planning
+
+คู่มือการทำงานของ Claude Code ใน repo นี้ อ่านทุกครั้งก่อนเริ่มงาน รายละเอียดเชิงลึกแยกไว้ใน `docs/` และ `.claude/skills/`
+
+## โปรเจกต์คืออะไร
+เว็บวางแผนทริปท่องเที่ยวในไทย (UI และข้อความภาษาไทย): สร้างทริป → ระบบให้คะแนนสถานที่ (POI score) → ผู้ใช้ลากจัดลงวัน (หรือใช้ Auto Trip) → backend ตรวจซ้ำแล้วบันทึก
+แยกเป็น 3 package อิสระ ไม่มี workspace รวม ต้อง `cd` เข้าไปในแต่ละ package ก่อนรันคำสั่ง
+
+| Package | Stack | Entry |
+|---|---|---|
+| `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` (`src/app.ts` เป็น dead code) |
+| `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
+| `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase | `package.json` scripts |
+
+ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md`
+
+## คำสั่งที่มีอยู่จริง
+```bash
+# backend
+cd backend && npm run dev          # ts-node-dev src/server.ts (ต้องมี .env และ Supabase ต้องเชื่อมต่อได้ ไม่งั้น exit 1)
+cd backend && npx tsc --noEmit     # type check (ไม่มี script build/lint)
+cd backend && npm test             # jest — ยังไม่มีไฟล์ test
+
+# frontend  (dev proxy /api → http://localhost:5000)
+cd frontend && npm run dev
+cd frontend && npm run build       # tsc -b && vite build
+cd frontend && npm run lint
+cd frontend && npm test            # vitest run — ยังไม่มีไฟล์ test
+```
+`data-pipeline` scripts (`upload:*`, `fetch-gmaps-categories:*`) **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** — ห้ามรันจนกว่าผู้ใช้จะสั่งชัดเจนเป็นครั้งๆ ส่วน `test:*` / `find:collisions:*` อ่าน CSV อย่างเดียว แต่ก็ยังควรถามก่อนรัน
+
+Baseline ณ commit `0c980bd`: backend tsc ✅ · frontend `tsc -b` ❌ (มี 1 error) · eslint ❌ 34 errors / 4 warnings ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+
+## กฎการทำงาน (ต้องทำทุกครั้ง)
+1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด
+2. **แก้เท่าที่งานต้องการ** ห้าม reformat, normalize line ending (repo มีทั้ง CRLF และ LF), rename หรือ refactor ไฟล์ที่ไม่เกี่ยวกับงาน และห้ามลบ comment "✅ มติ…" ถ้าไม่ได้รับอนุญาต
+3. **ห้ามสมมติว่าฟีเจอร์/API/ตารางทำงานตามที่คาด** repo ไม่มี DB schema ถ้าต้องรู้ schema/RLS ให้ถามผู้ใช้
+4. **ก่อนทำงานที่มีความเสี่ยง** (เปลี่ยน logic คะแนน/งบ/เวลา, query ที่ลบหรือเขียนข้อมูล, auth, ไฟล์ mirror, dependency, git history) ให้สรุปแนวทาง ไฟล์ที่กระทบ และผลกระทบ แล้วรอผู้ใช้ยืนยันก่อน
+5. **หลังแก้** ต้องรายงาน: ไฟล์ที่เปลี่ยน · เปลี่ยนอะไรและเพราะอะไร · คำสั่งตรวจที่รันจริงพร้อมผลลัพธ์ · สิ่งที่ยังไม่ได้ตรวจ ถ้ารันไม่ได้ให้บอกเหตุผล และห้ามอ้างว่าผ่าน
+6. **เจอปัญหาที่ไม่เกี่ยวกับงาน** ให้รายงานแยก (หรือเสนอเพิ่มใน DEVELOPMENT_STATUS) ห้ามแก้เอง
+7. **ข้อมูลไม่พอหรือข้อกำหนดขัดกัน** (เช่น docs กับโค้ดไม่ตรงกัน หรือ DECISIONS กับคำสั่งผู้ใช้ไม่ตรงกัน) ให้หยุดแล้วถามเป็นชุดเดียว พร้อมบอกว่าแต่ละทางเลือกจะทำอะไรบ้าง
+8. **ห้ามลบหรือเขียนทับข้อมูลสำคัญ** (ไฟล์, ตาราง, `.env`, branch, history) ถ้าไม่ได้รับอนุญาต ห้าม `git push --force`, `git filter-repo` หรือ `git reset --hard` เอง
+9. ใช้ docs/สถานะเป็นข้อมูลประกอบเท่านั้น ต้องตรวจโค้ดจริงก่อนตัดสินใจเสมอ
+
+## Secrets และ Environment
+- `.env` อยู่ใน `backend/`, `frontend/`, `data-pipeline/` **ห้ามเปิดอ่าน แสดง copy หรือ log ค่าเหล่านี้** ถ้าต้องรู้ว่ามีตัวแปรอะไร ให้ดูจาก `.env.example` หรือ grep `process.env` / `import.meta.env` ในโค้ด
+- ห้ามใส่ key/token ลงในโค้ด docs ตัวอย่างคำสั่ง หรือ commit message
+- ตัวแปร `VITE_*` ถูกฝังลงใน bundle ฝั่ง browser ห้ามใส่ secret ที่เป็นของ server ลงใน `VITE_*` เด็ดขาด
+- Backend ใช้ `SUPABASE_SERVICE_ROLE_KEY` ซึ่ง **ข้าม RLS** query ทุกตัวที่แตะข้อมูลของผู้ใช้จึงต้องกรองด้วย `user_id` เอง (ดู skill `supabase-data-access`)
+- เพิ่ม env ใหม่ต้องอัปเดต `.env.example` และตารางในหัวข้อ 9 ของ `docs/PROJECT_OVERVIEW.md`
+- `.env` ของทุก package เคยหลุดอยู่ใน git history (ดู DEVELOPMENT_STATUS Known Issue #1) ห้าม commit `.env` หรือ zip ที่มี `.env` อยู่ข้างใน
+
+## Security checklist สำหรับ endpoint
+- ทุก route ที่ใช้ข้อมูลทริปต้องมี `requireAuth` **และ** ตรวจความเป็นเจ้าของ (`getTripOwnerAndStart(tripId).userId === req.user.id` หรือ `.eq("user_id", userId)`)
+- ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)` ตาม pattern เดิม
+- อย่าเชื่อระยะทาง/เวลา/ราคาที่ frontend ส่งมา ให้ backend คำนวณซ้ำเอง (ทำแบบเดียวกับ `confirmItinerary`)
+
+## Conventions
+- Backend: `src/features/<feature>/<feature>Routes.ts` + `<feature>Controller.ts` (+ `*PlaceQueries.ts`, `*Builder.ts`), ใส่ shared helper ใน `src/utils/`, mount route ใน `src/server.ts` · คืน `res.status(x).json({ message: "<ภาษาไทย>" })` · ใน controller ให้ใช้ `try/catch` แล้ว `console.error` พร้อมชื่อ context
+- Frontend: `src/features/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
+- **ชื่อไฟล์และ import ต้องตรงกันทุกตัวอักษร (case-sensitive)** แม้ Windows จะไม่ฟ้อง เพราะ CI/Linux จะ fail
+- TypeScript strict ห้ามเพิ่ม `any` ใหม่ (มีค้างอยู่ 24 จุด) ให้ใช้ type ที่ชัดเจนแทน
+- Comment และข้อความ UI เป็นภาษาไทยตามสไตล์เดิม
+
+## จุดที่ต้องระวังเป็นพิเศษ
+- **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
+- **Multi-category dedupe** (เลือก `confidence_score` สูงสุด) ต้องใช้เกณฑ์เดียวกันในทุก query
+- **ลำดับ filter ของ POI** (province → category+fallback → budget → time) ห้ามสลับ
+- `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
+- `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน
+
+## Skills ในโปรเจกต์ (`.claude/skills/`)
+| Skill | ใช้เมื่อ |
+|---|---|
+| `feature-development` | เพิ่ม/แก้ฟีเจอร์ที่แตะ route, controller หรือหน้า UI |
+| `bug-investigation` | มี bug, error หรือพฤติกรรมผิดปกติ |
+| `itinerary-mirror-sync` | แก้ logic เวลา/ระยะทาง/ราคา/เวลาเปิด-ปิด/conflict ของ itinerary |
+| `supabase-data-access` | เพิ่มหรือแก้ query Supabase, ตาราง หรือ ownership |
+| `verify-changes` | หลังแก้โค้ดทุกครั้ง ก่อนรายงานว่าเสร็จ |
+| `update-project-docs` | งานสำคัญเสร็จ หรือเปลี่ยนสถานะ/มติ/env |
+
+## เริ่ม Session ใหม่
+1. อ่าน `docs/DEVELOPMENT_STATUS.md` และงานที่กำลังทำใน `docs/DEVELOPMENT_PLAN.md`
+2. `git status` และ `git log --oneline -10` เพื่อดูว่างานค้างอยู่ตรงไหน
+3. ยืนยันกับผู้ใช้ว่าจะทำงานไหน แล้วทำบน branch แยก
