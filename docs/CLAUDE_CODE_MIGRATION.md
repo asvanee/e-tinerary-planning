@@ -107,7 +107,8 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 | `npm run build` fail ที่ `tsc -b` | Known Issue #4 | DEVELOPMENT_PLAN T2 |
 | build ผ่านบน Windows แต่ fail บน Linux/CI | ตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์ (Known Issues #2, #3) | T2 |
 | `Cannot find module @rollup/rollup-linux-…` หรือ `@esbuild/linux-x64` | ใช้ `node_modules` ของ Windows บน Linux | `npm ci` ใหม่ใน OS นั้น |
-| `npm test` ของ backend error เรื่อง ts-jest | jest 30 / ts-jest 29 ไม่ตรงกัน | T16 (ต้องอนุญาตให้เปลี่ยน dependency ก่อน) |
+| `npm test` (backend/frontend) จบด้วย exit 1 "No tests found" | ยังไม่มีไฟล์ test (บน Windows jest/vitest รันได้แล้ว ตรวจ 2026-10-16) | เป็นพฤติกรรมปกติจนกว่าจะเพิ่มไฟล์ test |
+| `npm test` ของ backend error เรื่อง ts-jest | jest 30 / ts-jest 29 ไม่ตรงกัน — เคยเจอบน Linux และอาจเกิดเมื่อเริ่มมีไฟล์ test จริง | T16 (ต้องอนุญาตให้เปลี่ยน dependency ก่อน) |
 | ทุก request ได้ 401 หลังใช้งานไปสักพัก | access token หมดอายุ และไม่มีโค้ด refresh | logout/login ใหม่ · T12 |
 | ระยะทางเป็น "haversine" ทั้งหมด | ไม่มี/ใส่ `ORS_API_KEY` ผิด หรือโควต้าหมด | ดู warning `[orsTravelMatrix]` ใน log |
 | weather score = 1.0 ทุกที่ | วันเดินทางอยู่เกิน 15 วันจากวันนี้ หรือ Open-Meteo ล่ม | เป็นพฤติกรรมที่ออกแบบไว้ (D-16) |
@@ -125,6 +126,7 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 - [ ] backend + frontend dev server รันได้ และ login ได้
 - [ ] ตอบคำถามค้างใน DEVELOPMENT_PLAN (T5, T6, T7) แล้วบันทึกลง DECISIONS
 - [ ] นำเอกสารเดิมที่โค้ดอ้างถึงใส่ `docs/legacy/` แล้ว (ถ้ามี)
+- [x] ทดสอบแล้ว (2026-10-16): กฎ `permissions.ask` ใน `.claude/settings.json` ทำงานจริงใน Auto mode — มีหน้าต่างขออนุญาตตอนรัน `git branch` ผ่าน Bash tool (ยังไม่ได้ทดสอบ rule ฝั่ง `PowerShell(...)`)
 
 ## 11. Prompts สำเร็จรูป
 

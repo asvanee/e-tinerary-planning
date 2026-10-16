@@ -12,8 +12,9 @@
 | `frontend`: `tsc -b` (ขั้นแรกของ `npm run build`) | ❌ **ไม่ผ่าน** — `auto.tsx(108,10) TS6133: 'loading' is declared but its value is never read` | แปลว่า `npm run build` จะหยุดตั้งแต่ขั้นนี้ |
 | `frontend`: `eslint .` | ❌ 38 problems (34 errors, 4 warnings) — `no-explicit-any` 24, `no-unused-vars` 5, `react-hooks/exhaustive-deps` 4, `react-hooks/set-state-in-effect` 2, `react-refresh/only-export-components` 2, `react-hooks/refs` 1 | |
 | `frontend`: `vite build` | ⚠️ **ไม่ได้รัน** | node_modules เป็น binary ของ Windows และ environment ที่ใช้ตรวจเข้าถึง npm registry ไม่ได้ |
-| `frontend`: `vitest run` | ⚠️ รันไม่ขึ้น (ไม่พบ native rollup ของ Linux) | ไม่มีไฟล์ test อยู่แล้ว |
-| `backend`: `jest` | ⚠️ รันไม่ขึ้นใน environment ที่ตรวจ (`Module ts-jest in the transform option was not found`) | ไม่มีไฟล์ test; jest 30 กับ ts-jest 29 major version ไม่ตรงกัน — ต้องตรวจบน Windows |
+| `frontend`: `vitest run` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx vitest run` 2026-10-16) | ไม่มีไฟล์ test อยู่แล้ว `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · บน Linux เคยรันไม่ขึ้นเพราะไม่พบ native rollup ของ Linux |
+| `backend`: `jest` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx jest` 2026-10-16) | ไม่มีไฟล์ test `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ยังไม่รู้ว่าจะมีปัญหาตอนมี test จริงหรือไม่ เพราะยังไม่มีไฟล์ไหนผ่าน transform |
+| `backend/src`: นับ `any` (grep คำว่า `any` ทั้งคำ ไม่นับบรรทัด comment) | ประมาณ 39 จุด (ตรวจ 2026-10-16) | backend ไม่มี lint จึงไม่ถูกนับรวมกับ `no-explicit-any` 24 จุดของ frontend |
 | ไฟล์ test (`*.test.*`, `*.spec.*`, `__tests__`) | ไม่พบเลย | |
 
 ## Implemented (มีโค้ดครบ flow — ยังไม่ได้ยืนยันว่าทำงานจริง)
@@ -83,6 +84,7 @@
 | 16 | ⚪ Dead code | `backend/src/app.ts`, `features/itinerary/routeCalculator.ts`, `frontend/src/config/db.ts`, `frontend/src/features/auth/authAPI.ts` ไม่มีไฟล์ใด import · `pg`/`postgres`/`axios` ใน backend dependencies ไม่ได้ใช้ | grep |
 | 17 | ⚪ Repo | zip ขนาดใหญ่ (~80 MB) อยู่ใน history ทำให้ clone ช้า | commit `060c798` |
 | 18 | ⚪ Lint | 34 ESLint errors (ส่วนใหญ่เป็น `any`) และมี `react-hooks/refs` ใน `RecommendationMap.tsx:209` ซึ่งอาจทำให้ UI ไม่อัปเดตตามที่ควร | ผลการรัน |
+| 19 | ⚪ Docs | comment ของ `getAutoTripPlacesTest` เขียนว่า `GET /api/itinerary/trips/:tripId/auto-test` แต่ route จริงคือ `/auto-places` | `itineraryController.ts:418`, `itineraryRoutes.ts:23` |
 
 ## ข้อสันนิษฐาน (ยังไม่ใช่ข้อเท็จจริง)
 - เป็นโปรเจกต์ของนักศึกษา/ทีมเล็ก (มี comment ว่า "ควรทำ sensitivity analysis … ในรายงาน") — ใช้เป็นบริบทเท่านั้น
