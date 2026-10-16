@@ -53,11 +53,11 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 ถ้าจะรันใน WSL/Linux ต้อง `npm ci` ใหม่ในสภาพแวดล้อมนั้น เพราะ native binary (esbuild/rollup/tailwind oxide) ของ Windows ใช้บน Linux ไม่ได้ ควร clone แยกไว้อีกชุด ไม่ควรใช้ `node_modules` ร่วมกันข้าม OS
 
 ## 4. เปิดโปรเจกต์และเริ่ม Session แรก
-1. สร้าง branch สำหรับงานตั้งค่า:
+1. ตรวจว่าอยู่บน branch `dev` และ working tree ว่าง (ห้ามสร้าง branch ใหม่ — ดู D-21):
    ```bash
    git checkout dev
    git pull            # ถ้าทำงานหลายเครื่อง
-   git checkout -b chore/claude-code-setup
+   git status          # ต้องว่าง ถ้าไม่ว่างให้หยุดจัดการก่อน
    ```
 2. แตก ZIP ที่ได้จาก Claude แล้วคัดลอก `CLAUDE.md`, `.claude/`, `docs/`, `*/.env.example` ไปที่ root ของ repo (ตำแหน่งตามหัวข้อ 2)
 3. ตรวจด้วย `git status` ต้องเห็นเฉพาะไฟล์ใหม่ (และ `Navbar.tsx` ถ้าเคยค้างอยู่)
@@ -81,19 +81,21 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 4. Claude แก้ แล้วรัน `verify-changes`
 5. คุณทดสอบ manual ตาม checklist ใน skill `verify-changes`
 6. Claude อัปเดต docs ด้วย `update-project-docs`
-7. Review diff (`git diff`) แล้ว commit
+7. Review diff (`git diff`) แล้วสั่งให้ commit (1 งาน = 1 commit บน `dev` และ Claude ห้าม commit เองจนกว่าจะสั่ง)
 
-## 7. Git Branch และ Commit
-- branch หลักที่ใช้พัฒนาตอนนี้คือ `dev` (มี `main` และ feature branch อื่นๆ อยู่บน remote)
-- 1 งาน = 1 branch: `fix/<เรื่อง>`, `feat/<เรื่อง>`, `chore/<เรื่อง>`, `docs/<เรื่อง>`
-- commit ทีละขั้นที่ตรวจแล้ว และเขียน message ให้บอกว่าทำอะไร (ไม่ใช้แบบเดิม เช่น "nwe", "go next")
+## 7. Git Branch และ Commit (มติ D-21)
+- ทำงานบน branch `dev` เท่านั้น ห้ามสร้าง branch ใหม่
+- ห้าม checkout, merge, commit หรือ push เข้า `main` เด็ดขาด เพราะ `main` คือ production
+- ยังไม่ deploy จริง รันเฉพาะ local
+- ก่อนเริ่มงาน `git status` ต้องว่าง ถ้าไม่ว่าง Claude ต้องหยุดถามก่อน
+- 1 งาน = 1 commit และ Claude ห้าม commit เองจนกว่าจะสั่ง เขียน message ให้บอกว่าทำอะไร (ไม่ใช้แบบเดิม เช่น "nwe", "go next")
 - ห้ามใส่ zip, `node_modules`, `.env` หรือ `dist` ลงใน commit (เคยเกิดขึ้นใน `060c798`)
 - ก่อน commit ให้ตรวจ `git diff --cached --stat` ทุกครั้ง
 - ห้ามให้ Claude `push --force`, rebase branch ที่ push ไปแล้ว หรือแก้ history ถ้าไม่ได้สั่งชัดเจน
-- ถ้างานเสียหาย: `git restore <file>` (ไฟล์ที่ยังไม่ commit) หรือ `git revert <commit>` (commit ที่ push ไปแล้ว)
+- ถ้างานเสียหาย: `git restore <file>` (ยังไม่ commit) หรือ `git revert <commit>` (commit แล้ว)
 
 ## 8. ทำงานต่อเมื่อเริ่ม Session ใหม่
-1. `git status` / `git log --oneline -10`
+1. `git status` / `git log --oneline -10` (ต้องอยู่บน `dev` และ `git status` ต้องว่าง ถ้าไม่ว่างให้จัดการก่อน)
 2. ใช้ prompt "เริ่ม session ใหม่" (หัวข้อ 11)
 3. ก่อนปิด session ทุกครั้ง: สั่ง "ใช้ skill update-project-docs บันทึกสถานะงานที่ทำวันนี้ แล้วระบุสิ่งที่ค้างอยู่" เพื่อให้ session ถัดไปเริ่มจาก docs ได้ทันที
 
@@ -138,13 +140,13 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 
 **เริ่ม session ใหม่:**
 ```
-อ่าน CLAUDE.md, docs/DEVELOPMENT_STATUS.md และ docs/DEVELOPMENT_PLAN.md แล้วดู git status กับ git log -10
+อ่าน CLAUDE.md, docs/DEVELOPMENT_STATUS.md และ docs/DEVELOPMENT_PLAN.md แล้วดู git status กับ git log -10 (ถ้า git status ไม่ว่างให้หยุดถามฉัน)
 สรุปให้ว่างานล่าสุดค้างอยู่ตรงไหน แล้วเสนองานถัดไป ยังไม่ต้องแก้โค้ดจนกว่าฉันจะยืนยัน
 ```
 
 **ทำงานตามแผน:**
 ```
-ทำ T2 จาก docs/DEVELOPMENT_PLAN.md บน branch fix/frontend-build ด้วย skill feature-development และ verify-changes
+ทำ T2 จาก docs/DEVELOPMENT_PLAN.md บน branch dev ด้วย skill feature-development และ verify-changes (ห้าม commit จนกว่าฉันจะสั่ง)
 เสนอแผนและรายการไฟล์ที่จะแก้ก่อน แล้วรอฉันยืนยัน
 ```
 

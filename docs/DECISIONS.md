@@ -36,3 +36,18 @@
 - ผู้ตัดสินใจ:
 - ไฟล์ที่กระทบ:
 -->
+
+### D-21 · 2026-10-16 · Git workflow: ทำงานบน `dev` อย่างเดียว
+- บริบท: `main` คือ production และยังไม่ deploy จริง จึงต้องกันไม่ให้ Claude แตะ `main` หรือสร้าง branch/commit เอง
+- ทางเลือกที่พิจารณา: 1 งาน = 1 branch (`fix/`, `feat/`, …) ตามที่เขียนไว้เดิมใน `CLAUDE_CODE_MIGRATION.md` §7 → ยกเลิก
+- ข้อสรุป:
+  - ทำงานบน branch `dev` เท่านั้น ห้ามสร้าง branch ใหม่
+  - ห้าม checkout, merge, commit หรือ push เข้า `main` เด็ดขาด (`main` = production)
+  - ยังไม่ deploy จริง รันเฉพาะ local
+  - ก่อนเริ่มงาน `git status` ต้องว่าง ถ้าไม่ว่างให้หยุดถามผู้ใช้
+  - 1 งาน = 1 commit และห้าม commit เองจนกว่าผู้ใช้จะสั่ง
+  - ห้าม push ทุก branch จนกว่าผู้ใช้จะสั่งชัดเจน
+  - ตอนนี้ยังไม่ push อะไรเลย จนกว่าจะ rotate secrets เสร็จ (T1)
+  - ย้อนกลับด้วย `git restore` (ยังไม่ commit) หรือ `git revert` (commit แล้ว)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/CLAUDE_CODE_MIGRATION.md`, `docs/DEVELOPMENT_PLAN.md`, `.claude/skills/update-project-docs/SKILL.md`, `.claude/settings.json`

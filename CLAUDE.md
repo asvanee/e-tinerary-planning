@@ -79,7 +79,16 @@ Baseline ณ commit `0c980bd`: backend tsc ✅ · frontend `tsc -b` ❌ (มี 
 | `verify-changes` | หลังแก้โค้ดทุกครั้ง ก่อนรายงานว่าเสร็จ |
 | `update-project-docs` | งานสำคัญเสร็จ หรือเปลี่ยนสถานะ/มติ/env |
 
+## Git และ Branch (มติ D-21)
+- ทำงานบน branch `dev` เท่านั้น ห้ามสร้าง branch ใหม่
+- ห้าม checkout, merge, commit หรือ push เข้า `main` เด็ดขาด (`main` = production)
+- ยังไม่ deploy จริง รันเฉพาะ local
+- ก่อนเริ่มงาน `git status` ต้องว่าง ถ้าไม่ว่างให้หยุดถามผู้ใช้
+- 1 งาน = 1 commit และห้าม commit เองจนกว่าผู้ใช้จะสั่ง
+- ห้าม push ทุก branch จนกว่าผู้ใช้จะสั่งชัดเจน และตอนนี้ยังไม่ push อะไรเลยจนกว่าจะ rotate secrets เสร็จ (T1)
+- ย้อนกลับด้วย `git restore <file>` (ยังไม่ commit) หรือ `git revert <commit>` (commit แล้ว)
+
 ## เริ่ม Session ใหม่
 1. อ่าน `docs/DEVELOPMENT_STATUS.md` และงานที่กำลังทำใน `docs/DEVELOPMENT_PLAN.md`
-2. `git status` และ `git log --oneline -10` เพื่อดูว่างานค้างอยู่ตรงไหน
-3. ยืนยันกับผู้ใช้ว่าจะทำงานไหน แล้วทำบน branch แยก
+2. `git status` และ `git log --oneline -10` เพื่อดูว่างานค้างอยู่ตรงไหน ต้องอยู่บน `dev` และ `git status` ต้องว่าง ถ้าไม่ว่างให้หยุดถามผู้ใช้
+3. ยืนยันกับผู้ใช้ว่าจะทำงานไหน แล้วทำบน branch `dev` (ห้ามสร้าง branch ใหม่)

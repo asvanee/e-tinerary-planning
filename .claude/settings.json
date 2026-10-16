@@ -19,7 +19,25 @@
       "Bash(git reset:*)",
       "Bash(git rebase:*)",
       "Bash(git filter-repo:*)",
-      "Bash(rm -rf:*)"
+      "Bash(rm -rf:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "PowerShell(git checkout:*)",
+      "PowerShell(git switch:*)",
+      "PowerShell(git branch:*)",
+      "PowerShell(git merge:*)",
+      "PowerShell(git rebase:*)",
+      "PowerShell(git cherry-pick:*)",
+      "PowerShell(git commit:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(git pull:*)",
+      "PowerShell(git reset:*)",
+      "PowerShell(git filter-repo:*)"
     ]
   }
 }

@@ -9,7 +9,7 @@ description: อัปเดตเอกสารใน docs/ และ CLAUDE.m
 | ไฟล์ | อัปเดตเมื่อ |
 |---|---|
 | `docs/DEVELOPMENT_STATUS.md` | สถานะฟีเจอร์เปลี่ยน, แก้หรือพบ Known Issue, baseline ของการตรวจเปลี่ยน |
-| `docs/DEVELOPMENT_PLAN.md` | งาน Tn เริ่ม/เสร็จ/เปลี่ยนลำดับ (ใส่ ✅ พร้อมวันที่และ commit) |
+| `docs/DEVELOPMENT_PLAN.md` | งาน Tn เริ่ม/เสร็จ/เปลี่ยนลำดับ (ใส่ ✅ พร้อมวันที่ และ commit ถ้ามีแล้ว) |
 | `docs/DECISIONS.md` | ผู้ใช้ตัดสินใจเรื่องทางเทคนิค (เพิ่ม D-xx ใหม่ ห้ามแก้ของเดิม ถ้ามติเปลี่ยนให้เขียน "แทนที่ D-yy") |
 | `docs/ARCHITECTURE.md` | flow, สูตร, ค่าคงที่ หรือ mirror เปลี่ยน |
 | `docs/PROJECT_OVERVIEW.md` | route/endpoint/env/dependency/script เปลี่ยน |
@@ -17,7 +17,7 @@ description: อัปเดตเอกสารใน docs/ และ CLAUDE.m
 | `.env.example` | เพิ่มหรือลบ env (ใส่แค่ชื่อ ห้ามใส่ค่า) |
 
 ## ขั้นตอน
-1. ดูว่าอะไรเปลี่ยนจริง: `git diff --stat <base>..HEAD` และ `git log --oneline` ของงานนี้
+1. ดูว่าอะไรเปลี่ยนจริง: `git status` และ `git diff --stat` (งานที่ยังไม่ commit) หรือ `git show --stat <commit>` (ถ้าผู้ใช้สั่ง commit แล้ว)
 2. ระบุเอกสารที่ได้รับผลกระทบจากตารางด้านบน
 3. แก้เฉพาะส่วนที่เกี่ยวข้อง และทุกข้อความต้องอ้างอิง path หรือ commit จริง
 4. แยกให้ชัดว่าข้อไหนเป็น **ข้อเท็จจริง** (ตรวจแล้ว), **ข้อสันนิษฐาน** หรือ **ข้อเสนอ**
