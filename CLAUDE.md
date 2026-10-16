@@ -13,6 +13,7 @@
 | `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase | `package.json` scripts |
 
 ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md`
+**แผนงานหลักของทีมคือ `README.md`** (requirement R1–R5) ส่วน `docs/DEVELOPMENT_PLAN.md` ใช้ติดตามรายละเอียดทางเทคนิค (กลุ่ม 0 โยง R กับโค้ด) ห้ามแก้ README.md ถ้าไม่ได้รับคำสั่ง
 
 ## คำสั่งที่มีอยู่จริง
 ```bash

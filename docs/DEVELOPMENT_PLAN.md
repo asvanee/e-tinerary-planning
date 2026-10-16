@@ -1,10 +1,47 @@
 # DEVELOPMENT_PLAN
 
-> แผนนี้มาจากหลักฐานใน [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) **ทุกงานเป็นข้อเสนอของ Claude** ไม่ได้มาจาก requirement เดิมของเจ้าของโปรเจกต์ ยกเว้นงานที่อ้างถึง comment/commit ในโค้ดซึ่งระบุไว้ในคอลัมน์ "ที่มา"
+> **กลุ่ม 0 (R1–R5) คือ requirement ของทีม** มาจาก [README.md](../README.md) ซึ่งเป็นแผนงานหลัก — เอกสารนี้แค่โยงไปที่โค้ด ถ้าขัดกันให้ยึด README
+> กลุ่ม 1–6 (T1–T21) มาจากหลักฐานใน [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) **เป็นข้อเสนอของ Claude** ไม่ได้มาจาก requirement ของเจ้าของโปรเจกต์ ยกเว้นงานที่อ้างถึง comment/commit ในโค้ด
 > ลำดับความสำคัญ: P0 = ต้องทำก่อน · P1 = จำเป็นต่อฟีเจอร์หลัก · P2 = ควรทำ · P3 = ทำเมื่อมีเวลา
 > ทุกงานทำบน branch `dev` เท่านั้น (ห้ามสร้าง branch ใหม่ ห้ามแตะ `main` — ดู D-21) 1 งาน = 1 commit เมื่อผู้ใช้สั่ง แล้วอัปเดต DEVELOPMENT_STATUS.md เมื่อเสร็จ
 
 ---
+
+## กลุ่ม 0 — งานของทีม (จาก README.md)
+> ขอบเขต เกณฑ์ตรวจ และ Definition of Done ให้ยึดตาม README.md ส่วนนี้บันทึกแค่ไฟล์ที่เกี่ยวข้อง (ตรวจจากโค้ดจริงเมื่อ 2026-10-16) และงาน T ที่ซ้อนกัน
+
+### R1. ตรวจสอบและแก้ไข POI Score — เร่งด่วน (README 1.1, ลำดับ 1)
+- **สถานะใน README:** ยังไม่เริ่มยืนยัน
+- **ไฟล์:** `backend/src/features/poi/poiScoreCalculator.ts` (`calculatePoiScore`, `WEIGHTS`, `computeWeights`), `backend/src/features/poi/poiController.ts` (เรียงคะแนนแล้วตัด `RESULT_LIMIT = 50` = Top 50), `backend/src/features/poi/poiPlaceQueries.ts` (`getFilteredPlaces`, `queryPlacesWithCategoryInfo` — ข้อมูลที่ป้อนเข้าสูตร)
+- **ข้อเท็จจริง:** weight ฐาน category 0.35 / rating 0.25 / distance 0.15 / budget 0.15 / weather 0.1 (renormalize เมื่อ `useBudget=false`)
+- **งาน T ที่ซ้อน:** T13 (unit test `poiScoreCalculator.ts`) · T5 (ความหมายของงบ มีผลกับ budget filter/score) · T7 (ถ้าโดน limit 1000 แถว สถานที่จะหายไปก่อนจัดอันดับ) · T8 (`explainWeatherScore`/debug log ใช้ช่วยตรวจได้ก่อนจะเก็บกวาด) · กลุ่ม 6 (sensitivity ของค่า MIXED)
+- ⚠️ เปลี่ยนสูตรคะแนนเป็นงานเสี่ยงตาม CLAUDE.md กฎข้อ 4 ต้องเสนอแนวทางก่อน
+
+### R2. แก้ไขพิกัดผิดและข้อมูลผิดจังหวัด — เร่งด่วน (README 1.2, ลำดับ 2)
+- **สถานะใน README:** ยังไม่เริ่มยืนยัน
+- **ไฟล์:** `data-pipeline/src/manualOverrides.ts` (`locationOverrides`), `data-pipeline/src/dedupe.ts` (`applyLocationOverrides`), script ที่เรียกใช้: `uploadProvinceGooglePlaces.ts`, `testProvinceSample.ts`, `testDedupe.ts`, `findGoogleCollisionCandidates.ts`
+- **ข้อเท็จจริง:** commit `44d26dd` ลบพิกัดเชียงใหม่ 4 รายการที่ verify แล้ว (ATT_ID `20241223132512001`, `20241220140642001`, `20241220134044001`, `20241220125313001` พร้อม source) และใส่ comment `// ของเดิมทั้งหมด` แทน ตอนนี้ `locationOverrides` จึงว่าง กู้คืนได้จาก `git show 44d26dd^:data-pipeline/src/manualOverrides.ts` (Known Issue #20) · ยังไม่มีโค้ดตรวจพิกัดนอกประเทศไทยหรือพิกัดไม่ตรงจังหวัด
+- **ข้อสันนิษฐาน:** การแก้ `locationOverrides` จะมีผลเฉพาะตอน upload ใหม่ ส่วนข้อมูลที่อยู่ใน Supabase แล้วอาจต้องแก้ที่ตาราง `places` โดยตรง (ต้องถามวิธีกับผู้ใช้ เพราะ script upload เขียนลง DB จริงและเรียก Google API ที่มีค่าใช้จ่าย)
+- **งาน T ที่ซ้อน:** T12 (ข้อมูลจังหวัดอื่น / Stage 3) · Known Issue #15 (`.gitignore` ของ data-pipeline)
+
+### R3. ตรวจสอบและแก้ไข Distance Cap — เร่งด่วน (README 1.3, ลำดับ 3)
+- **สถานะใน README:** ค้างอยู่
+- **ไฟล์:** `backend/src/features/poi/poiScoreCalculator.ts` (`calculateDistanceScore` = `1 / (1 + distanceKm)`), `backend/src/utils/orsDistance.ts` (`getRoadDistancesKm` ระยะทางถนนจาก ORS, fallback เป็น haversine), `backend/src/features/poi/poiController.ts` (ส่ง `distanceKm` เข้าสูตร)
+- **ข้อเท็จจริง:** ยังไม่มี cap ในโค้ด สูตรได้ 0.5 ที่ 1 km, ≈0.09 ที่ 10 km, ≈0.05 ที่ 20 km จึงแบนตั้งแต่ราว 10 km ตามที่ README บอก (README ห้ามใช้ 10 km เป็นค่า cap สุดท้ายโดยไม่ทดสอบก่อน)
+- **งาน T ที่ซ้อน:** T13 (unit test `calculateDistanceScore`) · R2 (พิกัดผิดทำให้ระยะทางผิด ต้องแยกผลของสองงานตาม README หัวข้อ 4)
+- ⚠️ เปลี่ยนสูตรคะแนนเป็นงานเสี่ยงตาม CLAUDE.md กฎข้อ 4
+
+### R4. ตรวจสอบ Category Mapping ทั้งระบบ — ปกติ (README 2.1, ลำดับ 4)
+- **สถานะใน README:** รอตรวจสอบ
+- **ไฟล์:** `data-pipeline/src/fetchGmapsCategories.ts` (เติม `places.gmaps_types` จาก Google Places), `backend/src/features/poi/poiPlaceQueries.ts` (`queryPlacesWithCategoryInfo` อ่าน `place_categories` แล้ว dedupe เลือก `confidence_score` สูงสุด, category fallback ใน `getFilteredPlaces`), `poiScoreCalculator.calculateCategoryScore`, ตาราง `categories` / `place_categories` / `trip_categories`
+- **ข้อเท็จจริง:** ใน repo **ไม่มีโค้ด** ที่แปลง `gmaps_types` → `place_categories.confidence_score` (เป็นส่วนเดียวกับ Stage 3 ที่ T12 ระบุว่าหาไม่เจอ) ต้องขอโค้ดหรือกฎจากทีมก่อน
+- **งาน T ที่ซ้อน:** T12 (โค้ด Stage 3) · T7 (`place_categories` อาจโดน limit 1000 แถว) · กฎ multi-category dedupe ใน CLAUDE.md
+
+### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5)
+- **สถานะใน README:** รอดำเนินการ
+- **ไฟล์:** ยังไม่มีโค้ด admin/role ทั้ง backend และ frontend · จุดที่ต้องต่อ: `backend/src/server.ts` (mount route), `backend/src/features/auth/authMiddleware.ts` (`requireAuth`), `frontend/src/App.tsx` (`ProtectedRoute`), ตาราง `places`/`place_categories`
+- **ก่อนเริ่ม:** README บอกว่าขอบเขตยังเป็นข้อเสนอเบื้องต้น ต้องตัดสินใจเรื่องวิธีกำหนด role ของ admin (ต้องรู้ schema/RLS) และบันทึกเป็น D-xx ใน DECISIONS.md
+- **งาน T ที่ซ้อน:** T2, T11 (auth/ownership) · T19 (fetch helper) · ใช้ผลจาก R2 (แสดงพิกัดผิด) และ R4 (แสดงผล mapping)
 
 ## กลุ่ม 1 — ปัญหาที่ทำให้ระบบใช้งานไม่ได้หรือมีความเสี่ยงสูง
 
@@ -66,7 +103,7 @@
 - **T12 (P3)** ข้อมูลจังหวัดอื่น / Stage 3 สำหรับกรุงเทพฯ และชลบุรี — ต้องหาโค้ด Stage 3 ก่อน (ไม่มีใน repo)
 
 ## กลุ่ม 4 — การทดสอบและการตรวจสอบความถูกต้อง
-- **T13 (P1)** Unit test ของ pure functions ที่เป็นหัวใจของระบบ (ไม่ต้องใช้ DB): `poiScoreCalculator.ts`, `itineraryBuilder.buildDayItems`, `openingHoursChecker.checkOpeningStatus` (เคสข้ามเที่ยงคืน, หลายช่วงต่อวัน, 24 ชม.), `tripController.validateNoMidnightCrossing` (ต้อง export ก่อน), `autoTripBuilder`
+- **T13 (P1)** Unit test ของ pure functions ที่เป็นหัวใจของระบบ (ไม่ต้องใช้ DB): `poiScoreCalculator.ts`, `itineraryBuilder.buildDayItems`, `openingHoursChecker.checkOpeningStatus` (เคสข้ามเที่ยงคืน, หลายช่วงต่อวัน, 24 ชม.), `tripController.validateNoMidnightCrossing` (ต้อง export ก่อน), `autoTripBuilder` (ส่วน `poiScoreCalculator.ts` ช่วย R1/R3 ให้ทำคู่กัน)
 - **T14 (P1)** **Parity test** ระหว่าง backend และ frontend mirror: ใช้ input ชุดเดียวกันต้องได้ผล `buildDayItems` และ `checkOpeningStatus` ตรงกัน (ใช้ vitest import ไฟล์ backend โดยตรงผ่าน relative path หรือใช้ JSON fixture ร่วมกัน)
 - **T15 (P2)** แก้ jest/ts-jest ให้ major version ตรงกัน แล้วยืนยันว่า `npm test` รันได้
 - **T16 (P2)** ทำ ESLint errors ให้เป็นศูนย์ (เริ่มจาก `react-hooks/refs` ใน `RecommendationMap.tsx:209` ซึ่งอาจเป็น bug จริง)
@@ -81,7 +118,8 @@
 ## กลุ่ม 6 — งานเพิ่มเติมที่ไม่เร่งด่วน
 - Weather มิติอื่น (ความร้อน/UV/PM2.5) ตามที่ comment ใน `poiScoreCalculator.ts` ระบุว่าเป็นแนวทางพัฒนาต่อ
 - Sensitivity analysis ของค่า MIXED (0.3/0.5/0.7) ตามที่ comment ใน `poiScoreCalculator.ts` แนะนำ
-- เขียน README จริง (ตอนนี้เป็นไฟล์ UTF-16 มีแค่หัวเรื่อง)
+- ~~เขียน README จริง~~ — README.md เป็นแผนงานของทีมแล้ว (ดูกลุ่ม 0)
 
 ## ลำดับที่แนะนำ
-`T1 → T2 → T13/T14 (สร้างตาข่ายความปลอดภัย) → T5 (ตัดสินใจ) → T4 → T3 → T6 → T7 → ที่เหลือ`
+`T1 → T2 → R1+R3 ตรวจสูตรปัจจุบัน (ทำ T13 ส่วน poiScoreCalculator ควบคู่) → R2 → R1/R3 ปรับสูตร → ทดสอบ Top 50 → R4 → R5 → T13/T14 ส่วนที่เหลือ → T5 → T4 → T3 → T6 → T7 → ที่เหลือ`
+> ลำดับ R ตาม README หัวข้อ 4 "ลำดับการทำงานที่แนะนำ"

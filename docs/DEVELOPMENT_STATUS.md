@@ -82,6 +82,7 @@
 | 16 | ⚪ Dead code | `backend/src/app.ts`, `features/itinerary/routeCalculator.ts`, `frontend/src/config/db.ts`, `frontend/src/features/auth/authAPI.ts` ไม่มีไฟล์ใด import · `pg`/`postgres`/`axios` ใน backend dependencies ไม่ได้ใช้ | grep |
 | 18 | ⚪ Lint | 34 ESLint errors (ส่วนใหญ่เป็น `any`) และมี `react-hooks/refs` ใน `RecommendationMap.tsx:209` ซึ่งอาจทำให้ UI ไม่อัปเดตตามที่ควร | ผลการรัน |
 | 19 | ⚪ Docs | comment ของ `getAutoTripPlacesTest` เขียนว่า `GET /api/itinerary/trips/:tripId/auto-test` แต่ route จริงคือ `/auto-places` | `itineraryController.ts:418`, `itineraryRoutes.ts:23` |
+| 20 | 🟠 Data | commit `44d26dd` ลบพิกัดเชียงใหม่ 4 รายการที่ verify แล้วออกจาก `locationOverrides` และใส่ comment `// ของเดิมทั้งหมด` แทน ตอนนี้ object ว่าง ถ้ารัน upload ใหม่ พิกัดที่เคยแก้จะไม่ถูกใช้ (กู้ได้จาก `git show 44d26dd^:data-pipeline/src/manualOverrides.ts`) — งานแก้อยู่ใน R2 ของ DEVELOPMENT_PLAN | `data-pipeline/src/manualOverrides.ts`, `git show 44d26dd` |
 
 ## ข้อสันนิษฐาน (ยังไม่ใช่ข้อเท็จจริง)
 - เป็นโปรเจกต์ของนักศึกษา/ทีมเล็ก (มี comment ว่า "ควรทำ sensitivity analysis … ในรายงาน") — ใช้เป็นบริบทเท่านั้น
