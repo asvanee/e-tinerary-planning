@@ -28,7 +28,7 @@
 | ปักหมุดจุดเริ่มต้น (Google Maps) | `LocationPinPicker.tsx` |
 | POI score (category/rating/distance/price/weather) + hard filter + top 50 + upsert | `features/poi/*` |
 | ระยะทางถนน ORS + fallback haversine + cache | `utils/orsDistance.ts`, `utils/orsTravelMatrix.ts` |
-| Weather score จาก Open-Meteo | `utils/weatherForecast.ts`, commit `060c798` |
+| Weather score จาก Open-Meteo | `utils/weatherForecast.ts` |
 | แผนที่ Recommendation (Leaflet) | `RecommendationMap.tsx` |
 | Itinerary editor แบบลากวาง + recompute ฝั่ง client + ตรวจ conflict | `ItineraryEditor.tsx`, `lib/itineraryBuilder.ts` |
 | Confirm itinerary: re-validate ฝั่ง backend แล้วปฏิเสธถ้ามี conflict | `itineraryController.confirmItinerary` |
@@ -60,13 +60,11 @@
 4. พฤติกรรมเมื่อ access token หมดอายุ (backend จะตอบ 401 แต่ frontend ยังเห็นว่าล็อกอินอยู่)
 5. `/trip/:id/auto` จับคู่ trip day ด้วย `item.day_number ?? item.day ?? item.day_no` แต่ response ของ `getSavedItinerary` ใช้ `dayNumber` จึงตกไปใช้ `tripDays[index]` แทน — ผลลัพธ์อาจถูกต้องโดยบังเอิญ
 6. การ build บน Linux/CI (ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์ ดู Known Issues #2, #3)
-7. repo บน GitHub เป็น public หรือ private (เกี่ยวข้องกับ Known Issue #1)
 
 ## Known Issues (พบจากโค้ดหรือผลการตรวจ)
 
 | # | ระดับ | ปัญหา | หลักฐาน |
 |---|---|---|---|
-| 1 | 🔴 Security | **มีไฟล์ `.env` ทั้ง 3 package อยู่ใน git history ที่ push ขึ้น `origin/dev` แล้ว**: commit `060c798` มี `backend.zip`/`frontend.zip`/`data-pipeline.zip` ซึ่งข้างในมี `.env` ของแต่ละ package (ถูกลบใน `0c980bd` แต่ยังอยู่ใน history) และ commit เก่าก่อนหน้า (`33b6dad`, `372b13c`, `0ce1c5d` ฯลฯ) ก็เคยมี `.env` ด้วย | `git log --all -- '*.env'`, `git show 060c798:backend.zip` (ตรวจเฉพาะรายชื่อไฟล์ ไม่ได้เปิดดูค่า) |
 | 2 | 🔴 Build | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` ใช้ได้บน Windows แต่จะ fail บนระบบที่แยกตัวพิมพ์เล็ก-ใหญ่ (Linux/CI/hosting ส่วนใหญ่) | `frontend/src/features/auth/confirmEmail/` |
 | 3 | 🔴 Build | git index เก็บไฟล์ชื่อ `frontend/src/components/Navbar.tsx` แต่บนดิสก์และใน import ทุกไฟล์ใช้ `navbar` (`core.ignorecase=true`) ถ้า clone บน Linux จะได้ `Navbar.tsx` และ import `components/navbar` จะหาไม่เจอ | `git ls-files`, `git status` |
 | 4 | 🔴 Build | `tsc -b` ไม่ผ่าน (`auto.tsx` บรรทัด 108 มีตัวแปร `loading` ที่ไม่ถูกใช้) ทำให้ `npm run build` fail | ผลการรัน |
@@ -82,7 +80,6 @@
 | 14 | 🟡 Config | `FRONTEND_URL` ไม่ถูกใช้, `cors()` เปิดทุก origin, email redirect hardcode `localhost:5173` | `server.ts`, `authController.ts` |
 | 15 | 🟡 Config | `.gitignore` ignore `data-pipeline/` ทั้งโฟลเดอร์ ไฟล์ใหม่ใน data-pipeline จะไม่ถูก commit | `.gitignore` |
 | 16 | ⚪ Dead code | `backend/src/app.ts`, `features/itinerary/routeCalculator.ts`, `frontend/src/config/db.ts`, `frontend/src/features/auth/authAPI.ts` ไม่มีไฟล์ใด import · `pg`/`postgres`/`axios` ใน backend dependencies ไม่ได้ใช้ | grep |
-| 17 | ⚪ Repo | zip ขนาดใหญ่ (~80 MB) อยู่ใน history ทำให้ clone ช้า | commit `060c798` |
 | 18 | ⚪ Lint | 34 ESLint errors (ส่วนใหญ่เป็น `any`) และมี `react-hooks/refs` ใน `RecommendationMap.tsx:209` ซึ่งอาจทำให้ UI ไม่อัปเดตตามที่ควร | ผลการรัน |
 | 19 | ⚪ Docs | comment ของ `getAutoTripPlacesTest` เขียนว่า `GET /api/itinerary/trips/:tripId/auto-test` แต่ route จริงคือ `/auto-places` | `itineraryController.ts:418`, `itineraryRoutes.ts:23` |
 

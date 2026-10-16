@@ -36,7 +36,7 @@ description: ใช้ทุกครั้งที่แก้ logic การ
    - `ItineraryEditor.tsx`, `TripDetail.tsx`, `RouteMap.tsx`
 4. ถ้าแก้กฎ conflict ต้องเช็คว่า `confirmItinerary` (filter conflicts) และปุ่มยืนยันใน `ItineraryEditor.tsx` (`conflictCount`) ยังใช้กฎเดียวกัน
 5. ทำ diff ซ้ำหลังแก้ ต้องได้ผลว่า logic เหมือนกัน
-6. ถ้ามี parity test (DEVELOPMENT_PLAN T15) ให้รันด้วย ถ้ายังไม่มีให้เสนอเพิ่ม test case สำหรับกฎที่เปลี่ยน
+6. ถ้ามี parity test (DEVELOPMENT_PLAN T14) ให้รันด้วย ถ้ายังไม่มีให้เสนอเพิ่ม test case สำหรับกฎที่เปลี่ยน
 7. ตรวจตาม `verify-changes` (ต้องรันทั้ง backend `tsc --noEmit` และ frontend `tsc -b`)
 
 ## ข้อควรระวัง
@@ -46,7 +46,7 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 
 ## หยุดแล้วถามผู้ใช้เมื่อ
 - พบว่าสองฝั่งไม่ตรงกันตั้งแต่ก่อนแก้ (ต้องถามว่าฝั่งไหนถูก)
-- งานเปลี่ยนความหมายของงบ/ราคา (ดู DEVELOPMENT_PLAN T6)
+- งานเปลี่ยนความหมายของงบ/ราคา (ดู DEVELOPMENT_PLAN T5)
 
 ## รูปแบบรายงาน
 ```

@@ -4,12 +4,11 @@
 > ⚠️ รายละเอียดเฉพาะของ Claude Code (วิธีติดตั้ง, รูปแบบ `.claude/settings.json`, frontmatter ของ skill) เขียนจากความรู้ของ Claude ณ ช่วงที่ตัดข้อมูล **ยังไม่ได้ตรวจกับเอกสารทางการในรอบนี้** (ผู้ใช้กำหนดว่าห้ามใช้ข้อมูลภายนอกโดยไม่ขออนุญาต) ควรเทียบกับ https://docs.claude.com/en/docs/claude-code/overview ก่อนใช้
 
 ## 1. สิ่งที่ต้องเตรียมก่อนเริ่ม
-1. **Rotate secrets ก่อนทำอย่างอื่น** (DEVELOPMENT_PLAN T1) เพราะ `.env` เคยหลุดอยู่ใน history ของ `origin/dev`
-2. Git ทำงานได้ และ `git status` สะอาด หรือรู้ว่าอะไรค้างอยู่ (ตอนนี้ที่ปรากฏคือ `Navbar.tsx` ลบ/เปลี่ยนชื่อ ซึ่งเกิดจากปัญหาตัวพิมพ์เล็ก-ใหญ่ — บน Windows อาจไม่เห็น)
-3. Node.js ≥ 18 (โค้ดใช้ global `fetch`/`AbortSignal.timeout`) ตรวจด้วย `node -v` และ npm (`npm -v`) ยังไม่ทราบว่าทีมใช้เวอร์ชันใด ควรเพิ่ม `.nvmrc` หรือ `engines` ภายหลัง
-4. ไฟล์ `.env` ทั้ง 3 package อยู่ในเครื่อง (ห้าม commit)
-5. ติดตั้ง Claude Code ตามเอกสารทางการ (ปกติคือ `npm install -g @anthropic-ai/claude-code` แล้วรัน `claude` ใน root ของ repo — ให้ตรวจกับเอกสารอีกครั้ง)
-6. ถ้ามีเอกสารที่โค้ดอ้างถึง (`PROJECT_BRIEF*.md`, `PRICE_SCORE_REDESIGN.md`, `itineraries_feature_status.md`, `DATA_PREPARATION_4.md`) ให้เตรียมไว้
+1. Git ทำงานได้ และ `git status` สะอาด หรือรู้ว่าอะไรค้างอยู่ (ตอนนี้ที่ปรากฏคือ `Navbar.tsx` ลบ/เปลี่ยนชื่อ ซึ่งเกิดจากปัญหาตัวพิมพ์เล็ก-ใหญ่ — บน Windows อาจไม่เห็น)
+2. Node.js ≥ 18 (โค้ดใช้ global `fetch`/`AbortSignal.timeout`) ตรวจด้วย `node -v` และ npm (`npm -v`) ยังไม่ทราบว่าทีมใช้เวอร์ชันใด ควรเพิ่ม `.nvmrc` หรือ `engines` ภายหลัง
+3. ไฟล์ `.env` ทั้ง 3 package อยู่ในเครื่อง (ห้าม commit)
+4. ติดตั้ง Claude Code ตามเอกสารทางการ (ปกติคือ `npm install -g @anthropic-ai/claude-code` แล้วรัน `claude` ใน root ของ repo — ให้ตรวจกับเอกสารอีกครั้ง)
+5. ถ้ามีเอกสารที่โค้ดอ้างถึง (`PROJECT_BRIEF*.md`, `PRICE_SCORE_REDESIGN.md`, `itineraries_feature_status.md`, `DATA_PREPARATION_4.md`) ให้เตรียมไว้
 
 ## 2. โครงสร้างหลังตั้งค่าเสร็จ (เพิ่มไฟล์เท่านั้น)
 ```text
@@ -89,7 +88,7 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 - ยังไม่ deploy จริง รันเฉพาะ local
 - ก่อนเริ่มงาน `git status` ต้องว่าง ถ้าไม่ว่าง Claude ต้องหยุดถามก่อน
 - 1 งาน = 1 commit และ Claude ห้าม commit เองจนกว่าจะสั่ง เขียน message ให้บอกว่าทำอะไร (ไม่ใช้แบบเดิม เช่น "nwe", "go next")
-- ห้ามใส่ zip, `node_modules`, `.env` หรือ `dist` ลงใน commit (เคยเกิดขึ้นใน `060c798`)
+- ห้ามใส่ zip, `node_modules`, `.env` หรือ `dist` ลงใน commit
 - ก่อน commit ให้ตรวจ `git diff --cached --stat` ทุกครั้ง
 - ห้ามให้ Claude `push --force`, rebase branch ที่ push ไปแล้ว หรือแก้ history ถ้าไม่ได้สั่งชัดเจน
 - ถ้างานเสียหาย: `git restore <file>` (ยังไม่ commit) หรือ `git revert <commit>` (commit แล้ว)
@@ -104,19 +103,18 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 |---|---|---|
 | backend ขึ้น "ไม่สามารถเริ่ม server ได้…" แล้ว exit | `.env` ไม่ครบ หรือ Supabase ต่อไม่ได้ | ตรวจชื่อตัวแปรกับ `.env.example` (ห้ามส่งค่าให้ Claude ดู) |
 | frontend เรียก `/api` ได้ 404/HTML | backend ไม่ได้รันที่ port 5000 | ดู `vite.config.ts` proxy |
-| `npm run build` fail ที่ `tsc -b` | Known Issue #4 | DEVELOPMENT_PLAN T2 |
-| build ผ่านบน Windows แต่ fail บน Linux/CI | ตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์ (Known Issues #2, #3) | T2 |
+| `npm run build` fail ที่ `tsc -b` | Known Issue #4 | DEVELOPMENT_PLAN T1 |
+| build ผ่านบน Windows แต่ fail บน Linux/CI | ตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์ (Known Issues #2, #3) | T1 |
 | `Cannot find module @rollup/rollup-linux-…` หรือ `@esbuild/linux-x64` | ใช้ `node_modules` ของ Windows บน Linux | `npm ci` ใหม่ใน OS นั้น |
 | `npm test` (backend/frontend) จบด้วย exit 1 "No tests found" | ยังไม่มีไฟล์ test (บน Windows jest/vitest รันได้แล้ว ตรวจ 2026-10-16) | เป็นพฤติกรรมปกติจนกว่าจะเพิ่มไฟล์ test |
-| `npm test` ของ backend error เรื่อง ts-jest | jest 30 / ts-jest 29 ไม่ตรงกัน — เคยเจอบน Linux และอาจเกิดเมื่อเริ่มมีไฟล์ test จริง | T16 (ต้องอนุญาตให้เปลี่ยน dependency ก่อน) |
-| ทุก request ได้ 401 หลังใช้งานไปสักพัก | access token หมดอายุ และไม่มีโค้ด refresh | logout/login ใหม่ · T12 |
+| `npm test` ของ backend error เรื่อง ts-jest | jest 30 / ts-jest 29 ไม่ตรงกัน — เคยเจอบน Linux และอาจเกิดเมื่อเริ่มมีไฟล์ test จริง | T15 (ต้องอนุญาตให้เปลี่ยน dependency ก่อน) |
+| ทุก request ได้ 401 หลังใช้งานไปสักพัก | access token หมดอายุ และไม่มีโค้ด refresh | logout/login ใหม่ · T11 |
 | ระยะทางเป็น "haversine" ทั้งหมด | ไม่มี/ใส่ `ORS_API_KEY` ผิด หรือโควต้าหมด | ดู warning `[orsTravelMatrix]` ใน log |
 | weather score = 1.0 ทุกที่ | วันเดินทางอยู่เกิน 15 วันจากวันนี้ หรือ Open-Meteo ล่ม | เป็นพฤติกรรมที่ออกแบบไว้ (D-16) |
 | Editor เด้งกลับไปหน้า recommendations | refresh แล้ว router state หาย หรือกดแก้ไขจากหน้า auto | Known Issue #10 |
 | Dependency conflict ตอน `npm install <pkg>` | | อย่าใช้ `--force` ให้ถามก่อน และอย่าลบ lockfile |
 
 ## 10. Checklist หลังย้ายเสร็จ
-- [ ] Rotate secrets แล้ว (T1)
 - [ ] `CLAUDE.md`, `.claude/skills/*/SKILL.md`, `docs/*` อยู่ใน repo และ commit แล้ว
 - [ ] `.env.example` ครบ 3 package และไม่มีค่าจริงอยู่ข้างใน
 - [ ] `git status` ไม่มี `.env` ถูก track (`git ls-files | grep .env` ต้องได้แค่ `.env.example`)
@@ -124,7 +122,7 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 - [ ] Session แรกแบบ read-only เสร็จ และอัปเดตจุดที่ docs ไม่ตรงกับโค้ดแล้ว
 - [ ] รัน baseline checks แล้ว และผลตรงกับ DEVELOPMENT_STATUS (หรืออัปเดตแล้ว)
 - [ ] backend + frontend dev server รันได้ และ login ได้
-- [ ] ตอบคำถามค้างใน DEVELOPMENT_PLAN (T5, T6, T7) แล้วบันทึกลง DECISIONS
+- [ ] ตอบคำถามค้างใน DEVELOPMENT_PLAN (T4, T5, T6) แล้วบันทึกลง DECISIONS
 - [ ] นำเอกสารเดิมที่โค้ดอ้างถึงใส่ `docs/legacy/` แล้ว (ถ้ามี)
 - [x] ทดสอบแล้ว (2026-10-16): กฎ `permissions.ask` ใน `.claude/settings.json` ทำงานจริงใน Auto mode — มีหน้าต่างขออนุญาตตอนรัน `git branch` ผ่าน Bash tool (ยังไม่ได้ทดสอบ rule ฝั่ง `PowerShell(...)`)
 
@@ -148,7 +146,7 @@ cd ../frontend && npm run lint         # คาดว่า: 34 errors / 4 warni
 
 **ทำงานตามแผน:**
 ```
-ทำ T2 จาก docs/DEVELOPMENT_PLAN.md บน branch dev ด้วย skill feature-development และ verify-changes (ห้าม commit จนกว่าฉันจะสั่ง)
+ทำ T1 จาก docs/DEVELOPMENT_PLAN.md บน branch dev ด้วย skill feature-development และ verify-changes (ห้าม commit จนกว่าฉันจะสั่ง)
 เสนอแผนและรายการไฟล์ที่จะแก้ก่อน แล้วรอฉันยืนยัน
 ```
 

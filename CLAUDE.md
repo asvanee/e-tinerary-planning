@@ -48,7 +48,7 @@ Baseline ณ commit `0c980bd`: backend tsc ✅ · frontend `tsc -b` ❌ (มี 
 - ตัวแปร `VITE_*` ถูกฝังลงใน bundle ฝั่ง browser ห้ามใส่ secret ที่เป็นของ server ลงใน `VITE_*` เด็ดขาด
 - Backend ใช้ `SUPABASE_SERVICE_ROLE_KEY` ซึ่ง **ข้าม RLS** query ทุกตัวที่แตะข้อมูลของผู้ใช้จึงต้องกรองด้วย `user_id` เอง (ดู skill `supabase-data-access`)
 - เพิ่ม env ใหม่ต้องอัปเดต `.env.example` และตารางในหัวข้อ 9 ของ `docs/PROJECT_OVERVIEW.md`
-- `.env` ของทุก package เคยหลุดอยู่ใน git history (ดู DEVELOPMENT_STATUS Known Issue #1) ห้าม commit `.env` หรือ zip ที่มี `.env` อยู่ข้างใน
+- ห้าม commit `.env` หรือไฟล์ zip/archive ที่มี `.env` อยู่ข้างใน
 
 ## Security checklist สำหรับ endpoint
 - ทุก route ที่ใช้ข้อมูลทริปต้องมี `requireAuth` **และ** ตรวจความเป็นเจ้าของ (`getTripOwnerAndStart(tripId).userId === req.user.id` หรือ `.eq("user_id", userId)`)
@@ -85,7 +85,7 @@ Baseline ณ commit `0c980bd`: backend tsc ✅ · frontend `tsc -b` ❌ (มี 
 - ยังไม่ deploy จริง รันเฉพาะ local
 - ก่อนเริ่มงาน `git status` ต้องว่าง ถ้าไม่ว่างให้หยุดถามผู้ใช้
 - 1 งาน = 1 commit และห้าม commit เองจนกว่าผู้ใช้จะสั่ง
-- ห้าม push ทุก branch จนกว่าผู้ใช้จะสั่งชัดเจน และตอนนี้ยังไม่ push อะไรเลยจนกว่าจะ rotate secrets เสร็จ (T1)
+- ห้าม push ทุก branch จนกว่าผู้ใช้จะสั่งชัดเจน
 - ย้อนกลับด้วย `git restore <file>` (ยังไม่ commit) หรือ `git revert <commit>` (commit แล้ว)
 
 ## เริ่ม Session ใหม่

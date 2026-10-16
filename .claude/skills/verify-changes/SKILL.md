@@ -47,7 +47,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 
 ## ปัญหาที่รู้แล้วของ environment
 - `node_modules` ปัจจุบันติดตั้งบน Windows ถ้ารันใน WSL/Linux/CI ต้อง `npm ci` ใหม่ในเครื่องนั้น (ห้ามลบ node_modules ของผู้ใช้เอง ให้ถามก่อน)
-- jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ถ้า `npm test` ของ backend error ตอนโหลด transform ให้รายงานว่าเป็นปัญหา config (DEVELOPMENT_PLAN T16) ไม่ใช่ test fail
+- jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ถ้า `npm test` ของ backend error ตอนโหลด transform ให้รายงานว่าเป็นปัญหา config (DEVELOPMENT_PLAN T15) ไม่ใช่ test fail
 - ปัญหาตัวพิมพ์เล็ก-ใหญ่ (`ConfirmEmail.css`, `Navbar.tsx`) จะไม่เห็นบน Windows
 
 ## ข้อควรระวัง
