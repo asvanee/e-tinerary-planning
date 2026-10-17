@@ -8,7 +8,7 @@
 
 | Package | Stack | Entry |
 |---|---|---|
-| `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` (`src/app.ts` เป็น dead code) |
+| `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` |
 | `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
 | `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase | `package.json` scripts |
 

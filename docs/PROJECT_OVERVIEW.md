@@ -23,7 +23,6 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 ├── .gitignore
 ├── backend/                   Express 5 + TypeScript (CommonJS) — REST API
 │   ├── src/server.ts          ★ entry point จริง (mount routes ทั้งหมด, เช็ค DB ก่อน listen)
-│   ├── src/app.ts             ไม่ได้ถูกใช้ (ไม่มีไฟล์ใด import) — mount /api/itineraries แบบเก่า
 │   ├── src/config/            db.ts (Supabase client, service role), ors.ts (config ORS)
 │   ├── src/features/<feature>/  <feature>Routes.ts + <feature>Controller.ts (+ queries/builders)
 │   │   ├── auth/              register / login / logout + requireAuth middleware
@@ -40,7 +39,6 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   ├── src/main.tsx           entry (AuthProvider > App)
 │   ├── src/App.tsx            ★ routing ทั้งหมด
 │   ├── src/components/navbar.tsx
-│   ├── src/config/db.ts       Supabase client ฝั่ง browser — ไม่มีไฟล์ใด import
 │   ├── src/features/          auth / home / welcome / trip/{create,recommendations,
 │   │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
 │   ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
@@ -124,7 +122,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 
 | บริการ | ใช้ที่ไหน | หมายเหตุ |
 |---|---|---|
-| Supabase (Auth + Postgres) | backend `config/db.ts` (service role), data-pipeline (anon key), frontend `config/db.ts` (ไม่ได้ใช้งาน) | |
+| Supabase (Auth + Postgres) | backend `config/db.ts` (service role), data-pipeline (anon key) · frontend ไม่ได้เรียก Supabase ตรง (ทุกอย่างผ่าน backend) | |
 | OpenRouteService (HeiGIT) Matrix | backend `utils/orsDistance.ts`, `utils/orsTravelMatrix.ts` | default base `https://api.heigit.org/openrouteservice`; ถ้าไม่มี key จะใช้ haversine แทน |
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
 | Open-Meteo | backend `utils/weatherForecast.ts` (+ `weatherDebug.ts` ยิงซ้ำเพื่อ debug ทุกครั้งที่คำนวณ POI) | ไม่ต้องใช้ key |
@@ -143,7 +141,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
 | backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (มี default) | ✗ | ✓ (`config/ors.ts`) |
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
-| frontend | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | client ฝั่ง browser | ✓ | ✓ (แต่ไม่มีที่ใช้ client นี้) |
+| frontend | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | client ฝั่ง browser | ✓ | **✗ ไม่ถูกใช้** (ลบ `frontend/src/config/db.ts` แล้ว 2026-10-17 ยังอยู่ใน `.env.example` จนกว่าจะทำ T18 ส่วน dependency) |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
 | frontend | `VITE_ORS_API_KEY` | ORS directions จาก browser | ✓ | ✓ |
 | frontend | `VITE_ORS_BASE_URL`, `VITE_ORS_PROFILE` | optional | ✗ | ✓ |
