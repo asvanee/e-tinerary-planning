@@ -46,21 +46,21 @@
 ## กลุ่ม 1 — ปัญหาที่ทำให้ระบบใช้งานไม่ได้หรือมีความเสี่ยงสูง
 
 ### ✅ T1. ทำให้ frontend build ผ่าน และ build ได้บน OS ที่แยกตัวพิมพ์ — P0 (เสร็จ 2026-10-17)
-- **สถานะ:** ✅ เสร็จ 2026-10-17 (commit "fix(frontend): make build pass (T1)") — แก้ Known Issues #2, #3, #4 · `loading` ใน auto.tsx เลือก **แสดง** โดยกู้บล็อก loading ที่ถูกลบใน `f5e6304` กลับมา (ไม่มีบล็อกนี้ หน้าจะโชว์ error ระหว่าง fetch) · ผลบน Windows: `npm run build` ผ่าน และ `git ls-files` แสดง `navbar.tsx` · **ยังไม่ได้ทดสอบบน Linux/CI**
+- **สถานะ:** ✅ เสร็จ 2026-10-17 (commit "fix(frontend): make build pass (T1)") — แก้ Known Issues #2, #3, #4 · `loading` ใน auto.tsx เลือก **แสดง** โดยกู้บล็อก loading ที่ถูกลบใน `f5e6304` กลับมา (ไม่มีบล็อกนี้ หน้าจะโชว์ error ระหว่าง fetch) · ผลบน Windows: `npm run build` ผ่าน และ `git ls-files` แสดง `navbar.tsx` · ✅ ผู้ใช้ทดสอบ loading ของหน้า auto ใน UI จริงผ่าน (2026-10-17) · ไม่ทดสอบบน Linux/CI ตาม D-22
 - **ไฟล์:** `frontend/src/features/auth/confirmEmail/confirmEmail.tsx`, `frontend/src/components/navbar.tsx` (ชื่อใน git index), `frontend/src/features/trip/e-tinerary/auto/auto.tsx`
 - **สิ่งที่ต้องทำ:** แก้ import CSS ให้ตรงกับชื่อไฟล์จริง · rename ใน git ด้วย `git mv` สองขั้น (`Navbar.tsx` → ชื่อชั่วคราว → `navbar.tsx`) · ใช้หรือลบตัวแปร `loading` ที่ไม่ถูกใช้ใน auto.tsx (ต้องดูก่อนว่าตั้งใจจะแสดง loading state หรือไม่)
 - **เสร็จเมื่อ:** `npm run build` ผ่านบน Windows และ `git ls-files frontend/src/components` แสดง `navbar.tsx`
 - **ความเสี่ยง:** ต่ำ
 
 ### ✅ T2. ปิดช่องโหว่ ownership ของ `/auto-places` — P0 (เสร็จ 2026-10-17)
-- **สถานะ:** ✅ เสร็จ 2026-10-17 (commit `381dc8d`) — เลือก **เพิ่มการเช็คเจ้าของ** (ไม่ลบ endpoint เพราะส่วน Auto Trip เพื่อนในทีมดูแลอยู่) แก้ Known Issue #5 · backend tsc ผ่าน · **ยังไม่ได้ทดสอบกับ Supabase จริง**
+- **สถานะ:** ✅ เสร็จ 2026-10-17 (commit `381dc8d`) — เลือก **เพิ่มการเช็คเจ้าของ** (ไม่ลบ endpoint เพราะส่วน Auto Trip เพื่อนในทีมดูแลอยู่) แก้ Known Issue #5 · backend tsc ผ่าน · ✅ ผู้ใช้ทดสอบกับ Supabase จริงผ่าน (2026-10-17): 200 / 403 / 404 / 401
 - **ไฟล์:** `backend/src/features/itinerary/itineraryController.ts` (`getAutoTripPlacesTest`)
 - **สิ่งที่ต้องทำ:** เพิ่ม `getTripOwnerAndStart` + เช็ค `userId` แบบเดียวกับ endpoint อื่น หรือพิจารณาลบ endpoint นี้ (frontend ใช้แค่เป็น pre-check ใน `TripRecommendations.handleAutoTrip`)
 - **เสร็จเมื่อ:** ถ้าเรียกทริปของคนอื่นต้องได้ 403
 - **ความเสี่ยง:** ถ้าลบ endpoint ต้องแก้ `TripRecommendations.tsx` ไปพร้อมกัน
 
 ### ✅ T22. แยก Supabase client ของ auth ออกจาก client ที่ใช้ query ข้อมูล — P0 (เสร็จ 2026-10-17)
-- **สถานะ:** ✅ เสร็จ 2026-10-17 — แก้ Known Issue #21 · เพิ่ม `createAuthClient()` ใน `config/db.ts` (สร้าง client ใหม่ทุกครั้ง, `persistSession`/`autoRefreshToken`/`detectSessionInUrl: false`) แล้วให้ `register`/`login` เรียก `signUp`/`signInWithPassword` ผ่านตัวนี้ · client หลัก, query `users`, `admin.signOut` และ `requireAuth` ไม่เปลี่ยน · ผู้ใช้แจ้งว่า RLS ของ `trips`/`itineraries`/`poi_scores`/`users` ปิดอยู่ · backend tsc ผ่าน · script offline (URL/key ปลอม + mock fetch) ยืนยันว่าพฤติกรรมเดิมทำให้ query ใช้ JWT ของผู้ใช้จริง และหลังแก้ query ใช้ service key (7/7) · **ยังไม่ได้ทดสอบกับ Supabase จริง** (register/ยืนยันอีเมล/login/logout, login X แล้ว Y เห็น MyTrips ครบ)
+- **สถานะ:** ✅ เสร็จ 2026-10-17 — แก้ Known Issue #21 · เพิ่ม `createAuthClient()` ใน `config/db.ts` (สร้าง client ใหม่ทุกครั้ง, `persistSession`/`autoRefreshToken`/`detectSessionInUrl: false`) แล้วให้ `register`/`login` เรียก `signUp`/`signInWithPassword` ผ่านตัวนี้ · client หลัก, query `users`, `admin.signOut` และ `requireAuth` ไม่เปลี่ยน · ผู้ใช้แจ้งว่า RLS ของ `trips`/`itineraries`/`poi_scores`/`users` ปิดอยู่ · backend tsc ผ่าน · script offline (URL/key ปลอม + mock fetch) ยืนยันว่าพฤติกรรมเดิมทำให้ query ใช้ JWT ของผู้ใช้จริง และหลังแก้ query ใช้ service key (7/7) · ✅ ผู้ใช้ทดสอบกับ Supabase จริงผ่าน (2026-10-17): login/logout/login ซ้ำ, login X แล้ว Y เห็น MyTrips ของตัวเองครบ, register/ยืนยันอีเมล
 - **หมายเหตุ:** ตั้ง `persistSession: false` ที่ client หลักอย่างเดียวไม่พอ เพราะ auth-js ยังเก็บ session ไว้ใน memory (`GoTrueClient.js` กรณี `persistSession` เป็น false) จึงต้องใช้ client แยกที่ทิ้งหลังใช้
 - **ไฟล์:** `backend/src/config/db.ts`, `backend/src/features/auth/authController.ts` (`register`, `login`)
 - **สิ่งที่ต้องทำ (ข้อเสนอ):** ให้ `signUp`/`signInWithPassword` ใช้ client แยกที่ไม่แชร์ session กับ client หลัก (เช่น สร้าง client ใหม่ต่อ request ด้วย `auth: { persistSession: false, autoRefreshToken: false }`) ส่วน client service role หลักต้องไม่มี session ติดอยู่เลย

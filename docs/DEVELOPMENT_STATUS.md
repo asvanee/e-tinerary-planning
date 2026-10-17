@@ -1,7 +1,7 @@
 # DEVELOPMENT_STATUS
 
 > สถานะ ณ commit `0c980bd` (branch `dev`, 2026-10-13) — ตรวจเมื่อ 2026-10-16 · อัปเดตผล frontend หลัง T1 เมื่อ 2026-10-17 · อัปเดต T22, #19 และ lint config (`argsIgnorePattern`) เมื่อ 2026-10-17
-> **"Implemented" = มีโค้ดรองรับครบตาม flow เท่านั้น ไม่ได้แปลว่าทดสอบการทำงานจริงแล้ว** เพราะไม่มี automated test และยังไม่ได้รันแอปกับ Supabase จริง
+> **"Implemented" = มีโค้ดรองรับครบตาม flow เท่านั้น ไม่ได้แปลว่าทดสอบการทำงานจริงแล้ว** เพราะไม่มี automated test และยังไม่ได้รันแอปกับ Supabase จริง (ยกเว้น manual test ของ T1/T2/T22 ที่ผู้ใช้ทดสอบผ่านเมื่อ 2026-10-17 ดูตาราง "Known Issues ที่แก้แล้ว")
 
 ## หลักฐานจากการตรวจ (รันจริงบนสำเนาโปรเจกต์ใน Linux)
 
@@ -54,12 +54,12 @@
 - CI / deploy
 
 ## Needs Verification (หลักฐานยังไม่พอจะสรุป)
-1. RLS policy ของทุกตาราง และ FK `ON DELETE CASCADE` ของ `trip_days` / `trip_categories` / `itineraries` / `poi_scores` → `trips` (comment ใน `deleteTrip` เตือนไว้เอง)
+1. ~~RLS policy ของทุกตาราง~~ ผู้ใช้ยืนยัน (2026-10-17) ว่า RLS ปิดทุกตาราง (`users`, `trips`, `itineraries`, `poi_scores`, `places`, `place_categories`, `categories`, `trip_days`, `trip_categories`) · ที่ยังต้องตรวจ: FK `ON DELETE CASCADE` ของ `trip_days` / `trip_categories` / `itineraries` / `poi_scores` → `trips` (comment ใน `deleteTrip` เตือนไว้เอง)
 2. ข้อมูลเกิน 1,000 แถว: query `getProvinces`/`getDistricts` (select ทั้งตาราง `places`) และ `queryPlacesWithCategoryInfo` ไม่ได้ paginate ถ้า Supabase ยังใช้ max rows ค่า default (1000) ผลอาจถูกตัดโดยไม่มี error (data-pipeline เองยังเขียนไว้ว่า "Supabase จำกัด default 1000 rows")
 3. ความหมายของงบ: `daily_budget` คืองบ **ทั้งกลุ่มต่อวัน** แต่ hard filter และ `cumulativeCost` เอาไปเทียบกับราคาจาก `PRICE_LEVEL_TO_BAHT` โดยไม่คูณจำนวนคน ยังไม่ทราบว่าราคาในตารางนั้นเป็นราคาต่อคนหรือไม่ — **ต้องให้เจ้าของโปรเจกต์ตัดสินใจ**
 4. พฤติกรรมเมื่อ access token หมดอายุ (backend จะตอบ 401 แต่ frontend ยังเห็นว่าล็อกอินอยู่)
 5. `/trip/:id/auto` จับคู่ trip day ด้วย `item.day_number ?? item.day ?? item.day_no` แต่ response ของ `getSavedItinerary` ใช้ `dayNumber` จึงตกไปใช้ `tripDays[index]` แทน — ผลลัพธ์อาจถูกต้องโดยบังเอิญ
-6. การ build บน Linux/CI — เคสตัวพิมพ์เล็ก-ใหญ่ที่รู้ (#2, #3) แก้แล้วใน T1 แต่ยังไม่ได้รัน build บน Linux/CI จริง จึงยังไม่รู้ว่ามีเคสอื่นอีกหรือไม่
+6. ~~การ build บน Linux/CI~~ ไม่ต้องตรวจตาม D-22 (โปรเจกต์ส่งงานไม่ใช้ Linux/CI) — เคสตัวพิมพ์เล็ก-ใหญ่ที่รู้ (#2, #3) แก้แล้วใน T1
 
 ## Known Issues (พบจากโค้ดหรือผลการตรวจ)
 
@@ -86,11 +86,11 @@
 ## Known Issues ที่แก้แล้ว
 | # | ปัญหาเดิม | แก้เมื่อ | การแก้ / ที่ยังไม่ได้ตรวจ |
 |---|---|---|---|
-| 2 | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` | 2026-10-17 (T1) | แก้ import เป็น `./confirmEmail.css` · ยังไม่ได้ทดสอบบน Linux/CI |
-| 3 | git index เก็บชื่อ `Navbar.tsx` แต่ import ทุกไฟล์ใช้ `components/navbar` | 2026-10-17 (T1) | `git mv` สองขั้นเป็น `navbar.tsx` (เนื้อไฟล์ไม่เปลี่ยน) · ยังไม่ได้ทดสอบบน Linux/CI |
-| 4 | `tsc -b` ไม่ผ่านเพราะ `loading` ใน `auto.tsx` ไม่ถูกใช้ ทำให้ `npm run build` fail | 2026-10-17 (T1) | กู้บล็อก `if (loading)` ที่ถูกลบใน `f5e6304` กลับมา (ก่อนแก้ หน้า auto โชว์ "จัดทริปอัตโนมัติไม่สำเร็จ" ระหว่าง fetch) · tsc/build ผ่านบน Windows · ยังไม่ได้ทดสอบใน UI จริง |
-| 5 | `GET /api/itinerary/trips/:tripId/auto-places` ไม่เช็คว่าผู้เรียกเป็นเจ้าของทริป ผู้ใช้ที่ล็อกอินแล้วอ่าน `poi_scores` ของทริปคนอื่นได้ | 2026-10-17 (T2) | เพิ่ม `getTripOwnerAndStart` + เช็ค `userId` ใน `getAutoTripPlacesTest` (ทริปไม่มี → 404, ไม่ใช่เจ้าของ → 403) แบบเดียวกับ `buildAutoTripController` · backend tsc ผ่าน · **ยังไม่ได้ทดสอบกับ Supabase จริง** (เจ้าของ 200 / คนอื่น 403 / ไม่มีทริป 404) |
-| 21 | `login`/`register` เรียก `signInWithPassword`/`signUp` บน client service role ตัวเดียวกับที่ใช้ query ข้อมูล ใน Node session จะถูกเก็บไว้ใน memory และ `_getAccessToken()` ของ supabase-js 2.97.0 ใช้ `session.access_token` ก่อน service key ทำให้หลังมีคน login query ของทุก request ใช้ JWT ของคนที่ login ล่าสุด (ยืนยันด้วย script offline แล้ว) · ผู้ใช้แจ้งว่า RLS ของ `trips`/`itineraries`/`poi_scores`/`users` ปิดอยู่ จึงยังไม่เห็นอาการ | 2026-10-17 (T22) | เพิ่ม `createAuthClient()` ใน `config/db.ts` แล้วให้ `signUp`/`signInWithPassword` ใช้ client ใหม่ต่อ request · backend tsc ผ่าน · script offline (mock fetch) ยืนยันว่าหลังแก้ query บน client หลักใช้ service key (7/7) · **ยังไม่ได้ทดสอบกับ Supabase จริง** · RLS ของ `places`/`place_categories`/`categories`/`trip_days`/`trip_categories` ยังไม่ทราบ |
+| 2 | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` | 2026-10-17 (T1) | แก้ import เป็น `./confirmEmail.css` · ไม่ทดสอบบน Linux/CI ตาม D-22 |
+| 3 | git index เก็บชื่อ `Navbar.tsx` แต่ import ทุกไฟล์ใช้ `components/navbar` | 2026-10-17 (T1) | `git mv` สองขั้นเป็น `navbar.tsx` (เนื้อไฟล์ไม่เปลี่ยน) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
+| 4 | `tsc -b` ไม่ผ่านเพราะ `loading` ใน `auto.tsx` ไม่ถูกใช้ ทำให้ `npm run build` fail | 2026-10-17 (T1) | กู้บล็อก `if (loading)` ที่ถูกลบใน `f5e6304` กลับมา (ก่อนแก้ หน้า auto โชว์ "จัดทริปอัตโนมัติไม่สำเร็จ" ระหว่าง fetch) · tsc/build ผ่านบน Windows · ✅ ผู้ใช้ทดสอบใน UI จริง 2026-10-17: หน้า auto แสดง "กำลังจัดทริปอัตโนมัติ" ระหว่าง fetch แล้วจึงแสดงผล |
+| 5 | `GET /api/itinerary/trips/:tripId/auto-places` ไม่เช็คว่าผู้เรียกเป็นเจ้าของทริป ผู้ใช้ที่ล็อกอินแล้วอ่าน `poi_scores` ของทริปคนอื่นได้ | 2026-10-17 (T2) | เพิ่ม `getTripOwnerAndStart` + เช็ค `userId` ใน `getAutoTripPlacesTest` (ทริปไม่มี → 404, ไม่ใช่เจ้าของ → 403) แบบเดียวกับ `buildAutoTripController` · backend tsc ผ่าน · ✅ ผู้ใช้ทดสอบกับ Supabase จริง 2026-10-17: เจ้าของ 200 / คนอื่น 403 / ไม่มีทริป 404 / ไม่ส่ง token 401 และปุ่ม Auto Trip ใน UI ทำงานปกติ |
+| 21 | `login`/`register` เรียก `signInWithPassword`/`signUp` บน client service role ตัวเดียวกับที่ใช้ query ข้อมูล ใน Node session จะถูกเก็บไว้ใน memory และ `_getAccessToken()` ของ supabase-js 2.97.0 ใช้ `session.access_token` ก่อน service key ทำให้หลังมีคน login query ของทุก request ใช้ JWT ของคนที่ login ล่าสุด (ยืนยันด้วย script offline แล้ว) · ผู้ใช้แจ้งว่า RLS ของ `trips`/`itineraries`/`poi_scores`/`users` ปิดอยู่ จึงยังไม่เห็นอาการ | 2026-10-17 (T22) | เพิ่ม `createAuthClient()` ใน `config/db.ts` แล้วให้ `signUp`/`signInWithPassword` ใช้ client ใหม่ต่อ request · backend tsc ผ่าน · script offline (mock fetch) ยืนยันว่าหลังแก้ query บน client หลักใช้ service key (7/7) · ✅ ผู้ใช้ทดสอบกับ Supabase จริง 2026-10-17 (2 บัญชี หน้าต่างปกติ + Incognito): login ผิด/ถูก, แต่ละบัญชีเห็นเฉพาะ MyTrips ของตัวเองครบ, refresh แล้วยังเป็นบัญชีเดิม, logout, login ซ้ำ · ✅ register/ยืนยันอีเมลผ่าน (สมัครใหม่, สมัครซ้ำได้ "อีเมลนี้มีบัญชีอยู่แล้ว", login ก่อนยืนยันได้ 403, ลิงก์ยืนยันพากลับ `/login`, login แล้วเข้า `/home`, มีแถวใน Auth Users และ `users` role `user`) · ผู้ใช้ยืนยันว่า RLS ปิดทุกตาราง จึงไม่มีผลต่างของผลลัพธ์ query หลังแก้ |
 | 19 | comment ของ `getAutoTripPlacesTest` เขียนว่า `GET /api/itinerary/trips/:tripId/auto-test` แต่ route จริงคือ `/auto-places` (`itineraryRoutes.ts:23`) | 2026-10-17 | แก้ comment ใน `itineraryController.ts:418` เป็น `auto-places` (แก้แค่ comment ไม่มีผลกับการทำงาน) · backend tsc ผ่าน |
 
 ## ข้อสันนิษฐาน (ยังไม่ใช่ข้อเท็จจริง)

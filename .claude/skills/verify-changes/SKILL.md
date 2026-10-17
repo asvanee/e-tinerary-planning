@@ -12,7 +12,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | data-pipeline `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd`) |
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
 | frontend `npm run lint` | ❌ 29 errors, 4 warnings (หลังตั้ง `argsIgnorePattern: "^_"` 2026-10-17) |
-| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ยังไม่ได้ทดสอบบน Linux/CI |
+| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
 | `npm test` (ทั้งสองฝั่ง) | ไม่มีไฟล์ test |
 
 ถ้า baseline เปลี่ยนเพราะงานที่ทำเสร็จแล้ว ให้อัปเดตตารางนี้และ `docs/DEVELOPMENT_STATUS.md`
@@ -48,7 +48,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 ## ปัญหาที่รู้แล้วของ environment
 - `node_modules` ปัจจุบันติดตั้งบน Windows ถ้ารันใน WSL/Linux/CI ต้อง `npm ci` ใหม่ในเครื่องนั้น (ห้ามลบ node_modules ของผู้ใช้เอง ให้ถามก่อน)
 - jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ถ้า `npm test` ของ backend error ตอนโหลด transform ให้รายงานว่าเป็นปัญหา config (DEVELOPMENT_PLAN T15) ไม่ใช่ test fail
-- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 แต่ยังไม่ได้ยืนยันบน Linux/CI)
+- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 · ไม่ทดสอบบน Linux/CI ตาม D-22 แต่ยังต้องตั้งชื่อให้ตรงกันทุกตัวอักษร)
 
 ## ข้อควรระวัง
 - ห้ามรายงานว่าผ่านถ้าไม่ได้รันในรอบนี้ และห้ามคัดลอกผลจาก baseline มาใช้แทน
