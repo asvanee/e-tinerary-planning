@@ -65,7 +65,6 @@
 
 | # | ระดับ | ปัญหา | หลักฐาน |
 |---|---|---|---|
-| 5 | 🟠 Security | `GET /api/itinerary/trips/:tripId/auto-places` ไม่เช็คว่าผู้เรียกเป็นเจ้าของทริป ผู้ใช้ที่ล็อกอินแล้วจะอ่าน `poi_scores` ของทริปคนอื่นได้ | `itineraryController.getAutoTripPlacesTest` |
 | 6 | 🟠 Logic | `updateTrip` ไม่อัปเดต `trip_days` ที่สร้างไว้แล้ว ถ้าแก้วันที่/เวลาเริ่ม/เวลาว่าง/งบหลังเคยสร้าง draft ไปแล้ว `getOrCreateTripDays` จะคืนค่าเดิม (จำนวนวัน เวลา และ daily_budget ไม่ตรงกับทริป) | `tripController.updateTrip`, `itineraryPlaceQueries.getOrCreateTripDays` |
 | 7 | 🟠 Data loss | `confirmItinerary` ลบ itineraries เดิมก่อนแล้วค่อย insert ใหม่ (ไม่อยู่ใน transaction) ถ้า insert fail แผนเดิมจะหาย | `itineraryController.ts` ~บรรทัด 258–303 |
 | 8 | 🟠 Security | ORS API key ฝั่ง frontend (`VITE_ORS_API_KEY`) ถูกฝังใน bundle ของ browser ขัดกับ comment ใน `config/ors.ts` ที่บอกว่า key ห้ามส่งไป frontend | `RouteMap.tsx` |
@@ -87,6 +86,7 @@
 | 2 | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` | 2026-10-17 (T1) | แก้ import เป็น `./confirmEmail.css` · ยังไม่ได้ทดสอบบน Linux/CI |
 | 3 | git index เก็บชื่อ `Navbar.tsx` แต่ import ทุกไฟล์ใช้ `components/navbar` | 2026-10-17 (T1) | `git mv` สองขั้นเป็น `navbar.tsx` (เนื้อไฟล์ไม่เปลี่ยน) · ยังไม่ได้ทดสอบบน Linux/CI |
 | 4 | `tsc -b` ไม่ผ่านเพราะ `loading` ใน `auto.tsx` ไม่ถูกใช้ ทำให้ `npm run build` fail | 2026-10-17 (T1) | กู้บล็อก `if (loading)` ที่ถูกลบใน `f5e6304` กลับมา (ก่อนแก้ หน้า auto โชว์ "จัดทริปอัตโนมัติไม่สำเร็จ" ระหว่าง fetch) · tsc/build ผ่านบน Windows · ยังไม่ได้ทดสอบใน UI จริง |
+| 5 | `GET /api/itinerary/trips/:tripId/auto-places` ไม่เช็คว่าผู้เรียกเป็นเจ้าของทริป ผู้ใช้ที่ล็อกอินแล้วอ่าน `poi_scores` ของทริปคนอื่นได้ | 2026-10-17 (T2) | เพิ่ม `getTripOwnerAndStart` + เช็ค `userId` ใน `getAutoTripPlacesTest` (ทริปไม่มี → 404, ไม่ใช่เจ้าของ → 403) แบบเดียวกับ `buildAutoTripController` · backend tsc ผ่าน · **ยังไม่ได้ทดสอบกับ Supabase จริง** (เจ้าของ 200 / คนอื่น 403 / ไม่มีทริป 404) |
 
 ## ข้อสันนิษฐาน (ยังไม่ใช่ข้อเท็จจริง)
 - เป็นโปรเจกต์ของนักศึกษา/ทีมเล็ก (มี comment ว่า "ควรทำ sensitivity analysis … ในรายงาน") — ใช้เป็นบริบทเท่านั้น

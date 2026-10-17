@@ -425,6 +425,16 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: "tripId is required" });
     }
 
+    const tripOwner = await getTripOwnerAndStart(tripId);
+
+    if (!tripOwner) {
+      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
+    }
+
+    if (tripOwner.userId !== req.user?.id) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
+    }
+
     const places = await getAutoTripPlaces(tripId);
 
     return res.status(200).json({

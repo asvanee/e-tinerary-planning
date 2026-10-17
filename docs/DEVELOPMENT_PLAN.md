@@ -52,7 +52,8 @@
 - **เสร็จเมื่อ:** `npm run build` ผ่านบน Windows และ `git ls-files frontend/src/components` แสดง `navbar.tsx`
 - **ความเสี่ยง:** ต่ำ
 
-### T2. ปิดช่องโหว่ ownership ของ `/auto-places` — P0
+### ✅ T2. ปิดช่องโหว่ ownership ของ `/auto-places` — P0 (เสร็จ 2026-10-17)
+- **สถานะ:** ✅ เสร็จ 2026-10-17 — เลือก **เพิ่มการเช็คเจ้าของ** (ไม่ลบ endpoint เพราะส่วน Auto Trip เพื่อนในทีมดูแลอยู่) แก้ Known Issue #5 · backend tsc ผ่าน · **ยังไม่ได้ทดสอบกับ Supabase จริง**
 - **ไฟล์:** `backend/src/features/itinerary/itineraryController.ts` (`getAutoTripPlacesTest`)
 - **สิ่งที่ต้องทำ:** เพิ่ม `getTripOwnerAndStart` + เช็ค `userId` แบบเดียวกับ endpoint อื่น หรือพิจารณาลบ endpoint นี้ (frontend ใช้แค่เป็น pre-check ใน `TripRecommendations.handleAutoTrip`)
 - **เสร็จเมื่อ:** ถ้าเรียกทริปของคนอื่นต้องได้ 403
