@@ -40,8 +40,8 @@
 ### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5)
 - **สถานะใน README:** รอดำเนินการ
 - **ไฟล์:** ยังไม่มีโค้ด admin/role ทั้ง backend และ frontend · จุดที่ต้องต่อ: `backend/src/server.ts` (mount route), `backend/src/features/auth/authMiddleware.ts` (`requireAuth`), `frontend/src/App.tsx` (`ProtectedRoute`), ตาราง `places`/`place_categories`
-- **ก่อนเริ่ม:** README บอกว่าขอบเขตยังเป็นข้อเสนอเบื้องต้น ต้องตัดสินใจเรื่องวิธีกำหนด role ของ admin (ต้องรู้ schema/RLS) และบันทึกเป็น D-xx ใน DECISIONS.md
-- **งาน T ที่ซ้อน:** T2, T11 (auth/ownership) · T19 (fetch helper) · ใช้ผลจาก R2 (แสดงพิกัดผิด) และ R4 (แสดงผล mapping)
+- **ก่อนเริ่ม:** README บอกว่าขอบเขตยังเป็นข้อเสนอเบื้องต้น ต้องตัดสินใจเรื่องวิธีกำหนด role ของ admin (ต้องรู้ schema/RLS) และบันทึกเป็น D-xx ใน DECISIONS.md · **middleware ของ admin ต้องอ่าน role จาก DB ฝั่ง backend ทุก request ห้ามเชื่อ `user.role` ใน `localStorage`** (Known Issue #22)
+- **งาน T ที่ซ้อน:** T2, T11, T22 (auth/ownership — ควรทำ T22 ก่อน R5) · T19 (fetch helper) · ใช้ผลจาก R2 (แสดงพิกัดผิด) และ R4 (แสดงผล mapping)
 
 ## กลุ่ม 1 — ปัญหาที่ทำให้ระบบใช้งานไม่ได้หรือมีความเสี่ยงสูง
 
@@ -53,11 +53,19 @@
 - **ความเสี่ยง:** ต่ำ
 
 ### ✅ T2. ปิดช่องโหว่ ownership ของ `/auto-places` — P0 (เสร็จ 2026-10-17)
-- **สถานะ:** ✅ เสร็จ 2026-10-17 — เลือก **เพิ่มการเช็คเจ้าของ** (ไม่ลบ endpoint เพราะส่วน Auto Trip เพื่อนในทีมดูแลอยู่) แก้ Known Issue #5 · backend tsc ผ่าน · **ยังไม่ได้ทดสอบกับ Supabase จริง**
+- **สถานะ:** ✅ เสร็จ 2026-10-17 (commit `381dc8d`) — เลือก **เพิ่มการเช็คเจ้าของ** (ไม่ลบ endpoint เพราะส่วน Auto Trip เพื่อนในทีมดูแลอยู่) แก้ Known Issue #5 · backend tsc ผ่าน · **ยังไม่ได้ทดสอบกับ Supabase จริง**
 - **ไฟล์:** `backend/src/features/itinerary/itineraryController.ts` (`getAutoTripPlacesTest`)
 - **สิ่งที่ต้องทำ:** เพิ่ม `getTripOwnerAndStart` + เช็ค `userId` แบบเดียวกับ endpoint อื่น หรือพิจารณาลบ endpoint นี้ (frontend ใช้แค่เป็น pre-check ใน `TripRecommendations.handleAutoTrip`)
 - **เสร็จเมื่อ:** ถ้าเรียกทริปของคนอื่นต้องได้ 403
 - **ความเสี่ยง:** ถ้าลบ endpoint ต้องแก้ `TripRecommendations.tsx` ไปพร้อมกัน
+
+### T22. แยก Supabase client ของ auth ออกจาก client ที่ใช้ query ข้อมูล — P0 (ข้อเสนอ)
+- **สถานะ:** Known Issue #21 · พบตอนตรวจ security chain 2026-10-17 · ยังไม่ได้ทดลองว่าเกิดผลจริงหรือไม่
+- **ไฟล์:** `backend/src/config/db.ts`, `backend/src/features/auth/authController.ts` (`register`, `login`)
+- **สิ่งที่ต้องทำ (ข้อเสนอ):** ให้ `signUp`/`signInWithPassword` ใช้ client แยกที่ไม่แชร์ session กับ client หลัก (เช่น สร้าง client ใหม่ต่อ request ด้วย `auth: { persistSession: false, autoRefreshToken: false }`) ส่วน client service role หลักต้องไม่มี session ติดอยู่เลย
+- **ก่อนเริ่ม:** เป็นงาน auth ต้องให้ผู้ใช้ยืนยันแนวทางตาม CLAUDE.md กฎข้อ 4 · ควรรู้ก่อนว่าตาราง `trips`/`itineraries`/`poi_scores`/`users` เปิด RLS ไว้หรือไม่ (เพื่อประเมินผลกระทบ)
+- **เสร็จเมื่อ:** login ด้วยบัญชี X แล้วบัญชี Y ยังเห็นทริปของตัวเองครบ (MyTrips) และ query ของ backend ใช้ service role เสมอ
+- **ความเสี่ยง:** กลาง — ถ้า RLS ปิดอยู่จะไม่เห็นความต่าง ถ้า RLS เปิดอยู่ ผลของบาง query อาจเปลี่ยนจาก "ว่าง" เป็น "ครบ"
 
 ### T3. กันแผนเดิมหายตอน confirm — P1
 - **ไฟล์:** `itineraryController.confirmItinerary`
@@ -100,7 +108,8 @@
 - **T8 (P2)** เก็บกวาด weather debug: ลบหรือครอบ `debugOpenMeteo`/`debugRainGrid`/`explainWeatherScore` ด้วย env flag (`poiController.ts`)
 - **T9 (P2)** เตรียม config สำหรับ production: ใช้ `FRONTEND_URL` สำหรับ CORS และ `emailRedirectTo`, เพิ่ม script `build`/`start` ใน backend · **ต้องรู้ปลายทาง deploy ก่อน**
 - **T10 (P2)** ย้ายการเรียก ORS directions ไปทำผ่าน backend proxy (Known Issue #8)
-- **T11 (P2)** จัดการ token หมดอายุ: ถ้า API ตอบ 401 ให้ logout แล้วพาไป `/login` หรือใช้ refresh token (ตัดสินใจก่อนลงมือ)
+- **T11 (P2)** จัดการ token หมดอายุ: ถ้า API ตอบ 401 ให้ logout แล้วพาไป `/login` หรือใช้ refresh token (ตัดสินใจก่อนลงมือ) · พิจารณาที่เก็บ session ไปพร้อมกัน (Known Issue #23)
+- **T23 (P2)** ลดข้อมูลที่หลุดใน error response: ตอบ 500 ด้วยข้อความภาษาไทยทั่วไปแล้ว `console.error` รายละเอียดไว้ฝั่ง server (Known Issue #24) · เพิ่ม validation ที่ขาด (Known Issue #25): จำกัดจำนวน `ids` ใน `/api/places`, validate field ของ `register` และพิจารณาว่า `place_ids` ต้องอยู่ใน `poi_scores` ของทริปหรือไม่ (ต้องถามทีมก่อน เพราะกระทบ flow ของ editor/Auto Trip)
 - **T12 (P3)** ข้อมูลจังหวัดอื่น / Stage 3 สำหรับกรุงเทพฯ และชลบุรี — ต้องหาโค้ด Stage 3 ก่อน (ไม่มีใน repo)
 
 ## กลุ่ม 4 — การทดสอบและการตรวจสอบความถูกต้อง
@@ -122,5 +131,5 @@
 - ~~เขียน README จริง~~ — README.md เป็นแผนงานของทีมแล้ว (ดูกลุ่ม 0)
 
 ## ลำดับที่แนะนำ
-`T1 → T2 → R1+R3 ตรวจสูตรปัจจุบัน (ทำ T13 ส่วน poiScoreCalculator ควบคู่) → R2 → R1/R3 ปรับสูตร → ทดสอบ Top 50 → R4 → R5 → T13/T14 ส่วนที่เหลือ → T5 → T4 → T3 → T6 → T7 → ที่เหลือ`
+`T1 ✅ → T2 ✅ → T22 → R1+R3 ตรวจสูตรปัจจุบัน (ทำ T13 ส่วน poiScoreCalculator ควบคู่) → R2 → R1/R3 ปรับสูตร → ทดสอบ Top 50 → R4 → R5 → T13/T14 ส่วนที่เหลือ → T5 → T4 → T3 → T6 → T7 → ที่เหลือ`
 > ลำดับ R ตาม README หัวข้อ 4 "ลำดับการทำงานที่แนะนำ"

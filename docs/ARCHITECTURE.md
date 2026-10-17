@@ -34,7 +34,7 @@ MyTrips ─► Trip Detail ─► แก้ไขแผน (สร้าง draf
 
 ### 2.1 Auth
 - `POST /api/auth/register`: `supabase.auth.signUp` แล้ว insert `users` (role `user`), redirect ใน email ถูก **hardcode** เป็น `http://localhost:5173/login`
-- `POST /api/auth/login`: `signInWithPassword` → บังคับว่าต้อง `email_confirmed_at` → อ่าน profile จาก `users` → อัปเดต `last_login` → คืน `{ user, session }`
+- `POST /api/auth/login`: `signInWithPassword` → บังคับว่าต้อง `email_confirmed_at` → อ่าน profile จาก `users` → อัปเดต `last_login` → คืน `{ user, session }` · ⚠️ `signUp`/`signInWithPassword` เรียกบน client service role ตัวเดียวกับที่ใช้ query ข้อมูล (Known Issue #21, T22)
 - Frontend `AuthContext` เก็บ `user`/`session` ใน `localStorage` และไม่มีโค้ด refresh token (ตรวจด้วย grep แล้วไม่พบ) — **พฤติกรรมเมื่อ token หมดอายุ: ต้องตรวจสอบเพิ่มเติม**
 - `logout` เรียก `supabase.auth.admin.signOut(token)`
 

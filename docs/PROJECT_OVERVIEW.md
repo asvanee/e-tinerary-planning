@@ -108,7 +108,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | POST `/api/itinerary/trips/:tripId/draft` | ✓ | `itineraryController.buildDraft` |
 | GET `/api/itinerary/trips/:tripId` | ✓ | `getSavedItinerary` |
 | PUT `/api/itinerary/trips/:tripId` | ✓ | `confirmItinerary` |
-| GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (**ไม่เช็คว่าเป็นเจ้าของทริป**) | `getAutoTripPlacesTest` |
+| GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
 | POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` |
 
 Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`AuthContext.tsx`)
