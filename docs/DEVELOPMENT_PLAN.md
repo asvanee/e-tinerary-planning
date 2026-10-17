@@ -59,8 +59,9 @@
 - **เสร็จเมื่อ:** ถ้าเรียกทริปของคนอื่นต้องได้ 403
 - **ความเสี่ยง:** ถ้าลบ endpoint ต้องแก้ `TripRecommendations.tsx` ไปพร้อมกัน
 
-### T22. แยก Supabase client ของ auth ออกจาก client ที่ใช้ query ข้อมูล — P0 (ข้อเสนอ)
-- **สถานะ:** Known Issue #21 · พบตอนตรวจ security chain 2026-10-17 · ยังไม่ได้ทดลองว่าเกิดผลจริงหรือไม่
+### ✅ T22. แยก Supabase client ของ auth ออกจาก client ที่ใช้ query ข้อมูล — P0 (เสร็จ 2026-10-17)
+- **สถานะ:** ✅ เสร็จ 2026-10-17 — แก้ Known Issue #21 · เพิ่ม `createAuthClient()` ใน `config/db.ts` (สร้าง client ใหม่ทุกครั้ง, `persistSession`/`autoRefreshToken`/`detectSessionInUrl: false`) แล้วให้ `register`/`login` เรียก `signUp`/`signInWithPassword` ผ่านตัวนี้ · client หลัก, query `users`, `admin.signOut` และ `requireAuth` ไม่เปลี่ยน · ผู้ใช้แจ้งว่า RLS ของ `trips`/`itineraries`/`poi_scores`/`users` ปิดอยู่ · backend tsc ผ่าน · script offline (URL/key ปลอม + mock fetch) ยืนยันว่าพฤติกรรมเดิมทำให้ query ใช้ JWT ของผู้ใช้จริง และหลังแก้ query ใช้ service key (7/7) · **ยังไม่ได้ทดสอบกับ Supabase จริง** (register/ยืนยันอีเมล/login/logout, login X แล้ว Y เห็น MyTrips ครบ)
+- **หมายเหตุ:** ตั้ง `persistSession: false` ที่ client หลักอย่างเดียวไม่พอ เพราะ auth-js ยังเก็บ session ไว้ใน memory (`GoTrueClient.js` กรณี `persistSession` เป็น false) จึงต้องใช้ client แยกที่ทิ้งหลังใช้
 - **ไฟล์:** `backend/src/config/db.ts`, `backend/src/features/auth/authController.ts` (`register`, `login`)
 - **สิ่งที่ต้องทำ (ข้อเสนอ):** ให้ `signUp`/`signInWithPassword` ใช้ client แยกที่ไม่แชร์ session กับ client หลัก (เช่น สร้าง client ใหม่ต่อ request ด้วย `auth: { persistSession: false, autoRefreshToken: false }`) ส่วน client service role หลักต้องไม่มี session ติดอยู่เลย
 - **ก่อนเริ่ม:** เป็นงาน auth ต้องให้ผู้ใช้ยืนยันแนวทางตาม CLAUDE.md กฎข้อ 4 · ควรรู้ก่อนว่าตาราง `trips`/`itineraries`/`poi_scores`/`users` เปิด RLS ไว้หรือไม่ (เพื่อประเมินผลกระทบ)
@@ -131,5 +132,5 @@
 - ~~เขียน README จริง~~ — README.md เป็นแผนงานของทีมแล้ว (ดูกลุ่ม 0)
 
 ## ลำดับที่แนะนำ
-`T1 ✅ → T2 ✅ → T22 → R1+R3 ตรวจสูตรปัจจุบัน (ทำ T13 ส่วน poiScoreCalculator ควบคู่) → R2 → R1/R3 ปรับสูตร → ทดสอบ Top 50 → R4 → R5 → T13/T14 ส่วนที่เหลือ → T5 → T4 → T3 → T6 → T7 → ที่เหลือ`
+`T1 ✅ → T2 ✅ → T22 ✅ → R1+R3 ตรวจสูตรปัจจุบัน (ทำ T13 ส่วน poiScoreCalculator ควบคู่) → R2 → R1/R3 ปรับสูตร → ทดสอบ Top 50 → R4 → R5 → T13/T14 ส่วนที่เหลือ → T5 → T4 → T3 → T6 → T7 → ที่เหลือ`
 > ลำดับ R ตาม README หัวข้อ 4 "ลำดับการทำงานที่แนะนำ"

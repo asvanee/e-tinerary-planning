@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { supabase } from "../../config/db";
+import { supabase, createAuthClient } from "../../config/db";
 
 // Register
 export const register = async (req: Request, res: Response) => {
@@ -7,7 +7,7 @@ export const register = async (req: Request, res: Response) => {
 
   try {
     // 1️⃣ สร้าง user ใน Supabase Auth ก่อน
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await createAuthClient().auth.signUp({
       email,
       password,
       options: {
@@ -69,7 +69,7 @@ export const login = async (req: Request, res: Response) => {
 
   try {
     // Supabase Auth login
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await createAuthClient().auth.signInWithPassword({
       email,
       password,
     });

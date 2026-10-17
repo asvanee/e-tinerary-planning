@@ -56,7 +56,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 - ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)` ตาม pattern เดิม
 - อย่าเชื่อระยะทาง/เวลา/ราคาที่ frontend ส่งมา ให้ backend คำนวณซ้ำเอง (ทำแบบเดียวกับ `confirmItinerary`)
 - Endpoint ของ admin (R5) ต้องอ่าน `role` จากตาราง `users` ฝั่ง backend ทุก request ห้ามเชื่อ `user.role` ที่ frontend เก็บใน `localStorage` (Known Issue #22)
-- ห้ามเรียก `supabase.auth.signUp`/`signInWithPassword` บน client service role ที่แชร์กับ query (`config/db.ts`) — ดู Known Issue #21 / T22
+- ห้ามเรียก `supabase.auth.signUp`/`signInWithPassword` บน client service role ที่แชร์กับ query (`config/db.ts`) ให้ใช้ `createAuthClient()` แทน — ดู Known Issue #21 / T22
 - โค้ดใหม่ไม่ควรส่ง `err.message` ของ Supabase กลับให้ client ตรงๆ ให้ตอบข้อความภาษาไทยทั่วไปแล้ว `console.error` รายละเอียด (Known Issue #24)
 
 ## Conventions
