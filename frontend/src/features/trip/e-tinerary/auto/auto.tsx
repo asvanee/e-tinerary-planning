@@ -709,6 +709,26 @@ const handleConfirmTrip = async () => {
 };
 
   // =======================================================
+  // Loading
+  // =======================================================
+
+  if (loading) {
+    return (
+      <div className="auto-trip-page">
+        <Navbar />
+        <div className="auto-trip-loading">
+          <div className="auto-trip-loading-icon">🗺️</div>
+          <h2>กำลังจัดทริปอัตโนมัติ</h2>
+          <p>ระบบกำลังวิเคราะห์สถานที่ และจัดลำดับเส้นทางที่เหมาะสม</p>
+          <div className="loading-bar">
+            <div className="loading-bar-inner" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =======================================================
   // Error
   // =======================================================
 

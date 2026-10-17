@@ -1,6 +1,6 @@
 # DEVELOPMENT_STATUS
 
-> สถานะ ณ commit `0c980bd` (branch `dev`, 2026-10-13) — ตรวจเมื่อ 2026-10-16
+> สถานะ ณ commit `0c980bd` (branch `dev`, 2026-10-13) — ตรวจเมื่อ 2026-10-16 · อัปเดตผล frontend หลัง T1 เมื่อ 2026-10-17
 > **"Implemented" = มีโค้ดรองรับครบตาม flow เท่านั้น ไม่ได้แปลว่าทดสอบการทำงานจริงแล้ว** เพราะไม่มี automated test และยังไม่ได้รันแอปกับ Supabase จริง
 
 ## หลักฐานจากการตรวจ (รันจริงบนสำเนาโปรเจกต์ใน Linux)
@@ -9,9 +9,9 @@
 |---|---|---|
 | `backend`: `tsc --noEmit -p .` | ✅ ผ่าน (exit 0) | |
 | `data-pipeline`: `tsc --noEmit -p .` | ✅ ผ่าน (exit 0) | |
-| `frontend`: `tsc -b` (ขั้นแรกของ `npm run build`) | ❌ **ไม่ผ่าน** — `auto.tsx(108,10) TS6133: 'loading' is declared but its value is never read` | แปลว่า `npm run build` จะหยุดตั้งแต่ขั้นนี้ |
-| `frontend`: `eslint .` | ❌ 38 problems (34 errors, 4 warnings) — `no-explicit-any` 24, `no-unused-vars` 5, `react-hooks/exhaustive-deps` 4, `react-hooks/set-state-in-effect` 2, `react-refresh/only-export-components` 2, `react-hooks/refs` 1 | |
-| `frontend`: `vite build` | ⚠️ **ไม่ได้รัน** | node_modules เป็น binary ของ Windows และ environment ที่ใช้ตรวจเข้าถึง npm registry ไม่ได้ |
+| `frontend`: `tsc -b` (ขั้นแรกของ `npm run build`) | ✅ ผ่าน (exit 0) — รันบน Windows หลัง T1 (2026-10-17) | ก่อน T1 ไม่ผ่าน (`auto.tsx(108,10) TS6133` ตัวแปร `loading` ไม่ถูกใช้) |
+| `frontend`: `eslint .` | ❌ 37 problems (33 errors, 4 warnings) — `no-explicit-any` 24, `no-unused-vars` 4, `react-hooks/exhaustive-deps` 4, `react-hooks/set-state-in-effect` 2, `react-refresh/only-export-components` 2, `react-hooks/refs` 1 (รันบน Windows หลัง T1, 2026-10-17) | ก่อน T1: 34 errors (`no-unused-vars` 5) |
+| `frontend`: `npm run build` (`tsc -b && vite build`) | ✅ ผ่านบน Windows หลัง T1 (2026-10-17) — มีคำเตือน chunk 748 kB > 500 kB | **ยังไม่ได้ทดสอบบน Linux/CI** (ต้อง `npm ci` ใหม่ในเครื่องนั้น) |
 | `frontend`: `vitest run` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx vitest run` 2026-10-16) | ไม่มีไฟล์ test อยู่แล้ว `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · บน Linux เคยรันไม่ขึ้นเพราะไม่พบ native rollup ของ Linux |
 | `backend`: `jest` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx jest` 2026-10-16) | ไม่มีไฟล์ test `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ยังไม่รู้ว่าจะมีปัญหาตอนมี test จริงหรือไม่ เพราะยังไม่มีไฟล์ไหนผ่าน transform |
 | `backend/src`: นับ `any` (grep คำว่า `any` ทั้งคำ ไม่นับบรรทัด comment) | ประมาณ 39 จุด (ตรวจ 2026-10-16) | backend ไม่มี lint จึงไม่ถูกนับรวมกับ `no-explicit-any` 24 จุดของ frontend |
@@ -59,15 +59,12 @@
 3. ความหมายของงบ: `daily_budget` คืองบ **ทั้งกลุ่มต่อวัน** แต่ hard filter และ `cumulativeCost` เอาไปเทียบกับราคาจาก `PRICE_LEVEL_TO_BAHT` โดยไม่คูณจำนวนคน ยังไม่ทราบว่าราคาในตารางนั้นเป็นราคาต่อคนหรือไม่ — **ต้องให้เจ้าของโปรเจกต์ตัดสินใจ**
 4. พฤติกรรมเมื่อ access token หมดอายุ (backend จะตอบ 401 แต่ frontend ยังเห็นว่าล็อกอินอยู่)
 5. `/trip/:id/auto` จับคู่ trip day ด้วย `item.day_number ?? item.day ?? item.day_no` แต่ response ของ `getSavedItinerary` ใช้ `dayNumber` จึงตกไปใช้ `tripDays[index]` แทน — ผลลัพธ์อาจถูกต้องโดยบังเอิญ
-6. การ build บน Linux/CI (ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์ ดู Known Issues #2, #3)
+6. การ build บน Linux/CI — เคสตัวพิมพ์เล็ก-ใหญ่ที่รู้ (#2, #3) แก้แล้วใน T1 แต่ยังไม่ได้รัน build บน Linux/CI จริง จึงยังไม่รู้ว่ามีเคสอื่นอีกหรือไม่
 
 ## Known Issues (พบจากโค้ดหรือผลการตรวจ)
 
 | # | ระดับ | ปัญหา | หลักฐาน |
 |---|---|---|---|
-| 2 | 🔴 Build | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` ใช้ได้บน Windows แต่จะ fail บนระบบที่แยกตัวพิมพ์เล็ก-ใหญ่ (Linux/CI/hosting ส่วนใหญ่) | `frontend/src/features/auth/confirmEmail/` |
-| 3 | 🔴 Build | git index เก็บไฟล์ชื่อ `frontend/src/components/Navbar.tsx` แต่บนดิสก์และใน import ทุกไฟล์ใช้ `navbar` (`core.ignorecase=true`) ถ้า clone บน Linux จะได้ `Navbar.tsx` และ import `components/navbar` จะหาไม่เจอ | `git ls-files`, `git status` |
-| 4 | 🔴 Build | `tsc -b` ไม่ผ่าน (`auto.tsx` บรรทัด 108 มีตัวแปร `loading` ที่ไม่ถูกใช้) ทำให้ `npm run build` fail | ผลการรัน |
 | 5 | 🟠 Security | `GET /api/itinerary/trips/:tripId/auto-places` ไม่เช็คว่าผู้เรียกเป็นเจ้าของทริป ผู้ใช้ที่ล็อกอินแล้วจะอ่าน `poi_scores` ของทริปคนอื่นได้ | `itineraryController.getAutoTripPlacesTest` |
 | 6 | 🟠 Logic | `updateTrip` ไม่อัปเดต `trip_days` ที่สร้างไว้แล้ว ถ้าแก้วันที่/เวลาเริ่ม/เวลาว่าง/งบหลังเคยสร้าง draft ไปแล้ว `getOrCreateTripDays` จะคืนค่าเดิม (จำนวนวัน เวลา และ daily_budget ไม่ตรงกับทริป) | `tripController.updateTrip`, `itineraryPlaceQueries.getOrCreateTripDays` |
 | 7 | 🟠 Data loss | `confirmItinerary` ลบ itineraries เดิมก่อนแล้วค่อย insert ใหม่ (ไม่อยู่ใน transaction) ถ้า insert fail แผนเดิมจะหาย | `itineraryController.ts` ~บรรทัด 258–303 |
@@ -80,9 +77,16 @@
 | 14 | 🟡 Config | `FRONTEND_URL` ไม่ถูกใช้, `cors()` เปิดทุก origin, email redirect hardcode `localhost:5173` | `server.ts`, `authController.ts` |
 | 15 | 🟡 Config | `.gitignore` ignore `data-pipeline/` ทั้งโฟลเดอร์ ไฟล์ใหม่ใน data-pipeline จะไม่ถูก commit | `.gitignore` |
 | 16 | ⚪ Dead code | `backend/src/app.ts`, `features/itinerary/routeCalculator.ts`, `frontend/src/config/db.ts`, `frontend/src/features/auth/authAPI.ts` ไม่มีไฟล์ใด import · `pg`/`postgres`/`axios` ใน backend dependencies ไม่ได้ใช้ | grep |
-| 18 | ⚪ Lint | 34 ESLint errors (ส่วนใหญ่เป็น `any`) และมี `react-hooks/refs` ใน `RecommendationMap.tsx:209` ซึ่งอาจทำให้ UI ไม่อัปเดตตามที่ควร | ผลการรัน |
+| 18 | ⚪ Lint | 33 ESLint errors (ส่วนใหญ่เป็น `any`) และมี `react-hooks/refs` ใน `RecommendationMap.tsx:209` ซึ่งอาจทำให้ UI ไม่อัปเดตตามที่ควร | ผลการรัน |
 | 19 | ⚪ Docs | comment ของ `getAutoTripPlacesTest` เขียนว่า `GET /api/itinerary/trips/:tripId/auto-test` แต่ route จริงคือ `/auto-places` | `itineraryController.ts:418`, `itineraryRoutes.ts:23` |
 | 20 | 🟠 Data | commit `44d26dd` ลบพิกัดเชียงใหม่ 4 รายการที่ verify แล้วออกจาก `locationOverrides` และใส่ comment `// ของเดิมทั้งหมด` แทน ตอนนี้ object ว่าง ถ้ารัน upload ใหม่ พิกัดที่เคยแก้จะไม่ถูกใช้ (กู้ได้จาก `git show 44d26dd^:data-pipeline/src/manualOverrides.ts`) — งานแก้อยู่ใน R2 ของ DEVELOPMENT_PLAN | `data-pipeline/src/manualOverrides.ts`, `git show 44d26dd` |
+
+## Known Issues ที่แก้แล้ว
+| # | ปัญหาเดิม | แก้เมื่อ | การแก้ / ที่ยังไม่ได้ตรวจ |
+|---|---|---|---|
+| 2 | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` | 2026-10-17 (T1) | แก้ import เป็น `./confirmEmail.css` · ยังไม่ได้ทดสอบบน Linux/CI |
+| 3 | git index เก็บชื่อ `Navbar.tsx` แต่ import ทุกไฟล์ใช้ `components/navbar` | 2026-10-17 (T1) | `git mv` สองขั้นเป็น `navbar.tsx` (เนื้อไฟล์ไม่เปลี่ยน) · ยังไม่ได้ทดสอบบน Linux/CI |
+| 4 | `tsc -b` ไม่ผ่านเพราะ `loading` ใน `auto.tsx` ไม่ถูกใช้ ทำให้ `npm run build` fail | 2026-10-17 (T1) | กู้บล็อก `if (loading)` ที่ถูกลบใน `f5e6304` กลับมา (ก่อนแก้ หน้า auto โชว์ "จัดทริปอัตโนมัติไม่สำเร็จ" ระหว่าง fetch) · tsc/build ผ่านบน Windows · ยังไม่ได้ทดสอบใน UI จริง |
 
 ## ข้อสันนิษฐาน (ยังไม่ใช่ข้อเท็จจริง)
 - เป็นโปรเจกต์ของนักศึกษา/ทีมเล็ก (มี comment ว่า "ควรทำ sensitivity analysis … ในรายงาน") — ใช้เป็นบริบทเท่านั้น

@@ -5,14 +5,14 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 
 # Verify Changes
 
-## Baseline (ณ commit `0c980bd` — ใช้แยกปัญหาเดิมออกจากปัญหาใหม่)
+## Baseline (หลัง T1 — 2026-10-17 ใช้แยกปัญหาเดิมออกจากปัญหาใหม่)
 | ตรวจ | Baseline |
 |---|---|
-| backend `npx tsc --noEmit` | ✅ 0 errors |
-| data-pipeline `npx tsc --noEmit` | ✅ 0 errors |
-| frontend `npx tsc -b` | ❌ 1 error (`auto.tsx:108` TS6133) |
-| frontend `npm run lint` | ❌ 34 errors, 4 warnings |
-| frontend `npm run build` | ❌ fail ตั้งแต่ขั้น `tsc -b` |
+| backend `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd` — T1 ไม่ได้แตะ backend) |
+| data-pipeline `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd`) |
+| frontend `npx tsc -b` | ✅ 0 errors (Windows) |
+| frontend `npm run lint` | ❌ 33 errors, 4 warnings |
+| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ยังไม่ได้ทดสอบบน Linux/CI |
 | `npm test` (ทั้งสองฝั่ง) | ไม่มีไฟล์ test |
 
 ถ้า baseline เปลี่ยนเพราะงานที่ทำเสร็จแล้ว ให้อัปเดตตารางนี้และ `docs/DEVELOPMENT_STATUS.md`
@@ -48,7 +48,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 ## ปัญหาที่รู้แล้วของ environment
 - `node_modules` ปัจจุบันติดตั้งบน Windows ถ้ารันใน WSL/Linux/CI ต้อง `npm ci` ใหม่ในเครื่องนั้น (ห้ามลบ node_modules ของผู้ใช้เอง ให้ถามก่อน)
 - jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ถ้า `npm test` ของ backend error ตอนโหลด transform ให้รายงานว่าเป็นปัญหา config (DEVELOPMENT_PLAN T15) ไม่ใช่ test fail
-- ปัญหาตัวพิมพ์เล็ก-ใหญ่ (`ConfirmEmail.css`, `Navbar.tsx`) จะไม่เห็นบน Windows
+- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 แต่ยังไม่ได้ยืนยันบน Linux/CI)
 
 ## ข้อควรระวัง
 - ห้ามรายงานว่าผ่านถ้าไม่ได้รันในรอบนี้ และห้ามคัดลอกผลจาก baseline มาใช้แทน

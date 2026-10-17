@@ -1,4 +1,4 @@
-import "./ConfirmEmail.css";
+import "./confirmEmail.css";
 
 export default function ConfirmEmail() {
 

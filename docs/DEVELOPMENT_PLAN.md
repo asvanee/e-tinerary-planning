@@ -45,8 +45,8 @@
 
 ## กลุ่ม 1 — ปัญหาที่ทำให้ระบบใช้งานไม่ได้หรือมีความเสี่ยงสูง
 
-### T1. ทำให้ frontend build ผ่าน และ build ได้บน OS ที่แยกตัวพิมพ์ — P0
-- **สถานะ:** Known Issues #2, #3, #4
+### ✅ T1. ทำให้ frontend build ผ่าน และ build ได้บน OS ที่แยกตัวพิมพ์ — P0 (เสร็จ 2026-10-17)
+- **สถานะ:** ✅ เสร็จ 2026-10-17 (commit "fix(frontend): make build pass (T1)") — แก้ Known Issues #2, #3, #4 · `loading` ใน auto.tsx เลือก **แสดง** โดยกู้บล็อก loading ที่ถูกลบใน `f5e6304` กลับมา (ไม่มีบล็อกนี้ หน้าจะโชว์ error ระหว่าง fetch) · ผลบน Windows: `npm run build` ผ่าน และ `git ls-files` แสดง `navbar.tsx` · **ยังไม่ได้ทดสอบบน Linux/CI**
 - **ไฟล์:** `frontend/src/features/auth/confirmEmail/confirmEmail.tsx`, `frontend/src/components/navbar.tsx` (ชื่อใน git index), `frontend/src/features/trip/e-tinerary/auto/auto.tsx`
 - **สิ่งที่ต้องทำ:** แก้ import CSS ให้ตรงกับชื่อไฟล์จริง · rename ใน git ด้วย `git mv` สองขั้น (`Navbar.tsx` → ชื่อชั่วคราว → `navbar.tsx`) · ใช้หรือลบตัวแปร `loading` ที่ไม่ถูกใช้ใน auto.tsx (ต้องดูก่อนว่าตั้งใจจะแสดง loading state หรือไม่)
 - **เสร็จเมื่อ:** `npm run build` ผ่านบน Windows และ `git ls-files frontend/src/components` แสดง `navbar.tsx`
