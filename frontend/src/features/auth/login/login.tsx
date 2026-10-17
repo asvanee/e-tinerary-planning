@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { LogIn, Eye, EyeOff, Loader2, TriangleAlert } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -13,7 +13,18 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  // Supabase พาผู้ใช้กลับมาหน้านี้หลังยืนยันอีเมล พร้อม session ใน URL hash
+  // (#access_token=...&refresh_token=...&type=signup หรือ #error=... เมื่อลิงก์หมดอายุ)
+  // frontend login ผ่าน backend ไม่ได้ใช้ token นี้ จึงล้าง hash ทิ้งทันที
+  // กัน token ค้างบนแถบ URL และในปุ่ม Back (#26)
+  useEffect(() => {
+    if (/access_token=|refresh_token=|error=/.test(location.hash)) {
+      navigate(location.pathname + location.search, { replace: true });
+    }
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   const API_URL = import.meta.env.VITE_API_URL || "";
 
