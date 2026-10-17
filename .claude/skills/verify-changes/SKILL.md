@@ -11,7 +11,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | backend `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd` — T1 ไม่ได้แตะ backend) |
 | data-pipeline `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd`) |
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
-| frontend `npm run lint` | ❌ 33 errors, 4 warnings |
+| frontend `npm run lint` | ❌ 29 errors, 4 warnings (หลังตั้ง `argsIgnorePattern: "^_"` 2026-10-17) |
 | frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ยังไม่ได้ทดสอบบน Linux/CI |
 | `npm test` (ทั้งสองฝั่ง) | ไม่มีไฟล์ test |
 
