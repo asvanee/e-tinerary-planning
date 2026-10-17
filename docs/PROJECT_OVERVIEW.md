@@ -59,7 +59,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 |---|---|---|
 | Backend | Node.js, Express `^5.2.1`, TypeScript `^5.9.3`, `ts-node-dev` | `backend/package.json` |
 | Backend DB client | `@supabase/supabase-js ^2.97.0` (ถอด `pg`, `postgres`, `axios` ที่ไม่ได้ใช้ออกแล้ว 2026-10-17, T18) | `backend/package.json` |
-| Backend test | Jest `^30.4.2` + ts-jest `^29.4.11` (major version ไม่ตรงกัน) | `backend/package.json` |
+| Backend test | Jest `^30.4.2` + ts-jest `^29.4.11` (ts-jest 29.4 รองรับ jest 30 — ตรวจแล้ว T15) | `backend/package.json` |
 | Frontend | React `^19.2.0`, react-router-dom `^7.13.0`, Vite `^7.3.1`, Tailwind `^4.2.0` | `frontend/package.json` |
 | Frontend map | Leaflet + react-leaflet (แผนที่หลัก, OSM tiles), `@react-google-maps/api` (ใช้เฉพาะ `LocationPinPicker.tsx`) | imports |
 | Frontend DnD | `@dnd-kit/core`, `@dnd-kit/sortable` | `ItineraryEditor.tsx` |
