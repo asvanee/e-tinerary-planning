@@ -56,3 +56,15 @@
 - ข้อสรุป: ไม่ต้องทดสอบ build บน Linux/CI เพราะเป็นโปรเจกต์ส่งงานที่ไม่ใช้ Linux/CI · ยังคงตั้งชื่อไฟล์และ import ให้ตรงกันทุกตัวอักษรตาม convention ใน CLAUDE.md
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/DEVELOPMENT_PLAN.md`, `.claude/skills/verify-changes/SKILL.md`
+
+### D-23 · 2026-10-17 · ทิศทางของ Admin Panel (R5) และการพักงานสูตร POI
+- บริบท: README R5 ระบุขอบเขตเป็นข้อเสนอเบื้องต้น · เดิมการเพิ่มจังหวัดทำโดยรัน `npm run upload:*` / `fetch-gmaps-categories:*` ใน data-pipeline และแก้กฎ dedupe ในโค้ด `manualOverrides.ts`
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - พักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3) จนกว่าเพื่อนจะ research เสร็จ แล้วทำ R5 ก่อน
+  - R5 = หน้า UI ที่ login ด้วย role `admin` ใช้ (1) เลือกเพิ่มจังหวัด (2) จัดการสถานที่ซ้ำ (3) จัดการ category mapping
+  - logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/` (เปลี่ยนจากรัน script เองเป็นสั่งผ่านหน้าเว็บ)
+  - ตอนนำเข้าจังหวัด ให้ดึง `gmaps_types` มาพร้อมข้อมูลสถานที่ในการเรียก Google Details ครั้งเดียว
+  - เก็บ `data-pipeline/chiangmai_*.txt` ไว้จนกู้ #20 และเขียน test ของ dedupe เสร็จ แล้วค่อยลบและ ignore `data-pipeline/*.txt`
+- ยังไม่ได้ตัดสินใจ (ดู DEVELOPMENT_PLAN R5 Q1–Q6): ทางที่ frontend เรียก service, ที่เก็บกฎ merge/override, กฎ Stage 3, การกู้ #20, เวลาที่ apply category mapping, test runner ของ data-pipeline
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`

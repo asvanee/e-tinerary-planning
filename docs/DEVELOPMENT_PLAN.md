@@ -37,11 +37,21 @@
 - **ข้อเท็จจริง:** ใน repo **ไม่มีโค้ด** ที่แปลง `gmaps_types` → `place_categories.confidence_score` (เป็นส่วนเดียวกับ Stage 3 ที่ T12 ระบุว่าหาไม่เจอ) ต้องขอโค้ดหรือกฎจากทีมก่อน
 - **งาน T ที่ซ้อน:** T12 (โค้ด Stage 3) · T7 (`place_categories` อาจโดน limit 1000 แถว) · กฎ multi-category dedupe ใน CLAUDE.md
 
-### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5)
-- **สถานะใน README:** รอดำเนินการ
-- **ไฟล์:** ยังไม่มีโค้ด admin/role ทั้ง backend และ frontend · จุดที่ต้องต่อ: `backend/src/server.ts` (mount route), `backend/src/features/auth/authMiddleware.ts` (`requireAuth`), `frontend/src/App.tsx` (`ProtectedRoute`), ตาราง `places`/`place_categories`
-- **ก่อนเริ่ม:** README บอกว่าขอบเขตยังเป็นข้อเสนอเบื้องต้น ต้องตัดสินใจเรื่องวิธีกำหนด role ของ admin (ต้องรู้ schema/RLS) และบันทึกเป็น D-xx ใน DECISIONS.md · **middleware ของ admin ต้องอ่าน role จาก DB ฝั่ง backend ทุก request ห้ามเชื่อ `user.role` ใน `localStorage`** (Known Issue #22)
-- **งาน T ที่ซ้อน:** T2, T11, T22 (auth/ownership — ควรทำ T22 ก่อน R5) · T19 (fetch helper) · ใช้ผลจาก R2 (แสดงพิกัดผิด) และ R4 (แสดงผล mapping)
+### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5) · **งานถัดไป (วางแผน 2026-10-17)**
+- **สถานะใน README:** รอดำเนินการ · **requirement ที่ผู้ใช้ยืนยัน (D-23):** admin ที่ login ด้วย role `admin` ใช้หน้า UI เพื่อ (1) เลือกเพิ่มจังหวัดจาก `attraction.csv` (2) จัดการสถานที่ซ้ำ (3) จัดการ category mapping — logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/` แทนการรัน `npm run upload:*` / `fetch-gmaps-categories:*` เอง
+- **สถาปัตยกรรมที่เสนอ (ข้อเสนอ — ยังรอยืนยันข้อ Q1, Q2):** frontend `/admin/*` (login เดิม) → data-pipeline service (Express, port ใหม่ เช่น 5100, ผ่าน Vite proxy) → `requireAdmin` (`getUser(token)` บน client แยกตามบทเรียน T22 + อ่าน `users.role` จาก DB ทุก request ตาม #22) → Supabase ด้วย service role (เลิกใช้ anon key) · แยก `main()` ของ script เป็นฟังก์ชันที่รับพารามิเตอร์ (`importProvince({ province, limit, dryRun })` ฯลฯ) และเก็บ `npm run` เดิมไว้เป็น CLI สำรอง · งานยาวรันเป็น job (ตาราง `pipeline_jobs`: สถานะ/progress/log/ผู้สั่ง) ทีละงาน ยกเลิกได้
+- **Flow ใหม่:** ① เลือกจังหวัด (รายชื่อจาก CSV + สถานะนำเข้า) → ② **Dry-run บังคับ** (override พิกัด → dedupe → กฎ merge จาก DB; แสดงจำนวนแถวก่อน/หลัง, review groups, จำนวน Google request, จำนวนแถวที่จะลบ) → ③ จัดการสถานที่ซ้ำ (ยืนยัน merge / ห้าม merge / exclude / แก้พิกัด → บันทึก DB, วนกลับ ② ได้) → ④ ยืนยันนำเข้า (job: Find Place + Details **ดึง `type` → `gmaps_types` พร้อมกันในครั้งเดียว** → upsert `places` → ลบแถว `csv:*` ที่ถูกแทนที่) → ⑤ category mapping (ตาราง `gmaps_type → category + confidence` แก้ได้ → ดูผลกระทบ → apply เขียน `place_categories` ตามกติกา `confidence_score` สูงสุด) · `fetchGmapsCategories` เหลือเป็น job เติมย้อนหลังให้จังหวัดที่นำเข้าแล้ว (กรุงเทพฯ, ชลบุรี)
+- **Phase 0 — เตรียม (ต้องทำก่อน ตามลำดับ):**
+  1. **#15** แก้ `.gitignore` เลิก ignore `data-pipeline/` ทั้งโฟลเดอร์ (ยังกัน `.env`, `node_modules`) — งานแรกของรอบหน้า
+  2. **#20** กู้ `manualOverrides.ts` จาก `44d26dd^` (ลบไป 99 บรรทัด ไม่ใช่แค่ `locationOverrides` 4 รายการ) — รอผู้ใช้ยืนยันว่ารายการไหนตั้งใจเอาออก (Q4) · ตรวจผลด้วย `npm run test:dedupe:chiangmai` (อ่าน CSV อย่างเดียว แต่ต้องถามก่อนรัน) แล้วเทียบกับ `chiangmai_dedupe_detail.txt` (551 → 498 แถว, 37 กลุ่ม, review 24 กลุ่ม/155 แถว, override 4)
+  3. ตอบคำถามที่เหลือ (Q1–Q6) แล้วบันทึกเพิ่มใน D-23
+  4. Unit test ของ `dedupe.ts` (characterization) ก่อน refactor — ต้องเพิ่ม test runner เป็น devDependency ของ data-pipeline (Q6)
+  5. หลังข้อ 2 และ 4 เสร็จ: ย้ายตัวเลขสำคัญไป test/docs แล้ว `git rm` `data-pipeline/chiangmai_*.txt` และเพิ่ม `data-pipeline/*.txt` ใน `.gitignore`
+- **ผู้ใช้ทำใน Supabase (Claude เขียน SQL ให้):** สำรอง `places` ก่อนเปิด phase 2 · ตั้ง `users.role = 'admin'` ให้บัญชีทดสอบ · สร้างตาราง `pipeline_jobs`, `pipeline_location_overrides`, `pipeline_merge_rules`, `gmaps_type_category_map` (ทีละ phase) · เพิ่ม `SUPABASE_SERVICE_ROLE_KEY` ใน `data-pipeline/.env` (Claude อัปเดตแค่ `.env.example`)
+- **Phase 1** โครง service + `requireAdmin` + frontend `/admin` + `AdminRoute` (ถามสถานะ admin จาก service ไม่ใช้ `localStorage`) · **Phase 2** ①②④ (refactor `uploadProvinceGooglePlaces`, เพิ่ม `gmaps_types` ใน `PlaceRecord`, แก้ type `opening_hours.periods` ใน `types.ts`) · **Phase 3** ③ แบบเต็ม (ย้ายกฎ merge/override ไป DB) · **Phase 4** ⑤ (ต้องได้กฎ Stage 3 — Q3, และอาจรอ research POI — Q5)
+- **คำถามที่ยังเปิด:** Q1 frontend เรียก data-pipeline ตรง (แนะนำ) หรือผ่าน backend · Q2 เก็บกฎ merge/override ในตาราง Supabase (แนะนำ) หรือไฟล์ JSON · Q3 โค้ด/กฎ Stage 3 อยู่ที่ใคร · Q4 กู้ #20 ทั้งหมดไหม ใครยืนยัน · Q5 apply category mapping ก่อน research สูตร POI เสร็จได้ไหม (มีผลกับ POI score) · Q6 อนุญาตเพิ่ม test runner ใน data-pipeline
+- **ความเสี่ยง:** job นำเข้า **ลบ** แถวใน `places` จริง (ต้องสำรองก่อน) · Google API มีค่าใช้จ่าย (dry-run + ยืนยัน + limit ต่อ job) · RLS ปิดทุกตารางและ data-pipeline เดิมเขียนด้วย anon key (Known Issue #27) ควรเปิด RLS ที่ `places` และ `pipeline_*` หลังเปลี่ยนเป็น service role
+- **งาน T/R ที่เกี่ยวข้อง:** T22 ✅ (เงื่อนไขหลัก) · R2 (phase 3 เป็นเครื่องมือแก้พิกัด) · R4 (= phase 4) · T12 (Stage 3) · T7 (list `places` ต้องใช้ `.range()` ตั้งแต่แรก) · T19 ไม่จำเป็นถ้าเลือก Q1 แบบเรียกตรง (หน้า admin ใช้ helper ของตัวเอง)
 
 ## กลุ่ม 1 — ปัญหาที่ทำให้ระบบใช้งานไม่ได้หรือมีความเสี่ยงสูง
 
@@ -132,5 +142,6 @@
 - ~~เขียน README จริง~~ — README.md เป็นแผนงานของทีมแล้ว (ดูกลุ่ม 0)
 
 ## ลำดับที่แนะนำ
-`T1 ✅ → T2 ✅ → T22 ✅ → R1+R3 ตรวจสูตรปัจจุบัน (ทำ T13 ส่วน poiScoreCalculator ควบคู่) → R2 → R1/R3 ปรับสูตร → ทดสอบ Top 50 → R4 → R5 → T13/T14 ส่วนที่เหลือ → T5 → T4 → T3 → T6 → T7 → ที่เหลือ`
-> ลำดับ R ตาม README หัวข้อ 4 "ลำดับการทำงานที่แนะนำ"
+**อัปเดต 2026-10-17:** ผู้ใช้สั่งพักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3, T13 ส่วน POI, T5, กลุ่ม 6) จนกว่าเพื่อนจะ research เสร็จ และเลือกเริ่ม R5 ก่อน · B4 (T13 ส่วนที่ไม่ใช่ POI + T14) และ B3 (`no-explicit-any`) พักไว้ ไม่ขวาง R
+`T1 ✅ → T2 ✅ → T22 ✅ → T15 ✅ → T18 ✅ → R5 phase 0 (#15 → #20 → D-23/Q1–Q6 → test dedupe → ลบ chiangmai_*.txt) → เตรียม Supabase → R5 phase 1 → 2 → 3 (ครอบคลุม R2) → 4 (= R4, รอ Stage 3/research) → R1/R3 เมื่อ research เสร็จ (T7 + T13 ส่วน POI ก่อนเทียบ Top 50) → B4 → B3 → T5 → T4 → T3 → T6 → ที่เหลือ`
+> ลำดับ R ใน README หัวข้อ 4 คือ R1 → R2 → R3 → R4 → R5 — ลำดับนี้สลับเอา R5 ขึ้นก่อนตามคำสั่งผู้ใช้ (R1/R3 ติด research)
