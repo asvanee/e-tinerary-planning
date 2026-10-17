@@ -58,7 +58,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | ส่วน | เทคโนโลยี | หลักฐาน |
 |---|---|---|
 | Backend | Node.js, Express `^5.2.1`, TypeScript `^5.9.3`, `ts-node-dev` | `backend/package.json` |
-| Backend DB client | `@supabase/supabase-js ^2.97.0` (มี `pg`, `postgres`, `axios` อยู่ใน dependencies แต่ใน `src/` ไม่มีการ import) | grep ใน `backend/src` |
+| Backend DB client | `@supabase/supabase-js ^2.97.0` (ถอด `pg`, `postgres`, `axios` ที่ไม่ได้ใช้ออกแล้ว 2026-10-17, T18) | `backend/package.json` |
 | Backend test | Jest `^30.4.2` + ts-jest `^29.4.11` (major version ไม่ตรงกัน) | `backend/package.json` |
 | Frontend | React `^19.2.0`, react-router-dom `^7.13.0`, Vite `^7.3.1`, Tailwind `^4.2.0` | `frontend/package.json` |
 | Frontend map | Leaflet + react-leaflet (แผนที่หลัก, OSM tiles), `@react-google-maps/api` (ใช้เฉพาะ `LocationPinPicker.tsx`) | imports |
@@ -141,7 +141,6 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
 | backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (มี default) | ✗ | ✓ (`config/ors.ts`) |
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
-| frontend | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | client ฝั่ง browser | ✓ | **✗ ไม่ถูกใช้** (ลบ `frontend/src/config/db.ts` แล้ว 2026-10-17 ยังอยู่ใน `.env.example` จนกว่าจะทำ T18 ส่วน dependency) |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
 | frontend | `VITE_ORS_API_KEY` | ORS directions จาก browser | ✓ | ✓ |
 | frontend | `VITE_ORS_BASE_URL`, `VITE_ORS_PROFILE` | optional | ✗ | ✓ |
