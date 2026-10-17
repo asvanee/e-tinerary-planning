@@ -415,7 +415,7 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * GET /api/itinerary/trips/:tripId/auto-test
+ * GET /api/itinerary/trips/:tripId/auto-places
  */
 export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
   try {
