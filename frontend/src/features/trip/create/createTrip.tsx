@@ -27,7 +27,7 @@ const BUDGET_PERIODS = [
 ];
 
 interface Category {
-    category_id: number;
+    category_id: string;
     category_name: string;
 }
 
@@ -241,7 +241,7 @@ console.log("trip =", trip);
     const skipDistrictResetRef = useRef(false);
 
     const [categories, setCategories] = useState<Category[]>([]);
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
 
     // ✅ state สำหรับ success modal
@@ -308,6 +308,14 @@ console.log("trip =", trip);
 
       setBudgetScope(trip.budget_scope ?? "");
       setBudgetPeriod(trip.budget_period ?? "");
+
+      // หมวดหมู่ที่เคยเลือกไว้ต้องยังติ๊กอยู่ตอนเปิดแก้ไข (GET /api/trips/:tripId ส่ง category_ids มาเป็น array ของ id)
+      // ถ้าผู้ใช้เอาออกหมดแล้วบันทึก backend จะล้าง trip_categories ตามที่เลือก (ไม่บังคับต้องเลือก)
+      setSelectedCategoryIds(
+        Array.isArray(trip.category_ids)
+          ? trip.category_ids.filter((id: unknown): id is string => typeof id === "string")
+          : []
+      );
 
       setAvailableTimePerDay(
         trip.available_time_per_day != null
@@ -409,7 +417,7 @@ console.log("trip =", trip);
             setDistrict("");
         }
     }, [province]);
-    const toggleCategory = (categoryId: number) => {
+    const toggleCategory = (categoryId: string) => {
         setSelectedCategoryIds((prev) =>
             prev.includes(categoryId)
                 ? prev.filter((id) => id !== categoryId)
