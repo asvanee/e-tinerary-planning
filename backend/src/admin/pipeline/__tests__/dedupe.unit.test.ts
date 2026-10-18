@@ -1,4 +1,4 @@
-import { AttractionRow } from "../attractionTypes";
+import { makeRow } from "../__testutils__/makeRow";
 import { runDedupe } from "../dedupe/runDedupe";
 import { DedupeRules } from "../dedupe/dedupeTypes";
 import {
@@ -16,19 +16,7 @@ const NO_RULES: DedupeRules = {
   forceMergeGroups: [],
 };
 
-function row(id: string, fields: Partial<AttractionRow> = {}): AttractionRow {
-  return {
-    ATT_ID: id,
-    ATT_NAME_TH: `สถานที่ ${id}`,
-    ATT_NAME_EN: "",
-    ATT_LOCATION: "",
-    ATT_TEL: "",
-    ATT_WEBSITE: "",
-    PROVINCE_NAME_TH: "ทดลอง",
-    DISTRICT_NAME_TH: "",
-    ...fields,
-  };
-}
+const row = makeRow;
 
 // 2 จุดห่างกันราว 110 m และ ~5.5 km
 const NEAR_A = "18.7900, 98.9800";

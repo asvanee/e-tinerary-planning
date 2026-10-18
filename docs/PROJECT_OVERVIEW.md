@@ -114,6 +114,10 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
 | POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` |
 | GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
+| GET `/api/admin/provinces` | ✓ + admin | `admin/provinces/provincesController.getProvinces` — จังหวัดจาก CSV + จำนวนแถว CSV / ใน `places` / การตัดสินใจ |
+| GET `/api/admin/provinces/:province/review` | ✓ + admin | `getProvinceReview` — กลุ่มที่อาจซ้ำ + แถวที่มีปัญหา (`pipeline/review/buildReview.ts`) |
+| PUT · DELETE `/api/admin/provinces/:province/groups` | ✓ + admin | `putGroupDecision` / `deleteGroupDecision` — body `{ attIds, sets: [{ attIds, primaryAttId, fieldSources?, lat?, lng? }], note? }` |
+| PUT · DELETE `/api/admin/provinces/:province/rows/:attId` | ✓ + admin | `putRowDecision` / `deleteRowDecision` — body `{ kind: exclude \| ok \| fix_location, lat?, lng?, note? }` |
 
 Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
 

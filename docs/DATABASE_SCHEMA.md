@@ -169,6 +169,42 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 **ข้อสันนิษฐาน (ยังไม่ยืนยัน):** `place_types` (type ของสถานที่) + `type_category_weights` (type → category + weight) น่าจะเป็นข้อมูลของ "Stage 3" ที่สร้าง `place_categories.confidence_score` ซึ่งไม่พบโค้ดใน repo (R4, T12, D-23 Q3) — ต้องถามทีมว่าสร้างด้วยอะไรและสูตรเป็นอย่างไร
 
+## ตารางที่เพิ่มหลัง snapshot (ผู้ใช้สร้างด้วย SQL ด้านล่าง — Claude ตรวจด้วย select อ่านอย่างเดียวว่ามีครบทุกคอลัมน์ 2026-10-18)
+
+### `admin_place_decisions` (R5 P3, D-26) · ใช้ในโค้ด: `backend/src/admin/provinces/decisionQueries.ts`
+การตัดสินใจของ admin ในหน้ารีวิวจังหวัด — แทนกฎ hard code ของ data-pipeline · PK เดียว (`decision_id`) ไม่มี composite key
+| คอลัมน์ | type | null | default / constraint |
+|---|---|---|---|
+| `decision_id` | bigint | NOT NULL | identity (PK) |
+| `province` | text | NOT NULL | index |
+| `kind` | text | NOT NULL | CHECK `merge` \| `separate` \| `exclude` \| `fix_location` \| `ok` |
+| `att_ids` | text[] | NOT NULL | CHECK มีอย่างน้อย 1 ตัว (merge/separate ≥ 2, ที่เหลือ 1 — ตรวจในโค้ด) |
+| `primary_att_id` | text | | แถวหลักของ merge |
+| `field_sources` | jsonb | | merge: ชื่อคอลัมน์ CSV → ATT_ID ที่ใช้ค่านั้น (ไม่ระบุ = ใช้ค่าของแถวหลัก) |
+| `lat` / `lng` | float8 | | CHECK −90..90 / −180..180 · fix_location หรือพิกัดที่กรอกเองตอน merge |
+| `note` | text | | |
+| `decided_by` | uuid | | FK → `users.user_id` ON DELETE SET NULL |
+| `decided_at` | timestamptz | NOT NULL | `now()` |
+
+RLS เปิดและไม่มี policy (เข้าถึงได้เฉพาะ service role ของ backend — ไม่ซ้ำ Known Issue #27)
+```sql
+CREATE TABLE public.admin_place_decisions (
+  decision_id    bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  province       text NOT NULL,
+  kind           text NOT NULL CHECK (kind IN ('merge', 'separate', 'exclude', 'fix_location', 'ok')),
+  att_ids        text[] NOT NULL CHECK (cardinality(att_ids) >= 1),
+  primary_att_id text,
+  field_sources  jsonb,
+  lat            double precision CHECK (lat BETWEEN -90 AND 90),
+  lng            double precision CHECK (lng BETWEEN -180 AND 180),
+  note           text,
+  decided_by     uuid REFERENCES public.users(user_id) ON DELETE SET NULL,
+  decided_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX admin_place_decisions_province_idx ON public.admin_place_decisions (province);
+ALTER TABLE public.admin_place_decisions ENABLE ROW LEVEL SECURITY;
+```
+
 ## SQL สำหรับ refresh snapshot (อ่านอย่างเดียว)
 รันใน Supabase SQL Editor ครั้งเดียว (ต้องมี `LIMIT` เพราะ editor ตัดผลที่ 100 แถวเป็นค่าเริ่มต้น) แล้ว export CSV
 ```sql

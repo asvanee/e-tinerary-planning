@@ -13,7 +13,7 @@
 | `frontend`: `eslint .` | ❌ 33 problems (29 errors, 4 warnings) — `no-explicit-any` 24, `react-hooks/exhaustive-deps` 4, `react-hooks/set-state-in-effect` 2, `react-refresh/only-export-components` 2, `react-hooks/refs` 1 (รันบน Windows 2026-10-17 หลังตั้ง `argsIgnorePattern: "^_"` ใน `eslint.config.js`) | ก่อน T1: 34 errors (`no-unused-vars` 5) · หลัง T1: 33 errors (`no-unused-vars` 4 = พารามิเตอร์ `_` ของ `buildInitialDraft` ที่ตั้งใจไม่ใช้) |
 | `frontend`: `npm run build` (`tsc -b && vite build`) | ✅ ผ่านบน Windows หลัง T1 (2026-10-17) — มีคำเตือน chunk 748 kB > 500 kB | **ยังไม่ได้ทดสอบบน Linux/CI** (ต้อง `npm ci` ใหม่ในเครื่องนั้น) |
 | `frontend`: `vitest run` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx vitest run` 2026-10-16) | ไม่มีไฟล์ test อยู่แล้ว `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · บน Linux เคยรันไม่ขึ้นเพราะไม่พบ native rollup ของ Linux |
-| `backend`: `jest` | ✅ 2 suites / 25 tests ผ่าน (Claude รัน `npx jest` บน Windows 2026-10-18) — `backend/src/admin/pipeline/__tests__/` | ก่อน 2026-10-18 ไม่มีไฟล์ test ("No tests found", exit 1) · jest 30 + ts-jest 29.4.11 ใช้ด้วยกันได้ (T15) · characterization test อ่าน `backend/data/attraction.csv` (~20 MB) |
+| `backend`: `jest` | ✅ 3 suites / 48 tests ผ่าน (Claude รัน `npx jest` บน Windows 2026-10-18) — `backend/src/admin/pipeline/__tests__/` | ก่อน 2026-10-18 ไม่มีไฟล์ test ("No tests found", exit 1) · jest 30 + ts-jest 29.4.11 ใช้ด้วยกันได้ (T15) · characterization test อ่าน `backend/data/attraction.csv` (~20 MB) |
 | `backend/src`: นับ `any` (grep คำว่า `any` ทั้งคำ ไม่นับบรรทัด comment) | ประมาณ 39 จุด (ตรวจ 2026-10-16) | backend ไม่มี lint จึงไม่ถูกนับรวมกับ `no-explicit-any` 24 จุดของ frontend |
 | ไฟล์ test (`*.test.*`, `*.spec.*`, `__tests__`) | ไม่พบเลย | |
 
@@ -43,7 +43,7 @@
 | ข้อมูลหลายจังหวัด | scripts มีกรุงเทพฯ / เชียงใหม่ / ชลบุรี | comment บอกว่ากรุงเทพฯ/ชลบุรียังไม่ผ่าน "Stage 3" (multi-category) · **โค้ด Stage 3 ไม่มีใน repo** |
 | Weather | มีเฉพาะโอกาสฝน | comment ระบุว่าความร้อน/UV/ลม/PM2.5 เป็นงานในอนาคต · `weatherDebug.ts` ยังถูกเรียกทุก request |
 | Testing | jest ของ backend มี test ของ dedupe (R5 P2a) | frontend ยังไม่มีไฟล์ test · ส่วนอื่นของ backend (POI, itinerary) ยังไม่มี test |
-| **Admin Panel (R5 P1)** | `backend/src/admin/` (`requireAdmin`, `GET /api/admin/me`) · `frontend/src/admin/` (`AdminLogin`, `AdminRoute`, `AdminLayout`, `AdminDashboard`) · `system/auth/LoginForm.tsx` ใช้ร่วมกับ `/login` · role `admin` → `/admin` (2026-10-18) | ✅ ผู้ใช้ทดสอบ manual ผ่าน 2026-10-18 (admin/user login ทั้ง 2 หน้า, กันแก้ role ใน localStorage, ไม่ login, logout, หน้า user เดิม) · การ์ดเครื่องมือ 3 ใบยังเป็น "เร็วๆ นี้" (P3–P5) |
+| **Admin Panel (R5 P1)** | `backend/src/admin/` (`requireAdmin`, `GET /api/admin/me`) · `frontend/src/admin/` (`AdminLogin`, `AdminRoute`, `AdminLayout`, `AdminDashboard`) · `system/auth/LoginForm.tsx` ใช้ร่วมกับ `/login` · role `admin` → `/admin` (2026-10-18) | P3a (backend รีวิวจังหวัด) มีโค้ด + jest แล้ว — API ยังไม่ทดสอบกับตารางจริง · ✅ P1 ผู้ใช้ทดสอบ manual ผ่าน 2026-10-18 (admin/user login ทั้ง 2 หน้า, กันแก้ role ใน localStorage, ไม่ login, logout, หน้า user เดิม) · การ์ดเครื่องมือ 3 ใบยังเป็น "เร็วๆ นี้" (P3–P5) |
 | Production readiness | dev scripts | backend ไม่มี `build`/`start` · ไม่มี deploy config · redirect URL และ CORS ยังเป็นค่าสำหรับ local |
 
 ## Not Implemented (ตรวจแล้วไม่พบโค้ด)
@@ -56,7 +56,7 @@
 
 ## Needs Verification (หลักฐานยังไม่พอจะสรุป)
 1. ~~RLS policy ของทุกตาราง~~ ผู้ใช้ยืนยัน (2026-10-17) ว่า RLS ปิดทุกตาราง (`users`, `trips`, `itineraries`, `poi_scores`, `places`, `place_categories`, `categories`, `trip_days`, `trip_categories`) · ที่ยังต้องตรวจ: FK `ON DELETE CASCADE` ของ `trip_days` / `trip_categories` / `itineraries` / `poi_scores` → `trips` (comment ใน `deleteTrip` เตือนไว้เอง)
-2. ข้อมูลเกิน 1,000 แถว: query `getProvinces`/`getDistricts` (select ทั้งตาราง `places`) และ `queryPlacesWithCategoryInfo` ไม่ได้ paginate ถ้า Supabase ยังใช้ max rows ค่า default (1000) ผลอาจถูกตัดโดยไม่มี error (data-pipeline เองยังเขียนไว้ว่า "Supabase จำกัด default 1000 rows")
+2. ข้อมูลเกิน 1,000 แถว: query `getProvinces`/`getDistricts` (select ทั้งตาราง `places`) และ `queryPlacesWithCategoryInfo` ไม่ได้ paginate ถ้า Supabase ยังใช้ max rows ค่า default (1000) ผลอาจถูกตัดโดยไม่มี error (data-pipeline เองยังเขียนไว้ว่า "Supabase จำกัด default 1000 rows") · **2026-10-18:** `places` มี 1116 แถวแล้ว (`DATABASE_SCHEMA.md`) — `getProvinces` (dropdown ของ user) select ทั้งตารางไม่ paginate จึงเสี่ยงได้รายชื่อจังหวัดไม่ครบ (ยังไม่แก้ — T7) · query ของ admin (`admin/provinces/decisionQueries.ts`) paginate แล้ว
 3. ความหมายของงบ: `daily_budget` คืองบ **ทั้งกลุ่มต่อวัน** แต่ hard filter และ `cumulativeCost` เอาไปเทียบกับราคาจาก `PRICE_LEVEL_TO_BAHT` โดยไม่คูณจำนวนคน ยังไม่ทราบว่าราคาในตารางนั้นเป็นราคาต่อคนหรือไม่ — **ต้องให้เจ้าของโปรเจกต์ตัดสินใจ**
 4. พฤติกรรมเมื่อ access token หมดอายุ (backend จะตอบ 401 แต่ frontend ยังเห็นว่าล็อกอินอยู่)
 5. `/trip/:id/auto` จับคู่ trip day ด้วย `item.day_number ?? item.day ?? item.day_no` แต่ response ของ `getSavedItinerary` ใช้ `dayNumber` จึงตกไปใช้ `tripDays[index]` แทน — ผลลัพธ์อาจถูกต้องโดยบังเอิญ

@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { getProvinceRows } from "../attractionCsv";
 import { runDedupe } from "../dedupe/runDedupe";
-import { dedupeRules } from "../dedupeRules";
+import { legacyDedupeRules as dedupeRules } from "../__testutils__/legacyDedupeRules";
 
 interface DedupeFixture {
   source: string;
