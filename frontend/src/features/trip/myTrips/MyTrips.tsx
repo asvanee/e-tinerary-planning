@@ -14,7 +14,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Navbar from "../../../components/navbar";
-import { useAuth } from "../../auth/hooks/useAuth";
+import { useAuth } from "../../../system/auth/useAuth";
 
 interface Trip {
   trip_id: string;

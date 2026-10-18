@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
-import { useAuth } from "../../../auth/hooks/useAuth";
+import { useAuth } from "../../../../system/auth/useAuth";
 import "./auto.css";
 
 // =========================================================

@@ -25,7 +25,7 @@ import {
   Info, Loader2, MapPin, TriangleAlert, Wallet, X,
 } from "lucide-react";
 import Navbar from "../../../../components/navbar";
-import { useAuth } from "../../../auth/hooks/useAuth";
+import { useAuth } from "../../../../system/auth/useAuth";
 import RouteMap from "../components/RouteMap";
 import {
   buildDayItems,

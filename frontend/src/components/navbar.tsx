@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home, FolderOpen, Plane, LogOut } from "lucide-react";
-import { useAuth } from "../features/auth/hooks/useAuth";
+import { useAuth } from "../system/auth/useAuth";
 
 export default function Navbar() {
   const navigate = useNavigate();

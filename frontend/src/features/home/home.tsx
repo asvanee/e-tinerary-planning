@@ -9,7 +9,7 @@ import {
   Waves,
   Mountain,
 } from "lucide-react";
-import { useAuth } from "../auth/hooks/useAuth";
+import { useAuth } from "../../system/auth/useAuth";
 import Navbar from "../../components/navbar";
 
 const steps = [

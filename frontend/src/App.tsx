@@ -4,7 +4,7 @@ import Register from "./features/auth/register/register";
 import ConfirmEmail from "./features/auth/confirmEmail/confirmEmail";
 import Login from "./features/auth/login/login";
 import Home from "./features/home/home";
-import ProtectedRoute from "./features/auth/components/ProtectedRoute";
+import ProtectedRoute from "./system/auth/ProtectedRoute";
 import CreateTrip from "./features/trip/create/createTrip";
 import TripRecommendations from "./features/trip/recommendations/TripRecommendations";
 import MyTrips from "./features/trip/myTrips/MyTrips";

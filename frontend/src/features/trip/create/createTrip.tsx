@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
-import { useAuth } from "../../auth/hooks/useAuth";
+import { useAuth } from "../../../system/auth/useAuth";
 import LocationPinPicker from "../../trip/create/components/LocationPinPicker"; // ปรับ path ตามตำแหน่งจริงที่วางไฟล์
 import type { ReactNode } from "react";
 import {

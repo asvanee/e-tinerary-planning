@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LogIn, Eye, EyeOff, Loader2, TriangleAlert } from "lucide-react";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../../../system/auth/useAuth";
 
 export default function Login() {
   const [email, setEmail] = useState("");

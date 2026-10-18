@@ -7,7 +7,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
-import { useAuth } from "../../auth/hooks/useAuth";
+import { useAuth } from "../../../system/auth/useAuth";
 import RecommendationMap, { categoryColor } from "../recommendations/RecommendationMap";
 import type { MapFocus, MapPlace } from "../recommendations/RecommendationMap";
 
