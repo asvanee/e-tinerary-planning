@@ -5,7 +5,7 @@
 > "ใช้ในโค้ด" = ไฟล์ที่เรียก `.from("<table>")` หรือ embed ตารางนั้น (grep 2026-10-18)
 
 ## สรุปภาพรวม
-- **PK ทุกตารางเป็น uuid** (`gen_random_uuid()`) ตั้งแต่ 2026-10-18 (T23, D-28 — SQL: `docs/sql/2026-10-19_uuid_primary_keys.sql`, ตรวจแล้วว่า id เป็น uuid และจำนวนแถวเท่า backup) · สำรองก่อนแก้ไว้ที่ `backup_20261019_*` 11 ตาราง (RLS เปิด) ลบได้เมื่อมั่นใจ · ห้ามใช้ลำดับของ id หาค่าล่าสุด ให้ใช้คอลัมน์เวลา
+- **PK ทุกตารางเป็น uuid** (`gen_random_uuid()`) ตั้งแต่ 2026-10-18 (T23, D-28 — SQL: `docs/sql/2026-10-19_uuid_primary_keys.sql`, ตรวจแล้วว่า id เป็น uuid และจำนวนแถวเท่า backup) · ตาราง backup ที่สร้างตอนแก้ (`backup_20261019_*` 11 ตาราง + `place_types_backup_20261018`) ผู้ใช้สั่งลบแล้ว 2026-10-18 — SQL: `docs/sql/2026-10-18_drop_backup_tables.sql` · ห้ามใช้ลำดับของ id หาค่าล่าสุด ให้ใช้คอลัมน์เวลา
 - **RLS ปิดทุกตาราง** (`rls=false` ครบ 11 ตาราง) · ไม่มี policy · ไม่มี enum · ไม่มี trigger ใน schema `public` (Known Issue #27)
 - ไม่มี trigger สร้างแถว `users` จาก `auth.users` — แถว `users` ถูก insert โดย `authController.register` เท่านั้น (ถ้า insert ไม่สำเร็จ login จะได้ `user: null` — Known Issue #29)
 - FK ส่วนใหญ่เป็น `ON DELETE CASCADE` (รายละเอียดในหัวข้อ "ความสัมพันธ์")
@@ -161,7 +161,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `created_at` | timestamptz | | `now()` |
 
 - ไม่มี key ร่วมแล้ว DB จึงไม่กันคู่ (`place_id`, `api_type_id`) ซ้ำ — โค้ดต้องเช็คคู่ที่มีอยู่ก่อน insert · ถ้ามีเครื่องมือนอก repo upsert ด้วย `onConflict: "place_id,api_type_id"` จะ error
-- สำรองก่อนแก้ไว้ที่ `place_types_backup_20261018` (1605 แถว, RLS เปิด) — ลบได้เมื่อมั่นใจแล้ว
+- backup ตอนแก้ (`place_types_backup_20261018`) ผู้ใช้สั่งลบแล้ว 2026-10-18 (`docs/sql/2026-10-18_drop_backup_tables.sql`)
 
 ### `type_category_weights` · rows ~108 · **ไม่มีโค้ดใน repo ใช้**
 | คอลัมน์ | type | null | default / constraint |

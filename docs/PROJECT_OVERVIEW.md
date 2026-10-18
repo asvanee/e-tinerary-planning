@@ -35,22 +35,22 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   │                          priceLevel, weatherForecast, weatherDebug
 │   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, pipeline/ (อ่าน CSV + dedupe, test ใน __tests__)
 │   ├── data/attraction.csv    สำเนาจาก data-pipeline (ใช้โดย admin pipeline)
-│   ├── jest.config.js         ts-jest preset
-│   └── scripts/               โฟลเดอร์ว่าง
+│   └── jest.config.js         ts-jest preset
 ├── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
 │   ├── src/main.tsx           entry (AuthProvider > App)
 │   ├── src/App.tsx            ★ routing ทั้งหมด
 │   ├── src/components/navbar.tsx
 │   ├── src/features/          auth / home / welcome / trip/{create,recommendations,
 │   │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
+│   ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (รีวิวจังหวัด), lib/
+│   ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
 │   ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
 │   ├── eslint.config.js
-│   └── dist/                  build เก่า (ก.พ. 2026) — ถูก gitignore
+│   └── dist/                  ผลของ npm run build — ถูก gitignore
 └── data-pipeline/             สคริปต์ ts-node สำหรับนำเข้าข้อมูล (ไม่ใช่ส่วนของ runtime) — ตาม D-24 จะย้ายเข้า backend/src/admin/ แล้วลบใน R5 P6
     ├── src/                   uploadCsvToSupabase, uploadProvinceGooglePlaces, dedupe,
     │                          fetchGmapsCategories, findGoogleCollisionCandidates, test*.ts
-    ├── data/attraction.csv    15,604 บรรทัด
-    └── chiangmai_*.txt        output log ของการ dedupe/sample (UTF-16)
+    └── data/attraction.csv    15,604 บรรทัด
 ```
 
 ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 package ซึ่งติดตั้งบน **Windows** (พบ `@esbuild/win32-x64` และ `@rollup/rollup-win32-*`) และมีไฟล์ `.env` ทั้ง 3 package (ไม่ได้คัดลอกค่ามาไว้ในเอกสารนี้)
