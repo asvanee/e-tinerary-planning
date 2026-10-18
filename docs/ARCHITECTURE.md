@@ -87,6 +87,7 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 ## 3. Data Pipeline (offline)
 > แผน D-24 (2026-10-18): โค้ดในหัวข้อนี้จะถูก copy แล้วปรับเข้า `backend/src/admin/pipeline/` (R5 P2–P3) แล้วลบ `data-pipeline/` ใน R5 P6 · ด้านล่างคือสภาพปัจจุบัน
 - `uploadCsvToSupabase.ts` / `uploadProvinceGooglePlaces.ts`: อ่าน `data/attraction.csv` กรองตาม `TARGET_PROVINCE` → dedupe (`dedupe.ts`, `manualOverrides.ts`) → Google Find Place + Details → upsert `places` (onConflict `google_place_id`)
+- พิกัดที่บันทึกลง `places` มาจาก Google (`details.geometry` → `found.geometry` → CSV เป็นทางสุดท้าย) และ Find Place ใช้ `locationbias` ซึ่งไม่จำกัดพื้นที่ จึงได้สถานที่ผิดได้ (Known Issue #30)
 - `fetchGmapsCategories.ts`: เติม `places.gmaps_types` (paginate ทีละ 1000)
 - การสร้าง `place_categories` / `confidence_score` (ที่ comment เรียกว่า "Stage 3") **ไม่พบโค้ดใน repo — ยังไม่ทราบว่าทำที่ไหน**
 - ใช้ `SUPABASE_ANON_KEY` ในการเขียนข้อมูล แปลว่า RLS ของ `places` น่าจะอนุญาตให้ anon เขียนได้ (**ต้องตรวจสอบ**)

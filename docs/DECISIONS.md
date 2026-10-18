@@ -92,3 +92,18 @@
   - `attraction.csv` copy ไป `backend/data/` (เนื้อหาเหมือนกันทุก byte — git ใช้ blob เดียวกัน) ส่วนของ data-pipeline เก็บไว้จนถึง P6
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/admin/pipeline/*`, `backend/package.json`, `backend/data/attraction.csv`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/PROJECT_OVERVIEW.md`, `CLAUDE.md`, `.claude/skills/verify-changes/SKILL.md`
+
+### D-26 · 2026-10-18 · การจัดการสถานที่ซ้ำ/มีปัญหาให้ admin ตัดสินใจผ่านหน้าเว็บ (แทนที่กฎ hard code ใน `dedupeRules.ts`)
+- บริบท: เดิมกฎ merge/ห้าม merge/แก้พิกัด/ตัดทิ้ง เขียนตายตัวในโค้ด (`manualOverrides.ts` → `dedupeRules.ts`) และบางส่วนหายไปใน `44d26dd` (#20) · ผู้ใช้ต้องการให้ admin เป็นคนตัดสินใจทีละกลุ่มผ่านหน้าเว็บ
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - flow: admin เลือกจังหวัด → backend อ่านสถานที่จาก `attraction.csv` **อย่างเดียว** → หาสถานที่ซ้ำ/มีปัญหาแล้วแสดงให้ admin → admin ตัดสินใจทีละกลุ่ม/แถว → บันทึกการตัดสินใจลง DB → ยืนยันนำเข้าแล้ว **ค่อยเรียก Google** (ก่อนหน้านั้นไม่มีค่าใช้จ่าย)
+  - merge เลือกค่าได้ **ทีละช่อง** (เช่น ชื่อจากแถว A พิกัดจากแถว B) ไม่ใช่แค่เลือกแถวหลัก
+  - หาสถานที่ซ้ำจาก **ชื่อ** ด้วย (นอกจาก website/phone) และเพิ่มการตรวจให้ครอบคลุมได้
+  - **ทิ้งกฎ hard code เดิม** (`locationOverrides`, `blockedMergePairs`, `forceMergeGroups`, `excludeIds` รวมของที่หายใน #20) ให้ admin ตัดสินใจใหม่ผ่านหน้าเว็บ — ยกเลิก R5 P2b (กู้ #20)
+  - **พิกัดยึด CSV เป็นหลัก** (เมื่อผ่านการตรวจ: ไม่พัง, อยู่ในไทย, ไม่ห่างจังหวัดผิดปกติ) · ใช้พิกัด Google เฉพาะเมื่อ CSV พังและจับคู่ผ่านแล้ว หรือ admin กรอกเอง
+  - **ตรวจการจับคู่กับ Google ก่อนรับข้อมูล** (Known Issue #30): ค้นด้วยชื่อไทยก่อน · ระยะพิกัด Google ↔ CSV ≤ 2 km ถือว่าตรง · > 2 km / ไม่เจอ / `google_place_id` ซ้ำกับแถวอื่น → ไม่รับข้อมูล Google (rating, เวลาเปิด, ราคา, ที่อยู่, `gmaps_types`) แล้วส่งให้ admin เลือก: ค้นใหม่ / ใส่ place ID เอง / นำเข้าแบบ CSV อย่างเดียว / ตัดทิ้ง — เพราะถ้าจับคู่ผิด ข้อมูล Google ทุกช่องผิดตาม ไม่ใช่แค่พิกัด
+  - **ข้อมูลเดิมใน `places` ยังไม่แก้** — เมื่อระบบใหม่เสร็จจะนำเข้าทุกจังหวัดใหม่แล้วลบข้อมูลเก่า · ⚠️ ลบ `places` จะ CASCADE ลบ `itineraries`/`poi_scores` ของทริปผู้ใช้ (`DATABASE_SCHEMA.md`) ต้องสำรองข้อมูลและให้ผู้ใช้ยืนยันอีกครั้งตอนลงมือ (ทางเลือกที่ต้องตัดสินตอนนั้น: ลบแล้วนำเข้าใหม่ หรืออัปเดตแถวเดิมตาม `att_id` เพื่อคง `place_id` ไว้)
+  - โค้ด dedupe ของ P2a ยังใช้เป็นตัว **เสนอ** กลุ่ม · `dedupeRules.ts` จะถูกแทนด้วยการตัดสินใจใน DB · characterization test ของ P2a เก็บไว้ยืนยันว่าอัลกอริทึมไม่เปลี่ยนโดยไม่ตั้งใจ
+- ยังเป็นข้อเสนอ (รอผู้ใช้ยืนยันตอนวางแผน P3): หมวดของปัญหา, schema ตารางเก็บการตัดสินใจ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/ARCHITECTURE.md`, `backend/src/admin/pipeline/dedupeRules.ts` (comment)

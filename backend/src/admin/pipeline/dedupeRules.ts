@@ -4,10 +4,9 @@ import { DedupeRules } from "./dedupe/dedupeTypes";
  * กฎ dedupe ที่คนตรวจสอบแล้ว (ย้ายมาจาก data-pipeline/src/manualOverrides.ts — เนื้อหาเท่าเดิม)
  * ทุกรายการต้องผ่านการตรวจโดยคน (ไม่ใช่เดา) และควรมีที่มากำกับเพื่อ audit ย้อนหลัง
  *
- * ⚠️ Known Issue #20: commit 44d26dd ลบรายการเชียงใหม่ไปบางส่วน (locationOverrides 4 รายการ,
- * blockedMergePairs และบางส่วนของ forceMergeGroups/excludeIds) — จะกู้ใน R5 P2b
- * ถ้าเปลี่ยนกฎในไฟล์นี้ fixture ใน __tests__/fixtures จะไม่ตรง ต้องอัปเดต test ให้ตรงกับผลใหม่ด้วย
- * แผน: ย้ายไปเก็บในตาราง Supabase ใน R5 P4 (แก้ผ่านหน้า admin)
+ * ไฟล์นี้ตรงกับกฎที่ใช้สร้าง fixture ใน __tests__/fixtures (ผล data-pipeline 2026-10-18) — ถ้าแก้ test จะไม่ตรง
+ * D-26: จะถูกแทนด้วยการตัดสินใจของ admin ที่เก็บใน DB (R5 P3) แล้วเหลือไว้ใช้กับ characterization test เท่านั้น
+ * (ไม่กู้รายการที่หายใน commit 44d26dd / Known Issue #20)
  */
 export const dedupeRules: DedupeRules = {
   locationOverrides: {},
