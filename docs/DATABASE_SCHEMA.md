@@ -8,7 +8,7 @@
 - **RLS ปิดทุกตาราง** (`rls=false` ครบ 11 ตาราง) · ไม่มี policy · ไม่มี enum · ไม่มี trigger ใน schema `public` (Known Issue #27)
 - ไม่มี trigger สร้างแถว `users` จาก `auth.users` — แถว `users` ถูก insert โดย `authController.register` เท่านั้น (ถ้า insert ไม่สำเร็จ login จะได้ `user: null` — Known Issue #29)
 - FK ส่วนใหญ่เป็น `ON DELETE CASCADE` (รายละเอียดในหัวข้อ "ความสัมพันธ์")
-- จำนวนแถว `places` (~1116) และ `place_types` (~1417) **เกิน 1000** แล้ว — query ที่ select ทั้งตารางเสี่ยงถูกตัด (T7)
+- จำนวนแถว `places` (~1116) และ `place_types` (1605) **เกิน 1000** แล้ว — query ที่ select ทั้งตารางเสี่ยงถูกตัด (T7)
 - ตารางที่มีใน DB แต่ **ไม่มีโค้ดใน repo ใช้**: `place_types`, `type_category_weights` (ดูหมายเหตุ Stage 3)
 
 ## ความสัมพันธ์ (FK)
@@ -150,13 +150,17 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 1 สถานที่มีได้หลาย category — โค้ดเลือก `confidence_score` สูงสุด (กฎ multi-category dedupe ใน CLAUDE.md)
 
-### `place_types` · rows ~1417 · **ไม่มีโค้ดใน repo ใช้**
+### `place_types` · rows 1605 (นับจริง 2026-10-18) · **ไม่มีโค้ดใน repo ใช้** (R5 P4 จะเขียนลงตารางนี้ — D-27)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `place_id` | uuid | NOT NULL | FK → `places` CASCADE · PK (`place_id`, `api_type_id`) |
+| `place_type_id` | bigint | NOT NULL | identity (PK) — **เปลี่ยนจาก composite PK (`place_id`, `api_type_id`) เมื่อ 2026-10-18** (ผู้ใช้รัน SQL) |
+| `place_id` | uuid | NOT NULL | FK → `places` CASCADE · index `idx_place_types_place_id` |
 | `api_type_id` | text | NOT NULL | index `idx_place_types_api_type` |
 | `source` | text | NOT NULL | `'google'` · CHECK `google` \| `csv` |
 | `created_at` | timestamptz | | `now()` |
+
+- ไม่มี key ร่วมแล้ว DB จึงไม่กันคู่ (`place_id`, `api_type_id`) ซ้ำ — โค้ดต้องเช็คคู่ที่มีอยู่ก่อน insert · ถ้ามีเครื่องมือนอก repo upsert ด้วย `onConflict: "place_id,api_type_id"` จะ error
+- สำรองก่อนแก้ไว้ที่ `place_types_backup_20261018` (1605 แถว, RLS เปิด) — ลบได้เมื่อมั่นใจแล้ว
 
 ### `type_category_weights` · rows ~108 · **ไม่มีโค้ดใน repo ใช้**
 | คอลัมน์ | type | null | default / constraint |
@@ -203,6 +207,48 @@ CREATE TABLE public.admin_place_decisions (
 );
 CREATE INDEX admin_place_decisions_province_idx ON public.admin_place_decisions (province);
 ALTER TABLE public.admin_place_decisions ENABLE ROW LEVEL SECURITY;
+```
+
+### `pipeline_jobs` / `pipeline_job_items` (R5 P4 — **ยังไม่ได้สร้าง** ผู้ใช้จะรันตอนเริ่ม P4a)
+job นำเข้าจังหวัด 1 แถวต่อ 1 job · ผลรายสถานที่ 1 แถวต่อ 1 ATT_ID · PK เดียวทั้งคู่ · RLS เปิด ไม่มี policy
+```sql
+CREATE TABLE public.pipeline_jobs (
+  job_id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  province         text NOT NULL,
+  status           text NOT NULL DEFAULT 'queued'
+                   CHECK (status IN ('queued', 'running', 'done', 'failed', 'cancelled')),
+  limit_rows       int CHECK (limit_rows > 0),
+  total            int NOT NULL DEFAULT 0,
+  processed        int NOT NULL DEFAULT 0,
+  imported         int NOT NULL DEFAULT 0,
+  needs_review     int NOT NULL DEFAULT 0,
+  failed           int NOT NULL DEFAULT 0,
+  cancel_requested boolean NOT NULL DEFAULT false,
+  error            text,
+  started_by       uuid REFERENCES public.users(user_id) ON DELETE SET NULL,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  started_at       timestamptz,
+  finished_at      timestamptz
+);
+CREATE INDEX pipeline_jobs_province_idx ON public.pipeline_jobs (province);
+ALTER TABLE public.pipeline_jobs ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.pipeline_job_items (
+  item_id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  job_id          bigint NOT NULL REFERENCES public.pipeline_jobs(job_id) ON DELETE CASCADE,
+  att_id          text NOT NULL,
+  status          text NOT NULL CHECK (status IN (
+                    'imported', 'needs_review_mismatch', 'needs_review_not_found',
+                    'needs_review_duplicate', 'error', 'resolved')),
+  google_place_id text,
+  place_id        uuid,                 -- places.place_id ที่บันทึกแล้ว (ไม่ทำ FK เพราะ places อาจถูกลบ/นำเข้าใหม่)
+  candidate       jsonb,                -- ชื่อ/พิกัด/ที่อยู่ที่ Google เสนอ (ให้ admin ดู)
+  distance_m      double precision,
+  message         text,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX pipeline_job_items_job_idx ON public.pipeline_job_items (job_id);
+ALTER TABLE public.pipeline_job_items ENABLE ROW LEVEL SECURITY;
 ```
 
 ## SQL สำหรับ refresh snapshot (อ่านอย่างเดียว)
