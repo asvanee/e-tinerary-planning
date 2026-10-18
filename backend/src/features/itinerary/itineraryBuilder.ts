@@ -67,7 +67,7 @@ export interface PlaceInput {
 }
 
 export interface DayAssignment {
-  tripDayId: number;
+  tripDayId: string;
   // ✅ ใหม่ — ใช้ตัดสินว่าเป็น Day 1 หรือไม่ (เฉพาะ Day 1 ที่มี leg trip start -> สถานที่แรก)
   dayNumber: number;
   visitDate: string; // "YYYY-MM-DD"
@@ -80,7 +80,7 @@ export interface DayAssignment {
 }
 
 export interface ItineraryItemResult {
-  tripDayId: number;
+  tripDayId: string;
   placeId: string;
   visitOrder: number;
   startTime: string | null;

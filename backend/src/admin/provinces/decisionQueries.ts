@@ -17,14 +17,14 @@ async function selectAll<T>(build: (from: number, to: number) => PromiseLike<{ d
 
 export function listDecisions(province: string): Promise<PlaceDecision[]> {
   return selectAll<PlaceDecision>((from, to) =>
-    supabase.from(TABLE).select("*").eq("province", province).order("decision_id").range(from, to)
+    supabase.from(TABLE).select("*").eq("province", province).order("decided_at").order("decision_id").range(from, to)
   );
 }
 
 // จำนวนการตัดสินใจต่อจังหวัด (หน้า list จังหวัด)
 export async function countDecisionsByProvince(): Promise<Map<string, number>> {
   const rows = await selectAll<{ province: string }>((from, to) =>
-    supabase.from(TABLE).select("province").order("decision_id").range(from, to)
+    supabase.from(TABLE).select("province").order("decided_at").order("decision_id").range(from, to)
   );
   const counts = new Map<string, number>();
   rows.forEach((r) => counts.set(r.province, (counts.get(r.province) ?? 0) + 1));
@@ -50,7 +50,7 @@ export async function insertDecisions(decisions: NewDecision[]): Promise<void> {
 }
 
 // ลบด้วย decision_id เท่านั้น (ห้าม delete ที่ไม่มีเงื่อนไข)
-export async function deleteDecisions(ids: number[]): Promise<void> {
+export async function deleteDecisions(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const { error } = await supabase.from(TABLE).delete().in("decision_id", ids);
   if (error) throw error;

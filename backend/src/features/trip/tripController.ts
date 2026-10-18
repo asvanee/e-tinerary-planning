@@ -210,7 +210,7 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
 
     if (Array.isArray(category_ids) && category_ids.length > 0) {
       const tripCategoryRows = category_ids.map(
-        (categoryId: number) => ({
+        (categoryId: string) => ({
           trip_id: data.trip_id,
           category_id: categoryId,
         })
@@ -512,7 +512,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       );
       categoryWarning = true;
     } else if (Array.isArray(category_ids) && category_ids.length > 0) {
-      const tripCategoryRows = category_ids.map((categoryId: number) => ({
+      const tripCategoryRows = category_ids.map((categoryId: string) => ({
         trip_id: tripId,
         category_id: categoryId,
       }));

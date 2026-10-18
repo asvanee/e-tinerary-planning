@@ -5,6 +5,7 @@
 > "ใช้ในโค้ด" = ไฟล์ที่เรียก `.from("<table>")` หรือ embed ตารางนั้น (grep 2026-10-18)
 
 ## สรุปภาพรวม
+- **PK ทุกตารางเป็น uuid** (`gen_random_uuid()`) ตั้งแต่ 2026-10-18 (T23, D-28 — SQL: `docs/sql/2026-10-19_uuid_primary_keys.sql`, ตรวจแล้วว่า id เป็น uuid และจำนวนแถวเท่า backup) · สำรองก่อนแก้ไว้ที่ `backup_20261019_*` 11 ตาราง (RLS เปิด) ลบได้เมื่อมั่นใจ · ห้ามใช้ลำดับของ id หาค่าล่าสุด ให้ใช้คอลัมน์เวลา
 - **RLS ปิดทุกตาราง** (`rls=false` ครบ 11 ตาราง) · ไม่มี policy · ไม่มี enum · ไม่มี trigger ใน schema `public` (Known Issue #27)
 - ไม่มี trigger สร้างแถว `users` จาก `auth.users` — แถว `users` ถูก insert โดย `authController.register` เท่านั้น (ถ้า insert ไม่สำเร็จ login จะได้ `user: null` — Known Issue #29)
 - FK ส่วนใหญ่เป็น `ON DELETE CASCADE` (รายละเอียดในหัวข้อ "ความสัมพันธ์")
@@ -65,7 +66,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `trip_days` · rows ~28 · ใช้ในโค้ด: `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `trip_day_id` | int4 | NOT NULL | serial (PK) |
+| `trip_day_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `trip_id` | uuid | NOT NULL | FK → `trips` CASCADE |
 | `day_number` | int4 | NOT NULL | UNIQUE (`trip_id`, `day_number`) |
 | `visit_date` | date | NOT NULL | |
@@ -76,9 +77,9 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `trip_categories` · rows ~11 · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `trip_category_id` | int4 | NOT NULL | serial (PK) |
+| `trip_category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `trip_id` | uuid | | FK → `trips` CASCADE |
-| `category_id` | int4 | | FK → `categories` (NO ACTION) |
+| `category_id` | uuid | | FK → `categories` (NO ACTION) |
 | `created_at` | timestamptz | | `now()` |
 
 ไม่มี UNIQUE (`trip_id`, `category_id`) — ซ้ำได้ในระดับ DB
@@ -86,8 +87,8 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `itineraries` · rows ~20 · ใช้ในโค้ด: `itineraryController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `itinerary_id` | int4 | NOT NULL | serial (PK) |
-| `trip_day_id` | int4 | NOT NULL | FK → `trip_days` CASCADE |
+| `itinerary_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
+| `trip_day_id` | uuid | NOT NULL | FK → `trip_days` CASCADE |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE |
 | `visit_order` | int4 | NOT NULL | UNIQUE (`trip_day_id`, `visit_order`) |
 | `start_time` / `end_time` | time | | |
@@ -102,7 +103,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `poi_scores` · rows ~394 · ใช้ในโค้ด: `poiController.ts`, `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `poi_id` | int4 | NOT NULL | serial (PK) |
+| `poi_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `trip_id` | uuid | NOT NULL | FK → `trips` CASCADE · UNIQUE (`trip_id`, `place_id`) |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE |
 | `category_score` / `rating_score` / `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
@@ -132,7 +133,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `categories` · rows ไม่ทราบ (`reltuples = -1` ยังไม่เคย analyze) · ใช้ในโค้ด: `categoriesController.ts`, embed ใน `poiPlaceQueries.ts` / `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `category_id` | int4 | NOT NULL | serial (PK) |
+| `category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `category_name` | text | NOT NULL | UNIQUE |
 | `environment_type` | text | NOT NULL | CHECK `INDOOR` \| `OUTDOOR` \| `MIXED` |
 | `price_nature` | text | NOT NULL | CHECK `free` \| `paid` |
@@ -142,9 +143,9 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `place_categories` · rows ~486 · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `place_categories_id` | int4 | NOT NULL | serial (PK) |
+| `place_categories_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE · UNIQUE (`place_id`, `category_id`) |
-| `category_id` | int4 | NOT NULL | FK → `categories` CASCADE |
+| `category_id` | uuid | NOT NULL | FK → `categories` CASCADE |
 | `confidence_score` | numeric | NOT NULL | `1.0` |
 | `created_at` | timestamptz | | `now()` |
 
@@ -153,7 +154,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `place_types` · rows 1605 (นับจริง 2026-10-18) · **ไม่มีโค้ดใน repo ใช้** (R5 P4 จะเขียนลงตารางนี้ — D-27)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `place_type_id` | bigint | NOT NULL | identity (PK) — **เปลี่ยนจาก composite PK (`place_id`, `api_type_id`) เมื่อ 2026-10-18** (ผู้ใช้รัน SQL) |
+| `place_type_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) — **เปลี่ยนจาก composite PK (`place_id`, `api_type_id`) เมื่อ 2026-10-18** (ผู้ใช้รัน SQL) (เป็น uuid ใน T23) |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE · index `idx_place_types_place_id` |
 | `api_type_id` | text | NOT NULL | index `idx_place_types_api_type` |
 | `source` | text | NOT NULL | `'google'` · CHECK `google` \| `csv` |
@@ -165,9 +166,9 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 ### `type_category_weights` · rows ~108 · **ไม่มีโค้ดใน repo ใช้**
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `id` | int4 | NOT NULL | serial (PK) |
+| `id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `api_type_id` | text | NOT NULL | UNIQUE (`api_type_id`, `category_id`) · index `idx_type_category_weights_api_type` |
-| `category_id` | int4 | NOT NULL | FK → `categories` CASCADE |
+| `category_id` | uuid | NOT NULL | FK → `categories` CASCADE |
 | `weight` | numeric | NOT NULL | CHECK `> 0` |
 | `created_at` | timestamptz | | `now()` |
 
@@ -179,7 +180,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 การตัดสินใจของ admin ในหน้ารีวิวจังหวัด — แทนกฎ hard code ของ data-pipeline · PK เดียว (`decision_id`) ไม่มี composite key
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
-| `decision_id` | bigint | NOT NULL | identity (PK) |
+| `decision_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `province` | text | NOT NULL | index |
 | `kind` | text | NOT NULL | CHECK `merge` \| `separate` \| `exclude` \| `fix_location` \| `ok` |
 | `att_ids` | text[] | NOT NULL | CHECK มีอย่างน้อย 1 ตัว (merge/separate ≥ 2, ที่เหลือ 1 — ตรวจในโค้ด) |
@@ -193,7 +194,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 RLS เปิดและไม่มี policy (เข้าถึงได้เฉพาะ service role ของ backend — ไม่ซ้ำ Known Issue #27)
 ```sql
 CREATE TABLE public.admin_place_decisions (
-  decision_id    bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  decision_id    uuid PRIMARY KEY DEFAULT gen_random_uuid(),   -- เดิม bigint identity (เปลี่ยนใน T23)
   province       text NOT NULL,
   kind           text NOT NULL CHECK (kind IN ('merge', 'separate', 'exclude', 'fix_location', 'ok')),
   att_ids        text[] NOT NULL CHECK (cardinality(att_ids) >= 1),
@@ -209,11 +210,11 @@ CREATE INDEX admin_place_decisions_province_idx ON public.admin_place_decisions 
 ALTER TABLE public.admin_place_decisions ENABLE ROW LEVEL SECURITY;
 ```
 
-### `pipeline_jobs` / `pipeline_job_items` (R5 P4 — **ยังไม่ได้สร้าง** ผู้ใช้จะรันตอนเริ่ม P4a)
+### `pipeline_jobs` / `pipeline_job_items` (R5 P4 — ✅ ผู้ใช้สร้างแล้ว 2026-10-18 ตาม SQL ด้านล่าง)
 job นำเข้าจังหวัด 1 แถวต่อ 1 job · ผลรายสถานที่ 1 แถวต่อ 1 ATT_ID · PK เดียวทั้งคู่ · RLS เปิด ไม่มี policy
 ```sql
 CREATE TABLE public.pipeline_jobs (
-  job_id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  job_id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),   -- เดิม bigint identity (T23)
   province         text NOT NULL,
   status           text NOT NULL DEFAULT 'queued'
                    CHECK (status IN ('queued', 'running', 'done', 'failed', 'cancelled')),
@@ -234,8 +235,8 @@ CREATE INDEX pipeline_jobs_province_idx ON public.pipeline_jobs (province);
 ALTER TABLE public.pipeline_jobs ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE public.pipeline_job_items (
-  item_id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  job_id          bigint NOT NULL REFERENCES public.pipeline_jobs(job_id) ON DELETE CASCADE,
+  item_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),   -- เดิม bigint identity (T23)
+  job_id          uuid NOT NULL REFERENCES public.pipeline_jobs(job_id) ON DELETE CASCADE,
   att_id          text NOT NULL,
   status          text NOT NULL CHECK (status IN (
                     'imported', 'needs_review_mismatch', 'needs_review_not_found',

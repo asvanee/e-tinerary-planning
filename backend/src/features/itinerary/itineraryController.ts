@@ -138,7 +138,7 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
 
 /**
  * PUT /api/itinerary/trips/:tripId
- * body: { days: { trip_day_id: number; place_ids: string[] }[] }
+ * body: { days: { trip_day_id: string; place_ids: string[] }[] }
  *
  * ยืนยันแผนเดินทาง — backend re-validate ซ้ำทั้งหมด ด้วย buildItinerary() 
  * แล้ว delete-then-insert ทับของเดิมทั้งทริป
@@ -367,7 +367,7 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
       return res.status(500).json({ message: "ดึงข้อมูลแผนเดินทางไม่สำเร็จ" });
     }
 
-    const itemsByDay = new Map<number, any[]>();
+    const itemsByDay = new Map<string, any[]>();
     for (const row of itineraryRows ?? []) {
       const list = itemsByDay.get(row.trip_day_id) ?? [];
       list.push(row);

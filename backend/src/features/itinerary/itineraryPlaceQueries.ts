@@ -5,7 +5,7 @@ import type { PriceNature } from "../poi/poiPlaceQueries";
 // ---------- Types ----------
 
 export interface TripDay {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string; // "YYYY-MM-DD"
   startTime: string | null; // "HH:MM:SS" — null ถ้า trips.start_time ไม่มี (ไม่ควรเกิดจริงเพราะ createTrip บังคับกรอก)

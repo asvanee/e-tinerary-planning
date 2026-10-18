@@ -69,6 +69,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 
 ## จุดที่ต้องระวังเป็นพิเศษ
 - **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
+- **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
 - **Multi-category dedupe** (เลือก `confidence_score` สูงสุด) ต้องใช้เกณฑ์เดียวกันในทุก query
 - **ลำดับ filter ของ POI** (province → category+fallback → budget → time) ห้ามสลับ
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม

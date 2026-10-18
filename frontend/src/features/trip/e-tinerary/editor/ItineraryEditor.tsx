@@ -70,7 +70,7 @@ interface MergedPlace {
 }
 
 interface DraftTripDay {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string;
   startTime: string | null;
@@ -103,7 +103,7 @@ const UNASSIGNED_KEY = "unassigned";
 // ref คงที่ กัน useMemo recompute โดยไม่จำเป็นเมื่อ draft ไม่มี matrix (เช่น router state เก่า)
 const EMPTY_TRAVEL_MATRIX: TravelMatrix = {};
 
-function dayKey(tripDayId: number) {
+function dayKey(tripDayId: string) {
   return `day-${tripDayId}`;
 }
 
@@ -540,7 +540,7 @@ export default function ItineraryEditor() {
   useEffect(() => {
     if (!state?.draft) return;
 
-    const itemsByDay = new Map<number, ItineraryItemResult[]>();
+    const itemsByDay = new Map<string, ItineraryItemResult[]>();
     for (const item of state.draft.items) {
       const list = itemsByDay.get(item.tripDayId) ?? [];
       list.push(item);

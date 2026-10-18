@@ -6,9 +6,11 @@ import { parseGroupDecision, parseRowDecision } from "../review/decisionInput";
 import { DecisionKind, PlaceDecision } from "../review/reviewTypes";
 
 let nextId = 1;
+// decision_id เป็น uuid ใน DB — ใน test ใช้ string ธรรมดา · decided_at เพิ่มขึ้นทีละวินาทีตามลำดับที่สร้าง
 function decision(kind: DecisionKind, attIds: string[], extra: Partial<PlaceDecision> = {}): PlaceDecision {
+  const n = nextId++;
   return {
-    decision_id: nextId++,
+    decision_id: `decision-${n}`,
     province: "ทดลอง",
     kind,
     att_ids: attIds,
@@ -18,7 +20,7 @@ function decision(kind: DecisionKind, attIds: string[], extra: Partial<PlaceDeci
     lng: null,
     note: null,
     decided_by: "admin-1",
-    decided_at: "2026-10-18T00:00:00Z",
+    decided_at: new Date(Date.UTC(2026, 9, 18, 0, 0, n)).toISOString(),
     ...extra,
   };
 }
@@ -159,7 +161,8 @@ describe("buildProvinceReview — ปัญหารายแถว", () => {
     const rows = [...base, row("link", { ATT_LOCATION: "https://maps.app.goo.gl/x" })];
     const old = decision("fix_location", ["link"], { lat: 9.9, lng: 99.9 });
     const latest = decision("fix_location", ["link"], { lat: 18.8, lng: 98.98 });
-    const review = buildProvinceReview("ทดลอง", rows, [old, latest]);
+    // ส่งรายการกลับลำดับก็ต้องได้ตัวที่ decided_at ใหม่กว่า
+    const review = buildProvinceReview("ทดลอง", rows, [latest, old]);
     const entry = review.problemRows.find((r) => r.attId === "link")!;
     expect(entry.issues).toEqual([]);
     expect(entry.decision?.decision_id).toBe(latest.decision_id);

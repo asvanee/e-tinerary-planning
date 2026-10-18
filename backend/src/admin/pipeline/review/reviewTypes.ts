@@ -4,7 +4,7 @@ export type DecisionKind = "merge" | "separate" | "exclude" | "fix_location" | "
 
 // 1 แถวของตาราง admin_place_decisions (ดู docs/DATABASE_SCHEMA.md)
 export interface PlaceDecision {
-  decision_id: number;
+  decision_id: string; // uuid — เรียงลำดับไม่ได้ ใช้ decided_at แทน
   province: string;
   kind: DecisionKind;
   att_ids: string[];
@@ -37,7 +37,7 @@ export interface ReviewGroup {
   reasons: GroupReason[];
   suggestedPrimaryAttId: string;
   decided: boolean;
-  decisionIds: number[];
+  decisionIds: string[];
 }
 
 export type RowIssueType =

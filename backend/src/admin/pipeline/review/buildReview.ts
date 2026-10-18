@@ -7,13 +7,14 @@ import { GroupReason, PlaceDecision, ProvinceReview, ReviewGroup, ReviewRow } fr
 
 const ROW_DECISION_KINDS = new Set(["exclude", "ok", "fix_location"]);
 
-// การตัดสินใจรายแถวล่าสุดของแต่ละ ATT_ID
+// การตัดสินใจรายแถวล่าสุดของแต่ละ ATT_ID — เทียบ decided_at (decision_id เป็น uuid เรียงตามเวลาไม่ได้)
+// เวลาเท่ากันให้ตัวที่อยู่หลังในรายการชนะ (listDecisions เรียงตาม decided_at)
 function latestRowDecisions(decisions: PlaceDecision[]): Map<string, PlaceDecision> {
   const latest = new Map<string, PlaceDecision>();
   for (const d of decisions) {
     if (!ROW_DECISION_KINDS.has(d.kind)) continue;
     const prev = latest.get(d.att_ids[0]);
-    if (!prev || d.decision_id > prev.decision_id) latest.set(d.att_ids[0], d);
+    if (!prev || Date.parse(d.decided_at) >= Date.parse(prev.decided_at)) latest.set(d.att_ids[0], d);
   }
   return latest;
 }
@@ -91,7 +92,7 @@ export function buildProvinceReview(
   const groups: ReviewGroup[] = reasons
     .map((reason) => {
       const attIds = [...reason.attIds].sort((a, b) => rowById.get(a)!.index - rowById.get(b)!.index);
-      const decisionIds = new Set<number>();
+      const decisionIds = new Set<string>();
       let decided = true;
       eachPair(attIds, (a, b) => {
         const ids = covered.get(pairKey(a, b));
@@ -104,7 +105,7 @@ export function buildProvinceReview(
         reasons: [{ ...reason, attIds }],
         suggestedPrimaryAttId: pickRepresentative(attIds.map((id) => rowById.get(id)!.row)).ATT_ID,
         decided,
-        decisionIds: [...decisionIds].sort((a, b) => a - b),
+        decisionIds: [...decisionIds].sort(),
       };
     })
     .sort((a, b) => rowById.get(a.attIds[0])!.index - rowById.get(b.attIds[0])!.index);

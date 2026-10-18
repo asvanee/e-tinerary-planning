@@ -67,7 +67,7 @@ interface ScheduleItem {
 }
 
 interface TripDay {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string;
   dailyBudget: number | null;
@@ -96,7 +96,7 @@ interface TripSummary {
   availableTimePerDay: number | null;
 
   categories?: {
-      category_id:number;
+      category_id: string;
       category_name:string;
   }[];
 
@@ -129,7 +129,7 @@ interface TripRow {
   start_lng: number;
 
   categories?: {
-      category_id: number;
+      category_id: string;
       category_name: string;
   }[];
 }
@@ -157,7 +157,7 @@ interface SavedItineraryItemRow {
 }
 
 interface SavedItineraryDayRow {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string;
   dailyBudget: number | null;

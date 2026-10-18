@@ -50,8 +50,8 @@ export function decisionsToRules(decisions: PlaceDecision[]): DedupeRules {
 }
 
 // คู่ที่ admin ตัดสินแล้ว (อยู่ใน merge หรือ separate เดียวกัน) → decision_id ที่ครอบคู่นั้น
-export function coveredPairs(decisions: PlaceDecision[]): Map<string, number[]> {
-  const covered = new Map<string, number[]>();
+export function coveredPairs(decisions: PlaceDecision[]): Map<string, string[]> {
+  const covered = new Map<string, string[]>();
   for (const d of decisions) {
     if (d.kind !== "merge" && d.kind !== "separate") continue;
     eachPair(d.att_ids, (a, b) => {

@@ -64,7 +64,7 @@ export const getProvinceReview = async (req: AuthRequest, res: Response) => {
 
 // การตัดสินใจ merge/separate ที่เป็นของกลุ่มนี้ (สมาชิกทุกตัวอยู่ในกลุ่ม)
 // แถวเดียวอยู่ได้หลายกลุ่ม จึงห้ามลบการตัดสินใจของกลุ่มอื่นที่แค่มีสมาชิกซ้อนกัน
-function groupDecisionIds(decisions: PlaceDecision[], attIds: string[]): number[] {
+function groupDecisionIds(decisions: PlaceDecision[], attIds: string[]): string[] {
   const ids = new Set(attIds);
   return decisions
     .filter((d) => GROUP_KINDS.has(d.kind) && d.att_ids.every((id) => ids.has(id)))
@@ -110,7 +110,7 @@ export const deleteGroupDecision = async (req: AuthRequest, res: Response) => {
   }
 };
 
-function rowDecisionIds(decisions: PlaceDecision[], attId: string): number[] {
+function rowDecisionIds(decisions: PlaceDecision[], attId: string): string[] {
   return decisions.filter((d) => ROW_KINDS.has(d.kind) && d.att_ids[0] === attId).map((d) => d.decision_id);
 }
 

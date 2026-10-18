@@ -246,7 +246,7 @@ interface LocationFilter {
  */
 async function queryPlacesWithCategoryInfo(
   locationFilter: LocationFilter,
-  categoryIds: number[] | null
+  categoryIds: string[] | null
 ): Promise<PlaceWithScore[]> {
   let query = supabase
     .from("place_categories")

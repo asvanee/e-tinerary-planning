@@ -65,7 +65,7 @@ export interface RouteMapDayItem {
 }
 
 export interface RouteMapDay {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   items: RouteMapDayItem[];
 }
