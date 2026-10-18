@@ -129,7 +129,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 `users`, `trips`, `trip_categories`, `trip_days`, `categories`, `places`, `place_categories`, `poi_scores`, `itineraries`
 
 คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `categories.default_duration_min`, `place_categories.confidence_score`, `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
-**Schema จริง, RLS policy, FK/CASCADE: ยังไม่ทราบ / ต้องตรวจสอบเพิ่มเติม ใน Supabase dashboard**
+**Schema จริง, RLS, FK/CASCADE:** ดู [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) (snapshot 2026-10-18 + การเปลี่ยนแปลงหลังจากนั้น: PK ทุกตารางเป็น uuid — T23) · RLS ปิดทุกตารางเดิม · FK ส่วนใหญ่ `ON DELETE CASCADE`
 
 ## 8. บริการภายนอก
 
@@ -140,7 +140,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
 | Open-Meteo | backend `utils/weatherForecast.ts` (+ `weatherDebug.ts` ยิงซ้ำเพื่อ debug ทุกครั้งที่คำนวณ POI) | ไม่ต้องใช้ key |
 | Google Maps JS | frontend `LocationPinPicker.tsx` | `VITE_GOOGLE_MAPS_API_KEY` |
-| Google Places (Find/Details) | data-pipeline | `GOOGLE_PLACES_API_KEY` |
+| Google Places (Find/Details) | data-pipeline (เดิม) · backend admin pipeline (R5 P4 — ยังไม่มีโค้ด) | `GOOGLE_PLACES_API_KEY` |
 | OSM tiles | Leaflet ใน frontend | |
 
 ## 9. Environment Variables (เฉพาะชื่อ — ห้ามคัดลอกค่า)
@@ -152,6 +152,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `PORT` | port ของ API | ✓ | ✓ |
 | backend | `FRONTEND_URL` | — | ✓ | **✗ ไม่ถูกใช้** (CORS เปิดทุก origin, redirect ใน register hardcode `http://localhost:5173/login`) |
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
+| backend | `GOOGLE_PLACES_API_KEY` | Google Places (Find Place + Details) สำหรับนำเข้าใน admin (R5 P4) — ผู้ใช้ย้ายค่ามาจาก `data-pipeline/.env` แล้ว 2026-10-18 | ✓ | ✗ ยังไม่มีโค้ดใช้ (P4a) |
 | backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (มี default) | ✗ | ✓ (`config/ors.ts`) |
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |

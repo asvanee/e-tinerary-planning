@@ -119,3 +119,11 @@
   - ไม่เพิ่มตัวตรวจพิกัดหยาบ (ทศนิยม < 3 ตำแหน่ง, 34 แถวทั้งประเทศ) และไม่ทำปุ่มดึงพิกัดจาก short link ในหน้ารีวิว
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-28 · 2026-10-18 · primary key ทุกตารางเป็น uuid (ขยาย D-27 ข้อ "PK เดียว")
+- บริบท: `users`, `trips`, `places` ใช้ uuid อยู่แล้ว แต่ตารางอื่นยังเป็น int/bigint (`categories`, `trip_days`, `itineraries`, `poi_scores`, `place_categories`, `trip_categories`, `type_category_weights`, `place_types`, `admin_place_decisions`, `pipeline_jobs`, `pipeline_job_items`)
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว): ทุกตารางใช้ PK เดียวเป็น `uuid DEFAULT gen_random_uuid()` · ตารางใหม่ต่อจากนี้ก็เช่นกัน
+- การทำ: งาน **T23** — SQL อยู่ที่ `docs/sql/2026-10-19_uuid_primary_keys.sql` (สำรองทุกตารางก่อน, transaction เดียว, FK และ UNIQUE หลายคอลัมน์ที่โค้ดใช้อยู่สร้างกลับเหมือนเดิม) · **ต้องแก้โค้ดให้เสร็จก่อนรัน SQL** (type ของ id เป็น string และการเลือก "ล่าสุด" ต้องใช้ `decided_at`/`created_at` แทนลำดับเลข)
+- ข้อควรระวัง: เครื่องมือนอก repo ที่อ้าง id เป็นตัวเลข (เช่นของ Stage 3 ที่ใช้ `category_id` ใน `type_category_weights`) จะใช้ค่าเดิมไม่ได้ · ข้อมูลที่ export ไว้ก่อนหน้า (ถ้ามี) จะอ้าง id เก่า
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/sql/2026-10-19_uuid_primary_keys.sql`, `docs/DEVELOPMENT_PLAN.md` (T23), `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_STATUS.md`
