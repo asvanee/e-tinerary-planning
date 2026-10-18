@@ -239,6 +239,14 @@ console.log("trip =", trip);
     // เปลี่ยนมาใช้ ref ธรรมดา: set true ก่อนเซ็ต province จาก loadTrip() เท่านั้น
     // ถ้า effect ด้านล่างเห็น flag นี้เป็น true ให้ "ข้าม" การเคลียร์ district ไปหนึ่งรอบ
     const skipDistrictResetRef = useRef(false);
+    // ค่าเดิมของช่องที่กำหนดวันของแผน (โหมดแก้ไข) — ถ้าเปลี่ยน backend จะล้างแผนเดิม (Known Issue #6)
+    const originalDayStructureRef = useRef<{
+        startDate: string;
+        endDate: string;
+        startTime: string;
+        availableTimePerDay: number | null;
+        dailyBudget: number | null;
+    } | null>(null);
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
@@ -322,6 +330,14 @@ console.log("trip =", trip);
           ? String(trip.available_time_per_day)
           : ""
       );
+
+      originalDayStructureRef.current = {
+        startDate: trip.start_date ?? "",
+        endDate: trip.end_date ?? "",
+        startTime: (trip.start_time ?? "").slice(0, 5),
+        availableTimePerDay: trip.available_time_per_day ?? null,
+        dailyBudget: trip.daily_budget != null ? Number(trip.daily_budget) : null,
+      };
 
       setStartLat(trip.start_lat);
       setStartLng(trip.start_lng);
@@ -524,6 +540,28 @@ console.log("trip =", trip);
                 `งบประมาณต่อวันอยู่ที่ประมาณ ${Math.round(dailyBudget).toLocaleString()} บาท อาจไม่เพียงพอสำหรับบางสถานที่ ต้องการดำเนินการต่อหรือไม่?`
             );
             if (!confirmed) return;
+        }
+
+        // โหมดแก้ไข: ถ้าวัน/เวลา/งบต่อวันเปลี่ยน backend จะล้างแผนเดิมให้จัดใหม่ — ถามก่อน
+        const original = originalDayStructureRef.current;
+        if (editMode && original) {
+            const newAvailable = availableTimePerDay ? Number(availableTimePerDay) : null;
+            const budgetChanged =
+                original.dailyBudget === null || dailyBudget === null
+                    ? original.dailyBudget !== dailyBudget
+                    : Math.abs(original.dailyBudget - dailyBudget) >= 0.005;
+            const dayStructureChanged =
+                original.startDate !== startDate ||
+                original.endDate !== endDate ||
+                original.startTime !== startTime.slice(0, 5) ||
+                original.availableTimePerDay !== newAvailable ||
+                budgetChanged;
+            if (
+                dayStructureChanged &&
+                !confirm("วัน เวลา หรืองบต่อวันของทริปเปลี่ยน แผนเดิมของทริปนี้ (ถ้ามี) จะถูกล้าง และต้องจัดแผนใหม่ ต้องการบันทึกหรือไม่?")
+            ) {
+                return;
+            }
         }
 
         const payload = {

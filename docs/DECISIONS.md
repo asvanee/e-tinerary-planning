@@ -127,3 +127,9 @@
 - ข้อควรระวัง: เครื่องมือนอก repo ที่อ้าง id เป็นตัวเลข (เช่นของ Stage 3 ที่ใช้ `category_id` ใน `type_category_weights`) จะใช้ค่าเดิมไม่ได้ · ข้อมูลที่ export ไว้ก่อนหน้า (ถ้ามี) จะอ้าง id เก่า
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `docs/sql/2026-10-19_uuid_primary_keys.sql`, `docs/DEVELOPMENT_PLAN.md` (T23), `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-29 · 2026-10-18 · แก้วัน/เวลา/งบต่อวันของทริป = ล้างแผนเดิม (แก้ Known Issue #6)
+- บริบท: `trip_days` ถูกสร้างครั้งเดียวใน `getOrCreateTripDays` แล้วไม่อัปเดตเมื่อแก้ทริป · ทางที่ sync ทีละวัน (update/insert/delete) ซับซ้อนและต้องตัดสินว่าสถานที่ในวันที่ถูกตัดไปอยู่ไหน
+- ข้อสรุป (ผู้ใช้เลือกทางที่ง่ายที่สุด): ถ้า `start_date`, `end_date`, `start_time`, `available_time_per_day` หรือ `daily_budget` เปลี่ยน `updateTrip` จะลบ `trip_days` ของทริปนั้น (CASCADE ลบ `itineraries` = แผนเดิม) แล้วครั้งหน้าที่จัดแผนจะสร้างวันใหม่จากข้อมูลล่าสุด · frontend ถามยืนยันก่อนบันทึก · ช่องอื่น (จังหวัด หมวดหมู่ จุดเริ่ม ฯลฯ) แผนเดิมยังอยู่ · หลังบันทึกไปหน้า recommendations เหมือนเดิม
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/trip/tripController.ts` (`updateTrip`), `backend/src/features/trip/tripDayStructure.ts`, `frontend/src/features/trip/create/createTrip.tsx`

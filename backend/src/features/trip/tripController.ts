@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { supabase } from "../../config/db";
 import { AuthRequest } from "../auth/authMiddleware";
+import { DAY_STRUCTURE_FIELDS, DayStructure, dayStructureChanged } from "./tripDayStructure";
 
 /**
  * ✅ เพิ่มใหม่: กันไม่ให้ end_time (= start_time + available_time_per_day) ข้ามเที่ยงคืน
@@ -458,6 +459,25 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    // ค่าเดิมของช่องที่กำหนดโครงสร้างวัน — ใช้ตัดสินว่าต้องล้างแผนเดิมไหม (Known Issue #6)
+    const { data: before, error: beforeError } = await supabase
+      .from("trips")
+      .select(DAY_STRUCTURE_FIELDS.join(", "))
+      .eq("trip_id", tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (beforeError) {
+      console.error("Load trip before update error:", beforeError);
+      return res.status(500).json({ message: "ไม่สามารถบันทึกการแก้ไขทริปได้" });
+    }
+
+    if (!before) {
+      return res
+        .status(404)
+        .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    }
+
     const { data, error } = await supabase
       .from("trips")
       .update({
@@ -530,12 +550,36 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // ✅ Known Issue #6: trip_days ถูกสร้างครั้งเดียวแล้วไม่อัปเดตตามทริป
+    // วิธีที่ง่ายที่สุด (ผู้ใช้เลือก 2026-10-18): ถ้าวัน/เวลา/งบต่อวันเปลี่ยน ให้ล้าง trip_days ของทริปนี้
+    // → CASCADE ลบ itineraries (แผนเดิม) ด้วย · ครั้งหน้าที่จัดแผน getOrCreateTripDays จะสร้างวันใหม่จากข้อมูลล่าสุด
+    let planReset = false;
+    let planResetWarning = false;
+
+    if (dayStructureChanged(before as unknown as DayStructure, data as DayStructure)) {
+      const { error: resetError } = await supabase
+        .from("trip_days")
+        .delete()
+        .eq("trip_id", tripId);
+
+      if (resetError) {
+        console.error("Reset trip_days error:", resetError.message);
+        planResetWarning = true;
+      } else {
+        planReset = true;
+      }
+    }
+
     return res.status(200).json({
-      message: categoryWarning
+      message: planResetWarning
+        ? "บันทึกทริปสำเร็จ แต่ล้างแผนเดิมไม่สำเร็จ วันและเวลาของแผนอาจยังเป็นค่าเก่า กรุณาลองบันทึกอีกครั้ง"
+        : categoryWarning
         ? "บันทึกทริปสำเร็จ แต่บันทึกหมวดหมู่ความสนใจไม่สำเร็จ กรุณาลองแก้ไขอีกครั้ง"
         : "บันทึกการแก้ไขทริปสำเร็จ",
       trip: data,
       categoryWarning,
+      planReset,
+      planResetWarning,
     });
   } catch (err: any) {
     console.error("Update trip exception:", err);

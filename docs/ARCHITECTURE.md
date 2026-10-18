@@ -30,7 +30,7 @@ backend เก็บ state ที่ไม่ได้อยู่ใน DB ไ�
 ```text
 Register/Login ─► Home ─► Create Trip ─► Recommendations ─┬─► (เลือกสถานที่) ─► Itinerary Editor ─► Confirm ─► Trip Detail
                                                           └─► Auto Trip ─────────────────────────► Confirm ─► Trip Detail
-MyTrips ─► Trip Detail ─► แก้ไขแผน (สร้าง draft ใหม่) / แก้ไขข้อมูลทริป (/trip/:id/edit → บันทึกแล้วไป Recommendations เพื่อคำนวณ POI ใหม่)
+MyTrips ─► Trip Detail ─► แก้ไขแผน (สร้าง draft ใหม่) / แก้ไขข้อมูลทริป (/trip/:id/edit → บันทึกแล้วไป Recommendations เพื่อคำนวณ POI ใหม่ · ถ้าวัน/เวลา/งบต่อวันเปลี่ยน แผนเดิมถูกล้าง — D-29)
 ```
 
 ### 2.1 Auth
