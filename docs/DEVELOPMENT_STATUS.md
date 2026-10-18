@@ -13,7 +13,7 @@
 | `frontend`: `eslint .` | ❌ 33 problems (29 errors, 4 warnings) — `no-explicit-any` 24, `react-hooks/exhaustive-deps` 4, `react-hooks/set-state-in-effect` 2, `react-refresh/only-export-components` 2, `react-hooks/refs` 1 (รันบน Windows 2026-10-17 หลังตั้ง `argsIgnorePattern: "^_"` ใน `eslint.config.js`) | ก่อน T1: 34 errors (`no-unused-vars` 5) · หลัง T1: 33 errors (`no-unused-vars` 4 = พารามิเตอร์ `_` ของ `buildInitialDraft` ที่ตั้งใจไม่ใช้) |
 | `frontend`: `npm run build` (`tsc -b && vite build`) | ✅ ผ่านบน Windows หลัง T1 (2026-10-17) — มีคำเตือน chunk 748 kB > 500 kB | **ยังไม่ได้ทดสอบบน Linux/CI** (ต้อง `npm ci` ใหม่ในเครื่องนั้น) |
 | `frontend`: `vitest run` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx vitest run` 2026-10-16) | ไม่มีไฟล์ test อยู่แล้ว `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · บน Linux เคยรันไม่ขึ้นเพราะไม่พบ native rollup ของ Linux |
-| `backend`: `jest` | ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx jest` 2026-10-16) | ไม่มีไฟล์ test `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · jest 30 + ts-jest 29.4.11 ใช้ด้วยกันได้ (peerDependencies รองรับ jest 30, test ชั่วคราวนอก repo ผ่าน transform 2/2 เมื่อ 2026-10-17 — T15) |
+| `backend`: `jest` | ✅ 2 suites / 25 tests ผ่าน (Claude รัน `npx jest` บน Windows 2026-10-18) — `backend/src/admin/pipeline/__tests__/` | ก่อน 2026-10-18 ไม่มีไฟล์ test ("No tests found", exit 1) · jest 30 + ts-jest 29.4.11 ใช้ด้วยกันได้ (T15) · characterization test อ่าน `backend/data/attraction.csv` (~20 MB) |
 | `backend/src`: นับ `any` (grep คำว่า `any` ทั้งคำ ไม่นับบรรทัด comment) | ประมาณ 39 จุด (ตรวจ 2026-10-16) | backend ไม่มี lint จึงไม่ถูกนับรวมกับ `no-explicit-any` 24 จุดของ frontend |
 | ไฟล์ test (`*.test.*`, `*.spec.*`, `__tests__`) | ไม่พบเลย | |
 
@@ -42,13 +42,13 @@
 | **Auto Trip** | endpoint `/auto`, `autoTripBuilder.ts`, หน้า `auto.tsx` มีปุ่มยืนยันและบันทึกได้ | เลือกได้แค่ 1 ที่ต่อ category · เช็คเวลาเปิดไม่ตรงกับ format ใน DB (ดู Known Issues) · ใช้ haversine 30 km/h แทน ORS · ไม่มีการตรวจงบ · ปุ่ม "แก้ไข" ส่ง state ที่ editor ไม่รองรับ · route `/trip/:id/auto` ไม่ได้ครอบ ProtectedRoute · commit `44d26dd` ระบุว่า "BUT not done yet" |
 | ข้อมูลหลายจังหวัด | scripts มีกรุงเทพฯ / เชียงใหม่ / ชลบุรี | comment บอกว่ากรุงเทพฯ/ชลบุรียังไม่ผ่าน "Stage 3" (multi-category) · **โค้ด Stage 3 ไม่มีใน repo** |
 | Weather | มีเฉพาะโอกาสฝน | comment ระบุว่าความร้อน/UV/ลม/PM2.5 เป็นงานในอนาคต · `weatherDebug.ts` ยังถูกเรียกทุก request |
-| Testing | มี config ของ jest/vitest | ไม่มีไฟล์ test เลย |
+| Testing | jest ของ backend มี test ของ dedupe (R5 P2a) | frontend ยังไม่มีไฟล์ test · ส่วนอื่นของ backend (POI, itinerary) ยังไม่มี test |
 | **Admin Panel (R5 P1)** | `backend/src/admin/` (`requireAdmin`, `GET /api/admin/me`) · `frontend/src/admin/` (`AdminLogin`, `AdminRoute`, `AdminLayout`, `AdminDashboard`) · `system/auth/LoginForm.tsx` ใช้ร่วมกับ `/login` · role `admin` → `/admin` (2026-10-18) | ✅ ผู้ใช้ทดสอบ manual ผ่าน 2026-10-18 (admin/user login ทั้ง 2 หน้า, กันแก้ role ใน localStorage, ไม่ login, logout, หน้า user เดิม) · การ์ดเครื่องมือ 3 ใบยังเป็น "เร็วๆ นี้" (P3–P5) |
 | Production readiness | dev scripts | backend ไม่มี `build`/`start` · ไม่มี deploy config · redirect URL และ CORS ยังเป็นค่าสำหรับ local |
 
 ## Not Implemented (ตรวจแล้วไม่พบโค้ด)
 - Migration ของ DB ใน repo (มีแค่ snapshot โครงสร้าง `docs/DATABASE_SCHEMA.md` 2026-10-18)
-- Automated tests ทั้ง 3 package
+- Automated tests ของ frontend, data-pipeline และ backend นอกจาก admin pipeline
 - การ refresh access token ฝั่ง frontend (grep แล้วไม่พบ `refreshSession`/`onAuthStateChange`)
 - การ sync `trip_days` ใหม่เมื่อแก้ไขวันที่/เวลา/งบของทริป (ดู Known Issues #6)
 - Lint ของ backend และ data-pipeline (ไม่มี config)

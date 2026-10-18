@@ -82,3 +82,13 @@
 - ยังไม่ได้ตัดสินใจ: D-23 Q2 (ที่เก็บกฎ merge/override — แนะนำตาราง Supabase), Q3 (กฎ Stage 3), Q4 (กู้ #20 ทั้งหมดไหม), Q5 (apply category mapping ก่อน research POI เสร็จได้ไหม)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `.claude/skills/feature-development/SKILL.md`
+
+### D-25 · 2026-10-18 · เขียนโค้ด pipeline ใหม่ใน backend ได้ (แทนที่ D-24 ข้อ "copy แล้วปรับ (ไม่เขียนใหม่จากศูนย์)")
+- บริบท: ผู้ใช้ต้องการโค้ดหลังบ้านของ admin ที่สะอาด แก้ logic ได้ และเอามาเฉพาะส่วนที่ใช้ ไม่ต้องคงโครงของ data-pipeline
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - เขียนโค้ดใหม่ใน `backend/src/admin/pipeline/` ได้ทั้งหมด ไฟล์/script/type ใน data-pipeline ที่ไม่ใช้ไม่ต้องย้ายมา
+  - ต้องมี characterization test (jest) ยืนยันว่าผลเท่ากับ data-pipeline เดิม (fixture จากการรัน `testDedupe.ts` จริง) · การเปลี่ยนพฤติกรรม (เช่นกู้ #20) ต้องแยก commit และอัปเดต fixture/ตัวเลขใน test ให้เห็นชัด
+  - เพิ่ม `csv-parse@^6.1.0` เป็น dependency ของ backend (ตัวเดียวกับ data-pipeline เพื่อให้ parse CSV เหมือนเดิม)
+  - `attraction.csv` copy ไป `backend/data/` (เนื้อหาเหมือนกันทุก byte — git ใช้ blob เดียวกัน) ส่วนของ data-pipeline เก็บไว้จนถึง P6
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/*`, `backend/package.json`, `backend/data/attraction.csv`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/PROJECT_OVERVIEW.md`, `CLAUDE.md`, `.claude/skills/verify-changes/SKILL.md`

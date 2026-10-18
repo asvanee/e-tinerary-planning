@@ -20,7 +20,7 @@
 # backend
 cd backend && npm run dev          # ts-node-dev src/server.ts (ต้องมี .env และ Supabase ต้องเชื่อมต่อได้ ไม่งั้น exit 1)
 cd backend && npx tsc --noEmit     # type check (ไม่มี script build/lint)
-cd backend && npm test             # jest — ยังไม่มีไฟล์ test
+cd backend && npm test             # jest — test ของ admin pipeline (dedupe) อ่าน backend/data/attraction.csv
 
 # frontend  (dev proxy /api → http://localhost:5000)
 cd frontend && npm run dev
@@ -30,7 +30,7 @@ cd frontend && npm test            # vitest run — ยังไม่มีไ�
 ```
 `data-pipeline` scripts (`upload:*`, `fetch-gmaps-categories:*`) **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** — ห้ามรันจนกว่าผู้ใช้จะสั่งชัดเจนเป็นครั้งๆ ส่วน `test:*` / `find:collisions:*` อ่าน CSV อย่างเดียว แต่ก็ยังควรถามก่อนรัน
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 29 errors / 4 warnings (หลังตั้ง `argsIgnorePattern: "^_"` 2026-10-17) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 29 errors / 4 warnings (หลังตั้ง `argsIgnorePattern: "^_"` 2026-10-17) · backend jest ✅ 25 tests (2026-10-18) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด

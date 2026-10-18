@@ -33,7 +33,9 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   │   └── itinerary/         draft / confirm / saved / auto trip
 │   ├── src/utils/             haversine, openingHoursChecker, orsDistance, orsTravelMatrix,
 │   │                          priceLevel, weatherForecast, weatherDebug
-│   ├── jest.config.js         ts-jest preset (ไม่มีไฟล์ test)
+│   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, pipeline/ (อ่าน CSV + dedupe, test ใน __tests__)
+│   ├── data/attraction.csv    สำเนาจาก data-pipeline (ใช้โดย admin pipeline)
+│   ├── jest.config.js         ts-jest preset
 │   └── scripts/               โฟลเดอร์ว่าง
 ├── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
 │   ├── src/main.tsx           entry (AuthProvider > App)
@@ -59,6 +61,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 |---|---|---|
 | Backend | Node.js, Express `^5.2.1`, TypeScript `^5.9.3`, `ts-node-dev` | `backend/package.json` |
 | Backend DB client | `@supabase/supabase-js ^2.97.0` (ถอด `pg`, `postgres`, `axios` ที่ไม่ได้ใช้ออกแล้ว 2026-10-17, T18) | `backend/package.json` |
+| Backend CSV | `csv-parse ^6.1.0` (อ่าน `data/attraction.csv` ใน admin pipeline — D-25) | `backend/package.json` |
 | Backend test | Jest `^30.4.2` + ts-jest `^29.4.11` (ts-jest 29.4 รองรับ jest 30 — ตรวจแล้ว T15) | `backend/package.json` |
 | Frontend | React `^19.2.0`, react-router-dom `^7.13.0`, Vite `^7.3.1`, Tailwind `^4.2.0` | `frontend/package.json` |
 | Frontend map | Leaflet + react-leaflet (แผนที่หลัก, OSM tiles), `@react-google-maps/api` (ใช้เฉพาะ `LocationPinPicker.tsx`) | imports |
@@ -74,7 +77,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | Package | คำสั่ง (มีอยู่จริงใน scripts) | หมายเหตุ |
 |---|---|---|
 | backend | `npm run dev` → `ts-node-dev --respawn --transpile-only src/server.ts` | port จาก `PORT` (default 5000); ถ้าเชื่อม Supabase ไม่ได้จะ `process.exit(1)` |
-| backend | `npm test` → `jest` | ยังไม่มีไฟล์ test |
+| backend | `npm test` → `jest` | test ของ admin pipeline (dedupe) |
 | backend | — | **ไม่มี** script `build` / `start` / `lint` (ตรวจ type ได้ด้วย `npx tsc --noEmit`) |
 | frontend | `npm run dev` (vite), `npm run build` (`tsc -b && vite build`), `npm run lint`, `npm run preview`, `npm test` (`vitest run`) | dev proxy `/api` → `localhost:5000` |
 | data-pipeline | `upload:*`, `test:*`, `find:collisions:chiangmai`, `fetch-gmaps-categories:chiangmai` | ⚠️ ส่วนใหญ่ **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** |
