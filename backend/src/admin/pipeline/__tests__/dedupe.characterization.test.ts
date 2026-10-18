@@ -26,7 +26,7 @@ function loadFixture(name: string): DedupeFixture {
 
 // Characterization test: ผลต้องตรงกับ data-pipeline/src/testDedupe.ts เดิมทุก ATT_ID และทุกลำดับ
 // (fixture สร้างจากผลรันจริงของ data-pipeline 2026-10-18 ด้วยกฎชุดเดียวกับ dedupeRules.ts)
-// ลำดับสำคัญ: ตอนนำเข้า (R5 P3) LIMIT ตัดจาก deduped ตามลำดับนี้
+// ลำดับสำคัญ: ตอนนำเข้า (R5 P4) LIMIT ตัดจาก deduped ตามลำดับนี้
 const fixtures = ["chiangmai", "chonburi", "bangkok"].map(loadFixture);
 
 describe.each(fixtures)("dedupe ของ $province ตรงกับ data-pipeline เดิม", (fixture) => {

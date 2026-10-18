@@ -85,7 +85,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ปุ่ม "แก้ไขแผน" จะเรียก `/api/places?ids=` + `POST /draft` ใหม่ แล้วไป editor
 
 ## 3. Data Pipeline (offline)
-> แผน D-24 (2026-10-18): โค้ดในหัวข้อนี้จะถูก copy แล้วปรับเข้า `backend/src/admin/pipeline/` (R5 P2–P3) แล้วลบ `data-pipeline/` ใน R5 P6 · ด้านล่างคือสภาพปัจจุบัน
+> แผน D-24/D-25/D-26 (2026-10-18): เขียนใหม่ใน `backend/src/admin/pipeline/` (dedupe เสร็จแล้วใน R5 P2a · ตรวจ/ตัดสินใจผ่านหน้า admin P3 · นำเข้า Google P4) แล้วลบ `data-pipeline/` ใน R5 P6 · ด้านล่างคือสภาพปัจจุบันของ data-pipeline
 - `uploadCsvToSupabase.ts` / `uploadProvinceGooglePlaces.ts`: อ่าน `data/attraction.csv` กรองตาม `TARGET_PROVINCE` → dedupe (`dedupe.ts`, `manualOverrides.ts`) → Google Find Place + Details → upsert `places` (onConflict `google_place_id`)
 - พิกัดที่บันทึกลง `places` มาจาก Google (`details.geometry` → `found.geometry` → CSV เป็นทางสุดท้าย) และ Find Place ใช้ `locationbias` ซึ่งไม่จำกัดพื้นที่ จึงได้สถานที่ผิดได้ (Known Issue #30)
 - `fetchGmapsCategories.ts`: เติม `places.gmaps_types` (paginate ทีละ 1000)

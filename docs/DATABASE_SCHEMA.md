@@ -21,7 +21,7 @@ places.place_id ──CASCADE──► itineraries.place_id · poi_scores.place_
 categories.category_id ──CASCADE──► place_categories.category_id · type_category_weights.category_id
 categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► trip_categories.category_id
 ```
-- ⚠️ **ลบแถวใน `places` = ลบ `itineraries` และ `poi_scores` ของทริปผู้ใช้ที่อ้างสถานที่นั้นไปด้วย** (รวม `place_categories`, `place_types`) — สำคัญกับงานนำเข้าที่ลบแถว `csv:*` (R5 P3)
+- ⚠️ **ลบแถวใน `places` = ลบ `itineraries` และ `poi_scores` ของทริปผู้ใช้ที่อ้างสถานที่นั้นไปด้วย** (รวม `place_categories`, `place_types`) — สำคัญกับการนำเข้าใหม่แทนข้อมูลเดิม (D-26: ผู้ใช้เลือกลบแล้วนำเข้าใหม่ ต้องทำหลัง category mapping พร้อม)
 - ลบ `trips` → `trip_days`, `itineraries`, `poi_scores`, `trip_categories` ถูกลบตาม (ตอบคำถามใน comment ของ `tripController.deleteTrip`)
 - ลบ `categories` ที่ยังมี `trip_categories` อ้างอยู่จะ error
 
