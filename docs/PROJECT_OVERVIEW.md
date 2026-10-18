@@ -92,6 +92,8 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` | **✗ ไม่ได้ครอบ `ProtectedRoute`** (แต่ภายในหน้าจะ redirect ไป `/login` ถ้าไม่มี session) |
 | `/trip/:tripId/detail` | `TripDetail.tsx` | ✓ |
 | `/trips` | `MyTrips.tsx` | ✓ |
+| `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
+| `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
 
 ## 6. Backend API (`backend/src/server.ts` + `*Routes.ts`)
 
@@ -108,8 +110,9 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | PUT `/api/itinerary/trips/:tripId` | ✓ | `confirmItinerary` |
 | GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
 | POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` |
+| GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
 
-Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`AuthContext.tsx`)
+Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
 
 ## 7. ตารางฐานข้อมูล (อนุมานจาก query — ไม่มี schema/migration ใน repo)
 > โครงสร้างจริงจาก Supabase (snapshot 2026-10-18) อยู่ที่ [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) — ถ้าขัดกับหัวข้อนี้ให้ยึดไฟล์นั้น

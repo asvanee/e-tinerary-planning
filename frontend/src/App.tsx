@@ -11,6 +11,10 @@ import MyTrips from "./features/trip/myTrips/MyTrips";
 import ItineraryEditor from "./features/trip/e-tinerary/editor/ItineraryEditor";
 import TripDetail from "./features/trip/detail/TripDetail";
 import AutoTrip from "./features/trip/e-tinerary/auto/auto";
+import AdminLogin from "./admin/login/AdminLogin";
+import AdminRoute from "./admin/AdminRoute";
+import AdminLayout from "./admin/AdminLayout";
+import AdminDashboard from "./admin/dashboard/AdminDashboard";
 
 export default function App() {
   return (
@@ -86,6 +90,19 @@ export default function App() {
             </ProtectedRoute>
   }
 />
+
+        {/* Admin Panel (R5, D-24) — สิทธิ์ตรวจที่ backend ผ่าน AdminRoute */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminDashboard />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
