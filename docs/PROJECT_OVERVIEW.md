@@ -112,6 +112,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`AuthContext.tsx`)
 
 ## 7. ตารางฐานข้อมูล (อนุมานจาก query — ไม่มี schema/migration ใน repo)
+> โครงสร้างจริงจาก Supabase (snapshot 2026-10-18) อยู่ที่ [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) — ถ้าขัดกับหัวข้อนี้ให้ยึดไฟล์นั้น
 
 `users`, `trips`, `trip_categories`, `trip_days`, `categories`, `places`, `place_categories`, `poi_scores`, `itineraries`
 

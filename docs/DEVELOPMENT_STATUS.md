@@ -1,6 +1,6 @@
 # DEVELOPMENT_STATUS
 
-> สถานะ ณ commit `0c980bd` (branch `dev`, 2026-10-13) — ตรวจเมื่อ 2026-10-16 · อัปเดตผล frontend หลัง T1 เมื่อ 2026-10-17 · อัปเดต T22, #19, lint config (`argsIgnorePattern`), #26, #16 (T18), T15 และสำรวจ data-pipeline สำหรับ R5 (#15, #20, #27, #28) เมื่อ 2026-10-17 · บันทึก D-24 (โครงสร้าง Admin Panel) และเพิ่ม #29 เมื่อ 2026-10-18
+> สถานะ ณ commit `0c980bd` (branch `dev`, 2026-10-13) — ตรวจเมื่อ 2026-10-16 · อัปเดตผล frontend หลัง T1 เมื่อ 2026-10-17 · อัปเดต T22, #19, lint config (`argsIgnorePattern`), #26, #16 (T18), T15 และสำรวจ data-pipeline สำหรับ R5 (#15, #20, #27, #28) เมื่อ 2026-10-17 · บันทึก D-24 (โครงสร้าง Admin Panel), เพิ่ม #29 และ snapshot schema (`DATABASE_SCHEMA.md`) เมื่อ 2026-10-18
 > **"Implemented" = มีโค้ดรองรับครบตาม flow เท่านั้น ไม่ได้แปลว่าทดสอบการทำงานจริงแล้ว** เพราะไม่มี automated test และยังไม่ได้รันแอปกับ Supabase จริง (ยกเว้น manual test ของ T1/T2/T22 ที่ผู้ใช้ทดสอบผ่านเมื่อ 2026-10-17 ดูตาราง "Known Issues ที่แก้แล้ว")
 
 ## หลักฐานจากการตรวจ (รันจริงบนสำเนาโปรเจกต์ใน Linux)
@@ -46,7 +46,7 @@
 | Production readiness | dev scripts | backend ไม่มี `build`/`start` · ไม่มี deploy config · redirect URL และ CORS ยังเป็นค่าสำหรับ local |
 
 ## Not Implemented (ตรวจแล้วไม่พบโค้ด)
-- Schema / migration ของ DB ใน repo
+- Migration ของ DB ใน repo (มีแค่ snapshot โครงสร้าง `docs/DATABASE_SCHEMA.md` 2026-10-18)
 - Automated tests ทั้ง 3 package
 - การ refresh access token ฝั่ง frontend (grep แล้วไม่พบ `refreshSession`/`onAuthStateChange`)
 - การ sync `trip_days` ใหม่เมื่อแก้ไขวันที่/เวลา/งบของทริป (ดู Known Issues #6)

@@ -34,7 +34,7 @@
 ### R4. ตรวจสอบ Category Mapping ทั้งระบบ — ปกติ (README 2.1, ลำดับ 4)
 - **สถานะใน README:** รอตรวจสอบ
 - **ไฟล์:** `data-pipeline/src/fetchGmapsCategories.ts` (เติม `places.gmaps_types` จาก Google Places), `backend/src/features/poi/poiPlaceQueries.ts` (`queryPlacesWithCategoryInfo` อ่าน `place_categories` แล้ว dedupe เลือก `confidence_score` สูงสุด, category fallback ใน `getFilteredPlaces`), `poiScoreCalculator.calculateCategoryScore`, ตาราง `categories` / `place_categories` / `trip_categories`
-- **ข้อเท็จจริง:** ใน repo **ไม่มีโค้ด** ที่แปลง `gmaps_types` → `place_categories.confidence_score` (เป็นส่วนเดียวกับ Stage 3 ที่ T12 ระบุว่าหาไม่เจอ) ต้องขอโค้ดหรือกฎจากทีมก่อน
+- **ข้อเท็จจริง:** ใน repo **ไม่มีโค้ด** ที่แปลง `gmaps_types` → `place_categories.confidence_score` (เป็นส่วนเดียวกับ Stage 3 ที่ T12 ระบุว่าหาไม่เจอ) ต้องขอโค้ดหรือกฎจากทีมก่อน · **พบ 2026-10-18 (`DATABASE_SCHEMA.md`):** DB มีตาราง `place_types` (`place_id`, `api_type_id`, `source`, ~1417 แถว) และ `type_category_weights` (`api_type_id` → `category_id` + `weight`, ~108 แถว) ที่โค้ดใน repo ไม่ได้ใช้ — สันนิษฐานว่าเป็นข้อมูลของ Stage 3 (ยังไม่ยืนยัน)
 - **งาน T ที่ซ้อน:** T12 (โค้ด Stage 3) · T7 (`place_categories` อาจโดน limit 1000 แถว) · กฎ multi-category dedupe ใน CLAUDE.md
 
 ### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5) · **งานถัดไป (วางแผนใหม่ 2026-10-18 ตาม D-24)**

@@ -12,7 +12,7 @@
 | `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
 | `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase — **ตาม D-24 จะย้ายเข้า `backend/src/admin/pipeline/` แล้วลบใน R5 P6** ก่อนถึงตอนนั้นห้ามแก้การทำงาน | `package.json` scripts |
 
-ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md`
+ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md` · โครงสร้าง DB: `docs/DATABASE_SCHEMA.md`
 **แผนงานหลักของทีมคือ `README.md`** (requirement R1–R5) ส่วน `docs/DEVELOPMENT_PLAN.md` ใช้ติดตามรายละเอียดทางเทคนิค (กลุ่ม 0 โยง R กับโค้ด) ห้ามแก้ README.md ถ้าไม่ได้รับคำสั่ง
 
 ## คำสั่งที่มีอยู่จริง
@@ -35,7 +35,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด
 2. **แก้เท่าที่งานต้องการ** ห้าม reformat, normalize line ending (repo มีทั้ง CRLF และ LF), rename หรือ refactor ไฟล์ที่ไม่เกี่ยวกับงาน และห้ามลบ comment "✅ มติ…" ถ้าไม่ได้รับอนุญาต
-3. **ห้ามสมมติว่าฟีเจอร์/API/ตารางทำงานตามที่คาด** repo ไม่มี DB schema ถ้าต้องรู้ schema/RLS ให้ถามผู้ใช้
+3. **ห้ามสมมติว่าฟีเจอร์/API/ตารางทำงานตามที่คาด** โครงสร้าง DB ดูที่ `docs/DATABASE_SCHEMA.md` (snapshot 2026-10-18 — ไม่ใช่ migration) ถ้าไม่มีข้อมูลหรือไม่แน่ใจว่ายังตรงกับของจริงให้ถามผู้ใช้
 4. **ก่อนทำงานที่มีความเสี่ยง** (เปลี่ยน logic คะแนน/งบ/เวลา, query ที่ลบหรือเขียนข้อมูล, auth, ไฟล์ mirror, dependency, git history) ให้สรุปแนวทาง ไฟล์ที่กระทบ และผลกระทบ แล้วรอผู้ใช้ยืนยันก่อน
 5. **หลังแก้** ต้องรายงาน: ไฟล์ที่เปลี่ยน · เปลี่ยนอะไรและเพราะอะไร · คำสั่งตรวจที่รันจริงพร้อมผลลัพธ์ · สิ่งที่ยังไม่ได้ตรวจ ถ้ารันไม่ได้ให้บอกเหตุผล และห้ามอ้างว่าผ่าน
 6. **เจอปัญหาที่ไม่เกี่ยวกับงาน** ให้รายงานแยก (หรือเสนอเพิ่มใน DEVELOPMENT_STATUS) ห้ามแก้เอง
