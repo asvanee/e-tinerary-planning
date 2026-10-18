@@ -6,7 +6,7 @@ description: วางแผนและพัฒนาฟีเจอร์ใ�
 # Feature Development (E-tinerary)
 
 ## ขอบเขต
-ใช้กับฟีเจอร์ใน `backend/src/features/*` และ `frontend/src/features/*` ถ้าฟีเจอร์แตะ logic ของ itinerary ให้ใช้ `itinerary-mirror-sync` ร่วมด้วย ถ้าแตะ query ให้ใช้ `supabase-data-access` ร่วมด้วย
+ใช้กับฟีเจอร์ใน `backend/src/features/*` และ `frontend/src/features/*` รวมถึงฝั่ง admin (`backend/src/admin/*`, `frontend/src/admin/*` — D-24) ถ้าฟีเจอร์แตะ logic ของ itinerary ให้ใช้ `itinerary-mirror-sync` ร่วมด้วย ถ้าแตะ query ให้ใช้ `supabase-data-access` ร่วมด้วย
 
 ## ขั้นตอน
 1. **ทำความเข้าใจคำขอ** — เขียน requirement สั้นๆ แล้วเทียบกับ `docs/DECISIONS.md` และ `docs/DEVELOPMENT_PLAN.md` ถ้าคำขอขัดกับมติหรือกำกวม ให้หยุดแล้วถาม
@@ -30,7 +30,8 @@ description: วางแผนและพัฒนาฟีเจอร์ใ�
 
 ## ข้อควรระวัง
 - ห้ามเพิ่ม dependency ถ้าไม่ได้รับอนุญาต
-- ห้ามแก้ data-pipeline หรือรัน upload script เพื่อ "เตรียมข้อมูล"
+- ห้ามแก้ data-pipeline หรือรัน upload script เพื่อ "เตรียมข้อมูล" (งาน admin ให้ copy โค้ดมาปรับใน `backend/src/admin/pipeline/` ตาม D-24)
+- route ของ admin ต้องผ่าน `requireAuth` + `requireAdmin` (อ่าน role จาก DB) และหน้า admin ต้องครอบด้วย `AdminRoute`
 - `daily_budget` คืองบรวมทั้งกลุ่มต่อวัน ซึ่ง frontend เป็นคนคำนวณ (D-01) ห้ามคำนวณซ้ำฝั่ง backend
 - ฟีเจอร์ที่ต้องใช้คอลัมน์หรือตารางใหม่: ต้องให้ผู้ใช้สร้างใน Supabase เอง Claude เขียน SQL ให้ได้ แต่ห้ามรันเอง
 

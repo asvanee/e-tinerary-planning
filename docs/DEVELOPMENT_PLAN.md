@@ -22,7 +22,7 @@
 - **ไฟล์:** `data-pipeline/src/manualOverrides.ts` (`locationOverrides`), `data-pipeline/src/dedupe.ts` (`applyLocationOverrides`), script ที่เรียกใช้: `uploadProvinceGooglePlaces.ts`, `testProvinceSample.ts`, `testDedupe.ts`, `findGoogleCollisionCandidates.ts`
 - **ข้อเท็จจริง:** commit `44d26dd` ลบพิกัดเชียงใหม่ 4 รายการที่ verify แล้ว (ATT_ID `20241223132512001`, `20241220140642001`, `20241220134044001`, `20241220125313001` พร้อม source) และใส่ comment `// ของเดิมทั้งหมด` แทน ตอนนี้ `locationOverrides` จึงว่าง กู้คืนได้จาก `git show 44d26dd^:data-pipeline/src/manualOverrides.ts` (Known Issue #20) · ยังไม่มีโค้ดตรวจพิกัดนอกประเทศไทยหรือพิกัดไม่ตรงจังหวัด
 - **ข้อสันนิษฐาน:** การแก้ `locationOverrides` จะมีผลเฉพาะตอน upload ใหม่ ส่วนข้อมูลที่อยู่ใน Supabase แล้วอาจต้องแก้ที่ตาราง `places` โดยตรง (ต้องถามวิธีกับผู้ใช้ เพราะ script upload เขียนลง DB จริงและเรียก Google API ที่มีค่าใช้จ่าย)
-- **งาน T ที่ซ้อน:** T12 (ข้อมูลจังหวัดอื่น / Stage 3) · Known Issue #15 (`.gitignore` ของ data-pipeline)
+- **งาน T ที่ซ้อน:** T12 (ข้อมูลจังหวัดอื่น / Stage 3) · Known Issue #15 (`.gitignore` ของ data-pipeline — ปิดใน R5 P6) · R5 P2/P4 (ตาม D-24 โค้ดนี้จะย้ายไป `backend/src/admin/pipeline/` และใช้หน้า admin แก้พิกัด)
 
 ### R3. ตรวจสอบและแก้ไข Distance Cap — เร่งด่วน (README 1.3, ลำดับ 3)
 - **สถานะใน README:** ค้างอยู่
@@ -37,21 +37,37 @@
 - **ข้อเท็จจริง:** ใน repo **ไม่มีโค้ด** ที่แปลง `gmaps_types` → `place_categories.confidence_score` (เป็นส่วนเดียวกับ Stage 3 ที่ T12 ระบุว่าหาไม่เจอ) ต้องขอโค้ดหรือกฎจากทีมก่อน
 - **งาน T ที่ซ้อน:** T12 (โค้ด Stage 3) · T7 (`place_categories` อาจโดน limit 1000 แถว) · กฎ multi-category dedupe ใน CLAUDE.md
 
-### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5) · **งานถัดไป (วางแผน 2026-10-17)**
-- **สถานะใน README:** รอดำเนินการ · **requirement ที่ผู้ใช้ยืนยัน (D-23):** admin ที่ login ด้วย role `admin` ใช้หน้า UI เพื่อ (1) เลือกเพิ่มจังหวัดจาก `attraction.csv` (2) จัดการสถานที่ซ้ำ (3) จัดการ category mapping — logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/` แทนการรัน `npm run upload:*` / `fetch-gmaps-categories:*` เอง
-- **สถาปัตยกรรมที่เสนอ (ข้อเสนอ — ยังรอยืนยันข้อ Q1, Q2):** frontend `/admin/*` (login เดิม) → data-pipeline service (Express, port ใหม่ เช่น 5100, ผ่าน Vite proxy) → `requireAdmin` (`getUser(token)` บน client แยกตามบทเรียน T22 + อ่าน `users.role` จาก DB ทุก request ตาม #22) → Supabase ด้วย service role (เลิกใช้ anon key) · แยก `main()` ของ script เป็นฟังก์ชันที่รับพารามิเตอร์ (`importProvince({ province, limit, dryRun })` ฯลฯ) และเก็บ `npm run` เดิมไว้เป็น CLI สำรอง · งานยาวรันเป็น job (ตาราง `pipeline_jobs`: สถานะ/progress/log/ผู้สั่ง) ทีละงาน ยกเลิกได้
-- **Flow ใหม่:** ① เลือกจังหวัด (รายชื่อจาก CSV + สถานะนำเข้า) → ② **Dry-run บังคับ** (override พิกัด → dedupe → กฎ merge จาก DB; แสดงจำนวนแถวก่อน/หลัง, review groups, จำนวน Google request, จำนวนแถวที่จะลบ) → ③ จัดการสถานที่ซ้ำ (ยืนยัน merge / ห้าม merge / exclude / แก้พิกัด → บันทึก DB, วนกลับ ② ได้) → ④ ยืนยันนำเข้า (job: Find Place + Details **ดึง `type` → `gmaps_types` พร้อมกันในครั้งเดียว** → upsert `places` → ลบแถว `csv:*` ที่ถูกแทนที่) → ⑤ category mapping (ตาราง `gmaps_type → category + confidence` แก้ได้ → ดูผลกระทบ → apply เขียน `place_categories` ตามกติกา `confidence_score` สูงสุด) · `fetchGmapsCategories` เหลือเป็น job เติมย้อนหลังให้จังหวัดที่นำเข้าแล้ว (กรุงเทพฯ, ชลบุรี)
-- **Phase 0 — เตรียม (ต้องทำก่อน ตามลำดับ):**
-  1. **#15** แก้ `.gitignore` เลิก ignore `data-pipeline/` ทั้งโฟลเดอร์ (ยังกัน `.env`, `node_modules`) — งานแรกของรอบหน้า
-  2. **#20** กู้ `manualOverrides.ts` จาก `44d26dd^` (ลบไป 99 บรรทัด ไม่ใช่แค่ `locationOverrides` 4 รายการ) — รอผู้ใช้ยืนยันว่ารายการไหนตั้งใจเอาออก (Q4) · ตรวจผลด้วย `npm run test:dedupe:chiangmai` (อ่าน CSV อย่างเดียว แต่ต้องถามก่อนรัน) แล้วเทียบกับ `chiangmai_dedupe_detail.txt` (551 → 498 แถว, 37 กลุ่ม, review 24 กลุ่ม/155 แถว, override 4)
-  3. ตอบคำถามที่เหลือ (Q1–Q6) แล้วบันทึกเพิ่มใน D-23
-  4. Unit test ของ `dedupe.ts` (characterization) ก่อน refactor — ต้องเพิ่ม test runner เป็น devDependency ของ data-pipeline (Q6)
-  5. หลังข้อ 2 และ 4 เสร็จ: ย้ายตัวเลขสำคัญไป test/docs แล้ว `git rm` `data-pipeline/chiangmai_*.txt` และเพิ่ม `data-pipeline/*.txt` ใน `.gitignore`
-- **ผู้ใช้ทำใน Supabase (Claude เขียน SQL ให้):** สำรอง `places` ก่อนเปิด phase 2 · ตั้ง `users.role = 'admin'` ให้บัญชีทดสอบ · สร้างตาราง `pipeline_jobs`, `pipeline_location_overrides`, `pipeline_merge_rules`, `gmaps_type_category_map` (ทีละ phase) · เพิ่ม `SUPABASE_SERVICE_ROLE_KEY` ใน `data-pipeline/.env` (Claude อัปเดตแค่ `.env.example`)
-- **Phase 1** โครง service + `requireAdmin` + frontend `/admin` + `AdminRoute` (ถามสถานะ admin จาก service ไม่ใช้ `localStorage`) · **Phase 2** ①②④ (refactor `uploadProvinceGooglePlaces`, เพิ่ม `gmaps_types` ใน `PlaceRecord`, แก้ type `opening_hours.periods` ใน `types.ts`) · **Phase 3** ③ แบบเต็ม (ย้ายกฎ merge/override ไป DB) · **Phase 4** ⑤ (ต้องได้กฎ Stage 3 — Q3, และอาจรอ research POI — Q5)
-- **คำถามที่ยังเปิด:** Q1 frontend เรียก data-pipeline ตรง (แนะนำ) หรือผ่าน backend · Q2 เก็บกฎ merge/override ในตาราง Supabase (แนะนำ) หรือไฟล์ JSON · Q3 โค้ด/กฎ Stage 3 อยู่ที่ใคร · Q4 กู้ #20 ทั้งหมดไหม ใครยืนยัน · Q5 apply category mapping ก่อน research สูตร POI เสร็จได้ไหม (มีผลกับ POI score) · Q6 อนุญาตเพิ่ม test runner ใน data-pipeline
-- **ความเสี่ยง:** job นำเข้า **ลบ** แถวใน `places` จริง (ต้องสำรองก่อน) · Google API มีค่าใช้จ่าย (dry-run + ยืนยัน + limit ต่อ job) · RLS ปิดทุกตารางและ data-pipeline เดิมเขียนด้วย anon key (Known Issue #27) ควรเปิด RLS ที่ `places` และ `pipeline_*` หลังเปลี่ยนเป็น service role
-- **งาน T/R ที่เกี่ยวข้อง:** T22 ✅ (เงื่อนไขหลัก) · R2 (phase 3 เป็นเครื่องมือแก้พิกัด) · R4 (= phase 4) · T12 (Stage 3) · T7 (list `places` ต้องใช้ `.range()` ตั้งแต่แรก) · T19 ไม่จำเป็นถ้าเลือก Q1 แบบเรียกตรง (หน้า admin ใช้ helper ของตัวเอง)
+### R5. ออกแบบและพัฒนา Admin Panel — ต้องทำ (README 3.1, ลำดับ 5) · **งานถัดไป (วางแผนใหม่ 2026-10-18 ตาม D-24)**
+- **สถานะใน README:** รอดำเนินการ · **requirement ที่ผู้ใช้ยืนยัน (D-23):** admin ที่ login ด้วย role `admin` ใช้หน้า UI เพื่อ (1) เลือกเพิ่มจังหวัดจาก `attraction.csv` (2) จัดการสถานที่ซ้ำ (3) จัดการ category mapping แทนการรัน `npm run upload:*` / `fetch-gmaps-categories:*` เอง
+- **สถาปัตยกรรม (D-24 — ยืนยันแล้ว, ยังไม่มีโค้ด):**
+  ```text
+  frontend/src/features/*  (หน้า user)  ──/api/*────────┐
+  frontend/src/admin/*     (หน้า admin) ──/api/admin/*──┼─► backend :5000 ─► Supabase (service role)
+  frontend/src/system/*    (ใช้ร่วม: auth, LoginForm)   ┘     ├─ src/features/*  API ของ user (เดิม)
+                                                              └─ src/admin/*     API ของ admin: requireAuth + requireAdmin
+                                                                   └─ pipeline/  โค้ดที่ย้ายมาจาก data-pipeline (P2–P3) → Google Places, data/attraction.csv
+  ```
+  - `requireAdmin` อ่าน `users.role` จาก DB ทุก request (ห้ามเชื่อ `localStorage` — #22)
+  - login ใช้ `/api/auth/login` เดิม มี 2 หน้า `/login` และ `/admin/login` (ใช้ `system/auth/LoginForm` ร่วมกัน) · role `admin` login จากหน้าไหนก็ไป `/admin`
+  - งานยาว (นำเข้าจังหวัด) รันเป็น job ใน process ของ backend ทีละงาน (ตาราง `pipeline_jobs`: สถานะ/progress/log/ผู้สั่ง) — รับได้เพราะรันแค่ local
+  - โค้ด data-pipeline ย้ายแบบ **copy แล้วปรับ** ให้เป็นฟังก์ชันที่รับพารามิเตอร์ (`importProvince({ province, limit, dryRun })` ฯลฯ) ใช้ `fetch` แทน `axios` (dependency ใหม่ที่คาดว่าต้องใช้: `csv-parse`) · ก่อนถึง P6 ไม่แก้การทำงานของ data-pipeline
+- **Flow ของงานข้อมูล:** ① เลือกจังหวัด (รายชื่อจาก CSV + สถานะนำเข้า) → ② **Dry-run บังคับ** (override พิกัด → dedupe → กฎ merge; แสดงจำนวนแถวก่อน/หลัง, review groups, จำนวน Google request, จำนวนแถวที่จะลบ) → ③ จัดการสถานที่ซ้ำ (ยืนยัน merge / ห้าม merge / exclude / แก้พิกัด → บันทึก, วนกลับ ② ได้) → ④ ยืนยันนำเข้า (job: Find Place + Details **ดึง `type` → `gmaps_types` พร้อมกันในครั้งเดียว** → upsert `places` → ลบแถว `csv:*` ที่ถูกแทนที่) → ⑤ category mapping (ตาราง `gmaps_type → category + confidence` แก้ได้ → ดูผลกระทบ → apply เขียน `place_categories` ตามกติกา `confidence_score` สูงสุด) · การเติม `gmaps_types` ย้อนหลัง (แทน `fetchGmapsCategories`) เป็น job สำหรับจังหวัดที่นำเข้าแล้ว (กรุงเทพฯ, ชลบุรี)
+- **Phase (1 commit ต่อข้อ เมื่อผู้ใช้สั่ง):**
+  - **P1 — admin login + หน้าหลัก** (ไม่แตะ data-pipeline)
+    1. commit docs: D-24 + แผนนี้
+    2. commit refactor: `git mv` `AuthContext.tsx`, `useAuth.ts`, `ProtectedRoute.tsx` → `frontend/src/system/auth/` แล้วแก้ import (พฤติกรรมไม่เปลี่ยน)
+    3. commit feature: backend `src/admin/requireAdmin.ts`, `adminController.ts` (`getAdminMe`), `adminRoutes.ts` (`GET /api/admin/me`), mount ใน `server.ts` · frontend `system/auth/LoginForm.tsx` (แยกจาก `login.tsx`, คง logic ล้าง hash ของ #26 ไว้ที่ `login.tsx`), `admin/login/AdminLogin.tsx`, `admin/AdminRoute.tsx` (401 → `/admin/login`, 403 → `/home`), `admin/AdminLayout.tsx`, `admin/dashboard/AdminDashboard.tsx` (การ์ด 3 ใบ "เร็วๆ นี้"), route `/admin/login` + `/admin` ใน `App.tsx`
+    - ผู้ใช้เตรียม: ตั้ง `users.role = 'admin'` ให้บัญชีทดสอบ + บัญชี user ธรรมดา 1 บัญชี
+    - ทดสอบ manual: admin login ทั้ง 2 หน้า → `/admin` · user ธรรมดา → `/home` และเข้า `/admin` ไม่ได้ · user login ที่ `/admin/login` → ข้อความไม่มีสิทธิ์และไม่ค้าง login · แก้ `role` ใน localStorage แล้วยังเข้าไม่ได้ · ไม่ login → `/admin/login` · logout · hash ของลิงก์ยืนยันอีเมลยังถูกล้าง (#26)
+  - **P2 — ย้าย dedupe + กู้ #20 + test:** copy `dedupe.ts`, `manualOverrides.ts`, `types.ts` และตัวอ่าน CSV เข้า `backend/src/admin/pipeline/` · กู้ `manualOverrides` จาก `44d26dd^` (ลบไป 99 บรรทัด — รอ Q4) · jest characterization test ยืนยันผลเชียงใหม่ตรงกับ `data-pipeline/chiangmai_dedupe_detail.txt` (override 4, 551 → 498 แถว, 37 กลุ่ม, review 24 กลุ่ม/155 แถว) · ย้าย `attraction.csv` → `backend/data/` (`git mv`, 20 MB)
+  - **P3 — นำเข้าจังหวัด (①②④):** ย้าย logic ของ `uploadProvinceGooglePlaces` เป็นฟังก์ชัน + job · เพิ่ม `gmaps_types` ใน `PlaceRecord` · แก้ type `opening_hours.periods` (#28) · หน้า `admin/provinces/` · env ใหม่ใน `backend/.env`: Google Places key (อัปเดต `.env.example` + PROJECT_OVERVIEW หัวข้อ 9)
+  - **P4 — จัดการสถานที่ซ้ำ (③):** ย้ายกฎ merge/override ไปเก็บถาวร (Q2) · หน้า `admin/duplicates/` · ใช้แก้พิกัด (R2) ได้
+  - **P5 — category mapping (⑤):** หน้า `admin/categories/` (ต้องได้กฎ Stage 3 — Q3, และอาจรอ research POI — Q5) = R4
+  - **P6 — ลบ `data-pipeline/`:** หลังตรวจว่าย้ายครบและ test ผ่าน (**ขอยืนยันผู้ใช้อีกครั้งก่อนลบ**) · เอาบรรทัด `data-pipeline/` ออกจาก `.gitignore` · ผู้ใช้ย้ายค่า key จาก `data-pipeline/.env` ไป `backend/.env` เอง · อัปเดต CLAUDE.md, skills และ docs ที่อ้าง data-pipeline · ไฟล์ที่ track ไว้กู้จาก git history ได้
+- **ผู้ใช้ทำใน Supabase (Claude เขียน SQL ให้):** ตั้ง `users.role = 'admin'` (P1) · สำรอง `places` ก่อน P3 · สร้างตาราง `pipeline_jobs` (P3), ตารางกฎ merge/override (P4), `gmaps_type_category_map` (P5)
+- **คำถามที่ยังเปิด:** ~~Q1~~ (D-24: เรียก backend `/api/admin/*`) · Q2 เก็บกฎ merge/override ในตาราง Supabase (แนะนำ) หรือไฟล์ JSON · Q3 โค้ด/กฎ Stage 3 อยู่ที่ใคร · Q4 กู้ #20 ทั้งหมดไหม ใครยืนยัน · Q5 apply category mapping ก่อน research สูตร POI เสร็จได้ไหม (มีผลกับ POI score) · ~~Q6~~ (D-24: ใช้ jest ของ backend)
+- **ความเสี่ยง:** job นำเข้า **ลบ** แถวใน `places` จริง (ต้องสำรองก่อน) · Google API มีค่าใช้จ่าย (dry-run + ยืนยัน + limit ต่อ job) · job ยาวรันใน process เดียวกับ API ของ user (จำกัดทีละ job) · RLS ปิดทุกตาราง (#27) ควรเปิด RLS ที่ `places` และ `pipeline_*` หลังเลิกใช้ data-pipeline
+- **งาน T/R ที่เกี่ยวข้อง:** T22 ✅ (เงื่อนไขหลัก) · R2 (P4 เป็นเครื่องมือแก้พิกัด) · R4 (= P5) · T12 (Stage 3) · T7 (list `places` ต้องใช้ `.range()` ตั้งแต่แรก) · T19 (หน้า admin ใช้ pattern fetch เดิม ไม่ต้องรอ T19)
 
 ## กลุ่ม 1 — ปัญหาที่ทำให้ระบบใช้งานไม่ได้หรือมีความเสี่ยงสูง
 
@@ -143,5 +159,5 @@
 
 ## ลำดับที่แนะนำ
 **อัปเดต 2026-10-17:** ผู้ใช้สั่งพักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3, T13 ส่วน POI, T5, กลุ่ม 6) จนกว่าเพื่อนจะ research เสร็จ และเลือกเริ่ม R5 ก่อน · B4 (T13 ส่วนที่ไม่ใช่ POI + T14) และ B3 (`no-explicit-any`) พักไว้ ไม่ขวาง R
-`T1 ✅ → T2 ✅ → T22 ✅ → T15 ✅ → T18 ✅ → R5 phase 0 (#15 → #20 → D-23/Q1–Q6 → test dedupe → ลบ chiangmai_*.txt) → เตรียม Supabase → R5 phase 1 → 2 → 3 (ครอบคลุม R2) → 4 (= R4, รอ Stage 3/research) → R1/R3 เมื่อ research เสร็จ (T7 + T13 ส่วน POI ก่อนเทียบ Top 50) → B4 → B3 → T5 → T4 → T3 → T6 → ที่เหลือ`
+`T1 ✅ → T2 ✅ → T22 ✅ → T15 ✅ → T18 ✅ → R5 (D-24): P1 admin login → P2 ย้าย dedupe + กู้ #20 + test → P3 นำเข้าจังหวัด → P4 สถานที่ซ้ำ (ครอบคลุม R2) → P5 category mapping (= R4, รอ Stage 3/research) → P6 ลบ data-pipeline → R1/R3 เมื่อ research เสร็จ (T7 + T13 ส่วน POI ก่อนเทียบ Top 50) → B4 → B3 → T5 → T4 → T3 → T6 → ที่เหลือ`
 > ลำดับ R ใน README หัวข้อ 4 คือ R1 → R2 → R3 → R4 → R5 — ลำดับนี้สลับเอา R5 ขึ้นก่อนตามคำสั่งผู้ใช้ (R1/R3 ติด research)

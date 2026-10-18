@@ -44,7 +44,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
 │   ├── eslint.config.js
 │   └── dist/                  build เก่า (ก.พ. 2026) — ถูก gitignore
-└── data-pipeline/             สคริปต์ ts-node สำหรับนำเข้าข้อมูล (ไม่ใช่ส่วนของ runtime)
+└── data-pipeline/             สคริปต์ ts-node สำหรับนำเข้าข้อมูล (ไม่ใช่ส่วนของ runtime) — ตาม D-24 จะย้ายเข้า backend/src/admin/ แล้วลบใน R5 P6
     ├── src/                   uploadCsvToSupabase, uploadProvinceGooglePlaces, dedupe,
     │                          fetchGmapsCategories, findGoogleCollisionCandidates, test*.ts
     ├── data/attraction.csv    15,604 บรรทัด

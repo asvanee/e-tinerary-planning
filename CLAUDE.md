@@ -10,7 +10,7 @@
 |---|---|---|
 | `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` |
 | `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
-| `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase | `package.json` scripts |
+| `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase — **ตาม D-24 จะย้ายเข้า `backend/src/admin/pipeline/` แล้วลบใน R5 P6** ก่อนถึงตอนนั้นห้ามแก้การทำงาน | `package.json` scripts |
 
 ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md`
 **แผนงานหลักของทีมคือ `README.md`** (requirement R1–R5) ส่วน `docs/DEVELOPMENT_PLAN.md` ใช้ติดตามรายละเอียดทางเทคนิค (กลุ่ม 0 โยง R กับโค้ด) ห้ามแก้ README.md ถ้าไม่ได้รับคำสั่ง
@@ -61,6 +61,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 
 ## Conventions
 - Backend: `src/features/<feature>/<feature>Routes.ts` + `<feature>Controller.ts` (+ `*PlaceQueries.ts`, `*Builder.ts`), ใส่ shared helper ใน `src/utils/`, mount route ใน `src/server.ts` · คืน `res.status(x).json({ message: "<ภาษาไทย>" })` · ใน controller ให้ใช้ `try/catch` แล้ว `console.error` พร้อมชื่อ context
+- Admin (D-24): backend `src/admin/` (mount `/api/admin`, ทุก route ผ่าน `requireAuth` + `requireAdmin`) · frontend `src/admin/<page>/` (ครอบด้วย `AdminRoute` + `AdminLayout`) · ของที่ user และ admin ใช้ร่วมกันอยู่ใน `frontend/src/system/` (เช่น `system/auth/`)
 - Frontend: `src/features/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
 - **ชื่อไฟล์และ import ต้องตรงกันทุกตัวอักษร (case-sensitive)** แม้ Windows จะไม่ฟ้อง เพราะ CI/Linux จะ fail
 - TypeScript strict ห้ามเพิ่ม `any` ใหม่ (มีค้างอยู่ 24 จุด) ให้ใช้ type ที่ชัดเจนแทน

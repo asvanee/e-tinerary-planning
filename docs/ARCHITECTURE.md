@@ -20,6 +20,7 @@ Express API (backend/src/server.ts)
   └── Open-Meteo forecast (weatherForecast.ts) + cache ใน memory 2 ชม.
 
 data-pipeline (รันเองด้วยมือ) ── CSV + Google Places API ──► Supabase places
+  (แผน D-24: ย้ายเข้า backend/src/admin/ เรียกผ่านหน้า /admin แล้วลบ data-pipeline ใน R5 P6 — ยังไม่มีโค้ด)
 ```
 
 backend เก็บ state ที่ไม่ได้อยู่ใน DB ไว้แค่ cache ใน memory (ORS, weather) เท่านั้น ถ้ารันหลาย instance cache จะไม่แชร์กัน
@@ -84,6 +85,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ปุ่ม "แก้ไขแผน" จะเรียก `/api/places?ids=` + `POST /draft` ใหม่ แล้วไป editor
 
 ## 3. Data Pipeline (offline)
+> แผน D-24 (2026-10-18): โค้ดในหัวข้อนี้จะถูก copy แล้วปรับเข้า `backend/src/admin/pipeline/` (R5 P2–P3) แล้วลบ `data-pipeline/` ใน R5 P6 · ด้านล่างคือสภาพปัจจุบัน
 - `uploadCsvToSupabase.ts` / `uploadProvinceGooglePlaces.ts`: อ่าน `data/attraction.csv` กรองตาม `TARGET_PROVINCE` → dedupe (`dedupe.ts`, `manualOverrides.ts`) → Google Find Place + Details → upsert `places` (onConflict `google_place_id`)
 - `fetchGmapsCategories.ts`: เติม `places.gmaps_types` (paginate ทีละ 1000)
 - การสร้าง `place_categories` / `confidence_score` (ที่ comment เรียกว่า "Stage 3") **ไม่พบโค้ดใน repo — ยังไม่ทราบว่าทำที่ไหน**
@@ -93,6 +95,7 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 ## 4. Conventions ที่สังเกตได้
 - Backend: feature folder `features/<name>/<name>Routes.ts` + `<name>Controller.ts`, ไฟล์ช่วยตั้งชื่อเป็น `<name>PlaceQueries.ts` / `<name>Builder.ts`, utils ที่ใช้ร่วมกันอยู่ใน `src/utils/` · controller เป็น `async (req: AuthRequest, res)` คืน `{ message }` ภาษาไทย พร้อม status code · ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)`
 - Frontend: `features/<area>/<page>/<Page>.tsx` (ชื่อไฟล์มีทั้ง camelCase และ PascalCase ปนกัน) · Tailwind + CSS variables (`--navy`, `--sky` ฯลฯ) · fetch ตรงในคอมโพเนนต์ (ไม่มี API layer รวม)
+- แผน D-24 (ยังไม่มีโค้ด): frontend `src/admin/` (หน้า admin) + `src/system/` (auth ที่ใช้ร่วม) · backend `src/admin/` (API ของ admin, `requireAdmin`)
 - TypeScript strict ทั้งสองฝั่ง, frontend เปิด `noUnusedLocals`/`noUnusedParameters`
 - Comment ในโค้ดเป็นภาษาไทยและยาว มักมี "✅ มติ…" บอกเหตุผลของการตัดสินใจ ห้ามลบ comment เหล่านี้ทิ้งโดยไม่มีเหตุผล
 - ไฟล์ส่วนใหญ่ใช้ line ending แบบ CRLF แต่บางไฟล์เป็น LF (เช่น `backend/src/utils/orsDistance.ts`, `frontend/src/main.tsx`) ห้าม normalize line ending ของไฟล์ที่ไม่เกี่ยวกับงาน เพราะจะทำให้ diff บวมเต็มไฟล์

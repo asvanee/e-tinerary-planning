@@ -68,3 +68,17 @@
 - ยังไม่ได้ตัดสินใจ (ดู DEVELOPMENT_PLAN R5 Q1–Q6): ทางที่ frontend เรียก service, ที่เก็บกฎ merge/override, กฎ Stage 3, การกู้ #20, เวลาที่ apply category mapping, test runner ของ data-pipeline
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-24 · 2026-10-18 · โครงสร้างของ Admin Panel: ย้ายงาน admin เข้า backend และเลิกใช้ data-pipeline (แทนที่ D-23 ข้อ "logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/`")
+- บริบท: ถ้า backend ตรวจสิทธิ์ admin แต่ action ของ admin อยู่ใน service แยกของ data-pipeline ต้องตรวจสิทธิ์ 2 ที่และ API แตก 2 server · repo ไม่มี workspace รวม การ import โค้ดข้าม package จึงทำไม่ได้ดี · backend มี Express, `requireAuth`, service role client (`config/db.ts`) และ jest อยู่แล้ว
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - API ของ admin ทั้งหมดอยู่ใน `backend/src/admin/` mount ที่ `/api/admin` ตรวจสิทธิ์ด้วย `requireAuth` + `requireAdmin` (อ่าน `users.role` จาก DB ทุก request ตาม Known Issue #22)
+  - โค้ดจาก `data-pipeline/` (dedupe, อ่าน CSV, Google Places) ย้ายเข้า `backend/src/admin/pipeline/` แบบ **copy แล้วปรับ** (ไม่เขียนใหม่จากศูนย์) และต้องมี jest test ยืนยันผลเท่าเดิมก่อนลบ
+  - ลบ `data-pipeline/` ใน phase สุดท้าย (P6) หลังย้ายและตรวจครบ — ต้องขอยืนยันจากผู้ใช้อีกครั้งก่อนลบ · ก่อนถึง P6 ไม่แก้การทำงานของ data-pipeline
+  - frontend: `src/features/` = หน้าของ user (ไม่เปลี่ยนชื่อ) · `src/admin/` = หน้าของ admin · `src/system/` = ของที่ใช้ร่วมกัน (ย้าย `AuthContext`, `useAuth`, `ProtectedRoute` มาไว้ที่ `src/system/auth/` และเพิ่ม `LoginForm`)
+  - login มี 2 หน้า: `/login` (user) และ `/admin/login` (admin) ใช้ `LoginForm` ร่วมกันและเรียก `/api/auth/login` เดิม · บัญชีที่ role เป็น `admin` login จากหน้าไหนก็ไป `/admin` (redirect เป็นแค่ UX สิทธิ์จริงตรวจที่ backend)
+  - ตอบ D-23 Q1 = frontend เรียก backend `/api/admin/*` (ไม่มี service แยก) · Q6 = ใช้ jest ของ backend ที่มีอยู่ (ไม่ต้องเพิ่ม test runner)
+  - Known Issue #15 (`.gitignore` ของ data-pipeline) ไม่ต้องแก้แยก เพราะโค้ดใหม่อยู่ใน backend — เอาบรรทัด ignore ออกตอนลบ data-pipeline ใน P6 · `data-pipeline/chiangmai_*.txt` เก็บไว้จนถึง P6 (ใช้เทียบผลใน P2)
+- ยังไม่ได้ตัดสินใจ: D-23 Q2 (ที่เก็บกฎ merge/override — แนะนำตาราง Supabase), Q3 (กฎ Stage 3), Q4 (กู้ #20 ทั้งหมดไหม), Q5 (apply category mapping ก่อน research POI เสร็จได้ไหม)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `.claude/skills/feature-development/SKILL.md`
