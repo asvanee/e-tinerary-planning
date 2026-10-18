@@ -96,6 +96,8 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/trip/:tripId/detail` | `TripDetail.tsx` | ✓ |
 | `/trips` | `MyTrips.tsx` | ✓ |
 | `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
+| `/admin/provinces` | `admin/provinces/ProvinceList.tsx` (จังหวัดจาก CSV + สถานะ) | `AdminRoute` |
+| `/admin/provinces/:province` | `admin/provinces/ProvinceReview.tsx` (แท็บ น่าจะซ้ำ / ต้องตรวจสอบ / มีปัญหา / ตัดสินใจแล้ว — `components/GroupCard.tsx`, `ProblemRowCard.tsx`) | `AdminRoute` |
 | `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
 
 ## 6. Backend API (`backend/src/server.ts` + `*Routes.ts`)

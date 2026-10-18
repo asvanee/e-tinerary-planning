@@ -140,6 +140,7 @@ export function buildProvinceReview(
     groups,
     problemRows,
     rows: rowsOut,
+    decisions: activeDecisions,
   };
 }
 

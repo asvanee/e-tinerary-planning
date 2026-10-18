@@ -1,24 +1,28 @@
 import type { LucideIcon } from "lucide-react";
 import { MapPin, Copy, Tags } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../system/auth/useAuth";
 
 interface AdminTool {
   title: string;
   description: string;
   icon: LucideIcon;
+  to?: string; // ไม่มี = ยังไม่เปิดใช้
 }
 
-// เครื่องมือตาม D-23 — ยังไม่เปิดใช้ (ทำใน R5 P3–P5)
+// เครื่องมือตาม D-23/D-26 — สถานที่ซ้ำอยู่ในหน้าตรวจข้อมูลของแต่ละจังหวัด
 const TOOLS: AdminTool[] = [
   {
     title: "เพิ่มจังหวัด",
-    description: "เลือกจังหวัดจาก attraction.csv ตรวจผลแบบ dry-run แล้วนำเข้าสถานที่",
+    description: "เลือกจังหวัดจาก attraction.csv แล้วตรวจข้อมูลก่อนนำเข้า",
     icon: MapPin,
+    to: "/admin/provinces",
   },
   {
     title: "จัดการสถานที่ซ้ำ",
-    description: "ยืนยันหรือยกเลิกการรวมสถานที่ซ้ำ และแก้พิกัดที่ผิด",
+    description: "ตัดสินใจรวมหรือแยกสถานที่ที่อาจซ้ำกัน และแก้สถานที่ที่มีปัญหา (เลือกจังหวัดก่อน)",
     icon: Copy,
+    to: "/admin/provinces",
   },
   {
     title: "Category Mapping",
@@ -28,6 +32,7 @@ const TOOLS: AdminTool[] = [
 ];
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const username = user?.username || "ผู้ดูแลระบบ";
 
@@ -41,15 +46,19 @@ export default function AdminDashboard() {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
-        {TOOLS.map(({ title, description, icon: Icon }) => (
-          <div
+        {TOOLS.map(({ title, description, icon: Icon, to }) => (
+          <button
             key={title}
-            aria-disabled="true"
-            className="relative flex flex-col gap-3 p-5 rounded-2xl bg-white border border-[color:var(--line)] [box-shadow:var(--shadow)] opacity-70 cursor-not-allowed"
+            type="button"
+            disabled={!to}
+            onClick={() => to && navigate(to)}
+            className="relative text-left flex flex-col gap-3 p-5 rounded-2xl bg-white border border-[color:var(--line)] [box-shadow:var(--shadow)] transition-colors enabled:hover:bg-[color:var(--sky-soft)] enabled:cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <span className="absolute top-4 right-4 font-prompt text-xs font-medium px-2 py-1 rounded-full bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
-              เร็วๆ นี้
-            </span>
+            {!to && (
+              <span className="absolute top-4 right-4 font-prompt text-xs font-medium px-2 py-1 rounded-full bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
+                เร็วๆ นี้
+              </span>
+            )}
             <span className="w-11 h-11 rounded-xl flex items-center justify-center bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
               <Icon size={22} strokeWidth={1.75} />
             </span>
@@ -57,7 +66,7 @@ export default function AdminDashboard() {
               {title}
             </h2>
             <p className="text-sm text-[color:var(--muted)]">{description}</p>
-          </div>
+          </button>
         ))}
       </div>
     </div>

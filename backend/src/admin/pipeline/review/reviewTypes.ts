@@ -72,4 +72,5 @@ export interface ProvinceReview {
   groups: ReviewGroup[];
   problemRows: ReviewRow[];
   rows: Record<string, AttractionRow>; // เฉพาะแถวที่อยู่ในกลุ่มหรือมีปัญหา
+  decisions: PlaceDecision[]; // การตัดสินใจที่ใช้อยู่ (ไม่รวม exclude/ok/fix_location รุ่นเก่าของแถวเดียวกัน)
 }

@@ -15,6 +15,8 @@ import AdminLogin from "./admin/login/AdminLogin";
 import AdminRoute from "./admin/AdminRoute";
 import AdminLayout from "./admin/AdminLayout";
 import AdminDashboard from "./admin/dashboard/AdminDashboard";
+import ProvinceList from "./admin/provinces/ProvinceList";
+import ProvinceReview from "./admin/provinces/ProvinceReview";
 
 export default function App() {
   return (
@@ -99,6 +101,26 @@ export default function App() {
             <AdminRoute>
               <AdminLayout>
                 <AdminDashboard />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/provinces"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <ProvinceList />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/provinces/:province"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <ProvinceReview />
               </AdminLayout>
             </AdminRoute>
           }
