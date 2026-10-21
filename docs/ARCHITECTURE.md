@@ -19,8 +19,11 @@ Express API (backend/src/server.ts)
   ├── ORS Matrix (orsDistance.ts: 1×N, orsTravelMatrix.ts: N×N) + cache ใน memory
   └── Open-Meteo forecast (weatherForecast.ts) + cache ใน memory 2 ชม.
 
-data-pipeline (รันเองด้วยมือ) ── CSV + Google Places API ──► Supabase places
-  (แผน D-24: ย้ายเข้า backend/src/admin/ เรียกผ่านหน้า /admin แล้วลบ data-pipeline ใน R5 P6 — ยังไม่มีโค้ด)
+หน้า /admin ── /api/admin/* (requireAuth + requireAdmin) ── backend/src/admin/
+  ├── อ่าน data/attraction.csv → ตรวจสถานที่ซ้ำ/มีปัญหา → admin_place_decisions
+  └── job นำเข้า → Google Places (Find Place + Details) → places, place_types, pipeline_jobs/_items
+
+data-pipeline (สคริปต์เดิม รันเองด้วยมือ — เลิกใช้แล้ว จะลบใน R5 P6 ตาม D-24)
 ```
 
 backend เก็บ state ที่ไม่ได้อยู่ใน DB ไว้แค่ cache ใน memory (ORS, weather) เท่านั้น ถ้ารันหลาย instance cache จะไม่แชร์กัน
@@ -84,8 +87,15 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 ### 2.6 Trip Detail
 GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ปุ่ม "แก้ไขแผน" จะเรียก `/api/places?ids=` + `POST /draft` ใหม่ แล้วไป editor
 
-## 3. Data Pipeline (offline)
-> แผน D-24/D-25/D-26 (2026-10-18): เขียนใหม่ใน `backend/src/admin/pipeline/` (dedupe เสร็จแล้วใน R5 P2a · ตรวจ/ตัดสินใจผ่านหน้า admin P3 · นำเข้า Google P4) แล้วลบ `data-pipeline/` ใน R5 P6 · ด้านล่างคือสภาพปัจจุบันของ data-pipeline
+### 2.7 Admin: ตรวจข้อมูลและนำเข้าจังหวัด (R5) — `backend/src/admin/` + `frontend/src/admin/`
+1. `/admin` → การ์ด "ตรวจสถานที่ซ้ำและนำเข้าข้อมูล" → `/admin/provinces` (จังหวัดจาก CSV + จำนวนใน `places`/การตัดสินใจ)
+2. **ตรวจข้อมูล** `/admin/provinces/:province`: `pipeline/review/buildReview.ts` วิเคราะห์ CSV (dedupe + ตัวตรวจชื่อคล้าย/พิกัดใกล้/พิกัดพัง/ชื่อขยะ) → admin รวม (เลือกแถวหลัก, เลือกค่าทีละช่องหรือพิมพ์เองได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) / แยก / ตัดทิ้ง / แก้พิกัด → `admin_place_decisions` (`resolveDecisions` เลือกการตัดสินใจล่าสุด)
+3. **นำเข้า** `/admin/provinces/:province/import` (ต้องตัดสินใจครบ): preview ไม่เรียก Google → `pipeline/import/importRows.ts` สร้างแถวจาก CSV + การตัดสินใจ → job รันใน process (ทีละ 1 job, หน่วง 200 ms, ยกเลิกได้, เปิด server ใหม่ job ค้าง = failed) → ต่อแถว: Find Place "ชื่อไทย อำเภอ จังหวัด" (bias 1 km) → รับเมื่อห่าง ≤ 1 km **และ** ชื่อคล้าย (ครอบกัน หรือ Levenshtein ≥ 0.6, แปลงเลขไทยก่อน — D-33/D-34) → Details → insert `places` (พิกัดจาก CSV, ไม่ upsert) + `place_types` · ไม่ผ่าน/ไม่พบ/`google_place_id` ซ้ำ → `needs_review_*` · รันต่อได้โดยข้าม ATT_ID ที่มีผลแล้ว (D-30)
+4. **รอตรวจหลังนำเข้า** (P4c): admin เลือก ยอมรับผล Google (Details 1 ครั้ง) / นำเข้าจาก CSV อย่างเดียว (`csv:<ATT_ID>`) / ตัดทิ้ง → item เป็น `resolved`
+5. ⚠️ สถานที่ที่นำเข้าใหม่ยังไม่มี `place_categories` จึงยังไม่ถูกแนะนำในหน้า POI จนกว่า P5 (category mapping)
+
+## 3. Data Pipeline (offline — เลิกใช้แล้ว)
+> ระบบใหม่อยู่ที่ `backend/src/admin/` (หัวข้อ 2.7) · `data-pipeline/` จะลบใน R5 P6 (D-24) · ด้านล่างคือสภาพของ data-pipeline เดิม (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ ใน `places` ตอนนี้มาจากสคริปต์นี้)
 - `uploadCsvToSupabase.ts` / `uploadProvinceGooglePlaces.ts`: อ่าน `data/attraction.csv` กรองตาม `TARGET_PROVINCE` → dedupe (`dedupe.ts`, `manualOverrides.ts`) → Google Find Place + Details → upsert `places` (onConflict `google_place_id`)
 - พิกัดที่บันทึกลง `places` มาจาก Google (`details.geometry` → `found.geometry` → CSV เป็นทางสุดท้าย) และ Find Place ใช้ `locationbias` ซึ่งไม่จำกัดพื้นที่ จึงได้สถานที่ผิดได้ (Known Issue #30)
 - `fetchGmapsCategories.ts`: เติม `places.gmaps_types` (paginate ทีละ 1000)
@@ -96,7 +106,7 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 ## 4. Conventions ที่สังเกตได้
 - Backend: feature folder `features/<name>/<name>Routes.ts` + `<name>Controller.ts`, ไฟล์ช่วยตั้งชื่อเป็น `<name>PlaceQueries.ts` / `<name>Builder.ts`, utils ที่ใช้ร่วมกันอยู่ใน `src/utils/` · controller เป็น `async (req: AuthRequest, res)` คืน `{ message }` ภาษาไทย พร้อม status code · ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)`
 - Frontend: `features/<area>/<page>/<Page>.tsx` (ชื่อไฟล์มีทั้ง camelCase และ PascalCase ปนกัน) · Tailwind + CSS variables (`--navy`, `--sky` ฯลฯ) · fetch ตรงในคอมโพเนนต์ (ไม่มี API layer รวม)
-- แผน D-24 (ยังไม่มีโค้ด): frontend `src/admin/` (หน้า admin) + `src/system/` (auth ที่ใช้ร่วม) · backend `src/admin/` (API ของ admin, `requireAdmin`)
+- Admin (D-24): frontend `src/admin/` (`dashboard/`, `provinces/`, `imports/`, `lib/` — เรียก API ผ่าน `lib/adminApi.ts::adminRequest`) + `src/system/` (auth ที่ใช้ร่วมกับหน้าผู้ใช้) · backend `src/admin/` (`requireAdmin`, `provinces/`, `imports/`, `pipeline/` เป็น logic ล้วนที่รับ Google/DB เข้ามาเป็น parameter เพื่อให้ test ได้)
 - TypeScript strict ทั้งสองฝั่ง, frontend เปิด `noUnusedLocals`/`noUnusedParameters`
 - Comment ในโค้ดเป็นภาษาไทยและยาว มักมี "✅ มติ…" บอกเหตุผลของการตัดสินใจ ห้ามลบ comment เหล่านี้ทิ้งโดยไม่มีเหตุผล
 - ไฟล์ส่วนใหญ่ใช้ line ending แบบ CRLF แต่บางไฟล์เป็น LF (เช่น `backend/src/utils/orsDistance.ts`, `frontend/src/main.tsx`) ห้าม normalize line ending ของไฟล์ที่ไม่เกี่ยวกับงาน เพราะจะทำให้ diff บวมเต็มไฟล์

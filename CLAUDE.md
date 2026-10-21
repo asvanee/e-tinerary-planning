@@ -74,6 +74,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 - **ลำดับ filter ของ POI** (province → category+fallback → budget → time) ห้ามสลับ
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
 - `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน
+- **การนำเข้าใน admin เรียก Google Places ที่มีค่าใช้จ่าย** (`POST /api/admin/provinces/:province/import`, ยอมรับผล Google) — Claude ห้ามเรียกเอง ให้ผู้ใช้กดผ่านหน้าเว็บ · test ต้องใช้ Google ปลอมเสมอ
 
 ## Skills ในโปรเจกต์ (`.claude/skills/`)
 | Skill | ใช้เมื่อ |

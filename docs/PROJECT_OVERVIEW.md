@@ -42,7 +42,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   ├── src/components/navbar.tsx
 │   ├── src/features/          auth / home / welcome / trip/{create,recommendations,
 │   │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
-│   ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (รีวิวจังหวัด), lib/
+│   ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
 │   ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
 │   ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
 │   ├── eslint.config.js
@@ -99,7 +99,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/admin/provinces` | `admin/provinces/ProvinceList.tsx` (จังหวัดจาก CSV + สถานะ) | `AdminRoute` |
 | `/admin/provinces/:province` | `admin/provinces/ProvinceReview.tsx` (แท็บ น่าจะซ้ำ / ต้องตรวจสอบ / มีปัญหา / ตัดสินใจแล้ว — `components/GroupCard.tsx`, `ProblemRowCard.tsx` · ปุ่ม "นำเข้า" เมื่อตัดสินใจครบ) | `AdminRoute` |
 | `/admin/provinces/:province/import` | `admin/imports/ProvinceImport.tsx` (ดูตัวอย่าง → เริ่ม → ความคืบหน้า poll ทุก 2 วินาที → ผลรายแถว `ImportItemsTable.tsx` + ประวัติ job + ตัดสินแถวรอตรวจ `PendingReview.tsx`) | `AdminRoute` |
-| `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
+| `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` — 2 การ์ด: ตรวจสถานที่ซ้ำและนำเข้าข้อมูล (→ `/admin/provinces`) · Category Mapping (เร็วๆ นี้ — P5) | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
 
 ## 6. Backend API (`backend/src/server.ts` + `*Routes.ts`)
 
@@ -148,7 +148,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
 | Open-Meteo | backend `utils/weatherForecast.ts` | ไม่ต้องใช้ key |
 | Google Maps JS | frontend `LocationPinPicker.tsx` | `VITE_GOOGLE_MAPS_API_KEY` |
-| Google Places (Find/Details) | data-pipeline (เดิม) · backend admin pipeline (R5 P4 — ยังไม่มีโค้ด) | `GOOGLE_PLACES_API_KEY` |
+| Google Places (Find/Details, Legacy API) | backend `admin/pipeline/import/googlePlaces.ts` (R5 P4 — เรียกเมื่อ admin กดนำเข้า/ยอมรับผล Google เท่านั้น มีค่าใช้จ่าย) · data-pipeline (เดิม เลิกใช้) | `GOOGLE_PLACES_API_KEY` |
 | OSM tiles | Leaflet ใน frontend | |
 
 ## 9. Environment Variables (เฉพาะชื่อ — ห้ามคัดลอกค่า)
@@ -160,7 +160,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `PORT` | port ของ API | ✓ | ✓ |
 | backend | `FRONTEND_URL` | — | ✓ | **✗ ไม่ถูกใช้** (CORS เปิดทุก origin, redirect ใน register hardcode `http://localhost:5173/login`) |
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
-| backend | `GOOGLE_PLACES_API_KEY` | Google Places (Find Place + Details) สำหรับนำเข้าใน admin (R5 P4) — ผู้ใช้ย้ายค่ามาจาก `data-pipeline/.env` แล้ว 2026-10-18 | ✓ | ✗ ยังไม่มีโค้ดใช้ (P4a) |
+| backend | `GOOGLE_PLACES_API_KEY` | Google Places (Find Place + Details) สำหรับนำเข้าใน admin (R5 P4) — ผู้ใช้ย้ายค่ามาจาก `data-pipeline/.env` แล้ว 2026-10-18 | ✓ | ✓ `admin/imports/importController.ts` (R5 P4a/P4c) |
 | backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (มี default) | ✗ | ✓ (`config/ors.ts`) |
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
