@@ -78,6 +78,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 ## Skills ในโปรเจกต์ (`.claude/skills/`)
 | Skill | ใช้เมื่อ |
 |---|---|
+| `clean-code` | ทุกครั้งที่เขียน/แก้โค้ด — ง่ายที่สุด สะอาด ไม่ซ้ำ ทำงานครบ และพิสูจน์ว่าพฤติกรรมไม่เปลี่ยนเมื่อ refactor |
 | `feature-development` | เพิ่ม/แก้ฟีเจอร์ที่แตะ route, controller หรือหน้า UI |
 | `bug-investigation` | มี bug, error หรือพฤติกรรมผิดปกติ |
 | `itinerary-mirror-sync` | แก้ logic เวลา/ระยะทาง/ราคา/เวลาเปิด-ปิด/conflict ของ itinerary |
