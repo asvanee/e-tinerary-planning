@@ -10,6 +10,7 @@ export interface PlaceDecision {
   att_ids: string[];
   primary_att_id: string | null;
   field_sources: Record<string, string> | null; // ชื่อคอลัมน์ CSV → ATT_ID ที่ใช้ค่านั้น (merge)
+  field_values: Record<string, string> | null; // ชื่อคอลัมน์ CSV → ค่าที่ admin พิมพ์เอง (merge — D-32)
   lat: number | null;
   lng: number | null;
   note: string | null;

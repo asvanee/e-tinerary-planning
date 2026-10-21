@@ -7,6 +7,7 @@ import {
   putGroupDecision,
   putRowDecision,
 } from "./provincesController";
+import { getImportPreview, getProvinceImports, startImport } from "../imports/importController";
 
 // mount ใต้ adminRoutes (/api/admin/provinces) — ผ่าน requireAuth + requireAdmin แล้ว
 const router = Router();
@@ -17,5 +18,10 @@ router.put("/:province/groups", putGroupDecision);
 router.delete("/:province/groups", deleteGroupDecision);
 router.put("/:province/rows/:attId", putRowDecision);
 router.delete("/:province/rows/:attId", deleteRowDecision);
+
+// นำเข้า (R5 P4)
+router.get("/:province/import/preview", getImportPreview);
+router.post("/:province/import", startImport);
+router.get("/:province/imports", getProvinceImports);
 
 export default router;

@@ -11,6 +11,7 @@ export interface PlaceDecision {
   att_ids: string[];
   primary_att_id: string | null;
   field_sources: Record<string, string> | null;
+  field_values: Record<string, string> | null; // ค่าที่ admin พิมพ์เองตอน merge (D-32)
   lat: number | null;
   lng: number | null;
   note: string | null;
@@ -71,6 +72,7 @@ export interface MergeSetInput {
   attIds: string[];
   primaryAttId: string;
   fieldSources?: Record<string, string>;
+  fieldValues?: Record<string, string>; // ช่องที่พิมพ์เอง (ห้ามซ้ำกับ fieldSources · พิกัดใช้ lat/lng)
   lat?: number;
   lng?: number;
 }

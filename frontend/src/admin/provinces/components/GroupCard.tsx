@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Combine, ExternalLink, Split, Undo2 } from "lucide-react";
 import type { AttractionRow, GroupDecisionInput, MergeSetInput, PlaceDecision, ReviewGroup } from "../../lib/reviewTypes";
-import { KEY_FIELDS, REASON_LABELS, displayName, fieldLabel, mapsUrl, parseLatLng } from "../../lib/placeFields";
+import { KEY_FIELDS, MERGE_FIELDS, REASON_LABELS, displayName, fieldLabel, mapsUrl, parseLatLng } from "../../lib/placeFields";
 
 interface GroupCardProps {
   group: ReviewGroup;
@@ -14,7 +14,12 @@ interface GroupCardProps {
 
 const valueOf = (row: AttractionRow | undefined, column: string) => row?.[column]?.trim() ?? "";
 
+// ค่าใน sources ที่แปลว่า "ใช้ค่าที่พิมพ์เอง" แทนการเลือกจากแถว (D-32)
+const MANUAL = "__manual__";
+
 // กลุ่มสถานที่ที่อาจเป็นที่เดียวกัน: เลือกแถวที่จะรวม → เลือกแถวหลัก → เลือกค่าทีละช่อง (D-26)
+// ตอนเลือกรวม: แสดงทุกช่องที่ใช้ตอนนำเข้า (MERGE_FIELDS — D-31) เลือกค่าจากแถวไหนก็ได้ หรือพิมพ์เอง (D-32)
+// ยังไม่เลือกรวม: แสดงเฉพาะช่องสำคัญ (KEY_FIELDS) · พิกัดพิมพ์เองผ่านช่อง "กรอกพิกัดเอง"
 // แถวที่ไม่ได้เลือกจะถือว่าเป็นสถานที่แยก
 export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo }: GroupCardProps) {
   const [selected, setSelected] = useState<Set<string>>(
@@ -22,9 +27,9 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
   );
   const [primary, setPrimary] = useState(group.suggestedPrimaryAttId);
   const [sources, setSources] = useState<Record<string, string>>({});
+  const [manualValues, setManualValues] = useState<Record<string, string>>({});
   const [manualLocation, setManualLocation] = useState("");
   const [note, setNote] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [formError, setFormError] = useState("");
 
   const formId = `${group.reasons[0]?.type}-${group.attIds.join("-")}`; // name ของ radio ต้องไม่ชนกับการ์ดอื่น
@@ -34,20 +39,19 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
   const manualCoords = parseLatLng(manualLocation);
 
   const differs = (column: string, ids: string[]) => new Set(ids.map((id) => valueOf(rows[id], column))).size > 1;
+  const mergeable = (column: string) => MERGE_FIELDS.includes(column);
+  const typeable = (column: string) => mergeable(column) && column !== "ATT_LOCATION";
 
-  const allColumns = useMemo(() => {
-    const columns = new Set<string>();
-    group.attIds.forEach((id) => Object.keys(rows[id] ?? {}).forEach((c) => columns.add(c)));
-    columns.delete("ATT_ID");
-    return [...columns];
-  }, [group.attIds, rows]);
-
-  const visibleColumns = showAll
-    ? allColumns.filter((c) => group.attIds.some((id) => valueOf(rows[id], c)))
-    : [...KEY_FIELDS, ...allColumns.filter((c) => !KEY_FIELDS.includes(c) && canMerge && differs(c, selectedIds))];
+  const visibleColumns =
+    canMerge && !group.decided ? [...KEY_FIELDS, ...MERGE_FIELDS.filter((c) => !KEY_FIELDS.includes(c))] : KEY_FIELDS;
 
   const sourceFor = (column: string) =>
-    sources[column] && selected.has(sources[column]) ? sources[column] : effectivePrimary;
+    sources[column] === MANUAL || (sources[column] && selected.has(sources[column])) ? sources[column] : effectivePrimary;
+
+  const typeValue = (column: string, value: string) => {
+    setManualValues((prev) => ({ ...prev, [column]: value }));
+    setSources((prev) => ({ ...prev, [column]: MANUAL }));
+  };
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -65,12 +69,17 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
     }
     setFormError("");
     const fieldSources: Record<string, string> = {};
-    for (const column of allColumns) {
+    const fieldValues: Record<string, string> = {};
+    for (const column of MERGE_FIELDS) {
       if (column === "ATT_LOCATION" && manualCoords) continue;
       const source = sourceFor(column);
-      if (source !== effectivePrimary && differs(column, selectedIds)) fieldSources[column] = source;
+      if (source === MANUAL) {
+        if (typeable(column)) fieldValues[column] = manualValues[column] ?? "";
+      } else if (source !== effectivePrimary && differs(column, selectedIds)) {
+        fieldSources[column] = source;
+      }
     }
-    const set: MergeSetInput = { attIds: selectedIds, primaryAttId: effectivePrimary, fieldSources };
+    const set: MergeSetInput = { attIds: selectedIds, primaryAttId: effectivePrimary, fieldSources, fieldValues };
     if (manualCoords) Object.assign(set, manualCoords);
     onSave({ attIds: group.attIds, sets: [set], note: note.trim() || undefined });
   };
@@ -104,6 +113,9 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
               {d.kind === "merge"
                 ? `รวม ${d.att_ids.length} แถวเป็นที่เดียว — แถวหลัก "${displayName(rows[d.primary_att_id ?? ""])}"`
                 : "สถานที่ที่ไม่ได้รวมกันถือเป็นคนละที่"}
+              {d.field_values && Object.keys(d.field_values).length > 0
+                ? ` · พิมพ์เอง: ${Object.keys(d.field_values).map(fieldLabel).join(", ")}`
+                : ""}
               {d.note ? ` · หมายเหตุ: ${d.note}` : ""}
             </p>
           ))}
@@ -160,11 +172,23 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                   </th>
                 );
               })}
+              {canMerge && !group.decided && (
+                <th className="align-bottom text-left font-prompt font-medium text-[color:var(--navy)] px-3 py-2 min-w-48 border-b border-[color:var(--line)]">
+                  พิมพ์เอง
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {visibleColumns.map((column) => {
-              const choosable = !group.decided && canMerge && differs(column, selectedIds) && !(column === "ATT_LOCATION" && manualCoords);
+              // ช่องที่พิมพ์เองได้ให้เลือกจากทุกแถวเสมอ (ไว้สลับกลับจาก "พิมพ์เอง") · พิกัดเลือกได้เมื่อค่าต่างกัน
+              const choosable =
+                !group.decided &&
+                canMerge &&
+                mergeable(column) &&
+                (typeable(column) || differs(column, selectedIds)) &&
+                !(column === "ATT_LOCATION" && manualCoords);
+              const manualChosen = choosable && sourceFor(column) === MANUAL;
               return (
                 <tr key={column} className="border-b border-[color:var(--line)]">
                   <th className="sticky left-0 bg-white text-left font-prompt font-medium text-[color:var(--navy)] px-3 py-2 whitespace-nowrap">
@@ -192,6 +216,29 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                       </td>
                     );
                   })}
+                  {canMerge && !group.decided && (
+                    <td className={`align-top px-3 py-2 ${manualChosen ? "bg-[color:var(--sky-soft)]" : ""}`}>
+                      {choosable && typeable(column) ? (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`${column}-${formId}`}
+                            checked={manualChosen}
+                            onChange={() => typeValue(column, manualValues[column] ?? "")}
+                          />
+                          <input
+                            value={manualValues[column] ?? ""}
+                            onChange={(e) => typeValue(column, e.target.value)}
+                            placeholder="พิมพ์ค่าใหม่"
+                            aria-label={`พิมพ์${fieldLabel(column)}เอง`}
+                            className="min-h-9 w-full px-2 rounded-lg border border-[color:var(--line)]"
+                          />
+                        </label>
+                      ) : column === "ATT_LOCATION" ? (
+                        <span className="text-xs text-[color:var(--muted)]">ใช้ช่อง "กรอกพิกัดเอง" ด้านล่าง</span>
+                      ) : null}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -199,13 +246,11 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
         </table>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setShowAll((v) => !v)}
-        className="mt-2 text-sm text-[color:var(--deep)] underline"
-      >
-        {showAll ? "แสดงเฉพาะช่องสำคัญ" : "แสดงทุกช่อง"}
-      </button>
+      {canMerge && !group.decided && (
+        <p className="mt-2 text-xs text-[color:var(--muted)]">
+          แสดงเฉพาะช่องที่ใช้ตอนนำเข้า · เลือกได้ว่าจะใช้ค่าของแถวไหน หรือพิมพ์เอง (เว้นว่าง = ไม่มีข้อมูลช่องนั้น)
+        </p>
+      )}
 
       {!group.decided && (
         <div className="mt-4 flex flex-col gap-3">

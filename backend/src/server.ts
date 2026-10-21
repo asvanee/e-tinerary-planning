@@ -9,6 +9,7 @@ import itineraryRoutes from "./features/itinerary/itineraryRoutes";
 import placeDropdownRoutes from "./features/places/dropdown/placeDropdownRoutes";
 import adminRoutes from "./admin/adminRoutes";
 import { checkDbConnection } from "./config/db";
+import { failStaleJobs } from "./admin/imports/importQueries";
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -30,6 +31,15 @@ async function startServer() {
     console.error("ไม่สามารถเริ่ม server ได้ เนื่องจากเชื่อมต่อ database ไม่สำเร็จ");
     process.exit(1);
   }
+
+  // job นำเข้าที่ค้าง running จาก process ก่อนหน้าไม่มีใครรันต่อแล้ว → failed (R5 P4)
+  try {
+    const stale = await failStaleJobs();
+    if (stale > 0) console.log(`ตั้งงานนำเข้าที่ค้างอยู่ ${stale} งานเป็น failed`);
+  } catch (err) {
+    console.error("failStaleJobs error:", err);
+  }
+
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 

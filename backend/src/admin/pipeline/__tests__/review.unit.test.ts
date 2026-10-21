@@ -16,6 +16,7 @@ function decision(kind: DecisionKind, attIds: string[], extra: Partial<PlaceDeci
     att_ids: attIds,
     primary_att_id: null,
     field_sources: null,
+    field_values: null,
     lat: null,
     lng: null,
     note: null,
@@ -187,6 +188,16 @@ describe("parseGroupDecision", () => {
     expect(result.ok && result.value[0]).toMatchObject({ primary_att_id: "a", field_sources: { ATT_TEL: "b" } });
   });
 
+  test("merge พร้อมค่าที่พิมพ์เอง → field_values (trim) · ไม่ได้พิมพ์ = null (D-32)", () => {
+    const typed = parse({
+      attIds: ["a", "b"],
+      sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldValues: { ATT_TEL: " 053999999 ", ATT_WEBSITE: "" } }],
+    });
+    expect(typed.ok && typed.value[0].field_values).toEqual({ ATT_TEL: "053999999", ATT_WEBSITE: "" });
+    const plain = parse({ attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a" }] });
+    expect(plain.ok && plain.value[0].field_values).toBeNull();
+  });
+
   test("merge ทั้งกลุ่ม → merge อย่างเดียว · ไม่ merge เลย → separate อย่างเดียว", () => {
     const all = parse({ attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "b" }] });
     expect(all.ok && all.value.map((d) => d.kind)).toEqual(["merge"]);
@@ -201,6 +212,11 @@ describe("parseGroupDecision", () => {
     ["แถวหลักไม่อยู่ใน set", { attIds: ["a", "b", "c"], sets: [{ attIds: ["a", "b"], primaryAttId: "c" }] }],
     ["เลือกค่าจากแถวนอก set", { attIds: ["a", "b", "c"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldSources: { ATT_TEL: "c" } }] }],
     ["ช่องข้อมูลที่ไม่มีจริง", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldSources: { HACK: "b" } }] }],
+    ["ช่องที่ไม่ได้ใช้ตอนนำเข้า (D-31)", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldSources: { ATT_STATUS: "b" } }] }],
+    ["พิมพ์ค่าเองในช่องที่ไม่ได้นำเข้า (D-32)", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldValues: { ATT_STATUS: "1" } }] }],
+    ["พิมพ์พิกัดเองผ่าน fieldValues (ต้องใช้ lat/lng)", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldValues: { ATT_LOCATION: "18.8, 98.9" } }] }],
+    ["ช่องเดียวกันทั้งเลือกจากแถวและพิมพ์เอง", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldSources: { ATT_TEL: "b" }, fieldValues: { ATT_TEL: "053" } }] }],
+    ["ค่าที่พิมพ์ไม่ใช่ข้อความ", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", fieldValues: { ATT_TEL: 53 } }] }],
     ["พิกัดนอกไทย", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", lat: 9.9, lng: -84 }] }],
     ["กรอกพิกัดพร้อมเลือกพิกัดจากแถวอื่น", { attIds: ["a", "b"], sets: [{ attIds: ["a", "b"], primaryAttId: "a", lat: 18.8, lng: 98.9, fieldSources: { ATT_LOCATION: "b" } }] }],
   ])("ปฏิเสธ: %s", (_label, body) => {

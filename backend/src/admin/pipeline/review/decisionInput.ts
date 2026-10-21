@@ -1,4 +1,5 @@
 import { AttractionRow } from "../attractionTypes";
+import { IMPORT_FIELDS } from "../import/placeRecord";
 import { isInThailand } from "./detectors";
 import { DecisionKind } from "./reviewTypes";
 
@@ -9,6 +10,7 @@ export interface NewDecision {
   att_ids: string[];
   primary_att_id: string | null;
   field_sources: Record<string, string> | null;
+  field_values: Record<string, string> | null;
   lat: number | null;
   lng: number | null;
   note: string | null;
@@ -20,6 +22,7 @@ const fail = (message: string): { ok: false; message: string } => ({ ok: false, 
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+const MAX_FIELD_VALUE_LENGTH = 1000;
 
 function readNote(v: unknown): Result<string | null> {
   if (v === undefined || v === null || v === "") return { ok: true, value: null };
@@ -76,17 +79,34 @@ export function parseGroupDecision(
       return fail("กรุณาเลือกแถวหลักจากสถานที่ที่รวม");
     }
 
-    // ทุกคอลัมน์เลือกได้ (D-26) · คอลัมน์ที่ไม่ส่งมาใช้ค่าของแถวหลัก
+    // เลือกได้เฉพาะคอลัมน์ที่ใช้ตอนนำเข้า (D-31) · คอลัมน์ที่ไม่ส่งมาใช้ค่าของแถวหลัก
     const fieldSources: Record<string, string> = {};
     if (set.fieldSources !== undefined) {
       if (!isRecord(set.fieldSources)) return fail("รูปแบบการเลือกข้อมูลไม่ถูกต้อง");
       const columns = provinceRows.get(set.primaryAttId)!;
       for (const [column, source] of Object.entries(set.fieldSources)) {
         if (!(column in columns) || column === "ATT_ID") return fail(`ไม่รู้จักช่องข้อมูล ${column}`);
+        if (!IMPORT_FIELDS.includes(column)) return fail(`ช่อง ${column} ไม่ได้ใช้ตอนนำเข้า เลือกค่าไม่ได้`);
         if (typeof source !== "string" || !set.attIds.includes(source)) {
           return fail(`ช่อง ${column} ต้องเลือกจากสถานที่ที่รวม`);
         }
         if (source !== set.primaryAttId) fieldSources[column] = source;
+      }
+    }
+
+    // ค่าที่พิมพ์เอง (D-32) — ช่องที่นำเข้าเท่านั้น ยกเว้นพิกัด (ใช้ lat/lng) · ค่าว่าง = ล้างช่องนั้น
+    const fieldValues: Record<string, string> = {};
+    if (set.fieldValues !== undefined) {
+      if (!isRecord(set.fieldValues)) return fail("รูปแบบค่าที่พิมพ์เองไม่ถูกต้อง");
+      for (const [column, value] of Object.entries(set.fieldValues)) {
+        if (!IMPORT_FIELDS.includes(column) || column === "ATT_LOCATION") {
+          return fail(`ช่อง ${column} พิมพ์ค่าเองไม่ได้`);
+        }
+        if (typeof value !== "string" || value.length > MAX_FIELD_VALUE_LENGTH) {
+          return fail(`ค่าที่พิมพ์ในช่อง ${column} ต้องเป็นข้อความไม่เกิน ${MAX_FIELD_VALUE_LENGTH} ตัวอักษร`);
+        }
+        if (column in fieldSources) return fail(`ช่อง ${column} เลือกจากแถวอื่นหรือพิมพ์เองได้อย่างใดอย่างหนึ่ง`);
+        fieldValues[column] = value.trim();
       }
     }
 
@@ -102,6 +122,7 @@ export function parseGroupDecision(
       att_ids: [...set.attIds],
       primary_att_id: set.primaryAttId,
       field_sources: Object.keys(fieldSources).length > 0 ? fieldSources : null,
+      field_values: Object.keys(fieldValues).length > 0 ? fieldValues : null,
       lat: coords.value?.lat ?? null,
       lng: coords.value?.lng ?? null,
       note: note.value,
@@ -117,6 +138,7 @@ export function parseGroupDecision(
       att_ids: [...attIds],
       primary_att_id: null,
       field_sources: null,
+      field_values: null,
       lat: null,
       lng: null,
       note: note.value,
@@ -152,6 +174,7 @@ export function parseRowDecision(
       att_ids: [attId],
       primary_att_id: null,
       field_sources: null,
+      field_values: null,
       lat: coords.value?.lat ?? null,
       lng: coords.value?.lng ?? null,
       note: note.value,

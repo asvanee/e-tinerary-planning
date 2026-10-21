@@ -20,6 +20,27 @@ function latestRowDecisions(decisions: PlaceDecision[]): Map<string, PlaceDecisi
 }
 
 /**
+ * การตัดสินใจที่ใช้อยู่จริง — ใช้ร่วมกันระหว่างหน้า review และการนำเข้า (P4) ให้เห็นข้อมูลชุดเดียวกัน
+ * - rowDecisions: exclude/ok/fix_location ล่าสุดของแต่ละ ATT_ID
+ * - activeDecisions: merge/separate ทั้งหมด + การตัดสินใจรายแถวล่าสุดเท่านั้น (fix_location รุ่นเก่าไม่ถูกใช้)
+ * - excluded: ATT_ID ที่ admin สั่งตัดทิ้ง
+ */
+export function resolveDecisions(decisions: PlaceDecision[]): {
+  rowDecisions: Map<string, PlaceDecision>;
+  activeDecisions: PlaceDecision[];
+  excluded: Set<string>;
+} {
+  const rowDecisions = latestRowDecisions(decisions);
+  const excluded = new Set(
+    [...rowDecisions.values()].filter((d) => d.kind === "exclude").map((d) => d.att_ids[0])
+  );
+  const activeDecisions = decisions.filter(
+    (d) => !ROW_DECISION_KINDS.has(d.kind) || rowDecisions.get(d.att_ids[0]) === d
+  );
+  return { rowDecisions, activeDecisions, excluded };
+}
+
+/**
  * วิเคราะห์สถานที่ของจังหวัดหนึ่งสำหรับหน้า review ของ admin (D-26)
  * - ตัดแถวที่ admin สั่ง exclude และใช้พิกัดที่ admin แก้ ก่อนตรวจ
  * - กลุ่มมาจาก 4 ตัวตรวจ (contact ยืนยันได้/ไม่ได้, ชื่อคล้าย, พิกัดใกล้แต่ชื่อต่าง) — 1 กลุ่มต่อ 1 ผลของตัวตรวจ
@@ -31,14 +52,7 @@ export function buildProvinceReview(
   allRows: AttractionRow[],
   decisions: PlaceDecision[]
 ): ProvinceReview {
-  const rowDecisions = latestRowDecisions(decisions);
-  const excluded = new Set(
-    [...rowDecisions.values()].filter((d) => d.kind === "exclude").map((d) => d.att_ids[0])
-  );
-  // fix_location ที่ไม่ใช่ล่าสุดจะไม่ถูกใช้
-  const activeDecisions = decisions.filter(
-    (d) => !ROW_DECISION_KINDS.has(d.kind) || rowDecisions.get(d.att_ids[0]) === d
-  );
+  const { rowDecisions, activeDecisions, excluded } = resolveDecisions(decisions);
   const rules = decisionsToRules(activeDecisions);
   const rows = applyLocationOverrides(
     allRows.filter((r) => !excluded.has(r.ATT_ID)),

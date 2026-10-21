@@ -1,6 +1,6 @@
 import type { AttractionRow, GroupReasonType, RowIssueType } from "./reviewTypes";
 
-// ช่องที่แสดงเสมอในการ์ด (ช่องอื่นแสดงเมื่อค่าไม่ตรงกันหรือกด "แสดงทุกช่อง")
+// ช่องที่แสดงเสมอในการ์ด (ช่องอื่นใน MERGE_FIELDS แสดงเมื่อค่าไม่ตรงกัน)
 export const KEY_FIELDS = [
   "ATT_NAME_TH",
   "ATT_NAME_EN",
@@ -12,6 +12,30 @@ export const KEY_FIELDS = [
   "ATT_STATUS",
 ];
 
+// ช่องที่ merge เลือกค่าได้ = ช่องที่ใช้ตอนนำเข้าจริง (D-31)
+// ⚠️ ต้องตรงกับ backend admin/pipeline/import/placeRecord.ts::IMPORT_FIELDS (backend ตรวจซ้ำ)
+export const MERGE_FIELDS = [
+  "ATT_NAME_TH",
+  "ATT_NAME_EN",
+  "ATT_LOCATION",
+  "ATT_TEL",
+  "ATT_WEBSITE",
+  "ATT_ADDRESS",
+  "ATT_ADDRESS_ALLEY",
+  "ATT_ADDRESS_ROAD",
+  "SUBDISTRICT_NAME_TH",
+  "DISTRICT_NAME_TH",
+  "ATT_POSTCODE",
+  "ATT_TYPE_LABEL",
+  "ATT_CATEGORY_LABEL",
+  "ATT_DETAIL_TH",
+  "ATT_FACEBOOK",
+  "ATT_INSTAGRAM",
+  "ATT_TIKTOK",
+  "ATT_YOUTUBE",
+  "ATT_LINE",
+];
+
 const FIELD_LABELS: Record<string, string> = {
   ATT_NAME_TH: "ชื่อ (ไทย)",
   ATT_NAME_EN: "ชื่อ (อังกฤษ)",
@@ -20,9 +44,12 @@ const FIELD_LABELS: Record<string, string> = {
   ATT_WEBSITE: "เว็บไซต์",
   ATT_FACEBOOK: "Facebook",
   ATT_INSTAGRAM: "Instagram",
+  ATT_TIKTOK: "TikTok",
+  ATT_YOUTUBE: "YouTube",
   ATT_LINE: "LINE",
   ATT_EMAIL: "อีเมล",
   ATT_ADDRESS: "ที่อยู่",
+  ATT_ADDRESS_ALLEY: "ซอย",
   ATT_ADDRESS_ROAD: "ถนน",
   SUBDISTRICT_NAME_TH: "ตำบล",
   DISTRICT_NAME_TH: "อำเภอ",
