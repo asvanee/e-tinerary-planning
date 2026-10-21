@@ -39,18 +39,23 @@ export function nameSimilarity(a: string, b: string): number {
 
 const isBlankName = (value?: string) => !value || !value.trim() || value.trim() === "ไม่มี";
 
+// เลขไทย ๐–๙ → 0–9 ก่อน normalize (เช่น "ตลาดน้ำ ๔,๐๐๐ ปี" กับ "ตลาดน้ำ 4000 ปี")
+// ใช้เฉพาะการเทียบกับ Google — normalizeName ใช้ร่วมกับ dedupe จึงไม่แก้ที่นั่น
+const normalizeForMatch = (value: string) =>
+  normalizeName(value.replace(/[๐-๙]/g, (d) => String(d.charCodeAt(0) - 0x0e50)));
+
 /**
  * ชื่อจาก Google คล้ายชื่อใน CSV (ไทยหรืออังกฤษ ไม่นับช่องว่าง/"ไม่มี") ไหม
- * คล้าย = หลัง normalize แล้วชื่อหนึ่งอยู่ในอีกชื่อ หรือ nameSimilarity ≥ 0.6
+ * คล้าย = หลัง normalize (รวมแปลงเลขไทย) แล้วชื่อหนึ่งอยู่ในอีกชื่อ หรือ nameSimilarity ≥ 0.6
  */
 export function namesSimilar(googleName: string | undefined, csvNames: (string | undefined)[]): boolean {
   if (isBlankName(googleName)) return false;
-  const g = normalizeName(googleName!);
+  const g = normalizeForMatch(googleName!);
   if (!g) return false;
 
   return csvNames.some((name) => {
     if (isBlankName(name)) return false;
-    const c = normalizeName(name!);
+    const c = normalizeForMatch(name!);
     if (!c) return false;
     return g.includes(c) || c.includes(g) || nameSimilarity(g, c) >= NAME_SIMILARITY_MIN;
   });

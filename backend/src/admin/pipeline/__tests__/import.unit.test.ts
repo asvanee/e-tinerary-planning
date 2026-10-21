@@ -128,6 +128,10 @@ describe("เกณฑ์จับคู่ (D-33)", () => {
     expect(namesSimilar("", ["ตลาดวโรรส"])).toBe(false);
     expect(namesSimilar("ตลาดวโรรส (กาดหลวง)", ["ตลาดวโรรส"])).toBe(true); // ครอบกัน
     expect(namesSimilar("Wat Chedi Luang", ["wat chedi luang!"])).toBe(true);
+    expect(namesSimilar("ตลาดน้ำ ๔,๐๐๐ ปี", ["ตลาดน้ำ 4000 ปี ไนท์บาร์ซ่า"])).toBe(true); // เลขไทย
+    // กรณีผิดจริงจากน่าน ต้องยังไม่ผ่าน
+    expect(namesSimilar("ตลาดชุมชนบ้านบ่อสวก", ["ชมรมส่งเสริมการท่องเที่ยวโดยชุมชนตำบลบ่อสวก"])).toBe(false);
+    expect(namesSimilar("ร้านกาแฟบ้านสบขุ่น", ["โครงการสบขุ่นโมเดล บ้านสบขุ่น"])).toBe(false);
   });
 
   test("nameSimilarity ใช้ระยะแก้ไขต่อความยาว (เกณฑ์ 0.6)", () => {
