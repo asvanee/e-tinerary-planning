@@ -30,7 +30,7 @@ cd frontend && npm test            # vitest run — ยังไม่มีไ�
 ```
 `data-pipeline` scripts (`upload:*`, `fetch-gmaps-categories:*`) **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** — ห้ามรันจนกว่าผู้ใช้จะสั่งชัดเจนเป็นครั้งๆ ส่วน `test:*` / `find:collisions:*` อ่าน CSV อย่างเดียว แต่ก็ยังควรถามก่อนรัน
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 57 tests (2026-10-21) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 86 tests (2026-10-21) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด

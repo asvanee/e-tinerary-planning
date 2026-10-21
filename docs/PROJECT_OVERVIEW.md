@@ -33,7 +33,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   │   └── itinerary/         draft / confirm / saved / auto trip
 │   ├── src/utils/             haversine, openingHoursChecker, orsDistance, orsTravelMatrix,
 │   │                          priceLevel, weatherForecast, bestCategoryRow
-│   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, pipeline/ (อ่าน CSV + dedupe, test ใน __tests__)
+│   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, provinces/, imports/ (job นำเข้า), pipeline/ (อ่าน CSV, dedupe, review, import — test ใน __tests__)
 │   ├── data/attraction.csv    สำเนาจาก data-pipeline (ใช้โดย admin pipeline)
 │   └── jest.config.js         ts-jest preset
 ├── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
@@ -118,8 +118,13 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
 | GET `/api/admin/provinces` | ✓ + admin | `admin/provinces/provincesController.getProvinces` — จังหวัดจาก CSV + จำนวนแถว CSV / ใน `places` / การตัดสินใจ |
 | GET `/api/admin/provinces/:province/review` | ✓ + admin | `getProvinceReview` — กลุ่มที่อาจซ้ำ + แถวที่มีปัญหา (`pipeline/review/buildReview.ts`) |
-| PUT · DELETE `/api/admin/provinces/:province/groups` | ✓ + admin | `putGroupDecision` / `deleteGroupDecision` — body `{ attIds, sets: [{ attIds, primaryAttId, fieldSources?, lat?, lng? }], note? }` |
+| PUT · DELETE `/api/admin/provinces/:province/groups` | ✓ + admin | `putGroupDecision` / `deleteGroupDecision` — body `{ attIds, sets: [{ attIds, primaryAttId, fieldSources?, fieldValues?, lat?, lng? }], note? }` (เลือก/พิมพ์ได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) |
 | PUT · DELETE `/api/admin/provinces/:province/rows/:attId` | ✓ + admin | `putRowDecision` / `deleteRowDecision` — body `{ kind: exclude \| ok \| fix_location, lat?, lng?, note? }` |
+| GET `/api/admin/provinces/:province/import/preview?limit=N` | ✓ + admin | `admin/imports/importController.getImportPreview` — จำนวนแถวที่จะนำเข้า/ข้าม, จำนวน request Google โดยประมาณ, `blockers` (ไม่เรียก Google) |
+| POST `/api/admin/provinces/:province/import` | ✓ + admin | `startImport` — body `{ limit_rows? }` · ตรวจเงื่อนไขซ้ำ (409 + `blockers`) แล้วสร้าง job และรันเบื้องหลัง → 202 `{ job }` · ⚠️ เรียก Google จริง (มีค่าใช้จ่าย) |
+| GET `/api/admin/provinces/:province/imports` | ✓ + admin | `getProvinceImports` — ประวัติ job ของจังหวัด (50 ล่าสุด) |
+| GET `/api/admin/imports/:jobId` · POST `/api/admin/imports/:jobId/cancel` | ✓ + admin | `getImportJob` (ความคืบหน้า) / `cancelImportJob` (หยุดก่อนแถวถัดไป, 409 ถ้า job ไม่ได้ทำงานอยู่) |
+| GET `/api/admin/imports/:jobId/items?status=&page=` | ✓ + admin | `getImportItems` — ผลรายสถานที่ หน้าละ 100 แถว (page เริ่ม 0) |
 
 Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
 

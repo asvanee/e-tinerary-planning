@@ -111,7 +111,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `places` · rows ~1116 · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · เขียนโดย `data-pipeline/src/upload*.ts`, `fetchGmapsCategories.ts`
+### `places` · rows ~1116 · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · เขียนโดย `data-pipeline/src/upload*.ts`, `fetchGmapsCategories.ts` และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -151,7 +151,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 1 สถานที่มีได้หลาย category — โค้ดเลือก `confidence_score` สูงสุด (กฎ multi-category dedupe ใน CLAUDE.md)
 
-### `place_types` · rows 1605 (นับจริง 2026-10-18) · **ไม่มีโค้ดใน repo ใช้** (R5 P4 จะเขียนลงตารางนี้ — D-27)
+### `place_types` · rows 1605 (นับจริง 2026-10-18) · เขียนโดย `backend/src/admin/imports/importQueries.ts` (R5 P4 — D-27)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_type_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) — **เปลี่ยนจาก composite PK (`place_id`, `api_type_id`) เมื่อ 2026-10-18** (ผู้ใช้รัน SQL) (เป็น uuid ใน T23) |
@@ -186,6 +186,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `att_ids` | text[] | NOT NULL | CHECK มีอย่างน้อย 1 ตัว (merge/separate ≥ 2, ที่เหลือ 1 — ตรวจในโค้ด) |
 | `primary_att_id` | text | | แถวหลักของ merge |
 | `field_sources` | jsonb | | merge: ชื่อคอลัมน์ CSV → ATT_ID ที่ใช้ค่านั้น (ไม่ระบุ = ใช้ค่าของแถวหลัก) |
+| `field_values` | jsonb | | merge: ชื่อคอลัมน์ CSV → ค่าที่ admin พิมพ์เอง (D-32 · ⚠️ เพิ่มหลังสร้างตาราง — ผู้ใช้ต้องรัน `ALTER TABLE` ด้านล่าง) |
 | `lat` / `lng` | float8 | | CHECK −90..90 / −180..180 · fix_location หรือพิกัดที่กรอกเองตอน merge |
 | `note` | text | | |
 | `decided_by` | uuid | | FK → `users.user_id` ON DELETE SET NULL |
@@ -208,9 +209,12 @@ CREATE TABLE public.admin_place_decisions (
 );
 CREATE INDEX admin_place_decisions_province_idx ON public.admin_place_decisions (province);
 ALTER TABLE public.admin_place_decisions ENABLE ROW LEVEL SECURITY;
+
+-- D-32 (2026-10-21): ค่าที่ admin พิมพ์เองตอน merge
+ALTER TABLE public.admin_place_decisions ADD COLUMN field_values jsonb;
 ```
 
-### `pipeline_jobs` / `pipeline_job_items` (R5 P4 — ✅ ผู้ใช้สร้างแล้ว 2026-10-18 ตาม SQL ด้านล่าง)
+### `pipeline_jobs` / `pipeline_job_items` (R5 P4 — ✅ ผู้ใช้สร้างแล้ว 2026-10-18 ตาม SQL ด้านล่าง) · ใช้ในโค้ด: `backend/src/admin/imports/importQueries.ts`
 job นำเข้าจังหวัด 1 แถวต่อ 1 job · ผลรายสถานที่ 1 แถวต่อ 1 ATT_ID · PK เดียวทั้งคู่ · RLS เปิด ไม่มี policy
 ```sql
 CREATE TABLE public.pipeline_jobs (

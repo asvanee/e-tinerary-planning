@@ -133,3 +133,34 @@
 - ข้อสรุป (ผู้ใช้เลือกทางที่ง่ายที่สุด): ถ้า `start_date`, `end_date`, `start_time`, `available_time_per_day` หรือ `daily_budget` เปลี่ยน `updateTrip` จะลบ `trip_days` ของทริปนั้น (CASCADE ลบ `itineraries` = แผนเดิม) แล้วครั้งหน้าที่จัดแผนจะสร้างวันใหม่จากข้อมูลล่าสุด · frontend ถามยืนยันก่อนบันทึก · ช่องอื่น (จังหวัด หมวดหมู่ จุดเริ่ม ฯลฯ) แผนเดิมยังอยู่ · หลังบันทึกไปหน้า recommendations เหมือนเดิม
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/trip/tripController.ts` (`updateTrip`), `backend/src/features/trip/tripDayStructure.ts`, `frontend/src/features/trip/create/createTrip.tsx`
+
+### D-30 · 2026-10-21 · รายละเอียดการนำเข้า R5 P4a (ขยาย D-26/D-27)
+- บริบท: ระหว่างวางแผน P4a พบว่า (1) โค้ดยังไม่ได้ใช้ `primary_att_id`/`field_sources` ของ merge (2) แผนเดิมใช้ upsert `onConflict google_place_id` ซึ่งอาจเขียนทับสถานที่ของจังหวัดอื่นเงียบๆ (3) เงื่อนไข "จังหวัดต้องยังไม่มีแถวใน `places`" ทำให้นำเข้าส่วนที่เหลือหลัง "ทดลอง N แถวแรก" ไม่ได้
+- ข้อสรุป (ผู้ใช้เลือกตามข้อเสนอทุกข้อ):
+  - **merge:** ใช้ `primary_att_id` เป็นแถวหลัก (= `places.att_id`) และเอาค่าแต่ละช่องตาม `field_sources` ช่องที่ไม่ได้เลือกใช้ค่าแถวหลัก
+  - **`google_place_id` ซ้ำ** (ใน job เดียวกัน หรือมีใน `places` อยู่แล้ว) → `needs_review_duplicate` ให้ admin ตัดสิน · บันทึก `places` ด้วย insert เท่านั้น (ไม่ upsert)
+  - **รันต่อได้:** เริ่ม job ได้ถ้าแถวของจังหวัดใน `places` มาจาก job ของระบบนี้ทั้งหมด · ข้าม ATT_ID ที่มีผลแล้ว (ทุกสถานะยกเว้น `error` ซึ่งลองใหม่ได้)
+  - **ชื่อคล้าย:** normalize แล้วชื่อหนึ่งอยู่ในอีกชื่อ หรือ `1 − Levenshtein / ความยาวที่ยาวกว่า ≥ 0.6` เทียบกับชื่อไทยและอังกฤษ (ไม่นับว่าง/"ไม่มี")
+  - **Google:** Places API (Legacy) — key เดิมใช้ได้ และรูปแบบ `opening_hours` ตรงกับ `openingHoursChecker.ts`
+  - **ค้นหา:** "ชื่อไทย อำเภอ จังหวัด" (ไม่มีชื่อไทยใช้ชื่ออังกฤษ) + `locationbias=circle:1000@พิกัด CSV` · ไม่เจอไม่ค้นซ้ำ (ส่งให้ admin, P4c มีปุ่มค้นใหม่) · หน่วง 200 ms หลังทุก request เป็นค่าคงที่ ไม่เพิ่ม env
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/`, `backend/src/admin/imports/`, `docs/DEVELOPMENT_PLAN.md`
+
+### D-31 · 2026-10-21 · merge เลือกค่าได้เฉพาะช่องที่ใช้ตอนนำเข้า (แทนที่ D-26 ข้อ "merge เลือกค่าได้ทีละช่อง" ส่วนที่ให้เลือกได้ทุกคอลัมน์)
+- บริบท: หน้า merge (P3b) ให้เลือกค่าได้ทุกคอลัมน์ของ CSV แต่การนำเข้า (P4a) อ่านแค่บางคอลัมน์ — เลือกช่องอื่น (เช่น ค่าเข้า, อีเมล, วันที่อัปเดต) ไม่มีผลกับ `places` และทำให้หน้ารีวิวรก
+- ข้อสรุป (ผู้ใช้สั่ง): เลือกค่าทีละช่องได้เฉพาะ 19 คอลัมน์ที่นำเข้าจริง — ชื่อไทย/อังกฤษ, พิกัด, เบอร์, เว็บ, ที่อยู่ (ATT_ADDRESS, ATT_ADDRESS_ALLEY, ATT_ADDRESS_ROAD, SUBDISTRICT_NAME_TH, DISTRICT_NAME_TH, ATT_POSTCODE), ATT_TYPE_LABEL, ATT_CATEGORY_LABEL, ATT_DETAIL_TH, Facebook/Instagram/TikTok/YouTube/LINE · หน้า merge เอาปุ่ม "แสดงทุกช่อง" ออก (แสดงช่องสำคัญ + ช่องที่นำเข้าซึ่งค่าต่างกันเท่านั้น) · backend ปฏิเสธ `fieldSources` ของช่องอื่น (400) · การตัดสินใจเก่าที่เลือกช่องอื่นไว้ไม่มีผลตอนนำเข้า (ไม่ต้องแก้ข้อมูลใน DB)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/placeRecord.ts` (`IMPORT_FIELDS`), `review/decisionInput.ts`, `import/importRows.ts`, `frontend/src/admin/lib/placeFields.ts` (`MERGE_FIELDS` ต้องตรงกัน), `frontend/src/admin/provinces/components/GroupCard.tsx`
+
+### D-32 · 2026-10-21 · merge พิมพ์ค่าเองได้ทุกช่องที่นำเข้า (ขยาย D-31)
+- บริบท: ตอน merge บางช่องว่างทุกแถว หรือมีค่าแต่ผิด (เช่นเบอร์โทร) — เดิมเลือกได้แค่ค่าจากแถวที่มีอยู่ ส่วนพิกัดพิมพ์เองได้ผ่าน `lat`/`lng`
+- ข้อสรุป (ผู้ใช้เลือก): ตอน merge ทุกช่องใน 19 ช่องที่นำเข้า (D-31) มีตัวเลือก "พิมพ์เอง" แม้แถวจะมีค่าอยู่แล้ว · ยกเว้นพิกัด (ใช้ช่อง "กรอกพิกัดเอง" เดิม) · เว้นว่าง = ไม่มีข้อมูลช่องนั้น · ใช้เฉพาะการ์ดกลุ่มที่รวม ≥ 2 แถว (แถวเดี่ยวยังแก้ได้แค่พิกัดในแท็บ "มีปัญหา") · ตอนนำเข้า ค่าที่พิมพ์เองทับค่าจากแถวหลัก/`field_sources`
+- การเก็บข้อมูล: คอลัมน์ใหม่ `admin_place_decisions.field_values jsonb` (ผู้ใช้รัน `ALTER TABLE` ใน `DATABASE_SCHEMA.md`) · backend ตรวจว่าเป็นช่องใน `IMPORT_FIELDS` ไม่ใช่พิกัด ไม่ซ้ำกับ `field_sources` และยาวไม่เกิน 1000 ตัวอักษร
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/review/decisionInput.ts`, `reviewTypes.ts`, `import/importRows.ts`, `frontend/src/admin/lib/reviewTypes.ts`, `frontend/src/admin/provinces/components/GroupCard.tsx`
+
+### D-33 · 2026-10-21 · รับผล Google เมื่อห่างไม่เกิน 1 km **และ** ชื่อคล้ายเท่านั้น (แทนที่ D-27 ข้อ "≤ 100 m รับอัตโนมัติ")
+- บริบท: ทดลองนำเข้าน่าน 5 แถวกับ Google จริง (job `44434e91-be17-46db-b71d-1b79dca93664`) — "เวียงภูเพียงแช่แห้ง" (ชุมชนโบราณ) ได้ "วงเรียนพระธาตุแช่แห้ง" (วงเวียน) ที่ระยะ 0 m และถูกรับอัตโนมัติ เพราะพิกัด CSV บางแถวคัดลอกมาจากหมุดของสิ่งที่อยู่ใกล้ๆ · ความคล้ายชื่อ 0.41 · อีก 4 แถวผลเท่าเดิมเมื่อเช็คชื่อทุกระยะ
+- ข้อสรุป (ผู้ใช้เลือก): ห่างไม่เกิน 1 km และชื่อคล้าย (เกณฑ์ชื่อตาม D-30) → รับ · ชื่อไม่คล้ายแม้ห่าง 0 m, ห่างเกิน 1 km หรือไม่มีพิกัด → `needs_review_mismatch` · แถวที่นำเข้าผิด (`20250620144750001`) ผู้ใช้ลบออกจาก `places` และตั้ง item เป็น `error` ให้ job ถัดไปลองใหม่ด้วยเกณฑ์นี้
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/matchCandidate.ts`, `importJob.ts`
