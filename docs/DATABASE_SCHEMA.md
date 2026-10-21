@@ -137,7 +137,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `category_name` | text | NOT NULL | UNIQUE |
 | `environment_type` | text | NOT NULL | CHECK `INDOOR` \| `OUTDOOR` \| `MIXED` |
 | `price_nature` | text | NOT NULL | CHECK `free` \| `paid` |
-| `default_duration_min` | int4 | | `60` |
+| `default_duration_min` | int4 | | `60` · D-36: จะเลิกใช้ (ผู้ใช้กรอกเวลาเองใน `itineraries`) — Auto Trip ยังใช้อยู่ |
 | `created_at` | timestamptz | | `now()` |
 
 ### `place_categories` · rows ~486 · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
@@ -149,7 +149,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `confidence_score` | numeric | NOT NULL | `1.0` |
 | `created_at` | timestamptz | | `now()` |
 
-1 สถานที่มีได้หลาย category — โค้ดเลือก `confidence_score` สูงสุด (กฎ multi-category dedupe ใน CLAUDE.md)
+1 สถานที่มีได้หลาย category — โค้ดเลือก `confidence_score` สูงสุด (กฎ multi-category dedupe ใน CLAUDE.md) · D-35 (R5 P5): จะสร้างใหม่จาก `places.att_type_label` เหลือ 1 หมวดต่อสถานที่ — `categories` / `place_categories` / `trip_categories` จะเปลี่ยนโครงสร้างและย้ายข้อมูล (SQL อยู่ใน P5)
 
 ### `place_types` · rows 1605 (นับจริง 2026-10-18) · เขียนโดย `backend/src/admin/imports/importQueries.ts` (R5 P4 — D-27)
 | คอลัมน์ | type | null | default / constraint |
@@ -172,7 +172,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `weight` | numeric | NOT NULL | CHECK `> 0` |
 | `created_at` | timestamptz | | `now()` |
 
-**ข้อสันนิษฐาน (ยังไม่ยืนยัน):** `place_types` (type ของสถานที่) + `type_category_weights` (type → category + weight) น่าจะเป็นข้อมูลของ "Stage 3" ที่สร้าง `place_categories.confidence_score` ซึ่งไม่พบโค้ดใน repo (R4, T12, D-23 Q3) — ต้องถามทีมว่าสร้างด้วยอะไรและสูตรเป็นอย่างไร
+**D-35 (2026-10-21): ไม่ใช้สองตารางนี้จัดหมวดแล้ว** (`place_types` ยังเขียนตอนนำเข้า) · **ข้อสันนิษฐาน (ยังไม่ยืนยัน):** `place_types` (type ของสถานที่) + `type_category_weights` (type → category + weight) น่าจะเป็นข้อมูลของ "Stage 3" ที่สร้าง `place_categories.confidence_score` ซึ่งไม่พบโค้ดใน repo (R4, T12, D-23 Q3) — ต้องถามทีมว่าสร้างด้วยอะไรและสูตรเป็นอย่างไร
 
 ## ตารางที่เพิ่มหลัง snapshot (ผู้ใช้สร้างด้วย SQL ด้านล่าง — Claude ตรวจด้วย select อ่านอย่างเดียวว่ามีครบทุกคอลัมน์ 2026-10-18)
 

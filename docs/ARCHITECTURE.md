@@ -53,7 +53,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 1. กรอง province (บังคับ) แล้ว AND กับ district ถ้ามี
 2. กรอง category ที่ผู้ใช้เลือก ถ้าเหลือ 0 ที่ ให้ fallback เป็นไม่กรอง category (`categoryFallbackUsed`)
 3. Hard filter งบ: ตัดที่ที่ `PRICE_LEVEL_TO_BAHT[priceLevel] > dailyBudget` ทิ้ง (ถ้าเป็น paid และไม่มีราคา ให้ปล่อยผ่าน)
-4. Hard filter เวลา: ตัดที่ที่ `default_duration_min > available_time_per_day*60` ทิ้ง
+4. Hard filter เวลา: ตัดที่ที่ `default_duration_min > available_time_per_day*60` ทิ้ง (D-36 จะเลิกใช้ `default_duration_min` — ขั้นนี้ต้องตัดสินใน R5 P5 ว่าจะเอาออกหรือไม่)
 
 จากนั้นคำนวณระยะทางถนนจากจุดเริ่มต้น (ORS ถ้าใช้ไม่ได้ใช้ haversine) และโอกาสฝนเฉลี่ยตาม grid 0.1° แล้วจึงคำนวณ `calculatePoiScore()`
 
@@ -92,7 +92,7 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 2. **ตรวจข้อมูล** `/admin/provinces/:province`: `pipeline/review/buildReview.ts` วิเคราะห์ CSV (dedupe + ตัวตรวจชื่อคล้าย/พิกัดใกล้/พิกัดพัง/ชื่อขยะ) → admin รวม (เลือกแถวหลัก, เลือกค่าทีละช่องหรือพิมพ์เองได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) / แยก / ตัดทิ้ง / แก้พิกัด → `admin_place_decisions` (`resolveDecisions` เลือกการตัดสินใจล่าสุด)
 3. **นำเข้า** `/admin/provinces/:province/import` (ต้องตัดสินใจครบ): preview ไม่เรียก Google → `pipeline/import/importRows.ts` สร้างแถวจาก CSV + การตัดสินใจ → job รันใน process (ทีละ 1 job, หน่วง 200 ms, ยกเลิกได้, เปิด server ใหม่ job ค้าง = failed) → ต่อแถว: Find Place "ชื่อไทย อำเภอ จังหวัด" (bias 1 km) → รับเมื่อห่าง ≤ 1 km **และ** ชื่อคล้าย (ครอบกัน หรือ Levenshtein ≥ 0.6, แปลงเลขไทยก่อน — D-33/D-34) → Details → insert `places` (พิกัดจาก CSV, ไม่ upsert) + `place_types` · ไม่ผ่าน/ไม่พบ/`google_place_id` ซ้ำ → `needs_review_*` · รันต่อได้โดยข้าม ATT_ID ที่มีผลแล้ว (D-30)
 4. **รอตรวจหลังนำเข้า** (P4c): admin เลือก ยอมรับผล Google (Details 1 ครั้ง) / นำเข้าจาก CSV อย่างเดียว (`csv:<ATT_ID>`) / ตัดทิ้ง → item เป็น `resolved`
-5. ⚠️ สถานที่ที่นำเข้าใหม่ยังไม่มี `place_categories` จึงยังไม่ถูกแนะนำในหน้า POI จนกว่า P5 (category mapping)
+5. ⚠️ สถานที่ที่นำเข้าใหม่ยังไม่มี `place_categories` จึงยังไม่ถูกแนะนำในหน้า POI จนกว่า P5 (หมวดจากป้าย ททท. `places.att_type_label` — D-35)
 
 ## 3. Data Pipeline (offline — เลิกใช้แล้ว)
 > ระบบใหม่อยู่ที่ `backend/src/admin/` (หัวข้อ 2.7) · `data-pipeline/` จะลบใน R5 P6 (D-24) · ด้านล่างคือสภาพของ data-pipeline เดิม (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ ใน `places` ตอนนี้มาจากสคริปต์นี้)

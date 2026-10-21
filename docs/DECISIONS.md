@@ -170,3 +170,28 @@
 - ข้อสรุป (ผู้ใช้เลือก): แปลงเลขไทย ๐–๙ เป็น 0–9 ก่อนเทียบชื่อ (เฉพาะการจับคู่ Google — `normalizeName` ของ dedupe ไม่เปลี่ยน) · เกณฑ์ความคล้ายคงเดิม · แถวที่ถูกแต่ระบบไม่กล้ารับให้ admin ยอมรับใน P4c (ข้อมูลผิดใน `places` เสียหายมากกว่าการกดยอมรับเพิ่ม)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/matchCandidate.ts`
+
+### D-35 · 2026-10-21 · ใช้ป้ายประเภทของ ททท. (`ATT_TYPE_LABEL`) เป็นหมวดของระบบ (แทนที่แนวทาง P5 เดิมที่ map type ของ Google → `categories` ด้วย weight / Stage 3)
+- บริบท: สถานที่หนึ่งใน Google มีหลาย type การเลือกให้เหลือ 1 หมวดต้องใช้ weight / `confidence_score` ซึ่งต้องมีงานวิจัยอ้างอิง (อาจารย์ไม่ให้ใช้ตัวเลขที่ทีมคิดเอง) · `attraction.csv` มีป้ายประเภท 1 ป้ายต่อสถานที่ (53 ป้ายใน `ATT_CATEGORY_LABEL` 3 กลุ่ม: ประวัติศาสตร์และวัฒนธรรม 4,302 แถว / ธรรมชาติ 2,634 / กิจกรรมพิเศษและนันทนาการ 1,686) และ `places` เก็บป้ายนี้ไว้แล้วใน `att_type_label` / `att_category_label`
+- ข้อสรุป (ผู้ใช้เลือก):
+  - หมวดของระบบมาจากป้ายของ ททท. โดยตรง: 1 สถานที่ = 1 หมวด จึงไม่ต้องเลือกด้วย confidence · ไม่ใช้ `place_types` / `type_category_weights` / `gmaps_types` ในการจัดหมวด
+  - ป้ายที่มีความหมายเดียวกันให้รวมเป็นหมวดเดียว ผู้ใช้จะตัดสินว่ารวมป้ายไหนบ้างใน P5 (คาดว่าเหลือไม่ถึงราว 35 หมวด) · หน้าสร้างทริปแสดงหมวดแยกตาม 3 กลุ่มใหญ่ของ ททท.
+  - คง `environment_type` / `price_nature` ไว้ใน `categories` (ผู้ใช้ยืนยันว่าสองค่านี้ไม่ติดเรื่องงานวิจัย)
+  - แก้โครงสร้าง DB และย้ายข้อมูลเดิมได้ (`categories`, `place_categories`, `trip_categories`) โดย Claude เขียน SQL ให้ และผู้ใช้เป็นคนรันเอง
+- ยังต้องตัดสินใน P5:
+  - รายการป้ายที่จะรวมกัน
+  - ป้าย "ประวัติความเป็นมา" (366 แถว) ซึ่งไม่ใช่ประเภทสถานที่
+  - ป้ายที่อยู่หลายกลุ่มใหญ่ (ส่วนใหญ่มีแค่ 1–6 แถวในกลุ่มที่สอง — เสนอให้ใช้กลุ่มที่มีแถวมากที่สุด)
+  - ป้ายที่มีน้อยมาก (เช่น งานประเพณี 4, โรงหนังเก่า 2)
+  - ค่า `category_score` ในสูตร POI (สูตรพักไว้ตาม D-23 — ต้องคุยกับทีม)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ (คาดการณ์): ตาราง `categories` / `place_categories` / `trip_categories`, `backend/src/features/poi/poiPlaceQueries.ts`, `features/categories/categoriesController.ts`, `frontend/src/features/trip/create/createTrip.tsx`, `backend/src/admin/pipeline/import/` (ใส่หมวดตอนนำเข้า), หน้า admin Category Mapping
+
+### D-36 · 2026-10-21 · ผู้ใช้กรอกเวลาที่จะอยู่แต่ละสถานที่เอง และเลิกใช้ `categories.default_duration_min`
+- บริบท: `default_duration_min` (ค่าเริ่มต้น 60 นาที และค่าต่อหมวด) เป็นตัวเลขที่ทีมกำหนดเองโดยไม่มีงานวิจัยรองรับ (เหตุผลเดียวกับ D-35)
+- ข้อสรุป (ผู้ใช้เลือก): ในหน้าจัดแผน (`ItineraryEditor`) ผู้ใช้กรอกเวลาที่จะอยู่ (นาที) ของแต่ละสถานที่ · ไม่มีค่าเริ่มต้น และยืนยันแผนไม่ได้จนกว่าจะกรอกครบ · เก็บค่าที่กรอกใน `itineraries` (เพิ่มคอลัมน์ใหม่ ผู้ใช้รัน SQL) · ค่านี้เป็น input ของผู้ใช้ backend จึงรับจาก client ได้ แต่ต้อง validate แล้วคำนวณเวลาเริ่ม/จบและ conflict ซ้ำเองเหมือนเดิม
+- ยังต้องตัดสินใน P5:
+  - POI filter ขั้นที่ 4 (ตัดสถานที่ที่ `default_duration_min` เกินเวลาต่อวัน) จะเอาออกหรือไม่ เพราะเป็นการเปลี่ยนลำดับ filter ที่ CLAUDE.md กำหนดไว้
+  - Auto Trip ยังใช้ `default_duration_min` อยู่ (`autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) ซึ่งเป็นงานของเพื่อน — ต้องแจ้งเพื่อนก่อนลบคอลัมน์
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ (คาดการณ์): mirror `itineraryBuilder.ts` / `openingHoursChecker.ts` (ทั้งสองฝั่ง), `itineraryController.ts` / `itineraryPlaceQueries.ts`, `placesController.ts`, `poiPlaceQueries.ts`, `ItineraryEditor.tsx`, `TripDetail.tsx`, `TripRecommendations.tsx` (type), ตาราง `itineraries`
