@@ -11,7 +11,8 @@ import { useAuth } from "../../../system/auth/useAuth";
 import RecommendationMap, { categoryColor } from "./RecommendationMap";
 import type { MapFocus, MapPlace } from "./RecommendationMap";
 import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
-import { DAY_NAMES_TH } from "../lib/format";
+import { DAY_NAMES_TH, formatVisitDate } from "../lib/format";
+import { closedTripDates, tripDates } from "../lib/openingDays";
 
 // ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
 type PriceConfidence = "real" | "inferred_high" | "inferred_low" | null;
@@ -200,6 +201,30 @@ export default function TripRecommendations() {
   // แผนที่: view ใช้สลับแท็บรายการ/แผนที่บนมือถือ · focus ใช้สั่งให้แผนที่เลื่อนไปที่หมุด + ไฮไลต์การ์ด
   const [view, setView] = useState<"list" | "map">("list");
   const [focus, setFocus] = useState<MapFocus | null>(null);
+
+  // ช่วงวันเดินทาง — ใช้เตือนบนการ์ดว่าสถานที่ปิดทั้งวันในวันไหนของทริป (คะแนน POI ไม่ได้ดูเวลาเปิด-ปิด)
+  const [tripRange, setTripRange] = useState<{ start: string; end: string } | null>(null);
+
+  useEffect(() => {
+    if (!session || !tripId) return;
+    let cancelled = false;
+
+    fetch(`/api/trips/${tripId}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { trip?: { start_date?: string; end_date?: string } } | null) => {
+        const trip = data?.trip;
+        if (!cancelled && trip?.start_date && trip.end_date) {
+          setTripRange({ start: trip.start_date, end: trip.end_date });
+        }
+      })
+      .catch((err) => console.error("Fetch trip dates error:", err)); // ไม่มีช่วงวัน = ไม่แสดงคำเตือน
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId, session]);
 
   // กันเรียก calculate-poi ซ้ำสำหรับทริปเดิม (StrictMode / session เปลี่ยน reference)
   const fetchedForTripRef = useRef<string | null>(null);
@@ -462,6 +487,14 @@ export default function TripRecommendations() {
       (distanceSource === "ors" ? "ors" : distanceSource ? "haversine" : null);
     const approx = method === "haversine";
     const hours = parseOpeningHours(p?.opening_hours);
+    // วันของทริปที่สถานที่นี้ปิดทั้งวัน (ไม่มีข้อมูลเวลาเปิด-ปิด = ไม่เตือน)
+    const closedDates = tripRange
+      ? closedTripDates(p?.opening_hours, tripRange.start, tripRange.end)
+      : [];
+    const closedAllTrip =
+      tripRange !== null &&
+      closedDates.length > 0 &&
+      closedDates.length === tripDates(tripRange.start, tripRange.end).length;
 
     return (
       <li
@@ -557,6 +590,15 @@ export default function TripRecommendations() {
             <p className="mt-2 flex items-center gap-1.5 text-sm text-[color:var(--muted)]">
               <Clock size={16} strokeWidth={1.75} className="shrink-0" />
               ไม่ทราบเวลาเปิด-ปิด
+            </p>
+          )}
+
+          {closedDates.length > 0 && (
+            <p className="mt-2 flex items-start gap-1.5 text-sm text-[color:var(--danger)]">
+              <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+              {closedAllTrip
+                ? "ปิดทุกวันของทริปนี้"
+                : `ปิดทั้งวันในวันเดินทาง: ${closedDates.map((d) => formatVisitDate(d, "short")).join(", ")}`}
             </p>
           )}
 

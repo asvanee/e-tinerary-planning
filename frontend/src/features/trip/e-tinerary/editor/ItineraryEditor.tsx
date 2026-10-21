@@ -45,6 +45,7 @@ import {
   formatTravelTime,
   formatVisitDate,
 } from "../../lib/format";
+import { openIntervalsForDay } from "../../lib/openingDays";
 
 // ---------- Types ----------
 
@@ -122,34 +123,9 @@ const primaryBtn =
 // ใช้ periods ชุดเดียวกับ openingHoursChecker.ts แต่บอกเหตุผลละเอียดขึ้น:
 // ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่ — คำนวณเพื่อแสดงผลเท่านั้น ไม่กระทบ flag
 
-function hhmmToMin(t: string): number {
-  return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2, 4), 10);
-}
-
 function fmtMin(m: number): string {
   const x = ((m % 1440) + 1440) % 1440;
   return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
-}
-
-// ช่วงเวลาเปิดที่ทับวัน day (หน่วยนาทีนับจากเที่ยงคืนของวันนั้น) รวมช่วงข้ามเที่ยงคืนจากเมื่อวาน
-function openIntervalsForDay(oh: OpeningHours | null | undefined, day: number): { start: number; end: number }[] | "24h" | null {
-  const periods = oh?.periods;
-  if (!Array.isArray(periods) || periods.length === 0) return null;
-  if (periods.length === 1 && !periods[0]?.close) return "24h";
-
-  const out: { start: number; end: number }[] = [];
-  for (const p of periods) {
-    if (!p?.close || !p?.open) continue;
-    const openMin = hhmmToMin(p.open.time);
-    let span = ((p.close.day - p.open.day + 7) % 7) * 1440 + hhmmToMin(p.close.time) - openMin;
-    if (span <= 0) span += 7 * 1440;
-    for (const off of [0, 1]) {
-      if ((p.open.day + off) % 7 !== day) continue;
-      const start = openMin - off * 1440;
-      if (start + span > 0) out.push({ start, end: start + span });
-    }
-  }
-  return out;
 }
 
 function describeClosure(

@@ -92,6 +92,7 @@
 ## Known Issues ที่แก้แล้ว
 | # | ปัญหาเดิม | แก้เมื่อ | การแก้ / ที่ยังไม่ได้ตรวจ |
 |---|---|---|---|
+| 36 | คะแนน POI ไม่ได้ดูเวลาเปิด-ปิด (ตั้งใจ — ตอนคำนวณยังไม่รู้วัน/เวลาที่จะไป) ผู้ใช้จึงเลือกสถานที่ที่ปิดในวันเดินทางได้ แล้วไปเจอ "ปิดทั้งวัน" ในหน้า editor (ผู้ใช้แจ้ง 2026-10-21) | 2026-10-21 (ผู้ใช้เลือกทาง ก) | หน้า recommendations ดึง `GET /api/trips/:tripId` แล้วแสดงคำเตือนบนการ์ด "ปิดทั้งวันในวันเดินทาง: …" / "ปิดทุกวันของทริปนี้" ด้วยกติกาเดียวกับป้าย "ปิดทั้งวัน" ใน editor (ย้าย `openIntervalsForDay` ไป `frontend/src/features/trip/lib/openingDays.ts`) · ไม่ใช่ hard filter และไม่แตะสูตร POI · tsc/build ผ่าน, lint เท่า baseline (5/4), ตรวจ `closedTripDates` ด้วยข้อมูลตัวอย่าง · ยังไม่ได้ทดสอบใน browser |
 | 13 | `poiController` เรียก `debugOpenMeteo()` (HTTP request เพิ่มอีก 1 ครั้ง) และ log ข้อมูลทุกครั้งที่คำนวณ POI | 2026-10-21 (cleanup) | ลบ `backend/src/utils/weatherDebug.ts` และส่วนที่เรียก/log ใน `poiController.ts` — การคำนวณคะแนนและ response ไม่เปลี่ยน · tsc/jest ผ่าน · ยังไม่ได้ทดสอบ POI ใน browser |
 | 2 | `confirmEmail.tsx` import `"./ConfirmEmail.css"` แต่ไฟล์จริงชื่อ `confirmEmail.css` | 2026-10-17 (T1) | แก้ import เป็น `./confirmEmail.css` · ไม่ทดสอบบน Linux/CI ตาม D-22 |
 | 3 | git index เก็บชื่อ `Navbar.tsx` แต่ import ทุกไฟล์ใช้ `components/navbar` | 2026-10-17 (T1) | `git mv` สองขั้นเป็น `navbar.tsx` (เนื้อไฟล์ไม่เปลี่ยน) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
