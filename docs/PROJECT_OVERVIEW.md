@@ -32,7 +32,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   │   ├── poi/               คำนวณ POI score
 │   │   └── itinerary/         draft / confirm / saved / auto trip
 │   ├── src/utils/             haversine, openingHoursChecker, orsDistance, orsTravelMatrix,
-│   │                          priceLevel, weatherForecast, weatherDebug
+│   │                          priceLevel, weatherForecast, bestCategoryRow
 │   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, pipeline/ (อ่าน CSV + dedupe, test ใน __tests__)
 │   ├── data/attraction.csv    สำเนาจาก data-pipeline (ใช้โดย admin pipeline)
 │   └── jest.config.js         ts-jest preset
@@ -138,7 +138,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | Supabase (Auth + Postgres) | backend `config/db.ts` (service role), data-pipeline (anon key) · frontend ไม่ได้เรียก Supabase ตรง (ทุกอย่างผ่าน backend) | |
 | OpenRouteService (HeiGIT) Matrix | backend `utils/orsDistance.ts`, `utils/orsTravelMatrix.ts` | default base `https://api.heigit.org/openrouteservice`; ถ้าไม่มี key จะใช้ haversine แทน |
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
-| Open-Meteo | backend `utils/weatherForecast.ts` (+ `weatherDebug.ts` ยิงซ้ำเพื่อ debug ทุกครั้งที่คำนวณ POI) | ไม่ต้องใช้ key |
+| Open-Meteo | backend `utils/weatherForecast.ts` | ไม่ต้องใช้ key |
 | Google Maps JS | frontend `LocationPinPicker.tsx` | `VITE_GOOGLE_MAPS_API_KEY` |
 | Google Places (Find/Details) | data-pipeline (เดิม) · backend admin pipeline (R5 P4 — ยังไม่มีโค้ด) | `GOOGLE_PLACES_API_KEY` |
 | OSM tiles | Leaflet ใน frontend | |

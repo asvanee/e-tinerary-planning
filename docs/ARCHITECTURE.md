@@ -64,7 +64,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
 
-**Multi-category:** ที่หนึ่งอาจมีหลายแถวใน `place_categories` ทุก query (`poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController`, `getAutoTripPlaces`) จะเลือก **แถวที่ `confidence_score` สูงสุด** มาเป็นตัวแทน ต้องรักษาเกณฑ์นี้ให้ตรงกันทุกจุด
+**Multi-category:** ที่หนึ่งอาจมีหลายแถวใน `place_categories` ทุก query (`poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController`, `getAutoTripPlaces`) จะเลือก **แถวที่ `confidence_score` สูงสุด** มาเป็นตัวแทน (เท่ากัน = แถวแรกที่เจอ) ผ่านฟังก์ชันเดียว `backend/src/utils/bestCategoryRow.ts::pickBestCategoryRows`
 
 ### 2.4 Itinerary (manual) — `features/itinerary/` + frontend mirror
 1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), `buildInitialDraft()` จะคืน `[]` เสมอ (final design คือไม่จัดลงวันอัตโนมัติ) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 25 km/h)

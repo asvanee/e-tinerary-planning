@@ -15,7 +15,7 @@ description: ใช้เมื่อเพิ่มหรือแก้ query 
 ## ขั้นตอน
 1. **เช็ค `docs/DATABASE_SCHEMA.md`** ว่าคอลัมน์/constraint ที่จะใช้มีจริง แล้ว **หา pattern เดิม** ของ query ที่คล้ายกัน:
    - ownership: `getTripOwnerAndStart()` (`itineraryPlaceQueries.ts`) หรือ `.eq("trip_id", id).eq("user_id", userId)` (`tripController.ts`)
-   - multi-category: select ผ่าน `place_categories` แล้ว dedupe โดยเลือก `confidence_score` สูงสุด (`getSelectedPlaces`, `queryPlacesWithCategoryInfo`, `getPlacesByIds`)
+   - multi-category: select ผ่าน `place_categories` แล้ว dedupe โดยเลือก `confidence_score` สูงสุดด้วย `utils/bestCategoryRow.ts::pickBestCategoryRows` (`getSelectedPlaces`, `queryPlacesWithCategoryInfo`, `getPlacesByIds`, `getAutoTripPlaces`)
    - upsert: `poi_scores` ใช้ `onConflict: "trip_id,place_id"`
    - pagination: `.range(from, from + PAGE_SIZE - 1)` (`data-pipeline/src/fetchGmapsCategories.ts`)
 2. **ตรวจสิทธิ์** — ข้อมูลที่ผูกกับทริปหรือผู้ใช้ ต้องตรวจเจ้าของ **ก่อน** อ่านหรือเขียนเสมอ ตัวอย่างที่ผิดอยู่ตอนนี้คือ `getAutoTripPlacesTest`

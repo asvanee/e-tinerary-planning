@@ -30,7 +30,7 @@ cd frontend && npm test            # vitest run — ยังไม่มีไ�
 ```
 `data-pipeline` scripts (`upload:*`, `fetch-gmaps-categories:*`) **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** — ห้ามรันจนกว่าผู้ใช้จะสั่งชัดเจนเป็นครั้งๆ ส่วน `test:*` / `find:collisions:*` อ่าน CSV อย่างเดียว แต่ก็ยังควรถามก่อนรัน
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 29 errors / 4 warnings (หลังตั้ง `argsIgnorePattern: "^_"` 2026-10-17) · backend jest ✅ 48 tests (2026-10-18) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 57 tests (2026-10-21) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด
@@ -64,13 +64,13 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 - Admin (D-24): backend `src/admin/` (mount `/api/admin`, ทุก route ผ่าน `requireAuth` + `requireAdmin`) · frontend `src/admin/<page>/` (ครอบด้วย `AdminRoute` + `AdminLayout`) · ของที่ user และ admin ใช้ร่วมกันอยู่ใน `frontend/src/system/` (เช่น `system/auth/`)
 - Frontend: `src/features/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
 - **ชื่อไฟล์และ import ต้องตรงกันทุกตัวอักษร (case-sensitive)** แม้ Windows จะไม่ฟ้อง เพราะ CI/Linux จะ fail
-- TypeScript strict ห้ามเพิ่ม `any` ใหม่ (มีค้างอยู่ 24 จุด) ให้ใช้ type ที่ชัดเจนแทน
+- TypeScript strict ห้ามใช้ `any` (ตอนนี้เป็น 0 ทั้ง backend/frontend) ให้ใช้ type ที่ชัดเจนแทน
 - Comment และข้อความ UI เป็นภาษาไทยตามสไตล์เดิม
 
 ## จุดที่ต้องระวังเป็นพิเศษ
 - **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
 - **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
-- **Multi-category dedupe** (เลือก `confidence_score` สูงสุด) ต้องใช้เกณฑ์เดียวกันในทุก query
+- **Multi-category dedupe** (เลือก `confidence_score` สูงสุด) ต้องใช้เกณฑ์เดียวกันในทุก query — ใช้ `backend/src/utils/bestCategoryRow.ts`
 - **ลำดับ filter ของ POI** (province → category+fallback → budget → time) ห้ามสลับ
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
 - `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน

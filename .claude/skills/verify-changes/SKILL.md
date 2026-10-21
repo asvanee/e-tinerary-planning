@@ -11,9 +11,9 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | backend `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd` — T1 ไม่ได้แตะ backend) |
 | data-pipeline `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd`) |
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
-| frontend `npm run lint` | ❌ 29 errors, 4 warnings (หลังตั้ง `argsIgnorePattern: "^_"` 2026-10-17) |
+| frontend `npm run lint` | ❌ 5 errors, 4 warnings (หลัง cleanup 2026-10-21 — `no-explicit-any` 0) |
 | frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
-| backend `npm test` | ✅ 48 passed (3 suites, 2026-10-18 — dedupe + review ของ admin pipeline) |
+| backend `npm test` | ✅ 57 passed (4 suites, 2026-10-21 — dedupe + review ของ admin pipeline) |
 | frontend `npm test` | ไม่มีไฟล์ test |
 
 ถ้า baseline เปลี่ยนเพราะงานที่ทำเสร็จแล้ว ให้อัปเดตตารางนี้และ `docs/DEVELOPMENT_STATUS.md`
