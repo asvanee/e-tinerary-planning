@@ -71,11 +71,6 @@ function cacheSet(key: string, km: number, expiresAt: number): void {
   distanceCache.set(key, { km, expiresAt });
 }
 
-/** ใช้ในเทสต์เท่านั้น */
-export function clearOrsDistanceCache(): void {
-  distanceCache.clear();
-}
-
 // ---------- ORS request ----------
 
 async function fetchMatrixChunk(

@@ -30,7 +30,7 @@ export function calculateDistanceKm(
     Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
 
-  // ✅ ป้องกันปัญหา floating point เกิน 1 ซึ่งทำให้ Math.sqrt(1 - a) ได้ NaN
+  // ป้องกันปัญหา floating point เกิน 1 ซึ่งทำให้ Math.sqrt(1 - a) ได้ NaN
   const safeA = Math.min(1, Math.max(0, a));
 
   const c = 2 * Math.atan2(Math.sqrt(safeA), Math.sqrt(1 - safeA));

@@ -4,7 +4,7 @@ import { haversineKm } from "./haversine";
 /**
  * Travel matrix แบบ many-to-many สำหรับ Itinerary (ระยะทาง + เวลาเดินทางตามถนนจาก ORS)
  *
- * แยกจาก orsDistance.ts (1 ต้นทาง × N ปลายทาง สำหรับ POI Recommendation) โดยเจตนา — ไม่แตะไฟล์นั้น
+ * แยกจาก orsDistance.ts (1 ต้นทาง × N ปลายทาง สำหรับ POI Recommendation) โดยเจตนา
  *
  * - ยิง ORS Matrix ครั้งเดียวสำหรับทุกจุด (ขอ distance + duration) 51 จุด = 2,601 คู่ ยังอยู่ใต้ลิมิต
  *   ของ ORS; ถ้าจุดเยอะกว่านั้นจะแบ่งยิงเป็นชุดของ "แถวต้นทาง" อัตโนมัติ
@@ -76,11 +76,6 @@ function cacheSet(key: string, km: number, min: number, expiresAt: number) {
     if (oldest !== undefined) pairCache.delete(oldest);
   }
   pairCache.set(key, { km, min, expiresAt });
-}
-
-/** ใช้ในเทสต์เท่านั้น */
-export function clearOrsTravelMatrixCache(): void {
-  pairCache.clear();
 }
 
 // ---------- ORS request ----------

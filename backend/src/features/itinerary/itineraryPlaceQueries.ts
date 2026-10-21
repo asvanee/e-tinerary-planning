@@ -1,5 +1,6 @@
 import { supabase } from "../../config/db";
 import { OpeningHours } from "../../utils/openingHoursChecker";
+import { pickBestCategoryRows } from "../../utils/bestCategoryRow";
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
 // ---------- Types ----------
@@ -8,13 +9,11 @@ export interface TripDay {
   tripDayId: string;
   dayNumber: number;
   visitDate: string; // "YYYY-MM-DD"
-  startTime: string | null; // "HH:MM:SS" — null ถ้า trips.start_time ไม่มี (ไม่ควรเกิดจริงเพราะ createTrip บังคับกรอก)
+  startTime: string | null; // "HH:MM:SS"
   endTime: string | null; // "HH:MM:SS" — null ถ้า trips.available_time_per_day เป็น null
-  dailyBudget: number | null; // copy จาก trips.daily_budget ตรงๆ ทุกวัน (คำนวณเสร็จจาก frontend แล้ว)
-  // ✅ เพิ่มใหม่ — copy จาก trips.use_budget ตรงๆ ทุกวันเหมือน dailyBudget เพื่อให้
-  // itineraryBuilder.ts::buildDayItems เช็ค isBudgetConflict จาก "ทริปนี้เลือกใช้งบไหม" ตรงๆ
-  // ไม่ใช่เดาจาก dailyBudget !== null เฉยๆ (เปราะบางถ้าในอนาคตมี daily_budget ค้างอยู่ทั้งที่
-  // useBudget = false — เช่น bug ฝั่งไหนไม่เคลียร์ค่าตอน toggle ปิด)
+  dailyBudget: number | null; // copy จาก trips.daily_budget ทุกวัน (frontend คำนวณมาแล้ว)
+  // copy จาก trips.use_budget — buildDayItems เช็ค isBudgetConflict จากค่านี้ตรงๆ
+  // ไม่เดาจาก dailyBudget !== null (กันกรณี daily_budget ค้างอยู่ทั้งที่ปิดการใช้งบ)
   useBudget: boolean;
 }
 
@@ -22,33 +21,56 @@ export interface SelectedPlace {
   placeId: string;
   latitude: number;
   longitude: number;
-  // ✅ v2 (เลิก coalesce กับ categories.default_price_level แล้ว — ดู PRICE_SCORE_REDESIGN.md
-  // + มติ B ที่ล็อกไว้): ส่ง rawPriceLevel ดิบๆ ไม่ fallback ที่ query layer อีกต่อไป
-  // null = ไม่มีราคาจริงจาก Google จริงๆ ให้ itineraryBuilder.ts เป็นคนตัดสินใจต่อ
-  // (free -> ถือเป็น 0 บาท, paid -> unknown ไม่เดา — ดู getPlaceCost ฝั่งนั้น)
+  // price_level จริงจาก Google (null = ไม่มีข้อมูล) — itineraryBuilder.ts::getPlaceCost ตัดสินต่อเอง
+  // (free → 0 บาท, paid → ไม่ทราบราคา ไม่เดา)
   rawPriceLevel: number | null;
-  // ✅ ใหม่ — ตัดสินจาก category ที่ confidence_score สูงสุด (เกณฑ์เดียวกับ multi-category
-  // dedupe ด้านล่าง) แทนที่ hasPriceLevel เดิม — itineraryBuilder.ts ต้องรู้ priceNature เพื่อ
-  // คำนวณ cost ตาม lookup ใหม่ ไม่ใช่แค่รู้ว่า "มี/ไม่มีราคา" เฉยๆ
-  priceNature: PriceNature;
+  priceNature: PriceNature; // ของ category ที่ confidence_score สูงสุด
   openingHours: OpeningHours | null;
-  defaultDurationMin: number; // จาก categories.default_duration_min ผ่าน place_categories
+  defaultDurationMin: number; // categories.default_duration_min ผ่าน place_categories
 }
+
+export interface TripOwnerAndStart {
+  userId: string;
+  startLat: number;
+  startLng: number;
+}
+
+export interface AutoTripPlace {
+  placeId: string;
+  placeName: string;
+  categoryName: string;
+  poiScore: number;
+  latitude: number;
+  longitude: number;
+  openingHours: OpeningHours | null;
+  defaultDurationMin: number;
+  rawPriceLevel: number | null;
+  priceNature: PriceNature;
+}
+
+interface TripDayRow {
+  trip_day_id: string;
+  day_number: number;
+  visit_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  daily_budget: number | null;
+}
+
+const TRIP_DAY_COLUMNS = "trip_day_id, day_number, visit_date, start_time, end_time, daily_budget";
 
 // ---------- Helpers ----------
 
-/**
- * แปลง "HH:MM" หรือ "HH:MM:SS" -> นาทีนับจากเที่ยงคืน
- */
+/** "HH:MM" หรือ "HH:MM:SS" -> นาทีนับจากเที่ยงคืน */
 function timeStringToMinutes(time: string): number {
   const [hh, mm] = time.split(":").map(Number);
   return hh * 60 + mm;
 }
 
 /**
- * แปลงนาทีนับจากเที่ยงคืน -> "HH:MM:SS"
- * ⚠️ กรณีพอดี 1440 นาที (เที่ยงคืนพอดี, ผ่าน validateNoMidnightCrossing ที่ tripController.ts เพราะเช็คแค่ `> 1440`)
- * cap ไว้ที่ 23:59:59 กัน Postgres time type รับค่าประหลาด — ถือเป็น edge case ที่ไม่ควรเกิดบ่อยในทางปฏิบัติ
+ * นาทีนับจากเที่ยงคืน -> "HH:MM:SS"
+ * ⚠️ 1440 นาทีพอดีผ่าน validateNoMidnightCrossing (เช็คแค่ `> 1440`) จึง cap ไว้ที่ 23:59:00
+ * กัน Postgres time type รับค่าประหลาด
  */
 function minutesToTimeString(totalMinutes: number): string {
   const capped = Math.min(totalMinutes, 24 * 60 - 1);
@@ -58,8 +80,8 @@ function minutesToTimeString(totalMinutes: number): string {
 }
 
 /**
- * สร้าง array ของวันที่ "YYYY-MM-DD" ระหว่าง startDate ถึง endDate (inclusive)
- * ใช้ Date.UTC ล้วนกันปัญหา timezone เลื่อนวันตอน format กลับ
+ * วันที่ "YYYY-MM-DD" ทุกวันตั้งแต่ startDate ถึง endDate (inclusive)
+ * ใช้ Date.UTC ล้วนกัน timezone เลื่อนวันตอน format กลับ
  */
 function enumerateDates(startDate: string, endDate: string): string[] {
   const [sy, sm, sd] = startDate.split("-").map(Number);
@@ -79,15 +101,23 @@ function enumerateDates(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-export interface TripOwnerAndStart {
-  userId: string;
-  startLat: number;
-  startLng: number;
+function mapTripDayRow(row: TripDayRow, useBudget: boolean): TripDay {
+  return {
+    tripDayId: row.trip_day_id,
+    dayNumber: row.day_number,
+    visitDate: row.visit_date,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    dailyBudget: row.daily_budget,
+    useBudget,
+  };
 }
 
+// ---------- Queries ----------
+
 /**
- * ดึง user_id (เช็คสิทธิ์เจ้าของทริป) + start_lat/start_lng (ใช้เป็นจุดเริ่มต้นของ
- * Nearest-Neighbor TSP ordering ใน itineraryBuilder.ts) — ใช้ตอนเข้า endpoint build-draft/confirm
+ * user_id (ใช้เช็คเจ้าของทริป) + start_lat/start_lng (จุดเริ่มต้นของการจัดเส้นทาง)
+ * null = ไม่พบทริป
  */
 export async function getTripOwnerAndStart(tripId: string): Promise<TripOwnerAndStart | null> {
   const { data, error } = await supabase
@@ -107,22 +137,14 @@ export async function getTripOwnerAndStart(tripId: string): Promise<TripOwnerAnd
   };
 }
 
-// ---------- Queries ----------
-
 /**
- * ดึง trip_days ของ trip นี้ ถ้ายังไม่มี (ยังไม่เคยกด "จัดเส้นทาง" มาก่อน) จะสร้างให้ครบทุกวัน
- * ตาม trips.start_date -> trips.end_date แล้ว insert รอบเดียว
- *
- * เจตนา: lazy-create ตอนกด build-draft ครั้งแรก ไม่สร้างตั้งแต่ตอน createTrip
- * (ตาม PROJECT_BRIEF.md: คำนวณ business logic ที่ frontend จุดเดียว — daily_budget ที่ trips
- * เป็นค่าสำเร็จรูปแล้ว จึง copy ตรงๆ ทุกวัน ไม่มีสูตรหารเพิ่มฝั่ง backend)
- *
- * Unique constraint (trip_id, day_number) ที่มีอยู่แล้วช่วยกัน insert ซ้ำถ้ามี race condition
- * แต่ในทางปฏิบัติเช็ค existing ก่อนแล้วจึงไม่ควรชนบ่อย
+ * ดึง trip_days ของทริป ถ้ายังไม่มีจะสร้างให้ครบทุกวันตาม start_date -> end_date (insert รอบเดียว)
+ * สร้างตอนจัดแผนครั้งแรก ไม่ใช่ตอน createTrip · updateTrip ลบทิ้งเมื่อวัน/เวลา/งบเปลี่ยน (D-29)
+ * daily_budget ของ trips เป็นค่าสำเร็จรูปแล้ว จึง copy ตรงๆ ทุกวัน
+ * unique (trip_id, day_number) กัน insert ซ้ำถ้ามี race condition
  */
 export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
-  // ✅ ดึง use_budget ของทริปนี้ไว้ก่อนเลย ต้องแนบไปกับทุก TripDay เสมอ (ทั้ง 2 branch ด้านล่าง —
-  // ไม่ว่า trip_days จะเคยถูกสร้างไว้แล้วหรือเพิ่งสร้างรอบนี้) ดูเหตุผลที่ TripDay.useBudget ด้านบน
+  // use_budget ต้องแนบไปกับทุก TripDay ไม่ว่าจะเพิ่งสร้างหรือมีอยู่แล้ว
   const { data: tripMeta, error: tripMetaError } = await supabase
     .from("trips")
     .select("use_budget")
@@ -137,10 +159,9 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
 
   const useBudget = tripMeta.use_budget ?? false;
 
-  // 1. เช็คว่ามี trip_days อยู่แล้วหรือยัง
   const { data: existingRows, error: existingError } = await supabase
     .from("trip_days")
-    .select("trip_day_id, day_number, visit_date, start_time, end_time, daily_budget")
+    .select(TRIP_DAY_COLUMNS)
     .eq("trip_id", tripId)
     .order("day_number", { ascending: true });
 
@@ -152,7 +173,6 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
     return existingRows.map((row) => mapTripDayRow(row, useBudget));
   }
 
-  // 2. ยังไม่มี -> ดึงข้อมูล trips มาคำนวณแล้วสร้างให้ครบทุกวัน
   const { data: trip, error: tripError } = await supabase
     .from("trips")
     .select("start_date, end_date, start_time, available_time_per_day, daily_budget")
@@ -185,7 +205,7 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
   const { data: insertedRows, error: insertError } = await supabase
     .from("trip_days")
     .insert(rowsToInsert)
-    .select("trip_day_id, day_number, visit_date, start_time, end_time, daily_budget");
+    .select(TRIP_DAY_COLUMNS);
 
   if (insertError) {
     throw new Error(`สร้าง trip_days ไม่สำเร็จ: ${insertError.message}`);
@@ -196,49 +216,22 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
     .sort((a, b) => a.dayNumber - b.dayNumber);
 }
 
-function mapTripDayRow(row: any, useBudget: boolean): TripDay {
-  return {
-    tripDayId: row.trip_day_id,
-    dayNumber: row.day_number,
-    visitDate: row.visit_date,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    dailyBudget: row.daily_budget,
-    useBudget,
+interface SelectedPlaceRow {
+  confidence_score: number | null;
+  categories: { default_duration_min: number | null; price_nature: PriceNature };
+  places: {
+    place_id: string;
+    latitude: number;
+    longitude: number;
+    price_level: number | null;
+    opening_hours: OpeningHours | null;
   };
 }
 
 /**
- * ดึงข้อมูลสถานที่ที่ user เลือกจากหน้า POI list (place_ids[])
- * join place_categories <- categories เอา default_duration_min มาด้วย (เหมือน pattern ใน poiPlaceQueries.ts)
- *
- * ✅ เช็คแล้วด้วย SQL จริง (689/689 places มี category ครบ 100%, "places_without_category" = 0)
- * pipeline คำนวณ place_categories จาก att_type_label เสร็จสมบูรณ์แล้ว — ไม่มีเคส place ที่เลือกมา
- * แล้วไม่มี category เลยในทางปฏิบัติ จึงไม่ต้องมี fallback/throw พิเศษสำหรับเคสนี้
- * (`!inner` join จึงปลอดภัย ไม่ต้องกังวลว่าจะดรอปสถานที่ที่ user เลือกไว้แบบเงียบๆ)
- * — หมายเหตุ: 689/689 พูดถึงแค่ "มี category อย่างน้อย 1 อัน" คนละเรื่องกับ "มีมากกว่า 1
- * category" ที่แก้ด้านล่าง (ดู multi-category dedupe)
- *
- * ✅ แก้บั๊ก (sync กับ poiPlaceQueries.ts::queryPlacesWithCategoryInfo): เดิม query นี้ไม่ group
- * by place_id เลย — เชียงใหม่ผ่าน Stage 3 แล้ว (DATA_PREPARATION_4.md หัวข้อ 8.2) place หนึ่ง
- * มีได้หลาย category จริง ทำให้ query คืนหลายแถวซ้ำ place_id เดียวกัน (แถวละ
- * default_duration_min ต่างกันไปตาม category) แล้ว `new Map(places.map(p => [p.placeId, p]))`
- * ที่ itineraryController.ts (ทั้ง buildDraft และ confirmItinerary) จะเก็บแค่แถวสุดท้ายที่ query
- * คืนมาแบบสุ่ม (ลำดับจาก Supabase ไม่การันตี) ทำให้ duration ที่ใช้คำนวณตารางเวลาจริงเพี้ยน
- * ไม่คงที่ — และไม่ตรงกับ duration ที่ user เห็นตอนอยู่หน้า POI list ด้วย (ฝั่งนั้นใช้ MAX
- * confidence_score เลือก category ตัวแทนแล้ว) ตอนนี้ group by place_id แล้วเลือกแถวที่
- * confidence_score สูงสุดเป็นตัวแทน — เกณฑ์เดียวกับ poiPlaceQueries.ts เป๊ะ เพื่อให้
- * duration/ราคาที่เห็นตอน POI list กับตอนจัด itinerary เป็นตัวเลขเดียวกันเสมอ
- *
- * ✅ มติ v2 (sync กับ poiPlaceQueries.ts + PRICE_SCORE_REDESIGN.md, ตัดสินใจแล้วใน itinerary
- * budget-conflict decision B): เลิก coalesce price_level กับ categories.default_price_level
- * แล้ว — ส่ง rawPriceLevel + priceNature ดิบๆ ให้ itineraryBuilder.ts::getPlaceCost() เป็นคน
- * ตัดสินใจแทน (free missing -> 0 บาท, paid missing -> null/unknown ไม่เดา)
- * เหตุผล: การ coalesce ที่ query layer แบบเดิมซ่อนความไม่รู้ไว้เป็นตัวเลขปลอมที่ดูน่าเชื่อถือ
- * (เช่น shopping ที่จริงไม่รู้ราคาเลย กลายเป็นราคา default ของหมวด) ทำให้ isBudgetConflict
- * เข้าใจผิดว่า "รู้ราคาแน่นอน" ทั้งที่จริงเป็นการเดา — v2 แยกสองเรื่องนี้ออกจากกันชัดเจนแทน
- * (เดิมเคยตัดสินใจ coalesce ให้ตรงกับ poiPlaceQueries.ts เป๊ะ — มติเปลี่ยนแล้วเพราะ
- * poiPlaceQueries.ts เองก็เลิก coalesce ไปแล้วเหมือนกัน ทั้งสองฝั่งจึงยัง sync กันอยู่)
+ * ข้อมูลสถานที่ที่ user เลือก (place_ids[]) สำหรับคำนวณ itinerary
+ * join place_categories <- categories (`!inner` ปลอดภัยเพราะทุก place มี category)
+ * แล้วเลือก category ที่ confidence_score สูงสุดต่อ place (เกณฑ์เดียวกับ poiPlaceQueries.ts)
  */
 export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPlace[]> {
   if (placeIds.length === 0) return [];
@@ -254,61 +247,45 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
     throw new Error(`ดึงข้อมูลสถานที่ที่เลือกไม่สำเร็จ: ${error.message}`);
   }
 
-  // ✅ Multi-category dedupe — group by place_id แล้วเลือกแถวที่ confidence_score สูงสุด
-  // (เกณฑ์เดียวกับ poiPlaceQueries.ts::queryPlacesWithCategoryInfo) กัน place เดียวกันโผล่ซ้ำ
-  // และกัน defaultDurationMin/priceNature สุ่มมาจากคนละ category ทุกครั้งที่ query
-  const bestRowByPlaceId = new Map<string, any>();
+  // Supabase infer embed เป็น array แต่ relation นี้คืน object เดี่ยวจริง
+  const rows = (data ?? []) as unknown as SelectedPlaceRow[];
 
-  // ✅ แก้ TS2339: (data ?? []) ที่ไม่ cast จะโดน Supabase infer ว่า row.places เป็น array
-  // (relation ไม่ได้ตั้ง one-to-one ชัดเจน) ทั้งที่รันจริงเป็น object เดี่ยว — cast เป็น any[]
-  // ตรงนี้เหมือนกับที่ .map((row: any) => ...) ด้านล่างทำอยู่แล้ว ให้ทั้งไฟล์สม่ำเสมอกัน
-  for (const row of (data ?? []) as any[]) {
-    const placeId = row.places.place_id;
-    const existing = bestRowByPlaceId.get(placeId);
-
-    if (
-      !existing ||
-      (row.confidence_score ?? 0) > (existing.confidence_score ?? 0)
-    ) {
-      bestRowByPlaceId.set(placeId, row);
-    }
-  }
-
-  return Array.from(bestRowByPlaceId.values()).map((row: any) => {
-    const rawPriceLevel: number | null = row.places.price_level;
-    return {
-      placeId: row.places.place_id,
-      latitude: row.places.latitude,
-      longitude: row.places.longitude,
-      rawPriceLevel,
-      priceNature: row.categories.price_nature as PriceNature,
-      openingHours: row.places.opening_hours,
-      defaultDurationMin: row.categories.default_duration_min ?? 60,
-    };
-  });
-}
-export interface AutoTripPlace {
-  placeId: string;
-  placeName: string;
-
-  categoryName: string;
-
-  poiScore: number;
-
-  latitude: number;
-  longitude: number;
-
-  openingHours: OpeningHours | null;
-
-  defaultDurationMin: number;
-
-  rawPriceLevel: number | null;
-  priceNature: PriceNature;
+  return pickBestCategoryRows(rows, (row) => row.places.place_id).map((row) => ({
+    placeId: row.places.place_id,
+    latitude: row.places.latitude,
+    longitude: row.places.longitude,
+    rawPriceLevel: row.places.price_level,
+    priceNature: row.categories.price_nature,
+    openingHours: row.places.opening_hours,
+    defaultDurationMin: row.categories.default_duration_min ?? 60,
+  }));
 }
 
-export async function getAutoTripPlaces(
-  tripId: string
-): Promise<AutoTripPlace[]> {
+interface AutoTripRow {
+  poi_score: number | null;
+  places: {
+    place_id: string;
+    place_name: string;
+    latitude: number;
+    longitude: number;
+    opening_hours: OpeningHours | null;
+    price_level?: number | null;
+    place_categories: AutoTripCategoryRow | AutoTripCategoryRow[];
+  } | null;
+}
+
+interface AutoTripCategoryRow {
+  confidence_score: number | null;
+  categories: {
+    category_id: string;
+    category_name: string;
+    default_duration_min: number | null;
+    price_nature: PriceNature;
+  } | null;
+}
+
+/** สถานที่จาก poi_scores ของทริป (ผลคำนวณ POI ล่าสุด) สำหรับ Auto Trip — ใช้ category ที่ confidence_score สูงสุด */
+export async function getAutoTripPlaces(tripId: string): Promise<AutoTripPlace[]> {
   const { data, error } = await supabase
     .from("poi_scores")
     .select(`
@@ -333,78 +310,34 @@ export async function getAutoTripPlaces(
     .eq("trip_id", tripId);
 
   if (error) {
-    throw new Error(
-      `ดึงข้อมูล Auto Trip ไม่สำเร็จ: ${error.message}`
-    );
+    throw new Error(`ดึงข้อมูล Auto Trip ไม่สำเร็จ: ${error.message}`);
   }
 
   const result: AutoTripPlace[] = [];
 
-  for (const row of (data ?? []) as any[]) {
+  for (const row of (data ?? []) as unknown as AutoTripRow[]) {
     const place = row.places;
+    if (!place) continue;
 
-    if (!place) {
-      continue;
-    }
+    const categories = (
+      Array.isArray(place.place_categories) ? place.place_categories : [place.place_categories]
+    ).filter(Boolean);
 
-    const categories =
-      Array.isArray(place.place_categories)
-        ? place.place_categories
-        : [place.place_categories];
-
-    if (categories.length === 0) {
-      continue;
-    }
-
-    /**
-     * ถ้าสถานที่มีหลาย category
-     * ใช้ category ที่ confidence_score สูงที่สุด
-     */
-    const bestCategory =
-      [...categories].sort(
-        (a, b) =>
-          (b.confidence_score ?? 0) -
-          (a.confidence_score ?? 0)
-      )[0];
-
-    if (!bestCategory?.categories) {
-      continue;
-    }
-
-    const category =
-      bestCategory.categories;
+    const category = pickBestCategoryRows(categories, () => place.place_id)[0]?.categories;
+    if (!category) continue;
 
     result.push({
       placeId: place.place_id,
-
-      placeName:
-        place.place_name,
-
-      categoryName:
-        category.category_name,
-
-      poiScore:
-        Number(row.poi_score ?? 0),
-
-      latitude:
-        Number(place.latitude),
-
-      longitude:
-        Number(place.longitude),
-
-      openingHours:
-        place.opening_hours ?? null,
-
-      defaultDurationMin:
-        Number(
-          category.default_duration_min ?? 60
-        ),
-
-      rawPriceLevel:
-        place.price_level ?? null,
-
-      priceNature:
-        category.price_nature as PriceNature,
+      placeName: place.place_name,
+      categoryName: category.category_name,
+      poiScore: Number(row.poi_score ?? 0),
+      latitude: Number(place.latitude),
+      longitude: Number(place.longitude),
+      openingHours: place.opening_hours ?? null,
+      defaultDurationMin: Number(category.default_duration_min ?? 60),
+      // ⚠️ query ไม่ได้ select price_level จึงเป็น null เสมอ (ยังไม่มีใครใช้ค่านี้)
+      rawPriceLevel: place.price_level ?? null,
+      priceNature: category.price_nature,
     });
   }
 

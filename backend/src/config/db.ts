@@ -34,8 +34,8 @@ export async function checkDbConnection(): Promise<boolean> {
 
     console.log("✅ เชื่อมต่อ Supabase สำเร็จ");
     return true;
-  } catch (err: any) {
-    console.error("❌ เชื่อมต่อ Supabase ไม่สำเร็จ:", err.message);
+  } catch (err) {
+    console.error("❌ เชื่อมต่อ Supabase ไม่สำเร็จ:", (err as { message?: string } | null)?.message);
     return false;
   }
 }

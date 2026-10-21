@@ -5,8 +5,8 @@ import placesRoutes from "./features/places/placesRoutes";
 import tripRoutes from "./features/trip/tripRoutes";
 import categoriesRoutes from "./features/categories/categoriesRoutes";
 import poiRoutes from "./features/poi/poiRoutes";
-import itineraryRoutes from "./features/itinerary/itineraryRoutes"; // ← เพิ่ม (mount ที่ /api/itinerary — ปรับ path ให้ตรงตำแหน่งไฟล์จริงถ้าไม่ได้อยู่ใน features/itinerary/)
-import placeDropdownRoutes from "./features/places/dropdown/placeDropdownRoutes"; // ← เพิ่ม (ปรับ path ให้ตรงตำแหน่งไฟล์จริง)
+import itineraryRoutes from "./features/itinerary/itineraryRoutes";
+import placeDropdownRoutes from "./features/places/dropdown/placeDropdownRoutes";
 import adminRoutes from "./admin/adminRoutes";
 import { checkDbConnection } from "./config/db";
 
@@ -20,8 +20,8 @@ app.use("/api/places", placesRoutes);
 app.use("/api/trips", tripRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/poi", poiRoutes);
-app.use("/api/itinerary", itineraryRoutes); // ← เพิ่ม (buildDraft: POST /trips/:tripId/draft, confirmItinerary: PUT /trips/:tripId)
-app.use("/api/place-dropdown", placeDropdownRoutes); // ← เพิ่ม (แยกจาก /api/places เดิมโดยตั้งใจ — กัน path ชน)
+app.use("/api/itinerary", itineraryRoutes);
+app.use("/api/place-dropdown", placeDropdownRoutes); // แยกจาก /api/places โดยตั้งใจ — กัน path ชน
 app.use("/api/admin", adminRoutes); // Admin Panel (R5, D-24) — ทุก route ผ่าน requireAuth + requireAdmin
 
 async function startServer() {

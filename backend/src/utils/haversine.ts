@@ -1,9 +1,8 @@
 /**
- * คำนวณระยะทางตรง (great-circle distance) ระหว่าง 2 พิกัดด้วยสูตร Haversine
- * หน่วยผลลัพธ์: กิโลเมตร
+ * ระยะทางตรง (great-circle distance) ระหว่าง 2 พิกัดด้วยสูตร Haversine หน่วยกิโลเมตร
+ * ใช้เป็น fallback เมื่อไม่มีระยะทางจาก ORS
  *
- * ใช้แทน Google Distance Matrix API เพื่อประหยัด ไม่มีค่าใช้จ่าย ไม่ติด quota
- * (อ้างอิงเหตุผลจาก PROJECT_BRIEF_v4.md ข้อ 4.2 — โปรเจกต์เกิน free tier ของ Google ไปแล้ว)
+ * ⚠️ frontend port (frontend/src/features/trip/e-tinerary/lib/haversine.ts) ต้องตรงกันทุกบรรทัด
  */
 
 const EARTH_RADIUS_KM = 6371;

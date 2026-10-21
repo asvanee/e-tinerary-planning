@@ -7,6 +7,9 @@ import {
   getOrCreateTripDays,
   getSelectedPlaces,
   getAutoTripPlaces,
+  AutoTripPlace,
+  TripDay,
+  TripOwnerAndStart,
 } from "./itineraryPlaceQueries";
 
 import {
@@ -32,11 +35,52 @@ function toTravelPoint(place: {
   return { id: place.placeId, latitude: place.latitude, longitude: place.longitude };
 }
 
+function toDayAssignment(day: TripDay, orderedPlaceIds: string[]): DayAssignment {
+  return {
+    tripDayId: day.tripDayId,
+    dayNumber: day.dayNumber,
+    visitDate: day.visitDate,
+    startTime: day.startTime,
+    endTime: day.endTime,
+    dailyBudget: day.dailyBudget,
+    useBudget: day.useBudget,
+    orderedPlaceIds,
+  };
+}
+
+function errorMessage(err: unknown): string | undefined {
+  return (err as { message?: string } | null)?.message;
+}
+
+/**
+ * ตรวจว่าทริปมีอยู่และเป็นของ user ที่ login อยู่
+ * ไม่ผ่าน -> ตอบ 404/403 ไปแล้วและคืน null (ผู้เรียก return ต่อได้เลย)
+ */
+async function loadOwnedTrip(
+  tripId: string,
+  req: AuthRequest,
+  res: Response
+): Promise<TripOwnerAndStart | null> {
+  const tripOwner = await getTripOwnerAndStart(tripId);
+
+  if (!tripOwner) {
+    res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
+    return null;
+  }
+
+  if (tripOwner.userId !== req.user?.id) {
+    res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
+    return null;
+  }
+
+  return tripOwner;
+}
+
 /**
  * POST /api/itinerary/trips/:tripId/draft
  * body: { place_ids: string[] }
  *
- * สร้าง trip_days (ถ้ายังไม่มี) แล้วคืนสถานที่ที่เลือกไว้ทั้งหมดกลับไปแบบยังไม่จัดลงวันไหนเลย
+ * สร้าง trip_days (ถ้ายังไม่มี) แล้วจัดร่างแผน (ยังไม่บันทึก) พร้อม travel matrix ให้ editor
  */
 export const buildDraft = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
@@ -52,15 +96,8 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const tripOwner = await getTripOwnerAndStart(tripId);
-
-    if (!tripOwner) {
-      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
-    }
-
-    if (tripOwner.userId !== req.user?.id) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
-    }
+    const tripOwner = await loadOwnedTrip(tripId, req, res);
+    if (!tripOwner) return;
 
     if (tripOwner.startLat === null || tripOwner.startLng === null) {
       return res.status(400).json({
@@ -82,27 +119,16 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
 
     const placesById = new Map(places.map((place) => [place.placeId, place]));
 
-    const dayAssignments: DayAssignment[] = tripDays.map((day) => ({
-      tripDayId: day.tripDayId,
-      dayNumber: day.dayNumber,
-      visitDate: day.visitDate,
-      startTime: day.startTime,
-      endTime: day.endTime,
-      dailyBudget: day.dailyBudget,
-      useBudget: day.useBudget,
-      orderedPlaceIds: [],
-    }));
-
     const draftItems = buildInitialDraft(
-      dayAssignments,
+      tripDays.map((day) => toDayAssignment(day, [])),
       place_ids,
       placesById,
       tripOwner.startLat,
       tripOwner.startLng
     );
 
-    // ORS Matrix many-to-many: trip start + สถานที่ที่เลือกทั้งหมด — ส่งให้ frontend ใช้ recompute ตอนลาก
-    // แม้ draftItems จะว่าง (ไม่ throw: ORS พลาดจะ fallback รายคู่เป็น haversine ให้เอง)
+    // ORS Matrix many-to-many: trip start + สถานที่ที่เลือกทั้งหมด — frontend ใช้ recompute ตอนลาก
+    // (ไม่ throw: ORS พลาดจะ fallback รายคู่เป็น haversine ให้เอง)
     const travelMatrix = await buildTravelMatrix([
       {
         id: TRIP_START_ID,
@@ -116,32 +142,29 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
       message: "จัดร่างเส้นทางสำเร็จ (ยังไม่บันทึก)",
       tripStartLat: tripOwner.startLat,
       tripStartLng: tripOwner.startLng,
-      tripDays: tripDays.map((day) => ({
-        tripDayId: day.tripDayId,
-        dayNumber: day.dayNumber,
-        visitDate: day.visitDate,
-        startTime: day.startTime,
-        endTime: day.endTime,
-        dailyBudget: day.dailyBudget,
-        useBudget: day.useBudget,
-      })),
+      tripDays,
       items: draftItems,
       travelMatrix,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Build draft itinerary exception:", err);
     return res.status(500).json({
-      message: err.message || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
     });
   }
 };
+
+interface ConfirmDayInput {
+  trip_day_id: string;
+  place_ids: string[];
+}
 
 /**
  * PUT /api/itinerary/trips/:tripId
  * body: { days: { trip_day_id: string; place_ids: string[] }[] }
  *
- * ยืนยันแผนเดินทาง — backend re-validate ซ้ำทั้งหมด ด้วย buildItinerary() 
- * แล้ว delete-then-insert ทับของเดิมทั้งทริป
+ * ยืนยันแผน — backend คำนวณซ้ำทั้งหมดด้วย buildItinerary() (ไม่เชื่อระยะ/เวลา/ราคาจาก frontend)
+ * แล้ว delete-then-insert ทับแผนเดิมทั้งทริป
  */
 export const confirmItinerary = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
@@ -150,22 +173,15 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: "ไม่พบรหัสทริป" });
   }
 
-  const { days } = req.body;
+  const { days } = req.body as { days: ConfirmDayInput[] };
 
   if (!Array.isArray(days)) {
     return res.status(400).json({ message: "รูปแบบข้อมูลไม่ถูกต้อง" });
   }
 
   try {
-    const tripOwner = await getTripOwnerAndStart(tripId);
-
-    if (!tripOwner) {
-      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
-    }
-
-    if (tripOwner.userId !== req.user?.id) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
-    }
+    const tripOwner = await loadOwnedTrip(tripId, req, res);
+    if (!tripOwner) return;
 
     const tripDays = await getOrCreateTripDays(tripId);
     const tripDaysById = new Map(tripDays.map((day) => [day.tripDayId, day]));
@@ -183,17 +199,11 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const allPlaceIds = Array.from(
-      new Set(
-        days.flatMap((day: any) =>
-          Array.isArray(day?.place_ids) ? day.place_ids : []
-        )
-      )
-    );
+    const allPlaceIds = Array.from(new Set(days.flatMap((day) => day.place_ids)));
 
     const places = await getSelectedPlaces(allPlaceIds);
 
-    // ✅ เพิ่มการตรวจว่าสถานที่ที่ส่งมาจาก frontend มีจริงในระบบครบทุกตัวหรือไม่
+    // สถานที่ที่ส่งมาต้องมีอยู่จริงในระบบครบทุกตัว
     if (allPlaceIds.length > 0 && places.length !== allPlaceIds.length) {
       return res.status(400).json({
         message: "พบสถานที่บางแห่งไม่มีอยู่ในระบบ",
@@ -202,22 +212,12 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
 
     const placesById = new Map(places.map((place) => [place.placeId, place]));
 
-    const dayAssignments: DayAssignment[] = days.map((dayInput: any) => {
-      const day = tripDaysById.get(dayInput.trip_day_id)!;
-      return {
-        tripDayId: day.tripDayId,
-        dayNumber: day.dayNumber,
-        visitDate: day.visitDate,
-        startTime: day.startTime,
-        endTime: day.endTime,
-        dailyBudget: day.dailyBudget,
-        useBudget: day.useBudget,
-        orderedPlaceIds: dayInput.place_ids,
-      };
-    });
+    const dayAssignments = days.map((dayInput) =>
+      toDayAssignment(tripDaysById.get(dayInput.trip_day_id)!, dayInput.place_ids)
+    );
 
-    // สร้าง travel matrix ใหม่ฝั่ง backend เสมอ (ไม่เชื่อระยะ/เวลาที่ frontend ส่งมา) —
-    // ถ้าไม่มีพิกัดจุดเริ่มต้น จะไม่ใส่ TRIP_START_ID วันแรกจึงเริ่มตามเวลาเดิมโดยไม่มี leg แรก
+    // สร้าง travel matrix ใหม่ฝั่ง backend เสมอ — ถ้าไม่มีพิกัดจุดเริ่มต้น จะไม่ใส่ TRIP_START_ID
+    // วันแรกจึงเริ่มตามเวลาเดิมโดยไม่มี leg แรก
     const hasStart =
       Number.isFinite(tripOwner.startLat) && Number.isFinite(tripOwner.startLng);
     const travelMatrix = await buildTravelMatrix([
@@ -306,18 +306,42 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       message: "บันทึกแผนเดินทางสำเร็จ",
       items: insertedRows,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Confirm itinerary exception:", err);
     return res.status(500).json({
-      message: err.message || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
     });
   }
 };
 
+interface SavedPlaceSummary {
+  place_name: string | null;
+  province: string | null;
+  district: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+interface SavedItineraryRow {
+  trip_day_id: string;
+  place_id: string;
+  visit_order: number;
+  start_time: string | null;
+  end_time: string | null;
+  travel_time_from_prev: number | null;
+  distance_from_prev: number | null;
+  place_cost: number | null;
+  is_time_conflict: boolean;
+  is_closed_conflict: boolean;
+  is_budget_conflict: boolean;
+  is_hours_unknown: boolean;
+  places: SavedPlaceSummary | SavedPlaceSummary[] | null;
+}
+
 /**
  * GET /api/itinerary/trips/:tripId
  *
- * ดึงแผนเดินทางที่ "ยืนยันแล้ว" พร้อม join ข้อมูลสถานที่จากตาราง places
+ * แผนเดินทางที่ "ยืนยันแล้ว" พร้อมข้อมูลสถานที่จากตาราง places (หน้า TripDetail)
  */
 export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
@@ -327,20 +351,13 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const tripOwner = await getTripOwnerAndStart(tripId);
-
-    if (!tripOwner) {
-      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
-    }
-
-    if (tripOwner.userId !== req.user?.id) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
-    }
+    const tripOwner = await loadOwnedTrip(tripId, req, res);
+    if (!tripOwner) return;
 
     const tripDays = await getOrCreateTripDays(tripId);
     const tripDayIds = tripDays.map((day) => day.tripDayId);
 
-    const { data: itineraryRows, error } = await supabase
+    const { data, error } = await supabase
       .from("itineraries")
       .select(
         `
@@ -367,8 +384,8 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
       return res.status(500).json({ message: "ดึงข้อมูลแผนเดินทางไม่สำเร็จ" });
     }
 
-    const itemsByDay = new Map<string, any[]>();
-    for (const row of itineraryRows ?? []) {
+    const itemsByDay = new Map<string, SavedItineraryRow[]>();
+    for (const row of (data ?? []) as unknown as SavedItineraryRow[]) {
       const list = itemsByDay.get(row.trip_day_id) ?? [];
       list.push(row);
       itemsByDay.set(row.trip_day_id, list);
@@ -380,25 +397,29 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
       visitDate: day.visitDate,
       dailyBudget: day.dailyBudget,
       useBudget: day.useBudget,
-      items: (itemsByDay.get(day.tripDayId) ?? []).map((row: any) => ({
-        placeId: row.place_id,
-        placeName: row.places?.place_name ?? row.places?.[0]?.place_name ?? null,
-        province: row.places?.province ?? row.places?.[0]?.province ?? null,
-        district: row.places?.district ?? row.places?.[0]?.district ?? null,
-        latitude: row.places?.latitude ?? row.places?.[0]?.latitude ?? null,
-        longitude: row.places?.longitude ?? row.places?.[0]?.longitude ?? null,
-        visitOrder: row.visit_order,
-        startTime: row.start_time,
-        endTime: row.end_time,
-        travelTimeFromPrev: row.travel_time_from_prev,
-        distanceFromPrev: row.distance_from_prev,
-        placeCost: row.place_cost,
-        isTimeConflict: row.is_time_conflict,
-        isClosedConflict: row.is_closed_conflict,
-        isBudgetConflict: row.is_budget_conflict,
-        isHoursUnknown: row.is_hours_unknown,
-        isCostUnknown: row.place_cost === null,
-      })),
+      items: (itemsByDay.get(day.tripDayId) ?? []).map((row) => {
+        // embed ได้ทั้ง object และ array ตามที่ Supabase คืนมา
+        const place = Array.isArray(row.places) ? row.places[0] : row.places;
+        return {
+          placeId: row.place_id,
+          placeName: place?.place_name ?? null,
+          province: place?.province ?? null,
+          district: place?.district ?? null,
+          latitude: place?.latitude ?? null,
+          longitude: place?.longitude ?? null,
+          visitOrder: row.visit_order,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          travelTimeFromPrev: row.travel_time_from_prev,
+          distanceFromPrev: row.distance_from_prev,
+          placeCost: row.place_cost,
+          isTimeConflict: row.is_time_conflict,
+          isClosedConflict: row.is_closed_conflict,
+          isBudgetConflict: row.is_budget_conflict,
+          isHoursUnknown: row.is_hours_unknown,
+          isCostUnknown: row.place_cost === null,
+        };
+      }),
     }));
 
     return res.status(200).json({
@@ -406,16 +427,17 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
       tripStartLng: tripOwner.startLng,
       tripDays: responseDays,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Get saved itinerary exception:", err);
     return res.status(500).json({
-      message: err.message || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
     });
   }
 };
 
 /**
  * GET /api/itinerary/trips/:tripId/auto-places
+ * สถานที่ที่ Auto Trip จะใช้ — หน้า TripRecommendations เรียกเช็คก่อนเปิดหน้า Auto Trip
  */
 export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
   try {
@@ -425,15 +447,8 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: "tripId is required" });
     }
 
-    const tripOwner = await getTripOwnerAndStart(tripId);
-
-    if (!tripOwner) {
-      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
-    }
-
-    if (tripOwner.userId !== req.user?.id) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
-    }
+    const tripOwner = await loadOwnedTrip(tripId, req, res);
+    if (!tripOwner) return;
 
     const places = await getAutoTripPlaces(tripId);
 
@@ -442,18 +457,16 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
       count: places.length,
       places,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("getAutoTripPlacesTest error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(error) || "เกิดข้อผิดพลาดภายในระบบ",
     });
   }
 }
 
-/**
- * Helper: แปลงข้อความ HH:mm เป็นจำนวนนาทีนับจาก 00:00
- */
+/** "HH:mm" -> นาทีนับจาก 00:00 (null = รูปแบบไม่ถูกต้อง) */
 function parseTimeToMinutes(timeStr: string | null | undefined): number | null {
   if (!timeStr) return null;
   const parts = timeStr.split(":");
@@ -465,12 +478,13 @@ function parseTimeToMinutes(timeStr: string | null | undefined): number | null {
 }
 
 /**
- * Helper: เช็กว่าช่วงเวลาเข้าชมสถานที่ (visitStart - visitEnd) เปิดบริการอยู่ใน opening_hours หรือไม่
+ * เช็กว่าช่วงเวลาเข้าชม (visitStart - visitEnd) อยู่ในเวลาเปิดหรือไม่ ไม่มีข้อมูล = ถือว่าเปิด
+ * รองรับ string "08:00 - 17:00" หรือ object { open, close } / { start, end }
+ * ⚠️ opening_hours จริงเป็นรูปแบบ Google ({ periods, weekday_text }) จึงคืน true เสมอ
  */
-function isOpenAt(openingHours: any, visitStartMin: number, visitEndMin: number): boolean {
-  if (!openingHours) return true; // ถ้าไม่มีข้อมูลถือว่าเปิดตลอด
-  
-  // ในกรณีที่ opening_hours เป็น string รูปแบบ "08:00 - 17:00"
+function isOpenAt(openingHours: unknown, visitStartMin: number, visitEndMin: number): boolean {
+  if (!openingHours) return true;
+
   if (typeof openingHours === "string") {
     const times = openingHours.split("-").map((t) => t.trim());
     if (times.length === 2) {
@@ -483,10 +497,10 @@ function isOpenAt(openingHours: any, visitStartMin: number, visitEndMin: number)
     return true;
   }
 
-  // กรณีที่เป็น JSON Object (เช่น { open: "08:00", close: "17:00" })
   if (typeof openingHours === "object") {
-    const openMin = parseTimeToMinutes(openingHours.open || openingHours.start);
-    const closeMin = parseTimeToMinutes(openingHours.close || openingHours.end);
+    const hours = openingHours as Record<string, string | undefined>;
+    const openMin = parseTimeToMinutes(hours.open || hours.start);
+    const closeMin = parseTimeToMinutes(hours.close || hours.end);
     if (openMin !== null && closeMin !== null) {
       return visitStartMin >= openMin && visitEndMin <= closeMin;
     }
@@ -495,8 +509,22 @@ function isOpenAt(openingHours: any, visitStartMin: number, visitEndMin: number)
   return true;
 }
 
+function toAutoPlace(p: AutoTripPlace): AutoPlace {
+  return {
+    place_id: String(p.placeId),
+    place_name: String(p.placeName),
+    categoryName: p.categoryName ?? "",
+    poiScore: Number(p.poiScore ?? 0),
+    latitude: Number(p.latitude),
+    longitude: Number(p.longitude),
+    opening_hours: p.openingHours,
+    default_duration_min: p.defaultDurationMin ?? 60,
+  };
+}
+
 /**
  * POST /api/itinerary/trips/:tripId/auto
+ * จัดทริปอัตโนมัติจาก poi_scores ของทริป (1 สถานที่คะแนนสูงสุดต่อหมวด)
  */
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
   try {
@@ -506,18 +534,9 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: "ไม่พบรหัสทริป" });
     }
 
-    // 1. ตรวจสอบเจ้าของทริป
-    const tripOwner = await getTripOwnerAndStart(tripId);
+    const tripOwner = await loadOwnedTrip(tripId, req, res);
+    if (!tripOwner) return;
 
-    if (!tripOwner) {
-      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
-    }
-
-    if (tripOwner.userId !== req.user?.id) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
-    }
-
-    // 2. ดึงข้อมูล trip
     const { data: trip, error: tripError } = await supabase
       .from("trips")
       .select(`
@@ -538,14 +557,12 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       return res.status(404).json({ message: "ไม่พบข้อมูลทริป" });
     }
 
-    // 3. ตรวจสอบจุดเริ่มต้น
     if (trip.start_lat === null || trip.start_lng === null) {
       return res.status(400).json({
         message: "กรุณากำหนดจุดเริ่มต้นทริปก่อนจัดทริปอัตโนมัติ",
       });
     }
 
-    // 4. ดึงสถานที่ทั้งหมดสำหรับ Auto Trip
     const rawPlaces = await getAutoTripPlaces(tripId);
 
     if (!rawPlaces || rawPlaces.length === 0) {
@@ -554,68 +571,31 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       });
     }
 
-    // 5. คัดเลือกสถานที่ที่มี POI Score สูงสุดของแต่ละหมวดหมู่ (Select Top POI Per Category)
-    const categoryMap = new Map<string, any>();
+    // เลือกสถานที่ที่ POI Score สูงสุดของแต่ละหมวด (เท่ากัน = ตัวแรกที่เจอ)
+    const categoryMap = new Map<string, AutoTripPlace>();
 
-    for (const place of rawPlaces as any[]) {
-  const catKey = String(place.categoryName ?? place.category_name ?? place.category_id ?? "unknown");
-  const currentScore = Number(place.poiScore ?? place.poi_score ?? 0);
+    for (const place of rawPlaces) {
+      const catKey = String(place.categoryName ?? "unknown");
+      const existingPlace = categoryMap.get(catKey);
 
-  if (!categoryMap.has(catKey)) {
-    categoryMap.set(catKey, place);
-  } else {
-    const existingPlace = categoryMap.get(catKey);
-    const existingScore = Number(existingPlace.poiScore ?? existingPlace.poi_score ?? 0);
-
-    if (currentScore > existingScore) {
-      categoryMap.set(catKey, place);
-    }
-  }
-}
-
-    // แปลงผลลัพธ์คัดเลือกกลับมาเป็น Array
-    const topPlacesPerCategory = Array.from(categoryMap.values());
-
-    // 6. แปลงข้อมูลสถานที่ให้ตรงกับโครงสร้าง AutoPlace และกรองตามเวลาเปิด-ปิด (Opening Hours Check)
-    const tripStartTimeMin = parseTimeToMinutes(trip.start_time) ?? 540; // 09:00 (540 นาที)
-    const filteredPlaces: AutoPlace[] = [];
-
-    for (const p of topPlacesPerCategory) {
-      const duration = p.default_duration_min ?? p.defaultDurationMin ?? 60; // default 60 mins
-      const openingHours = p.opening_hours ?? p.openingHours;
-
-      // ตรวจสอบว่าสถานที่นี้เปิดในช่วงเวลาเที่ยวตั้งต้นหรือไม่
-      const isAvailable = isOpenAt(openingHours, tripStartTimeMin, tripStartTimeMin + duration);
-
-      if (isAvailable) {
-        filteredPlaces.push({
-          place_id: String(p.place_id ?? p.placeId),
-          place_name: String(p.place_name ?? p.placeName),
-          categoryName: p.categoryName ?? p.category_name ?? "",
-          poiScore: Number(p.poiScore ?? p.poi_score ?? 0),
-          latitude: Number(p.latitude ?? p.lat),
-          longitude: Number(p.longitude ?? p.lng),
-          opening_hours: openingHours,
-          default_duration_min: duration,
-        });
+      if (!existingPlace || Number(place.poiScore ?? 0) > Number(existingPlace.poiScore ?? 0)) {
+        categoryMap.set(catKey, place);
       }
     }
 
-    // หากกรองแล้วไม่เหลือสถานที่เลย ให้ดึงทั้งหมดกลับมาเป็น Fallback
-    const finalPlacesToUse: AutoPlace[] = filteredPlaces.length > 0 
-      ? filteredPlaces 
-      : topPlacesPerCategory.map((p: any) => ({
-          place_id: String(p.place_id ?? p.placeId),
-          place_name: String(p.place_name ?? p.placeName),
-          categoryName: p.categoryName ?? p.category_name ?? "",
-          poiScore: Number(p.poiScore ?? p.poi_score ?? 0),
-          latitude: Number(p.latitude ?? p.lat),
-          longitude: Number(p.longitude ?? p.lng),
-          opening_hours: p.opening_hours ?? p.openingHours,
-          default_duration_min: p.default_duration_min ?? p.defaultDurationMin ?? 60,
-        }));
+    const topPlacesPerCategory = Array.from(categoryMap.values());
 
-    // 7. แปลงข้อมูลทริปให้ตรงกับ TripInfo
+    // กรองตามเวลาเปิด-ปิด ณ เวลาเริ่มเที่ยวของวัน — ถ้าไม่เหลือเลยใช้ทั้งหมดแทน
+    const tripStartTimeMin = parseTimeToMinutes(trip.start_time) ?? 540; // 09:00
+    const filteredPlaces = topPlacesPerCategory
+      .map(toAutoPlace)
+      .filter((p) =>
+        isOpenAt(p.opening_hours, tripStartTimeMin, tripStartTimeMin + p.default_duration_min)
+      );
+
+    const finalPlacesToUse: AutoPlace[] =
+      filteredPlaces.length > 0 ? filteredPlaces : topPlacesPerCategory.map(toAutoPlace);
+
     const tripInfo: TripInfo = {
       trip_id: String(trip.trip_id),
       start_date: String(trip.start_date),
@@ -630,10 +610,8 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
           : null,
     };
 
-    // 8. Run Auto Trip Algorithm
     const result = buildAutoTrip(tripInfo, finalPlacesToUse);
 
-    // 9. ส่งผลลัพธ์กลับ Frontend
     return res.status(200).json({
       success: true,
       message: "จัดทริปอัตโนมัติสำเร็จ",
@@ -642,11 +620,11 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       days: result.days,
       total_distance_km: result.total_distance_km,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("buildAutoTripController error:", error);
     return res.status(500).json({
       success: false,
-      message: error?.message || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ",
+      message: errorMessage(error) || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ",
     });
   }
 }
