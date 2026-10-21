@@ -2,7 +2,24 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
-import "./auto.css";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Car,
+  CircleCheck,
+  Clock,
+  ExternalLink,
+  Loader2,
+  MapPin,
+  MapPinned,
+  Pencil,
+  RotateCw,
+  Search,
+  Sparkles,
+  Star,
+  Timer,
+  TriangleAlert,
+} from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -16,6 +33,19 @@ const defaultIcon = L.icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
+
+// ---------- Style constants (ใช้ token จาก global.css ชุดเดียวกับหน้า TripDetail) ----------
+
+const cardClass = "bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)]";
+
+const primaryBtn =
+  "font-prompt font-medium min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
+
+const secondaryBtn =
+  "font-prompt font-medium min-h-11 px-5 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] border-2 border-[color:var(--sky)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
+
+const ghostBtn =
+  "font-prompt font-medium min-h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200 whitespace-nowrap";
 
 // ---------- Types (ตรงกับ response ของ POST /api/itinerary/trips/:tripId/auto) ----------
 
@@ -385,15 +415,12 @@ export default function AutoTrip() {
 
   if (loading) {
     return (
-      <div className="auto-trip-page">
+      <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
         <Navbar />
-        <div className="auto-trip-loading">
-          <div className="auto-trip-loading-icon">🗺️</div>
-          <h2>กำลังจัดทริปอัตโนมัติ</h2>
-          <p>ระบบกำลังวิเคราะห์สถานที่ และจัดลำดับเส้นทางที่เหมาะสม</p>
-          <div className="loading-bar">
-            <div className="loading-bar-inner" />
-          </div>
+        <div className="flex flex-col items-center justify-center gap-3 px-4 py-24 text-center text-[color:var(--muted)]">
+          <Loader2 size={28} strokeWidth={1.75} className="animate-spin text-[color:var(--sky)]" />
+          <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">กำลังจัดทริปอัตโนมัติ</h2>
+          <p className="text-sm">ระบบกำลังวิเคราะห์สถานที่ และจัดลำดับเส้นทางที่เหมาะสม</p>
         </div>
       </div>
     );
@@ -401,108 +428,163 @@ export default function AutoTrip() {
 
   if (error || !data) {
     return (
-      <div className="auto-trip-page">
+      <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
         <Navbar />
-        <div className="auto-trip-error">
-          <div className="error-icon">⚠️</div>
-          <h2>จัดทริปอัตโนมัติไม่สำเร็จ</h2>
-          <p>{error || "ไม่พบข้อมูลทริป"}</p>
-          <div className="error-actions">
-            <button className="secondary-button" onClick={handleBack}>
-              ← กลับ
-            </button>
-            <button className="primary-button" onClick={() => window.location.reload()}>
-              ลองอีกครั้ง
-            </button>
+        <div className="fade-in max-w-xl mx-auto px-4 py-16">
+          <div className={`${cardClass} px-6 py-10 flex flex-col items-center gap-3 text-center`}>
+            <TriangleAlert size={40} strokeWidth={1.5} className="text-[color:var(--danger)]" />
+            <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">จัดทริปอัตโนมัติไม่สำเร็จ</h2>
+            <p className="text-sm text-[color:var(--muted)]">{error || "ไม่พบข้อมูลทริป"}</p>
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <button onClick={handleBack} className={secondaryBtn}>
+                <ArrowLeft size={18} strokeWidth={1.75} />
+                กลับ
+              </button>
+              <button onClick={() => window.location.reload()} className={primaryBtn}>
+                <RotateCw size={18} strokeWidth={1.75} />
+                ลองอีกครั้ง
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  const stats = [
+    { icon: CalendarDays, value: String(totalDays), label: "วันเดินทาง" },
+    { icon: MapPin, value: String(totalPlaces), label: "สถานที่ทั้งหมด" },
+    { icon: Car, value: Number(totalDistance).toFixed(1), label: "กิโลเมตรรวม" },
+    {
+      icon: Star,
+      value:
+        totalPlaces > 0
+          ? (allStops.reduce((sum, stop) => sum + (stop.poiScore ?? 0), 0) / totalPlaces).toFixed(2)
+          : "0.00",
+      label: "POI Score เฉลี่ย",
+    },
+  ];
+
   return (
-    <div className="auto-trip-page">
+    <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-16">
       <Navbar />
 
-      <main className="auto-trip-container">
-        <button className="back-button" onClick={handleBack}>
-          ← กลับสถานที่แนะนำ
+      <div className="fade-in max-w-5xl mx-auto px-4 py-6">
+        <button
+          onClick={handleBack}
+          className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
+        >
+          <ArrowLeft size={18} strokeWidth={1.75} />
+          กลับสถานที่แนะนำ
         </button>
 
-        {/* Header */}
-        <section className="auto-trip-header">
-          <div>
-            <div className="header-label">✨ AUTO TRIP</div>
-            <h1>ทริปของคุณพร้อมแล้ว</h1>
-            <p>ระบบจัดลำดับสถานที่ให้โดยอัตโนมัติ โดยคำนึงถึงระยะทาง เวลา และข้อจำกัดของทริป</p>
+        {/* ---- Header ---- */}
+        <section className={`${cardClass} px-6 sm:px-8 py-6 mb-6`}>
+          <span className="inline-flex items-center gap-1.5 text-xs font-prompt font-medium px-2.5 py-1 rounded-full border bg-white mb-3 text-[color:var(--navy)] border-[color:var(--sky)]">
+            <Sparkles size={14} strokeWidth={1.75} />
+            Auto Trip
+          </span>
+          <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
+            ทริปของคุณพร้อมแล้ว
+          </h1>
+          <p className="mt-1 text-[color:var(--muted)]">
+            ระบบจัดลำดับสถานที่ให้โดยอัตโนมัติ โดยคำนึงถึงระยะทาง เวลา และข้อจำกัดของทริป
+          </p>
+
+          {/* Actions */}
+          <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
+            <button onClick={handleConfirmTrip} disabled={saving} className={primaryBtn}>
+              {saving ? (
+                <>
+                  <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+                  กำลังบันทึก...
+                </>
+              ) : (
+                <>
+                  <CircleCheck size={18} strokeWidth={1.75} />
+                  ยืนยันและบันทึกทริป
+                </>
+              )}
+            </button>
+            <button onClick={handleEditTrip} className={secondaryBtn}>
+              <Pencil size={18} strokeWidth={1.75} />
+              แก้ไขเส้นทาง
+            </button>
+            <button onClick={handleBack} className={ghostBtn}>
+              <Search size={18} strokeWidth={1.75} />
+              เลือกสถานที่ใหม่
+            </button>
           </div>
+
+          {/* ⚠️ "ไม่สำเร็จ" ก็มีคำว่า "สำเร็จ" จึงเป็นสีเขียวด้วย (Known Issue #32) */}
+          {saveMessage && (
+            <p
+              role="status"
+              className={`mt-3 flex items-center gap-2 text-sm ${
+                saveMessage.includes("สำเร็จ") ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
+              }`}
+            >
+              {saveMessage.includes("สำเร็จ") ? (
+                <CircleCheck size={16} strokeWidth={1.75} className="shrink-0" />
+              ) : (
+                <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0" />
+              )}
+              {saveMessage}
+            </p>
+          )}
         </section>
 
-        {/* Summary */}
-        <section className="summary-grid">
-          <div className="summary-card">
-            <div className="summary-icon">📅</div>
-            <div>
-              <div className="summary-value">{totalDays}</div>
-              <div className="summary-label">วันเดินทาง</div>
-            </div>
-          </div>
+        {/* ---- สรุปตัวเลข ---- */}
+        <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {stats.map(({ icon: Icon, value, label }) => (
+            <li key={label} className={`${cardClass} px-3 py-4 text-center`}>
+              <Icon size={20} strokeWidth={1.75} className="mx-auto mb-1.5 text-[color:var(--sky)]" />
+              <p className="font-prompt font-semibold text-xl text-[color:var(--navy)]">{value}</p>
+              <p className="text-sm text-[color:var(--muted)]">{label}</p>
+            </li>
+          ))}
+        </ul>
 
-          <div className="summary-card">
-            <div className="summary-icon">📍</div>
-            <div>
-              <div className="summary-value">{totalPlaces}</div>
-              <div className="summary-label">สถานที่ทั้งหมด</div>
-            </div>
-          </div>
+        {/* ---- เลือกวัน ---- */}
+        <div role="tablist" aria-label="เลือกวัน" className="flex flex-wrap gap-2 mb-4">
+          {data.days?.map((day, index) => {
+            const stops = getDayStops(index);
+            const active = selectedDay === index;
+            return (
+              <button
+                key={index}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSelectedDay(index)}
+                className={`font-prompt text-left px-4 py-2 rounded-xl border transition-colors duration-200 ${
+                  active
+                    ? "text-white bg-[color:var(--navy)] border-[color:var(--navy)]"
+                    : "text-[color:var(--navy)] bg-white border-[color:var(--line)] hover:bg-[color:var(--sky-soft)]"
+                }`}
+              >
+                <span className="block font-medium">วันที่ {day.day}</span>
+                <span className={`block text-xs ${active ? "text-white/80" : "text-[color:var(--muted)]"}`}>
+                  {formatDate(day.date)} · {stops.length} สถานที่
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="summary-card">
-            <div className="summary-icon">🚗</div>
-            <div>
-              <div className="summary-value">{Number(totalDistance).toFixed(1)}</div>
-              <div className="summary-label">กิโลเมตรรวม</div>
-            </div>
-          </div>
-
-          <div className="summary-card">
-            <div className="summary-icon">⭐</div>
-            <div>
-              <div className="summary-value">
-                {totalPlaces > 0
-                  ? (
-                      allStops.reduce((sum, stop) => sum + (stop.poiScore ?? 0), 0) /
-                      totalPlaces
-                    ).toFixed(2)
-                  : "0.00"}
-              </div>
-              <div className="summary-label">POI Score เฉลี่ย</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Map */}
-        <section className="route-section">
-          <div className="section-title">
-            <div>
-              <h2>🗺️ เส้นทางการเดินทาง</h2>
-              <p>
-                เส้นทางวันที่{" "}{selectedDay + 1}{startPosition ? " โดยเริ่มจากจุดเริ่มต้นของทริป" : ""}
-              </p>
-            </div>
-          </div>
+        {/* ---- แผนที่ของวันที่เลือก ---- */}
+        <section className={`${cardClass} px-5 sm:px-6 py-5 mb-6`}>
+          <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)] flex items-center gap-2">
+            <MapPinned size={20} strokeWidth={1.75} className="text-[color:var(--sky)]" />
+            เส้นทางวันที่ {selectedDay + 1}
+          </h2>
+          {startPosition && (
+            <p className="text-sm text-[color:var(--muted)] mt-1">โดยเริ่มจากจุดเริ่มต้นของทริป</p>
+          )}
 
           {currentStops.length === 0 ? (
-            <div
-              className="empty-day"
-              style={{
-                padding: "40px",
-                textAlign: "center",
-              }}
-            >
-              ไม่มีข้อมูลสถานที่ สำหรับวันนี้
-            </div>
+            <p className="text-sm text-[color:var(--muted)] py-10 text-center">ไม่มีข้อมูลสถานที่ สำหรับวันนี้</p>
           ) : (
-            <div className="route-map-container">
+            <div className="mt-4 rounded-xl overflow-hidden border border-[color:var(--line)]">
               <MapContainer
                 key={`map-${selectedDay}-${mapCenter[0]}-${mapCenter[1]}`}
                 center={mapCenter}
@@ -532,9 +614,9 @@ export default function AutoTrip() {
                 {startPosition && (
                   <Marker position={startPosition} icon={defaultIcon}>
                     <Popup>
-                      <div style={{ textAlign: "center", minWidth: "150px" }}>
-                        <strong>📍 จุดเริ่มต้น</strong>
-                        <div style={{ marginTop: "5px", fontSize: "12px" }}>จุดเริ่มต้น ของทริป</div>
+                      <div className="font-sarabun text-center min-w-[150px]">
+                        <strong className="font-prompt text-[color:var(--navy)]">จุดเริ่มต้น</strong>
+                        <p className="text-xs text-[color:var(--muted)]">จุดเริ่มต้น ของทริป</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -547,30 +629,16 @@ export default function AutoTrip() {
                     icon={defaultIcon}
                   >
                     <Popup>
-                      <div style={{ minWidth: "190px", textAlign: "center" }}>
-                        <div style={{ color: "#2563eb", fontWeight: "bold", marginBottom: "5px" }}>
-                          📍 สถานที่ที่{" "}{index + 1}
-                        </div>
-
-                        <strong>{stop.place_name}</strong>
-
-                        <div style={{ marginTop: "8px", fontSize: "13px" }}>
-                          🕐 เวลาเข้าชม
-                          <br />
-                          {stop.start_time}{" - "}{stop.end_time}
-                        </div>
-
-                        <div style={{ marginTop: "5px", fontSize: "13px" }}>
-                          ⏱️ ระยะเวลา{" "}{formatDuration(stop.duration_min)}
-                        </div>
-
-                        <div style={{ marginTop: "5px", fontSize: "13px" }}>
-                          🚗{" "}{formatDistance(stop.travel_distance_km)}
-                        </div>
-
-                        <div style={{ fontSize: "13px" }}>
-                          ⏳{" "}{formatDuration(stop.travel_time_min)}
-                        </div>
+                      <div className="font-sarabun min-w-[190px] text-center">
+                        <p className="font-prompt text-xs font-medium text-[color:var(--sky)]">สถานที่ที่ {index + 1}</p>
+                        <strong className="font-prompt text-[color:var(--navy)]">{stop.place_name}</strong>
+                        <p className="mt-1 text-xs text-[color:var(--deep)]">
+                          เวลาเข้าชม {stop.start_time} - {stop.end_time}
+                        </p>
+                        <p className="text-xs text-[color:var(--deep)]">ระยะเวลา {formatDuration(stop.duration_min)}</p>
+                        <p className="text-xs text-[color:var(--muted)]">
+                          {formatDistance(stop.travel_distance_km)} · {formatDuration(stop.travel_time_min)}
+                        </p>
                       </div>
                     </Popup>
                   </Marker>
@@ -580,177 +648,95 @@ export default function AutoTrip() {
           )}
         </section>
 
-        {/* Day tabs */}
-        <section className="day-section">
-          <div className="section-title">
-            <div>
-              <h2>แผนการเดินทางรายวัน</h2>
-              <p>เลือกวันที่ต้องการดูรายละเอียด</p>
-            </div>
+        {/* ---- กำหนดการของวันที่เลือก ---- */}
+        <section className={`${cardClass} px-5 sm:px-6 py-5`}>
+          <div className="mb-4 flex items-baseline justify-between flex-wrap gap-2">
+            <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
+              {currentDay ? `วันที่ ${currentDay.day}` : "สถานที่ในวันนี้"}
+              {currentDay && (
+                <span className="font-normal text-[color:var(--deep)] text-base"> — {formatDate(currentDay.date)}</span>
+              )}
+            </h2>
+            {currentDay && (
+              <span className="flex items-center gap-1.5 text-sm text-[color:var(--muted)]">
+                <Clock size={14} strokeWidth={1.75} />
+                เที่ยว {formatDuration(currentDay.total_visit_time_min)} · เดินทาง{" "}
+                {formatDuration(currentDay.total_travel_time_min)}
+              </span>
+            )}
           </div>
 
-          <div className="day-tabs">
-            {data.days?.map((day, index) => {
-              const stops = getDayStops(index);
-
-              return (
-                <button
-                  key={index}
-                  onClick={() => setSelectedDay(index)}
-                  className={selectedDay === index ? "day-tab active" : "day-tab"}
-                >
-                  <span>วันที่{" "}{day.day}</span>
-                  <small>{formatDate(day.date)}</small>
-                  <small>{stops.length}{" "}สถานที่</small>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Current day summary */}
-        {currentDay && (
-          <section className="current-day-card">
-            <div>
-              <div className="current-day-label">DAY{" "}{currentDay.day}</div>
-              <h2>วันที่{" "}{currentDay.day}</h2>
-              <p>{formatDate(currentDay.date)}</p>
-            </div>
-
-            <div className="day-time-box">
-              <span>⏰</span>
-              <div>
-                <small>เวลาเที่ยวรวม</small>
-                <strong>
-                  เที่ยว{" "}{formatDuration(currentDay.total_visit_time_min)}{" • "}เดินทาง{" "}{formatDuration(currentDay.total_travel_time_min)}
-                </strong>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Itinerary */}
-        <section className="itinerary-section">
-          <div className="section-title">
-            <div>
-              <h2>สถานที่ในวันนี้</h2>
-              <p>ระบบเรียงลำดับการเดินทางให้แล้ว</p>
-            </div>
-
-            <span className="place-count">{currentStops.length}{" "}สถานที่</span>
-          </div>
-
-          <div className="timeline">
-            {currentStops.length === 0 && <div className="empty-day">ไม่มีสถานที่ในวันนี้</div>}
-
-            {currentStops.map((stop, index) => {
+          {currentStops.length === 0 ? (
+            <p className="text-sm text-[color:var(--muted)] py-4 text-center">ไม่มีสถานที่ในวันนี้</p>
+          ) : (
+            currentStops.map((stop, index) => {
               const score = stop.poiScore ?? 0;
-
+              const isLast = index === currentStops.length - 1;
               return (
-                <div className="timeline-item" key={`${stop.place_id}-${index}`}>
-                  <div className="timeline-marker">{index + 1}</div>
+                <div key={`${stop.place_id}-${index}`} className="relative pl-11">
+                  {/* จุดกลม + เส้นแนวตั้งของ timeline */}
+                  <div className="absolute left-0 top-0 flex flex-col items-center h-full">
+                    <span className="w-8 h-8 rounded-full bg-[color:var(--navy)] text-white text-sm font-prompt font-semibold flex items-center justify-center shrink-0">
+                      {index + 1}
+                    </span>
+                    {!isLast && <span className="w-px flex-1 bg-[color:var(--line)] mt-1" />}
+                  </div>
 
-                  {index < currentStops.length - 1 && <div className="timeline-line" />}
+                  {/* การเดินทางจากจุดก่อนหน้ามาถึงที่นี่ */}
+                  <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 w-fit max-w-full rounded-full bg-[color:var(--sky-soft)] px-3.5 py-1.5 text-sm">
+                    <Car size={16} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
+                    <span className="text-[color:var(--navy)]">เดินทางจาก: {stop.previous_place_name}</span>
+                    {stop.travel_distance_km > 0 && (
+                      <span className="text-[color:var(--muted)]">· {formatDistance(stop.travel_distance_km)}</span>
+                    )}
+                    {stop.travel_time_min > 0 && (
+                      <span className="text-[color:var(--muted)]">· ใช้เวลา {formatDuration(stop.travel_time_min)}</span>
+                    )}
+                  </div>
 
-                  <div className="timeline-content">
-                    <div className="place-card">
-                      <div className="place-top">
-                        <div>
-                          <div className="place-order">สถานที่ที่{" "}{index + 1}</div>
-                          <h3>{stop.place_name}</h3>
-                          {stop.categoryName && (
-                            <span className="category-tag">{stop.categoryName}</span>
-                          )}
-                        </div>
-
-                        <div className="poi-score">
-                          <strong>{score > 1 ? score : (score * 100).toFixed(0)}</strong>
-                          <span>POI Score</span>
-                        </div>
+                  <div className="rounded-xl border border-[color:var(--line)] bg-white px-4 py-3 mb-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="font-prompt font-medium text-[color:var(--navy)]">{stop.place_name}</h3>
+                        {stop.categoryName && (
+                          <span className="mt-1 inline-block text-xs px-2.5 py-0.5 rounded-full bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
+                            {stop.categoryName}
+                          </span>
+                        )}
                       </div>
-
-                      <div className="place-info-grid">
-                        <div className="info-item">
-                          <span>⏱️</span>
-                          <div>
-                            <small>ระยะเวลาเที่ยว</small>
-                            <strong>{formatDuration(stop.duration_min)}</strong>
-                          </div>
-                        </div>
-
-                        <div className="info-item">
-                          <span>🕐</span>
-                          <div>
-                            <small>เวลาเข้าชม</small>
-                            <strong>{stop.start_time}{" - "}{stop.end_time}</strong>
-                          </div>
-                        </div>
-
-                        <div className="info-item">
-                          <span>🚗</span>
-                          <div>
-                            <small>เดินทางจากจุดก่อนหน้า</small>
-                            <strong>{formatDistance(stop.travel_distance_km)}</strong>
-                          </div>
-                        </div>
-
-                        <div className="info-item">
-                          <span>⏳</span>
-                          <div>
-                            <small>เวลาเดินทาง</small>
-                            <strong>{formatDuration(stop.travel_time_min)}</strong>
-                          </div>
-                        </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-prompt font-semibold text-2xl leading-none text-[color:var(--navy)]">
+                          {score > 1 ? score : (score * 100).toFixed(0)}
+                        </p>
+                        <p className="text-xs text-[color:var(--muted)] mt-1">POI Score</p>
                       </div>
-
-                      <button
-                        className="map-place-button"
-                        onClick={() => openGoogleMaps(stop.latitude, stop.longitude)}
-                      >
-                        📍 ดูตำแหน่งบน Google Maps
-                      </button>
                     </div>
 
-                    <div className="travel-between">
-                      <span>🚗</span>
-                      <span>เดินทางจาก:{" "}{stop.previous_place_name}</span>
-                      {stop.travel_distance_km > 0 && (
-                        <span>•{" "}{formatDistance(stop.travel_distance_km)}</span>
-                      )}
-                      {stop.travel_time_min > 0 && (
-                        <span>• ใช้เวลา{" "}{formatDuration(stop.travel_time_min)}</span>
-                      )}
-                    </div>
+                    <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-[color:var(--deep)]">
+                      <li className="flex items-center gap-1.5">
+                        <Clock size={14} strokeWidth={1.75} className="shrink-0 text-[color:var(--muted)]" />
+                        เวลาเข้าชม {stop.start_time} - {stop.end_time}
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Timer size={14} strokeWidth={1.75} className="shrink-0 text-[color:var(--muted)]" />
+                        ระยะเวลาเที่ยว {formatDuration(stop.duration_min)}
+                      </li>
+                    </ul>
+
+                    <button
+                      onClick={() => openGoogleMaps(stop.latitude, stop.longitude)}
+                      className="mt-3 inline-flex items-center gap-1.5 text-sm text-[color:var(--deep)] underline underline-offset-2 hover:text-[color:var(--navy)]"
+                    >
+                      <ExternalLink size={14} strokeWidth={1.75} />
+                      ดูตำแหน่งบน Google Maps
+                    </button>
                   </div>
                 </div>
               );
-            })}
-          </div>
+            })
+          )}
         </section>
-
-        {/* ⚠️ "ไม่สำเร็จ" ก็มีคำว่า "สำเร็จ" จึงเป็นสีเขียวด้วย (Known Issue #32) */}
-        {saveMessage && (
-          <div className={saveMessage.includes("สำเร็จ") ? "save-message success" : "save-message error"}>
-            {saveMessage}
-          </div>
-        )}
-
-        <section className="action-bar">
-          <button className="secondary-button" onClick={handleBack}>
-            ← เลือกสถานที่ใหม่
-          </button>
-
-          <div className="action-right">
-            <button className="edit-button" onClick={handleEditTrip}>
-              ✏️ แก้ไขเส้นทาง
-            </button>
-
-            <button className="confirm-button" onClick={handleConfirmTrip} disabled={saving}>
-              {saving ? "กำลังบันทึก..." : "✓ ยืนยันและบันทึกทริป"}
-            </button>
-          </div>
-        </section>
-      </main>
+      </div>
     </div>
   );
 }

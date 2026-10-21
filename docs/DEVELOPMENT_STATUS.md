@@ -39,7 +39,7 @@
 
 | ฟีเจอร์ | สิ่งที่มีแล้ว | สิ่งที่ยังขาด / หลักฐาน |
 |---|---|---|
-| **Auto Trip** | endpoint `/auto`, `autoTripBuilder.ts`, หน้า `auto.tsx` มีปุ่มยืนยันและบันทึกได้ | เลือกได้แค่ 1 ที่ต่อ category · เช็คเวลาเปิดไม่ตรงกับ format ใน DB (ดู Known Issues) · ใช้ haversine 30 km/h แทน ORS · ไม่มีการตรวจงบ · ปุ่ม "แก้ไข" ส่ง state ที่ editor ไม่รองรับ · route `/trip/:id/auto` ไม่ได้ครอบ ProtectedRoute · commit `44d26dd` ระบุว่า "BUT not done yet" |
+| **Auto Trip** | endpoint `/auto`, `autoTripBuilder.ts`, หน้า `auto.tsx` มีปุ่มยืนยันและบันทึกได้ · UI ทำใหม่ให้เหมือนหน้าอื่น (Tailwind + token เดียวกับ TripDetail, ลบ `auto.css`) 2026-10-21 — logic ไม่เปลี่ยน ให้เพื่อนแก้ต่อ | เลือกได้แค่ 1 ที่ต่อ category · เช็คเวลาเปิดไม่ตรงกับ format ใน DB (ดู Known Issues) · ใช้ haversine 30 km/h แทน ORS · ไม่มีการตรวจงบ · ปุ่ม "แก้ไข" ส่ง state ที่ editor ไม่รองรับ · route `/trip/:id/auto` ไม่ได้ครอบ ProtectedRoute · commit `44d26dd` ระบุว่า "BUT not done yet" |
 | ข้อมูลหลายจังหวัด | scripts มีกรุงเทพฯ / เชียงใหม่ / ชลบุรี | comment บอกว่ากรุงเทพฯ/ชลบุรียังไม่ผ่าน "Stage 3" (multi-category) · **โค้ด Stage 3 ไม่มีใน repo** |
 | Weather | มีเฉพาะโอกาสฝน | comment ระบุว่าความร้อน/UV/ลม/PM2.5 เป็นงานในอนาคต |
 | Testing | jest ของ backend มี test ของ dedupe (R5 P2a) | frontend ยังไม่มีไฟล์ test · ส่วนอื่นของ backend (POI, itinerary) ยังไม่มี test |
