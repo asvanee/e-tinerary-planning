@@ -1,22 +1,28 @@
 import { Response } from "express";
 import { AuthRequest } from "../../features/auth/authMiddleware";
 import { getProvinceRows } from "../pipeline/attractionCsv";
+import { AttractionRow } from "../pipeline/attractionTypes";
 import { parseCoords } from "../pipeline/dedupe/normalize";
 import { createGooglePlacesClient } from "../pipeline/import/googlePlaces";
 import { ImportItemStatus, runImportJob } from "../pipeline/import/importJob";
 import { ImportRow, prepareImportRows } from "../pipeline/import/importRows";
+import { RESOLVE_ACTIONS, ResolveAction, resolveItem } from "../pipeline/import/resolveItem";
 import { buildProvinceReview } from "../pipeline/review/buildReview";
 import { listDecisions } from "../provinces/decisionQueries";
 import {
   createRunningJob,
   findActiveJob,
+  getItem,
   getJob,
   ImportJob,
   listItems,
+  listPendingItems,
   listJobs,
   provinceImportState,
   requestCancel,
+  StoredImportItem,
   supabaseImportStore,
+  supabaseResolveStore,
 } from "./importQueries";
 
 const MAX_LIMIT_ROWS = 10_000;
@@ -27,6 +33,7 @@ const ITEM_STATUSES = new Set<ImportItemStatus>([
   "needs_review_not_found",
   "needs_review_duplicate",
   "error",
+  "resolved",
 ]);
 
 // รันได้ครั้งละ 1 job ต่อ process (D-24) — เช็คคู่กับสถานะใน DB
@@ -103,6 +110,22 @@ function publicPlan({ rows: _rows, ...plan }: ImportPlan) {
   return plan;
 }
 
+const googleClient = () =>
+  process.env.GOOGLE_PLACES_API_KEY ? createGooglePlacesClient(process.env.GOOGLE_PLACES_API_KEY) : null;
+
+// แนบชื่อและพิกัดจาก CSV (csv_name, csv_location) ให้ admin เทียบกับผลจาก Google ได้
+function withCsvInfo(items: StoredImportItem[], csvRows: AttractionRow[]) {
+  const csvById = new Map(csvRows.map((r) => [r.ATT_ID, r]));
+  return items.map((item) => {
+    const row = csvById.get(item.att_id);
+    return {
+      ...item,
+      csv_name: row ? row.ATT_NAME_TH?.trim() || row.ATT_NAME_EN?.trim() || null : null,
+      csv_location: row?.ATT_LOCATION?.trim() || null,
+    };
+  });
+}
+
 function provinceParam(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -159,7 +182,7 @@ export const startImport = async (req: AuthRequest, res: Response) => {
     runImportJob({
       jobId: job.job_id,
       rows: plan.rows,
-      google: createGooglePlacesClient(process.env.GOOGLE_PLACES_API_KEY!),
+      google: googleClient()!, // blockers ตรวจแล้วว่ามี key
       store: supabaseImportStore,
     }).finally(() => {
       jobRunningInProcess = false;
@@ -213,7 +236,6 @@ export const cancelImportJob = async (req: AuthRequest, res: Response) => {
 };
 
 // GET /api/admin/imports/:jobId/items?status=&page= — ผลรายสถานที่ (หน้าละ 100 แถว, page เริ่มที่ 0)
-// แนบชื่อและพิกัดจาก CSV (csv_name, csv_location) ให้ admin เทียบกับผลจาก Google ได้
 export const getImportItems = async (req: AuthRequest, res: Response) => {
   try {
     const jobId = jobIdParam(req.params.jobId);
@@ -233,18 +255,55 @@ export const getImportItems = async (req: AuthRequest, res: Response) => {
       listItems(jobId, (status as ImportItemStatus | undefined) ?? null, page),
       getProvinceRows(job.province),
     ]);
-    const csvById = new Map(csvRows.map((r) => [r.ATT_ID, r]));
-    const items = result.items.map((item) => {
-      const row = csvById.get(item.att_id);
-      return {
-        ...item,
-        csv_name: row ? row.ATT_NAME_TH?.trim() || row.ATT_NAME_EN?.trim() || null : null,
-        csv_location: row?.ATT_LOCATION?.trim() || null,
-      };
-    });
-    res.json({ page, total: result.total, items });
+    res.json({ page, total: result.total, items: withCsvInfo(result.items, csvRows) });
   } catch (err) {
     console.error("getImportItems error:", err);
     res.status(500).json({ message: "ไม่สามารถโหลดผลการนำเข้าได้" });
+  }
+};
+
+// GET /api/admin/provinces/:province/import/pending — แถวที่รอ admin ตัดสินหลังนำเข้า (ทุก job ของจังหวัด)
+export const getPendingImports = async (req: AuthRequest, res: Response) => {
+  try {
+    const province = provinceParam(req.params.province);
+    if (!province) return res.status(400).json({ message: "ไม่พบชื่อจังหวัด" });
+    const [items, csvRows] = await Promise.all([listPendingItems(province), getProvinceRows(province)]);
+    res.json({ items: withCsvInfo(items, csvRows) });
+  } catch (err) {
+    console.error("getPendingImports error:", err);
+    res.status(500).json({ message: "ไม่สามารถโหลดรายการรอตรวจได้" });
+  }
+};
+
+// POST /api/admin/imports/items/:itemId/resolve — body: { action: accept_google | csv_only | skip } (P4c)
+export const resolveImportItem = async (req: AuthRequest, res: Response) => {
+  try {
+    const itemId = jobIdParam(req.params.itemId);
+    if (!itemId) return res.status(400).json({ message: "รหัสรายการไม่ถูกต้อง" });
+    const action: unknown = req.body?.action;
+    if (!RESOLVE_ACTIONS.includes(action as ResolveAction)) {
+      return res.status(400).json({ message: "ประเภทการตัดสินไม่ถูกต้อง" });
+    }
+
+    const item = await getItem(itemId);
+    const job = item && (await getJob(item.job_id));
+    if (!item || !job) return res.status(404).json({ message: "ไม่พบรายการนี้" });
+
+    // ค่าหลังตัดสินใจในหน้ารีวิว (พิกัดที่แก้, ค่าที่ merge) ชุดเดียวกับตอนนำเข้า
+    const [csvRows, decisions] = await Promise.all([getProvinceRows(job.province), listDecisions(job.province)]);
+    const row = prepareImportRows(csvRows, decisions).find((r) => r.attId === item.att_id)?.row;
+
+    const result = await resolveItem({
+      item,
+      row,
+      action: action as ResolveAction,
+      google: googleClient(),
+      store: supabaseResolveStore,
+    });
+    if (!result.ok) return res.status(409).json({ message: result.message });
+    res.json({ placeId: result.placeId });
+  } catch (err) {
+    console.error("resolveImportItem error:", err);
+    res.status(500).json({ message: "ไม่สามารถบันทึกการตัดสินได้" });
   }
 };

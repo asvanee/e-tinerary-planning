@@ -9,7 +9,8 @@ export type ImportItemStatus =
   | "needs_review_mismatch"
   | "needs_review_not_found"
   | "needs_review_duplicate"
-  | "error";
+  | "error"
+  | "resolved"; // admin ตัดสินแถว needs_review แล้ว (P4c — resolveItem.ts)
 
 // 1 แถวของ pipeline_job_items (item_id / created_at ให้ DB สร้าง)
 export interface ImportItem {

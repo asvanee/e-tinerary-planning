@@ -7,6 +7,7 @@ import {
   JobFinalStatus,
 } from "../pipeline/import/importJob";
 import { PlaceRecord } from "../pipeline/import/placeRecord";
+import { ResolveStore } from "../pipeline/import/resolveItem";
 import { selectAll } from "../provinces/decisionQueries";
 
 // ตาราง pipeline_jobs / pipeline_job_items (docs/DATABASE_SCHEMA.md) — job_id/item_id เป็น uuid
@@ -114,6 +115,28 @@ export async function listItems(
   return { items: (data ?? []) as StoredImportItem[], total: count ?? 0 };
 }
 
+export async function getItem(itemId: string): Promise<StoredImportItem | null> {
+  const { data, error } = await supabase.from(ITEMS).select("*").eq("item_id", itemId).maybeSingle();
+  if (error) throw error;
+  return (data as StoredImportItem | null) ?? null;
+}
+
+// แถวที่รอ admin ตัดสินหลังนำเข้า ของทุก job ในจังหวัด (P4c)
+export async function listPendingItems(province: string): Promise<StoredImportItem[]> {
+  const jobIds = await jobIdsOfProvince(province);
+  if (jobIds.length === 0) return [];
+  return selectAll<StoredImportItem>((from, to) =>
+    supabase
+      .from(ITEMS)
+      .select("*")
+      .in("job_id", jobIds)
+      .like("status", "needs_review_%")
+      .order("created_at")
+      .order("item_id")
+      .range(from, to)
+  );
+}
+
 async function jobIdsOfProvince(province: string): Promise<string[]> {
   const rows = await selectAll<{ job_id: string }>((from, to) =>
     supabase.from(JOBS).select("job_id").eq("province", province).order("created_at").range(from, to)
@@ -174,7 +197,7 @@ export async function failStaleJobs(): Promise<number> {
   return data?.length ?? 0;
 }
 
-// ---------- ImportStore (ให้ runImportJob ใช้) ----------
+// ---------- ImportStore (ให้ runImportJob ใช้) / ResolveStore (ให้ resolveItem ใช้) ----------
 
 export const supabaseImportStore: ImportStore = {
   async isCancelRequested(jobId) {
@@ -224,5 +247,23 @@ export const supabaseImportStore: ImportStore = {
       .update({ status, error: message, finished_at: new Date().toISOString() })
       .eq("job_id", jobId);
     if (error) throw error;
+  },
+};
+
+export const supabaseResolveStore: ResolveStore = {
+  findPlaceIdByGooglePlaceId: supabaseImportStore.findPlaceIdByGooglePlaceId,
+  insertPlace: supabaseImportStore.insertPlace,
+  insertPlaceTypes: supabaseImportStore.insertPlaceTypes,
+
+  // อัปเดตเฉพาะแถวที่ยังรอตรวจ — กันกดซ้ำ/สองแท็บตัดสินแถวเดียวกัน
+  async markResolved(itemId, placeId, message) {
+    const { data, error } = await supabase
+      .from(ITEMS)
+      .update({ status: "resolved", place_id: placeId, message })
+      .eq("item_id", itemId)
+      .like("status", "needs_review_%")
+      .select("item_id");
+    if (error) throw error;
+    return (data?.length ?? 0) > 0;
   },
 };

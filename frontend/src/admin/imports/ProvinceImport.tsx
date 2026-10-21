@@ -5,6 +5,7 @@ import { useAuth } from "../../system/auth/useAuth";
 import { adminRequest, errorMessage } from "../lib/adminApi";
 import type { ImportJob, ImportJobStatus, ImportPreview } from "../lib/importTypes";
 import ImportItemsTable from "./ImportItemsTable";
+import PendingReview from "./PendingReview";
 
 const POLL_MS = 2000;
 const DEFAULT_LIMIT = "10"; // เริ่มทีละน้อยเพราะทุกแถวเรียก Google (มีค่าใช้จ่าย) — ลบออกได้ถ้าต้องการทั้งหมด
@@ -40,6 +41,7 @@ function SectionTitle({ children }: { children: string }) {
 }
 
 // นำเข้าสถานที่ของจังหวัดจาก CSV + Google (R5 P4b): ดูตัวอย่าง → เริ่ม → ความคืบหน้า → ผล
+// + ตัดสินแถวที่รอตรวจหลังนำเข้า (P4c)
 export default function ProvinceImport() {
   const navigate = useNavigate();
   const { province = "" } = useParams();
@@ -56,6 +58,7 @@ export default function ProvinceImport() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [resolveCount, setResolveCount] = useState(0); // เพิ่มทุกครั้งที่ตัดสินแถว → ตารางผลโหลดใหม่
 
   // ---- ดูตัวอย่าง (ไม่เรียก Google) ----
   useEffect(() => {
@@ -257,6 +260,12 @@ export default function ProvinceImport() {
         )}
       </section>
 
+      {/* ตัดสินแถวที่รอตรวจ (ทุก job ของจังหวัด) */}
+      <section className={cardClass}>
+        <SectionTitle>รอตรวจหลังนำเข้า</SectionTitle>
+        <PendingReview base={base} token={token} reloadKey={reloadKey} onResolved={() => setResolveCount((c) => c + 1)} />
+      </section>
+
       {/* 3. ความคืบหน้า + 4. ผล */}
       {viewedJob && (
         <section className={cardClass}>
@@ -287,7 +296,11 @@ export default function ProvinceImport() {
           )}
 
           <div className="mt-4">
-            <ImportItemsTable jobId={viewedJob.job_id} token={token} refreshKey={viewedJob.processed} />
+            <ImportItemsTable
+              jobId={viewedJob.job_id}
+              token={token}
+              refreshKey={`${viewedJob.processed}-${resolveCount}`}
+            />
           </div>
         </section>
       )}

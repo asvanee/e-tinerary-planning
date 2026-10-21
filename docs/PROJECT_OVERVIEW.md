@@ -98,7 +98,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
 | `/admin/provinces` | `admin/provinces/ProvinceList.tsx` (จังหวัดจาก CSV + สถานะ) | `AdminRoute` |
 | `/admin/provinces/:province` | `admin/provinces/ProvinceReview.tsx` (แท็บ น่าจะซ้ำ / ต้องตรวจสอบ / มีปัญหา / ตัดสินใจแล้ว — `components/GroupCard.tsx`, `ProblemRowCard.tsx` · ปุ่ม "นำเข้า" เมื่อตัดสินใจครบ) | `AdminRoute` |
-| `/admin/provinces/:province/import` | `admin/imports/ProvinceImport.tsx` (ดูตัวอย่าง → เริ่ม → ความคืบหน้า poll ทุก 2 วินาที → ผลรายแถว `ImportItemsTable.tsx` + ประวัติ job) | `AdminRoute` |
+| `/admin/provinces/:province/import` | `admin/imports/ProvinceImport.tsx` (ดูตัวอย่าง → เริ่ม → ความคืบหน้า poll ทุก 2 วินาที → ผลรายแถว `ImportItemsTable.tsx` + ประวัติ job + ตัดสินแถวรอตรวจ `PendingReview.tsx`) | `AdminRoute` |
 | `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
 
 ## 6. Backend API (`backend/src/server.ts` + `*Routes.ts`)
@@ -126,6 +126,8 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/admin/provinces/:province/imports` | ✓ + admin | `getProvinceImports` — ประวัติ job ของจังหวัด (50 ล่าสุด) |
 | GET `/api/admin/imports/:jobId` · POST `/api/admin/imports/:jobId/cancel` | ✓ + admin | `getImportJob` (ความคืบหน้า) / `cancelImportJob` (หยุดก่อนแถวถัดไป, 409 ถ้า job ไม่ได้ทำงานอยู่) |
 | GET `/api/admin/imports/:jobId/items?status=&page=` | ✓ + admin | `getImportItems` — ผลรายสถานที่ หน้าละ 100 แถว (page เริ่ม 0) พร้อม `csv_name`, `csv_location` จาก CSV |
+| GET `/api/admin/provinces/:province/import/pending` | ✓ + admin | `getPendingImports` — แถว `needs_review_*` ของทุก job ในจังหวัด (P4c) |
+| POST `/api/admin/imports/items/:itemId/resolve` | ✓ + admin | `resolveImportItem` — body `{ action: accept_google | csv_only | skip }` · 409 เมื่อทำไม่ได้ (เช่นแถวซ้ำ/พิกัดเสีย/ตัดสินไปแล้ว) · ⚠️ accept_google เรียก Google Details 1 ครั้ง |
 
 Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
 

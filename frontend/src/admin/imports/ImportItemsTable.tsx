@@ -1,43 +1,18 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, Loader2, TriangleAlert } from "lucide-react";
+import { Loader2, TriangleAlert } from "lucide-react";
 import { adminRequest, errorMessage } from "../lib/adminApi";
+import { ITEM_STATUS_CLASS, ITEM_STATUS_LABELS } from "../lib/importLabels";
 import type { ImportItemsPage, ImportItemStatus } from "../lib/importTypes";
-import { mapsUrl } from "../lib/placeFields";
+import MapLink from "./MapLink";
 
 const PAGE_SIZE = 100; // ตรงกับ backend importQueries.ts::ITEMS_PAGE_SIZE
 
-const ITEM_STATUS_LABELS: Record<ImportItemStatus, string> = {
-  imported: "นำเข้าแล้ว",
-  needs_review_mismatch: "Google ไม่ตรง",
-  needs_review_not_found: "ไม่พบใน Google",
-  needs_review_duplicate: "ซ้ำกับที่มีอยู่",
-  error: "ผิดพลาด",
-};
-
-const STATUS_CLASS: Record<ImportItemStatus, string> = {
-  imported: "bg-emerald-50 text-emerald-800",
-  needs_review_mismatch: "bg-amber-50 text-amber-800",
-  needs_review_not_found: "bg-amber-50 text-amber-800",
-  needs_review_duplicate: "bg-amber-50 text-amber-800",
-  error: "bg-red-50 text-[color:var(--danger)]",
-};
-
 const FILTERS: (ImportItemStatus | null)[] = [null, ...(Object.keys(ITEM_STATUS_LABELS) as ImportItemStatus[])];
-
-function MapLink({ location }: { location: string | null }) {
-  const url = location ? mapsUrl({ ATT_LOCATION: location }) : null;
-  if (!url) return null;
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-[color:var(--deep)] underline">
-      แผนที่ <ExternalLink size={12} strokeWidth={1.75} />
-    </a>
-  );
-}
 
 interface ImportItemsTableProps {
   jobId: string;
   token: string | undefined;
-  refreshKey: number; // เปลี่ยนเมื่อ job มีความคืบหน้า → โหลดหน้าปัจจุบันใหม่
+  refreshKey: string; // เปลี่ยนเมื่อ job มีความคืบหน้าหรือมีการตัดสินแถว → โหลดหน้าปัจจุบันใหม่
 }
 
 // ผลรายสถานที่ของ job: ชื่อใน CSV เทียบกับที่ Google เสนอ กรองตามสถานะ และแบ่งหน้า
@@ -128,7 +103,7 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
                       <MapLink location={item.csv_location} />
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <span className={`font-prompt text-xs font-medium px-2 py-1 rounded-full ${STATUS_CLASS[item.status]}`}>
+                      <span className={`font-prompt text-xs font-medium px-2 py-1 rounded-full ${ITEM_STATUS_CLASS[item.status]}`}>
                         {ITEM_STATUS_LABELS[item.status]}
                       </span>
                     </td>

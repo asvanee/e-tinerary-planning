@@ -26,7 +26,8 @@ export type ImportItemStatus =
   | "needs_review_mismatch"
   | "needs_review_not_found"
   | "needs_review_duplicate"
-  | "error";
+  | "error"
+  | "resolved"; // admin ตัดสินแถวที่รอตรวจแล้ว (P4c)
 
 export interface ImportItem {
   item_id: string;

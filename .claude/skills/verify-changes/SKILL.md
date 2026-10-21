@@ -13,7 +13,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
 | frontend `npm run lint` | ❌ 5 errors, 4 warnings (หลัง cleanup 2026-10-21 — `no-explicit-any` 0) |
 | frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
-| backend `npm test` | ✅ 86 passed (5 suites, 2026-10-21 — dedupe + review + import ของ admin pipeline) |
+| backend `npm test` | ✅ 98 passed (6 suites, 2026-10-21 — dedupe + review + import + resolve ของ admin pipeline) |
 | frontend `npm test` | ไม่มีไฟล์ test |
 
 ถ้า baseline เปลี่ยนเพราะงานที่ทำเสร็จแล้ว ให้อัปเดตตารางนี้และ `docs/DEVELOPMENT_STATUS.md`
