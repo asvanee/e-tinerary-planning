@@ -213,6 +213,7 @@ export const cancelImportJob = async (req: AuthRequest, res: Response) => {
 };
 
 // GET /api/admin/imports/:jobId/items?status=&page= — ผลรายสถานที่ (หน้าละ 100 แถว, page เริ่มที่ 0)
+// แนบชื่อและพิกัดจาก CSV (csv_name, csv_location) ให้ admin เทียบกับผลจาก Google ได้
 export const getImportItems = async (req: AuthRequest, res: Response) => {
   try {
     const jobId = jobIdParam(req.params.jobId);
@@ -225,8 +226,23 @@ export const getImportItems = async (req: AuthRequest, res: Response) => {
     const page = req.query.page === undefined ? 0 : Number(req.query.page);
     if (!Number.isInteger(page) || page < 0) return res.status(400).json({ message: "เลขหน้าไม่ถูกต้อง" });
 
-    const result = await listItems(jobId, (status as ImportItemStatus | undefined) ?? null, page);
-    res.json({ page, ...result });
+    const job = await getJob(jobId);
+    if (!job) return res.status(404).json({ message: "ไม่พบงานนำเข้านี้" });
+
+    const [result, csvRows] = await Promise.all([
+      listItems(jobId, (status as ImportItemStatus | undefined) ?? null, page),
+      getProvinceRows(job.province),
+    ]);
+    const csvById = new Map(csvRows.map((r) => [r.ATT_ID, r]));
+    const items = result.items.map((item) => {
+      const row = csvById.get(item.att_id);
+      return {
+        ...item,
+        csv_name: row ? row.ATT_NAME_TH?.trim() || row.ATT_NAME_EN?.trim() || null : null,
+        csv_location: row?.ATT_LOCATION?.trim() || null,
+      };
+    });
+    res.json({ page, total: result.total, items });
   } catch (err) {
     console.error("getImportItems error:", err);
     res.status(500).json({ message: "ไม่สามารถโหลดผลการนำเข้าได้" });

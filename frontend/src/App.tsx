@@ -17,6 +17,7 @@ import AdminLayout from "./admin/AdminLayout";
 import AdminDashboard from "./admin/dashboard/AdminDashboard";
 import ProvinceList from "./admin/provinces/ProvinceList";
 import ProvinceReview from "./admin/provinces/ProvinceReview";
+import ProvinceImport from "./admin/imports/ProvinceImport";
 
 export default function App() {
   return (
@@ -121,6 +122,16 @@ export default function App() {
             <AdminRoute>
               <AdminLayout>
                 <ProvinceReview />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/provinces/:province/import"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <ProvinceImport />
               </AdminLayout>
             </AdminRoute>
           }

@@ -20,7 +20,7 @@ function messageFrom(data: unknown): string | null {
 export async function adminRequest<T>(
   path: string,
   token: string | undefined,
-  options: { method?: "GET" | "PUT" | "DELETE"; body?: unknown } = {}
+  options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {}
 ): Promise<T> {
   const hasBody = options.body !== undefined;
   const res = await fetch(`${API_URL}/api/admin${path}`, {

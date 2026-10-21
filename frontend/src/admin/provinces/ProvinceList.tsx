@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Search, TriangleAlert, ChevronRight } from "lucide-react";
+import { Loader2, Search, TriangleAlert, ChevronRight, CloudDownload } from "lucide-react";
 import { useAuth } from "../../system/auth/useAuth";
 import { adminRequest, errorMessage } from "../lib/adminApi";
 import type { ProvinceSummary } from "../lib/reviewTypes";
@@ -97,14 +97,23 @@ export default function ProvinceList() {
                   <td className="px-4 py-3 text-right">{p.csvRows.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right">{p.importedPlaces > 0 ? p.importedPlaces.toLocaleString() : "–"}</td>
                   <td className="px-4 py-3 text-right">{p.decisions > 0 ? p.decisions.toLocaleString() : "–"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/admin/provinces/${encodeURIComponent(p.province)}`)}
-                      className="font-prompt inline-flex items-center gap-1 px-3 min-h-9 rounded-lg text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)]"
-                    >
-                      ตรวจข้อมูล <ChevronRight size={16} strokeWidth={1.75} />
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/provinces/${encodeURIComponent(p.province)}`)}
+                        className="font-prompt inline-flex items-center gap-1 px-3 min-h-9 rounded-lg text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)]"
+                      >
+                        ตรวจข้อมูล <ChevronRight size={16} strokeWidth={1.75} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/provinces/${encodeURIComponent(p.province)}/import`)}
+                        className="font-prompt inline-flex items-center gap-1 px-3 min-h-9 rounded-lg border border-[color:var(--navy)] text-[color:var(--navy)] hover:bg-white"
+                      >
+                        นำเข้า <CloudDownload size={16} strokeWidth={1.75} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

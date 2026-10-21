@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CloudDownload, Loader2, TriangleAlert } from "lucide-react";
 import { useAuth } from "../../system/auth/useAuth";
 import { adminRequest, errorMessage } from "../lib/adminApi";
 import type { GroupDecisionInput, ProvinceReview as Review, RowDecisionInput } from "../lib/reviewTypes";
@@ -136,12 +136,24 @@ export default function ProvinceReview() {
   return (
     <div className="fade-in flex flex-col gap-4">
       {back}
-      <div>
-        <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">{review.province}</h1>
-        <p className="text-[color:var(--deep)] mt-1">
-          {summary.rows.toLocaleString()} สถานที่ใน CSV · ตัดทิ้ง {summary.excluded} · เหลือต้องตัดสินใจ{" "}
-          <strong>{summary.pending}</strong> รายการ
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">{review.province}</h1>
+          <p className="text-[color:var(--deep)] mt-1">
+            {summary.rows.toLocaleString()} สถานที่ใน CSV · ตัดทิ้ง {summary.excluded} · เหลือต้องตัดสินใจ{" "}
+            <strong>{summary.pending}</strong> รายการ
+          </p>
+        </div>
+        {/* นำเข้าได้เมื่อตัดสินใจครบ (backend ตรวจซ้ำ) */}
+        <button
+          type="button"
+          disabled={summary.pending > 0}
+          title={summary.pending > 0 ? "ตัดสินใจให้ครบทุกรายการก่อนนำเข้า" : undefined}
+          onClick={() => navigate(`/admin${base}/import`)}
+          className="font-prompt inline-flex items-center gap-2 px-4 min-h-10 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] disabled:opacity-50"
+        >
+          <CloudDownload size={18} strokeWidth={1.75} /> นำเข้า
+        </button>
       </div>
 
       <div role="tablist" className="flex flex-wrap gap-2">
