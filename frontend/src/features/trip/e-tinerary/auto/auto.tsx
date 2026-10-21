@@ -78,7 +78,7 @@ interface AutoTripResponse {
   start_lat?: number | null;
   start_lng?: number | null;
 
-  selected_places?: any[];
+  selected_places?: unknown[];
 
   days?: AutoTripDay[];
 
@@ -178,19 +178,14 @@ export default function AutoTrip() {
           );
         }
 
-        console.log(
-          "🔥 AUTO TRIP DATA:",
-          result
-        );
-
         setData(result);
 
         // ถ้าไม่มีวัน
         if (!result.days || result.days.length === 0) {
           setSelectedDay(0);
         }
-      } catch (err: any) {
-        if (err.name === "AbortError") {
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
           return;
         }
 
@@ -200,7 +195,7 @@ export default function AutoTrip() {
         );
 
         setError(
-          err.message ||
+          (err as { message?: string } | null)?.message ||
             "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ"
         );
       } finally {
@@ -544,7 +539,8 @@ const handleConfirmTrip = async () => {
 
     const itineraryText = await itineraryResponse.text();
 
-    let itineraryResult: any;
+    // GET /api/itinerary/trips/:tripId คืน tripDays (เรียงตาม dayNumber)
+    let itineraryResult: { message?: string; tripDays?: { tripDayId: string }[] };
 
     try {
       itineraryResult = JSON.parse(itineraryText);
@@ -561,32 +557,17 @@ const handleConfirmTrip = async () => {
       );
     }
 
-    console.log(
-      "📦 EXISTING ITINERARY:",
-      itineraryResult
-    );
-
     // =====================================================
     // 2. หา trip days จาก response
     // =====================================================
 
-    const tripDays =
-      itineraryResult.tripDays ??
-      itineraryResult.days ??
-      itineraryResult.data?.tripDays ??
-      itineraryResult.data?.days ??
-      [];
+    const tripDays = itineraryResult.tripDays ?? [];
 
     if (!Array.isArray(tripDays) || tripDays.length === 0) {
       throw new Error(
         "ไม่พบข้อมูลวันเดินทางของทริปนี้ใน Supabase"
       );
     }
-
-    console.log(
-      "📅 TRIP DAYS:",
-      tripDays
-    );
 
     // =====================================================
     // 3. สร้าง payload สำหรับ PUT
@@ -595,22 +576,9 @@ const handleConfirmTrip = async () => {
     const days = data.days?.map((day, index) => {
       const stops = getDayStops(index);
 
-      // หา trip day จริงจาก Supabase
-      const tripDay =
-        tripDays.find(
-          (item: any) =>
-            Number(
-              item.day_number ??
-              item.day ??
-              item.day_no
-            ) === Number(day.day)
-        ) ?? tripDays[index];
-
-      // รองรับชื่อ field หลายแบบ
-      const tripDayId =
-        tripDay?.trip_day_id ??
-        tripDay?.tripDayId ??
-        tripDay?.id;
+      // จับคู่ trip day ตามลำดับ (index) ของวันใน Auto Trip
+      // ⚠️ Auto Trip ข้ามวันที่ไม่มีสถานที่ (day.day อาจไม่เท่ากับ index + 1)
+      const tripDayId = tripDays[index]?.tripDayId;
 
       if (!tripDayId) {
         throw new Error(
@@ -630,13 +598,6 @@ const handleConfirmTrip = async () => {
     // =====================================================
     // 4. ตรวจสอบ payload ก่อนส่ง
     // =====================================================
-
-    console.log(
-      "💾 SAVE ITINERARY PAYLOAD:",
-      {
-        days,
-      }
-    );
 
     if (days.length === 0) {
       throw new Error(
@@ -669,11 +630,6 @@ const handleConfirmTrip = async () => {
 
     const result = await response.json();
 
-    console.log(
-      "💾 SAVE RESULT:",
-      result
-    );
-
     if (!response.ok) {
       throw new Error(
         result.message ||
@@ -693,14 +649,14 @@ const handleConfirmTrip = async () => {
       navigate(`/trip/${tripId}/detail`);
     }, 1000);
 
-  } catch (err: any) {
+  } catch (err) {
     console.error(
       "❌ SAVE AUTO TRIP ERROR:",
       err
     );
 
     setSaveMessage(
-      err.message ||
+      (err as { message?: string } | null)?.message ||
         "บันทึกแผนเดินทางไม่สำเร็จ"
     );
   } finally {

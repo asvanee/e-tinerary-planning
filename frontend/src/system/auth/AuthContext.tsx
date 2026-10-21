@@ -11,10 +11,15 @@ export interface User {
   last_login: string;
 }
 
+// session ของ Supabase Auth (frontend ใช้แค่ access_token ส่งเป็น Bearer token)
+export interface AuthSession {
+  access_token: string;
+}
+
 interface AuthContextType {
   user: User | null;
-  session: any;
-  login: (user: User, session: any) => void;
+  session: AuthSession | null;
+  login: (user: User, session: AuthSession) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -23,7 +28,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -36,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (userData: User, sessionData: any) => {
+  const login = (userData: User, sessionData: AuthSession) => {
     setUser(userData);
     setSession(sessionData);
     localStorage.setItem("user", JSON.stringify(userData));

@@ -1,20 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
-import LocationPinPicker from "../../trip/create/components/LocationPinPicker"; // ปรับ path ตามตำแหน่งจริงที่วางไฟล์
+import LocationPinPicker from "./components/LocationPinPicker";
 import type { ReactNode } from "react";
 import {
     ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, CircleCheck, Heart, Loader2,
     MapPin, MapPinned, Pencil, Plane, Route, Save, TriangleAlert, Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-
-
-// ✅ เอา PROVINCES hardcode 77 จังหวัดออกแล้ว — ดึงจาก /api/place-dropdown/provinces แทน
-// (ตั้งใจตั้งชื่อ path แยกจาก /api/places เดิม — ดู placeDropdownRoutes.ts)
-// เพราะข้อมูลจริงตอนนี้มีแค่กรุงเทพฯ จังหวัดเดียว ถ้าให้เลือกจังหวัดที่ยังไม่มีข้อมูล
-// จะได้ 0 ที่แบบเงียบๆ เหมือนบั๊กที่เคยเจอกับ district (ดู PROJECT_BRIEF หัวข้อ 3.11)
 
 const BUDGET_SCOPES = [
     { value: "GROUP", label: "งบรวมทั้งกลุ่ม" },
@@ -38,10 +32,8 @@ interface TripSummary {
     tripDays: number;
 }
 
-// ✅ เพิ่มใหม่: เช็คไม่ให้ end_time (start_time + available_time_per_day) ข้ามเที่ยงคืน
-// สอดคล้องกับ validateNoMidnightCrossing ฝั่ง backend (tripController.ts) — ทาง (ก)
-// ตามมติใน itineraries_feature_status.md ทำหน้าที่แค่เตือน user เร็วๆ ก่อนยิง API เท่านั้น
-// (backend ยังคง validate ซ้ำเป็นด่านสุดท้ายเสมอ ไม่เชื่อ client ตรงๆ)
+// เช็คไม่ให้ end_time (start_time + available_time_per_day) ข้ามเที่ยงคืน — เตือน user ก่อนยิง API
+// (backend validateNoMidnightCrossing ใน tripController.ts ตรวจซ้ำเสมอ)
 function getMidnightCrossingError(
     startTime: string,
     availableTimePerDay: number | null
@@ -191,26 +183,14 @@ function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }
 export default function CreateTrip() {
     const navigate = useNavigate();
     const { session } = useAuth();
-
-
-    const location = useLocation();
     const { tripId } = useParams();
 
-    //const isEdit = !!tripId; //ถ้า isEdit === true ให้โหลดข้อมูลจาก GET /api/trips/:tripId
-
-
-const editMode = !!tripId;
-    const trip = location.state?.trip;
-
-    console.log("editMode =", editMode);
-console.log("trip =", trip);
+    // มี tripId = โหมดแก้ไข (โหลดข้อมูลเดิมจาก GET /api/trips/:tripId)
+    const editMode = !!tripId;
 
     const [province, setProvince] = useState("");
     const [provinces, setProvinces] = useState<string[]>([]);
     const [provincesLoading, setProvincesLoading] = useState(true);
-    // ✅ เปลี่ยนชื่อ field จาก city เป็น district ทั้งระบบแล้ว (frontend + payload +
-    // tripController.ts + poiPlaceQueries.ts + DB column trips.district) กันความสับสน
-    // เพราะค่านี้คือ "อำเภอ/เขต" ไม่ใช่ "เมือง" ตามความหมายเดิมของชื่อ city
     const [district, setDistrict] = useState("");
     const [districts, setDistricts] = useState<string[]>([]);
     const [districtsLoading, setDistrictsLoading] = useState(false);
@@ -219,25 +199,21 @@ console.log("trip =", trip);
     const [startTime, setStartTime] = useState("");
     const [numberOfPeople, setNumberOfPeople] = useState("");
 
-    // ✅ ใหม่: ปุ่มติ๊ก "ต้องการกำหนดงบประมาณไหม" — default ไม่ติ๊ก (ไม่จำกัดงบ)
-    // ติ๊กแล้วค่อยเด้งช่องกรอกงบ/ขอบเขต/ช่วงเวลาให้กรอก (บังคับกรอกครบเฉพาะตอนติ๊ก)
+    // ติ๊ก "กำหนดงบประมาณ" (default ไม่ติ๊ก = ไม่จำกัดงบ) แล้วจึงบังคับกรอกงบ/ขอบเขต/ช่วงเวลาให้ครบ
     const [useBudget, setUseBudget] = useState(false);
     const [totalBudget, setTotalBudget] = useState("");
     const [budgetScope, setBudgetScope] = useState("");
     const [budgetPeriod, setBudgetPeriod] = useState("");
     const [availableTimePerDay, setAvailableTimePerDay] = useState("");
 
-    // ✅ จุดเริ่มต้น (ปักหมุดเอง) สำหรับคำนวณ distance score
+    // จุดเริ่มต้น (ปักหมุดเอง) สำหรับคำนวณ distance score
     const [startLat, setStartLat] = useState<number | null>(null);
     const [startLng, setStartLng] = useState<number | null>(null);
     const [startAddress, setStartAddress] = useState<string | null>(null);
     const [pinConfirmed, setPinConfirmed] = useState(false);
 
-    // ✅ เพิ่มใหม่: กันบั๊ก district หายตอน refresh หน้า edit
-    // เดิมเช็คว่า province ที่โหลดมาตรงกับ location.state?.trip.province ไหม แต่ state นี้
-    // หายไปทันทีถ้า refresh หน้า/เข้าลิงก์ตรง ทำให้ district ที่เพิ่งโหลดมาจาก API ถูกเคลียร์ทิ้ง
-    // เปลี่ยนมาใช้ ref ธรรมดา: set true ก่อนเซ็ต province จาก loadTrip() เท่านั้น
-    // ถ้า effect ด้านล่างเห็น flag นี้เป็น true ให้ "ข้าม" การเคลียร์ district ไปหนึ่งรอบ
+    // true = province รอบนี้มาจาก loadTrip() — effect ที่ดึง district จะข้ามการเคลียร์ district หนึ่งรอบ
+    // (ไม่งั้น district ที่โหลดมาจะถูกล้างทันที)
     const skipDistrictResetRef = useRef(false);
     // ค่าเดิมของช่องที่กำหนดวันของแผน (โหมดแก้ไข) — ถ้าเปลี่ยน backend จะล้างแผนเดิม (Known Issue #6)
     const originalDayStructureRef = useRef<{
@@ -252,11 +228,11 @@ console.log("trip =", trip);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-    // ✅ state สำหรับ success modal
+    // success modal
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [createdTrip, setCreatedTrip] = useState<any>(null);
+    const [createdTrip, setCreatedTrip] = useState<{ trip_id: string } | null>(null);
     const [summary, setSummary] = useState<TripSummary | null>(null);
-    // ✅ เพิ่มใหม่: เตือนกรณีบันทึก category ไม่สำเร็จ (backend best-effort, ไม่ rollback trip หลัก)
+    // บันทึก category ไม่สำเร็จ (backend best-effort ไม่ rollback ทริป)
     const [categoryWarning, setCategoryWarning] = useState(false);
 
     // error แบบ inline (แทน alert) + loading ตอนกดบันทึก
@@ -264,7 +240,7 @@ console.log("trip =", trip);
     const [shakeKey, setShakeKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // แบ่งฟอร์มเป็นขั้น (เฉพาะ UI ไม่กระทบ state/payload เดิม)
+    // แบ่งฟอร์มเป็นขั้น (เฉพาะ UI ไม่กระทบ state/payload)
     const [step, setStep] = useState(0);
     const stepRef = useRef<HTMLDivElement>(null);
     const showError = (text: string) => {
@@ -291,8 +267,7 @@ console.log("trip =", trip);
 
       const trip = data.trip;
 
-      // ✅ บอก effect ที่ดึง district ว่ารอบนี้ province ถูกตั้งค่าจากการโหลดข้อมูลเดิม
-      // ไม่ใช่ user เลือกเอง อย่าเพิ่งเคลียร์ district ที่กำลังจะ set ด้านล่าง
+      // province รอบนี้มาจากข้อมูลเดิม ไม่ใช่ user เลือก — อย่าเคลียร์ district ที่กำลังจะ set
       skipDistrictResetRef.current = true;
 
       setProvince(trip.province ?? "");
@@ -348,8 +323,6 @@ console.log("trip =", trip);
       }
     } catch (err) {
       console.error(err);
-      // ✅ เพิ่มใหม่: เดิมเงียบไปเฉยๆ ถ้าโหลดข้อมูลทริปเดิมไม่สำเร็จ user จะเห็นฟอร์มว่างเปล่า
-      // โดยไม่รู้สาเหตุ — แจ้งเตือนให้สอดคล้องกับจุดอื่นในไฟล์นี้ที่ alert ตอน fetch fail
       alert("ไม่สามารถโหลดข้อมูลทริปเดิมได้ กรุณาลองใหม่อีกครั้ง");
     }
   };
@@ -357,8 +330,7 @@ console.log("trip =", trip);
   loadTrip();
 }, [editMode, tripId, session]);
 
-    // ✅ ดึงรายชื่อจังหวัดจริงจาก DB แทน hardcode 77 จังหวัด — กันเลือกจังหวัดที่ยัง
-    // ไม่มีข้อมูลใน places แล้วได้ 0 ที่แบบเงียบๆ ตอนคำนวณ POI score
+    // รายชื่อจังหวัดที่มีสถานที่ในระบบ (กันเลือกจังหวัดที่ไม่มีข้อมูลแล้วได้ POI 0 ที่)
     useEffect(() => {
         const fetchProvinces = async () => {
             try {
@@ -375,17 +347,14 @@ console.log("trip =", trip);
         fetchProvinces();
     }, []);
 
-    // ✅ เพิ่มใหม่: ดึงรายการหมวดหมู่ความสนใจจาก backend
-    // (เดิมไฟล์นี้ตั้ง categoriesLoading = true ไว้ตั้งแต่ต้น แต่ไม่มี useEffect
-    // ไหนยิง fetch("/api/categories") หรือเรียก setCategoriesLoading(false) เลย
-    // ทำให้ UI ค้างที่ "กำลังโหลดหมวดหมู่..." ตลอดไป — นี่คือจุดที่แก้)
+    // หมวดหมู่ความสนใจ
     useEffect(() => {
         const fetchCategories = async () => {
             setCategoriesLoading(true);
             try {
                 const res = await fetch("/api/categories");
                 const data = await res.json();
-                // รองรับทั้งกรณี backend คืน array ตรงๆ หรือคืนใน { categories: [...] }
+                // backend คืน { categories: [...] } (รองรับ array ตรงๆ ด้วย)
                 const list: Category[] = Array.isArray(data)
                     ? data
                     : data.categories || [];
@@ -400,8 +369,7 @@ console.log("trip =", trip);
         fetchCategories();
     }, []);
 
-    // ✅ ดึงรายชื่อ district จริงจาก DB แทน free-text เดิม — ดึงใหม่ทุกครั้งที่
-    // province เปลี่ยน (province ว่าง = คืน district ทั้งหมดที่มีในระบบ)
+    // รายชื่อ district ที่มีในระบบ — ดึงใหม่ทุกครั้งที่ province เปลี่ยน (province ว่าง = ทั้งหมด)
     useEffect(() => {
         const fetchDistricts = async () => {
             setDistrictsLoading(true);
@@ -421,12 +389,7 @@ console.log("trip =", trip);
         };
         fetchDistricts();
 
-        // ✅ แก้บั๊ก: เดิมเช็ค `trip?.province !== province` โดย trip มาจาก location.state
-        // ซึ่งหายไปเมื่อ refresh หน้า/เข้าลิงก์ตรงตอน edit mode ทำให้ district ที่เพิ่งโหลดมา
-        // จาก API ถูกเคลียร์ทิ้งทันทีทุกครั้งที่ refresh หน้าแก้ไขทริป
-        // ตอนนี้เช็คจาก ref แทน: ถ้ารอบนี้ province ถูกตั้งจาก loadTrip() (skipDistrictResetRef
-        // เป็น true) ให้ข้ามการเคลียร์ไปหนึ่งรอบ แล้ว reset flag ทันที ส่วนกรณี user เลือก
-        // province เองจาก dropdown (ปกติ หรือหลังโหลดทริปเสร็จแล้ว) จะยังเคลียร์ district ตามเดิม
+        // province มาจาก loadTrip() -> ข้ามการเคลียร์หนึ่งรอบ · user เลือกเอง -> เคลียร์ district
         if (skipDistrictResetRef.current) {
             skipDistrictResetRef.current = false;
         } else {
@@ -441,7 +404,7 @@ console.log("trip =", trip);
         );
     };
 
-    // ✅ callback จาก LocationPinPicker — เรียกเฉพาะตอนกด "ยืนยันปักหมุด" เท่านั้น
+    // callback จาก LocationPinPicker — เรียกเฉพาะตอนกด "ยืนยันปักหมุด"
     const handlePinConfirm = (lat: number, lng: number, address: string | null) => {
         setStartLat(lat);
         setStartLng(lng);
@@ -449,8 +412,7 @@ console.log("trip =", trip);
         setPinConfirmed(true);
     };
 
-    // ✅ toggle ปุ่มติ๊กงบประมาณ — ยกเลิกติ๊กแล้วเคลียร์ค่าทันที กัน state ค้างจากรอบก่อน
-    // (เผื่อ user กรอกงบไว้ก่อนแล้วค่อยติ๊กออก ไม่ให้ค่าเก่าหลุดไปคำนวณ)
+    // ยกเลิกติ๊กงบประมาณแล้วเคลียร์ค่าทันที ไม่ให้ค่าเก่าหลุดไปคำนวณ
     const handleUseBudgetChange = (checked: boolean) => {
         setUseBudget(checked);
         if (!checked) {
@@ -470,15 +432,13 @@ console.log("trip =", trip);
         e.preventDefault();
         setFormError("");
 
-        // ✅ แก้แล้ว: province บังคับกรอกเสมอ (district เลือกเพิ่มหรือไม่ก็ได้)
-        // ปกติ <select> จังหวัดมี required อยู่แล้วทำให้ submit ไม่ได้ถ้าไม่เลือก
-        // แต่เช็คซ้ำไว้เป็น safety net เผื่อ browser ข้าม native validation ไปได้
+        // province บังคับเสมอ (<select> มี required อยู่แล้ว เช็คซ้ำเผื่อข้าม native validation)
         if (!province) {
             showError("กรุณาเลือกจังหวัด");
             return;
         }
 
-        // ✅ บังคับให้ยืนยันปักหมุดก่อน เพราะไม่มี fallback อื่นแล้ว
+        // ต้องยืนยันปักหมุดก่อน (ไม่มี fallback จุดเริ่มต้น)
         if (!pinConfirmed || startLat === null || startLng === null) {
             showError("กรุณาปักหมุดจุดเริ่มต้น แล้วกด \"ยืนยันปักหมุด\" ก่อนสร้างทริป");
             return;
@@ -490,14 +450,13 @@ console.log("trip =", trip);
             return;
         }
 
-        // ✅ เปลี่ยนจากเช็ค totalBudget ตรงๆ มาเช็คจาก useBudget แทน
-        // (ติ๊กว่าต้องการกำหนดงบ แต่กรอกไม่ครบ = บล็อก / ไม่ติ๊ก = ข้ามไปเลย)
+        // ติ๊กกำหนดงบแต่กรอกไม่ครบ = บล็อก · ไม่ติ๊ก = ข้าม
         if (useBudget && (!totalBudget || !budgetScope || !budgetPeriod)) {
             showError("กรุณากรอกงบประมาณและเลือกขอบเขต/ช่วงเวลาให้ครบ");
             return;
         }
 
-        // ✅ เพิ่มใหม่: กัน end_time ข้ามเที่ยงคืน ก่อนยิง API (backend ยัง validate ซ้ำอยู่ดี)
+        // กัน end_time ข้ามเที่ยงคืนก่อนยิง API (backend validate ซ้ำ)
         const midnightCrossingError = getMidnightCrossingError(
             startTime,
             availableTimePerDay ? Number(availableTimePerDay) : null
@@ -511,15 +470,14 @@ console.log("trip =", trip);
         const people = Number(numberOfPeople);
         const tripDays = calculateTripDays(startDate, endDate);
 
-        // ✅ rawBudget เคารพ useBudget เป็นด่านแรกเสมอ — ไม่ติ๊ก = null เสมอ
-        // ไม่ว่า state totalBudget จะมีเลขค้างอยู่หรือไม่ก็ตาม (safety net อีกชั้น)
+        // ไม่ติ๊กกำหนดงบ = null เสมอ แม้ state totalBudget จะมีเลขค้างอยู่
         const rawBudget = useBudget && totalBudget ? Number(totalBudget) : null;
 
         let dailyBudget: number | null = null;
         let normalizedTotalBudget: number | null = rawBudget;
 
         if (rawBudget) {
-            // ✅ รองรับ 4 case จาก scope (GROUP/PER_PERSON) x period (TOTAL_TRIP/PER_DAY)
+            // 4 กรณีจาก scope (GROUP/PER_PERSON) x period (TOTAL_TRIP/PER_DAY)
             if (budgetScope === "GROUP" && budgetPeriod === "TOTAL_TRIP") {
                 dailyBudget = rawBudget / tripDays;
                 normalizedTotalBudget = rawBudget;
@@ -625,7 +583,7 @@ console.log("trip =", trip);
                 }
                 
 
-            // ✅ เก็บข้อมูลสรุปไว้แสดงใน modal แทนการ navigate ทันที
+            // สร้างทริปใหม่: แสดงสรุปใน modal ก่อนไปหน้าแนะนำ
             setCreatedTrip(result.trip);
             setSummary({
                 dailyBudget,
@@ -633,7 +591,7 @@ console.log("trip =", trip);
                 people,
                 tripDays,
             });
-            // ✅ backend อาจสร้าง trip สำเร็จ แต่บันทึก category ไม่สำเร็จ (best-effort)
+            // backend อาจสร้างทริปสำเร็จแต่บันทึก category ไม่สำเร็จ (best-effort)
             setCategoryWarning(!!result.categoryWarning);
             
             setShowSuccessModal(true);
