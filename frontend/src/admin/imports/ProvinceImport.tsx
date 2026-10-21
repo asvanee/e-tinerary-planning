@@ -164,7 +164,7 @@ export default function ProvinceImport() {
         <ArrowLeft size={16} strokeWidth={1.75} /> กลับไปหน้าตรวจข้อมูล
       </button>
       <div>
-        <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">นำเข้า{province}</h1>
+        <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">นำเข้าข้อมูล จังหวัด{province}</h1>
         <p className="text-[color:var(--deep)] mt-1">
           นำสถานที่ที่ตรวจแล้วเข้าระบบ โดยดึงข้อมูลจาก Google และส่งแถวที่จับคู่ไม่ได้ให้ตรวจภายหลัง
         </p>

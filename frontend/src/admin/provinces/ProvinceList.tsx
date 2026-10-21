@@ -5,7 +5,7 @@ import { useAuth } from "../../system/auth/useAuth";
 import { adminRequest, errorMessage } from "../lib/adminApi";
 import type { ProvinceSummary } from "../lib/reviewTypes";
 
-// รายชื่อจังหวัดจาก attraction.csv พร้อมสถานะ — เลือกเพื่อเข้าไปตรวจข้อมูล (R5 P3, D-26)
+// รายชื่อจังหวัดจาก attraction.csv พร้อมสถานะ — เลือกเพื่อตรวจข้อมูล (P3) หรือนำเข้า (P4)
 export default function ProvinceList() {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -37,10 +37,10 @@ export default function ProvinceList() {
   return (
     <div className="fade-in">
       <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
-        เพิ่มจังหวัด
+        เลือกจังหวัด
       </h1>
       <p className="text-[color:var(--deep)] mt-1">
-        เลือกจังหวัดเพื่อตรวจสถานที่ซ้ำและสถานที่ที่มีปัญหาก่อนนำเข้า (ข้อมูลจาก attraction.csv ยังไม่เรียก Google)
+        "ตรวจข้อมูล" เพื่อตัดสินสถานที่ซ้ำและสถานที่ที่มีปัญหา (ยังไม่เรียก Google) · ตรวจครบแล้วกด "นำเข้า"
       </p>
 
       <div className="relative mt-6 max-w-sm">

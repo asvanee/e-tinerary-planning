@@ -85,8 +85,8 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
               <tr>
                 <th className="text-left px-3 py-2">สถานที่ใน CSV</th>
                 <th className="text-left px-3 py-2">ผล</th>
-                <th className="text-left px-3 py-2">Google เสนอ</th>
-                <th className="text-right px-3 py-2">ระยะ</th>
+                <th className="text-left px-3 py-2">Google</th>
+                <th className="text-right px-3 py-2">ระยะห่างคลาดเคลื่อน</th>
                 <th className="text-left px-3 py-2">หมายเหตุ</th>
               </tr>
             </thead>

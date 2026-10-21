@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { MapPin, Copy, Tags } from "lucide-react";
+import { CloudDownload, Tags } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../system/auth/useAuth";
 
@@ -10,18 +10,12 @@ interface AdminTool {
   to?: string; // ไม่มี = ยังไม่เปิดใช้
 }
 
-// เครื่องมือตาม D-23/D-26 — สถานที่ซ้ำอยู่ในหน้าตรวจข้อมูลของแต่ละจังหวัด
+// เครื่องมือตาม D-24/D-26 — ตรวจสถานที่ซ้ำและนำเข้าทำทีละจังหวัด (เลือกจากหน้ารายชื่อจังหวัด)
 const TOOLS: AdminTool[] = [
   {
-    title: "เพิ่มจังหวัด",
-    description: "เลือกจังหวัดจาก attraction.csv แล้วตรวจข้อมูลก่อนนำเข้า",
-    icon: MapPin,
-    to: "/admin/provinces",
-  },
-  {
-    title: "จัดการสถานที่ซ้ำ",
-    description: "ตัดสินใจรวมหรือแยกสถานที่ที่อาจซ้ำกัน และแก้สถานที่ที่มีปัญหา (เลือกจังหวัดก่อน)",
-    icon: Copy,
+    title: "ตรวจสอบสถานที่และนำเข้าข้อมูล",
+    description: "ตรวจสอบสถานที่ใน CSV + นำเข้าพร้อมข้อมูลจาก Google",
+    icon: CloudDownload,
     to: "/admin/provinces",
   },
   {

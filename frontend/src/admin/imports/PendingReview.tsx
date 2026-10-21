@@ -106,7 +106,7 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
                 <MapLink location={item.csv_location} />
               </div>
               <div>
-                <p className="text-xs text-[color:var(--muted)]">Google เสนอ</p>
+                <p className="text-xs text-[color:var(--muted)]">Google</p>
                 {candidate ? (
                   <>
                     <p className="text-[color:var(--text)]">{candidate.name ?? "–"}</p>
