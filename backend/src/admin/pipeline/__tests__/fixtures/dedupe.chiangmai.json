@@ -1,0 +1,859 @@
+{
+  "source": "data-pipeline/src/testDedupe.ts @ 12073f3 (2026-10-18)",
+  "province": "เชียงใหม่",
+  "rowsBefore": 551,
+  "locationOverridesApplied": 0,
+  "rowsAfter": 489,
+  "mergedGroups": [
+    {
+      "representativeAttId": "20250606144646001",
+      "droppedAttIds": [
+        "2011040513491415659"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20250523115859001",
+      "droppedAttIds": [
+        "20240705100859001",
+        "2011040510573115640"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20250307105619001",
+      "droppedAttIds": [
+        "20241121134610001",
+        "20240705104859001",
+        "2011040511013615641",
+        "201005182246293282"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20250204102914001",
+      "droppedAttIds": [
+        "2010120911214113764"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2011050315424415894",
+      "droppedAttIds": [
+        "20241223110514001"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "name"
+      ]
+    },
+    {
+      "representativeAttId": "2011040514231115686",
+      "droppedAttIds": [
+        "20241220134846001"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "name"
+      ]
+    },
+    {
+      "representativeAttId": "20241121155940001",
+      "droppedAttIds": [
+        "20211122101847732286"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20241121140158001",
+      "droppedAttIds": [
+        "201005182246293238"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20241021150600001",
+      "droppedAttIds": [
+        "20230110105653748311"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20241021145046001",
+      "droppedAttIds": [
+        "20230110152708748414"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20241021143721001",
+      "droppedAttIds": [
+        "2011050410212215935"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20241021142629001",
+      "droppedAttIds": [
+        "20240802111250001"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240919155510001",
+      "droppedAttIds": [
+        "2011040516303815732"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240919155134001",
+      "droppedAttIds": [
+        "20221121101343744778",
+        "2014082612043216755"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240903161235001",
+      "droppedAttIds": [
+        "201005182246292954"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240802113326001",
+      "droppedAttIds": [
+        "2011040614091015757"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240705103857001",
+      "droppedAttIds": [
+        "20240705103856001"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240705095603001",
+      "droppedAttIds": [
+        "20231114113547001"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240704163232001",
+      "droppedAttIds": [
+        "2024070416323104",
+        "2024070416323103",
+        "2024070416323102",
+        "20240704163231001",
+        "2024070416323002",
+        "20240704163230001",
+        "2024070416322902",
+        "20240704163229001",
+        "20240704163228001",
+        "20240704163227001",
+        "2011040516185815729"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240503105308001",
+      "droppedAttIds": [
+        "20211119145255732221"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240227142828001",
+      "droppedAttIds": [
+        "2024022714282402",
+        "20240227142824001"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20240125101654001",
+      "droppedAttIds": [
+        "2011040614475015778"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20231114144226001",
+      "droppedAttIds": [
+        "2011040613401315739"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20231114110239001",
+      "droppedAttIds": [
+        "20211119152912732230",
+        "2016050411370920245"
+      ],
+      "matchedBy": [
+        "phone",
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20231114100216001",
+      "droppedAttIds": [
+        "20230106145632748261",
+        "20181109142937403123"
+      ],
+      "matchedBy": [
+        "phone",
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20230111150504748529",
+      "droppedAttIds": [
+        "2010120911214113716"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20230110140640748378",
+      "droppedAttIds": [
+        "20170901095237288899"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20230106143558748260",
+      "droppedAttIds": [
+        "20230106142456748259"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20230106140302748257",
+      "droppedAttIds": [
+        "2011040513461315656"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211124103957732397",
+      "droppedAttIds": [
+        "201005182246293474"
+      ],
+      "matchedBy": [
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211124102110732393",
+      "droppedAttIds": [
+        "2015120421550719487"
+      ],
+      "matchedBy": [
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211124093134732383",
+      "droppedAttIds": [
+        "20211123153349732326"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211123112032732307",
+      "droppedAttIds": [
+        "2010120911214113770"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211123110935732305",
+      "droppedAttIds": [
+        "2010120911214113754"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211123105037732303",
+      "droppedAttIds": [
+        "2011040510500915638"
+      ],
+      "matchedBy": [
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211119155655732245",
+      "droppedAttIds": [
+        "2011040516003615720"
+      ],
+      "matchedBy": [
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20211119153910732235",
+      "droppedAttIds": [
+        "2011040614035915755"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2015120421550719520",
+      "droppedAttIds": [
+        "2010120911214113766"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2015120421550719483",
+      "droppedAttIds": [
+        "201005182246293505"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2011050410135715927",
+      "droppedAttIds": [
+        "2011040510530515639",
+        "201005182246293431"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2011040514375715697",
+      "droppedAttIds": [
+        "201005182246293055"
+      ],
+      "matchedBy": [
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2011040511073715643",
+      "droppedAttIds": [
+        "2010120911214113760"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    }
+  ],
+  "reviewGroups": [
+    {
+      "attIds": [
+        "20250606141512001",
+        "20250606133755001"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20240208105559001",
+        "20240109104738001",
+        "20211123112032732307",
+        "2010120911214113770"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20240208103713001",
+        "20240108154014001",
+        "20231114111156001",
+        "20231114093349001",
+        "20230915111303001",
+        "20230106163653748271",
+        "20230106115412748253",
+        "20211122101059732283",
+        "20161011105212129388",
+        "2015120421550719572",
+        "2015120421550719509",
+        "2015120421550719485",
+        "2015120421550719480",
+        "2015120421550719477",
+        "2015020315452416786",
+        "2014082513491216754",
+        "2012101822434516410",
+        "2011050410200115934",
+        "2011050410135715927",
+        "2011050315213015893",
+        "2011040615351515790",
+        "2011040514411315698",
+        "2011040514375715697",
+        "2011040514204115684",
+        "2011040511013615641",
+        "2011040510530515639",
+        "2011040510255715630",
+        "2011040510190815624",
+        "201005182246293553",
+        "201005182246293431",
+        "201005182246293381",
+        "201005182246293055",
+        "201005182246291146",
+        "20211124112929732400",
+        "20211124110057732399",
+        "20211124105228732398",
+        "20211123150142732318",
+        "20211119160853732252",
+        "20211119154617732244",
+        "20211119153910732235",
+        "2015120421550719498",
+        "201005182246291204",
+        "20241021142629001",
+        "20240704164159001",
+        "2015120421550719491",
+        "20100518224629119",
+        "20240802111250001",
+        "20240705141116001",
+        "201005182246291480",
+        "2011040513515115660"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20240208101140001",
+        "20231114110239001",
+        "20231114102147001",
+        "20231114100216001"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "20240108142438001",
+        "2011040516034315721"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "20231207094452001",
+        "2011040511073715643",
+        "201005182246291070",
+        "20211124095418732384",
+        "20211123154035732330",
+        "2011040613561115750",
+        "2011040613491715746",
+        "201005182246293435",
+        "2015120421550719502",
+        "2015120421550719497",
+        "2015120421550719493",
+        "2015120421550719490",
+        "2015120421550719486",
+        "20100518224629377",
+        "201005182246293422",
+        "20250523115859001",
+        "2015120421550719614",
+        "20240705100859001",
+        "2011040510573115640",
+        "20240705101745001",
+        "2011040514514015701",
+        "2015120421550719494",
+        "2010120911214113760"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20211124103957732397",
+        "20211123105037732303",
+        "20211122102459732289",
+        "2011040614113315758",
+        "2011040614091015757",
+        "2011040513364915651",
+        "2011040511205315647",
+        "2011040511143015645",
+        "2011040511044615642",
+        "2011040510500915638",
+        "2010120911214113771",
+        "201005182246293474",
+        "20240919155134001",
+        "20221121101343744778",
+        "2014082612043216755",
+        "201005182246293151",
+        "201005182246291279"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20211122101847732286",
+        "2015120421550719553",
+        "2015120421550719546",
+        "2015120421550719543",
+        "2011040516303815732",
+        "201005182246293469"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550719499",
+        "2011040614311815767",
+        "201005182246293561"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "2011040615292415788",
+        "2011040614270915765",
+        "201005182246292148"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "2011040614004915754",
+        "2011040613472115744",
+        "2010120911214113742",
+        "20211124114557732401",
+        "2015120421550719483",
+        "2011040614450215775",
+        "2010120911214113728",
+        "2010120911214113727",
+        "201005182246293533",
+        "201005182246293505"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20250523112716001",
+        "201005182246293483"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20241220125313001",
+        "2015120421550719504"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20241021143721001",
+        "2015120421550719495",
+        "2011050410212215935"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20241021143231001",
+        "20240208103823001"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20240919152351001",
+        "20100518224629356"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20240903161011001",
+        "2014052210452616715"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20230111152022748531",
+        "2011040511170215646"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20230110104238748304",
+        "2011050410450515957"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2014121214052916774",
+        "2011040514582515705"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2011040614500815779",
+        "2011040515461215715"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2011040614061915756",
+        "2011040514552815704"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2010120911214113759",
+        "201005182246293574"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    }
+  ]
+}

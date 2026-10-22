@@ -1,14 +1,8 @@
 /**
- * คำนวณระยะทางตรง (great-circle distance) ระหว่าง 2 พิกัดด้วยสูตร Haversine
- * หน่วยผลลัพธ์: กิโลเมตร
+ * ระยะทางตรง (great-circle distance) ระหว่าง 2 พิกัดด้วยสูตร Haversine หน่วยกิโลเมตร
+ * ใช้เป็น fallback เมื่อไม่มีระยะทางจาก ORS
  *
- * Port จาก backend/src/utils/haversine.ts — logic เดิม 100% (pure function ไม่มี dependency
- * ฝั่ง Node) ใช้ตอน recompute client-side ในหน้า itinerary editor ให้ตรงกับที่ backend
- * re-validate ซ้ำก่อน save (ดูมติ "recompute logic ฝั่ง frontend" ใน itineraries_feature_status.md
- * — port เป็น TS แยกฝั่ง frontend ไม่แชร์ package เดียวกัน)
- *
- * ⚠️ ถ้าแก้สูตรนี้ฝั่ง backend ต้องแก้ไฟล์นี้คู่กันเสมอ ไม่งั้นผลคำนวณระยะทาง/เวลาเดินทาง
- * จะเพี้ยนกันระหว่างตอน user ลากปรับ (client) กับตอนกดยืนยันแผน (backend re-validate)
+ * ⚠️ สำเนาของ backend/src/utils/haversine.ts ต้องตรงกันทุกบรรทัด
  */
 
 const EARTH_RADIUS_KM = 6371;

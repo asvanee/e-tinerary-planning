@@ -13,7 +13,7 @@
 5. หรือใช้ "จัดทริปอัตโนมัติ" (Auto Trip) (`backend/src/features/itinerary/autoTripBuilder.ts`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`)
 6. ยืนยันแผน (backend ตรวจซ้ำก่อนบันทึก) และดูแผนที่ยืนยันแล้ว (`TripDetail.tsx`)
 
-ข้อมูลสถานที่มาจาก `data-pipeline/` ซึ่งนำเข้า CSV สถานที่ท่องเที่ยว แล้วเติมรายละเอียดจาก Google Places API ลงตาราง `places` ใน Supabase
+ข้อมูลสถานที่มาจาก CSV สถานที่ท่องเที่ยวของ ททท. (`backend/data/attraction.csv`) ที่ admin ตรวจและนำเข้าผ่านหน้า `/admin` แล้วเติมรายละเอียดจาก Google Places API ลงตาราง `places` (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ เดิมมาจาก `data-pipeline/` ที่ลบแล้ว — D-37)
 
 ## 2. โครงสร้าง Repository
 
@@ -23,7 +23,6 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 ├── .gitignore
 ├── backend/                   Express 5 + TypeScript (CommonJS) — REST API
 │   ├── src/server.ts          ★ entry point จริง (mount routes ทั้งหมด, เช็ค DB ก่อน listen)
-│   ├── src/app.ts             ไม่ได้ถูกใช้ (ไม่มีไฟล์ใด import) — mount /api/itineraries แบบเก่า
 │   ├── src/config/            db.ts (Supabase client, service role), ors.ts (config ORS)
 │   ├── src/features/<feature>/  <feature>Routes.ts + <feature>Controller.ts (+ queries/builders)
 │   │   ├── auth/              register / login / logout + requireAuth middleware
@@ -33,24 +32,21 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   │   ├── poi/               คำนวณ POI score
 │   │   └── itinerary/         draft / confirm / saved / auto trip
 │   ├── src/utils/             haversine, openingHoursChecker, orsDistance, orsTravelMatrix,
-│   │                          priceLevel, weatherForecast, weatherDebug
-│   ├── jest.config.js         ts-jest preset (ไม่มีไฟล์ test)
-│   └── scripts/               โฟลเดอร์ว่าง
-├── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
-│   ├── src/main.tsx           entry (AuthProvider > App)
-│   ├── src/App.tsx            ★ routing ทั้งหมด
-│   ├── src/components/navbar.tsx
-│   ├── src/config/db.ts       Supabase client ฝั่ง browser — ไม่มีไฟล์ใด import
-│   ├── src/features/          auth / home / welcome / trip/{create,recommendations,
-│   │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
-│   ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
-│   ├── eslint.config.js
-│   └── dist/                  build เก่า (ก.พ. 2026) — ถูก gitignore
-└── data-pipeline/             สคริปต์ ts-node สำหรับนำเข้าข้อมูล (ไม่ใช่ส่วนของ runtime)
-    ├── src/                   uploadCsvToSupabase, uploadProvinceGooglePlaces, dedupe,
-    │                          fetchGmapsCategories, findGoogleCollisionCandidates, test*.ts
-    ├── data/attraction.csv    15,604 บรรทัด
-    └── chiangmai_*.txt        output log ของการ dedupe/sample (UTF-16)
+│   │                          priceLevel, weatherForecast, bestCategoryRow
+│   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, provinces/, imports/ (job นำเข้า), pipeline/ (อ่าน CSV, dedupe, review, import — test ใน __tests__)
+│   ├── data/attraction.csv    CSV สถานที่ของ ททท. (ใช้โดย admin pipeline)
+│   └── jest.config.js         ts-jest preset
+└── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
+    ├── src/main.tsx           entry (AuthProvider > App)
+    ├── src/App.tsx            ★ routing ทั้งหมด
+    ├── src/components/navbar.tsx
+    ├── src/features/          auth / home / welcome / trip/{create,recommendations,
+    │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
+    ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
+    ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
+    ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
+    ├── eslint.config.js
+    └── dist/                  ผลของ npm run build — ถูก gitignore
 ```
 
 ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 package ซึ่งติดตั้งบน **Windows** (พบ `@esbuild/win32-x64` และ `@rollup/rollup-win32-*`) และมีไฟล์ `.env` ทั้ง 3 package (ไม่ได้คัดลอกค่ามาไว้ในเอกสารนี้)
@@ -60,14 +56,14 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | ส่วน | เทคโนโลยี | หลักฐาน |
 |---|---|---|
 | Backend | Node.js, Express `^5.2.1`, TypeScript `^5.9.3`, `ts-node-dev` | `backend/package.json` |
-| Backend DB client | `@supabase/supabase-js ^2.97.0` (มี `pg`, `postgres`, `axios` อยู่ใน dependencies แต่ใน `src/` ไม่มีการ import) | grep ใน `backend/src` |
-| Backend test | Jest `^30.4.2` + ts-jest `^29.4.11` (major version ไม่ตรงกัน) | `backend/package.json` |
+| Backend DB client | `@supabase/supabase-js ^2.97.0` (ถอด `pg`, `postgres`, `axios` ที่ไม่ได้ใช้ออกแล้ว 2026-10-17, T18) | `backend/package.json` |
+| Backend CSV | `csv-parse ^6.1.0` (อ่าน `data/attraction.csv` ใน admin pipeline — D-25) | `backend/package.json` |
+| Backend test | Jest `^30.4.2` + ts-jest `^29.4.11` (ts-jest 29.4 รองรับ jest 30 — ตรวจแล้ว T15) | `backend/package.json` |
 | Frontend | React `^19.2.0`, react-router-dom `^7.13.0`, Vite `^7.3.1`, Tailwind `^4.2.0` | `frontend/package.json` |
 | Frontend map | Leaflet + react-leaflet (แผนที่หลัก, OSM tiles), `@react-google-maps/api` (ใช้เฉพาะ `LocationPinPicker.tsx`) | imports |
 | Frontend DnD | `@dnd-kit/core`, `@dnd-kit/sortable` | `ItineraryEditor.tsx` |
 | Frontend test | Vitest `^4.1.10` (ไม่มีไฟล์ test) | `frontend/package.json` |
 | Lint | ESLint 9 flat config + typescript-eslint + react-hooks + react-refresh (frontend เท่านั้น) | `frontend/eslint.config.js` |
-| Data pipeline | ts-node, cross-env, csv-parse, axios | `data-pipeline/package.json` |
 | Package manager | npm (มี `package-lock.json` แยกแต่ละ package ไม่มี workspace รวม) | |
 | Node ที่ต้องใช้ | ยังไม่ทราบ — ไม่มี `engines`/`.nvmrc`; โค้ดใช้ global `fetch` และ `AbortSignal.timeout` จึงต้องใช้ Node ≥ 18 | `utils/orsTravelMatrix.ts`, `weatherForecast.ts` |
 
@@ -76,10 +72,9 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | Package | คำสั่ง (มีอยู่จริงใน scripts) | หมายเหตุ |
 |---|---|---|
 | backend | `npm run dev` → `ts-node-dev --respawn --transpile-only src/server.ts` | port จาก `PORT` (default 5000); ถ้าเชื่อม Supabase ไม่ได้จะ `process.exit(1)` |
-| backend | `npm test` → `jest` | ยังไม่มีไฟล์ test |
+| backend | `npm test` → `jest` | test ของ admin pipeline (dedupe) |
 | backend | — | **ไม่มี** script `build` / `start` / `lint` (ตรวจ type ได้ด้วย `npx tsc --noEmit`) |
 | frontend | `npm run dev` (vite), `npm run build` (`tsc -b && vite build`), `npm run lint`, `npm run preview`, `npm test` (`vitest run`) | dev proxy `/api` → `localhost:5000` |
-| data-pipeline | `upload:*`, `test:*`, `find:collisions:chiangmai`, `fetch-gmaps-categories:chiangmai` | ⚠️ ส่วนใหญ่ **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** |
 
 ## 5. Frontend Routes (`frontend/src/App.tsx`)
 
@@ -94,6 +89,11 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` | **✗ ไม่ได้ครอบ `ProtectedRoute`** (แต่ภายในหน้าจะ redirect ไป `/login` ถ้าไม่มี session) |
 | `/trip/:tripId/detail` | `TripDetail.tsx` | ✓ |
 | `/trips` | `MyTrips.tsx` | ✓ |
+| `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
+| `/admin/provinces` | `admin/provinces/ProvinceList.tsx` (จังหวัดจาก CSV + สถานะ) | `AdminRoute` |
+| `/admin/provinces/:province` | `admin/provinces/ProvinceReview.tsx` (แท็บ น่าจะซ้ำ / ต้องตรวจสอบ / มีปัญหา / ตัดสินใจแล้ว — `components/GroupCard.tsx`, `ProblemRowCard.tsx` · ปุ่ม "นำเข้า" เมื่อตัดสินใจครบ) | `AdminRoute` |
+| `/admin/provinces/:province/import` | `admin/imports/ProvinceImport.tsx` (ดูตัวอย่าง → เริ่ม → ความคืบหน้า poll ทุก 2 วินาที → ผลรายแถว `ImportItemsTable.tsx` + ประวัติ job + ตัดสินแถวรอตรวจ `PendingReview.tsx`) | `AdminRoute` |
+| `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` — 2 การ์ด: ตรวจสถานที่ซ้ำและนำเข้าข้อมูล (→ `/admin/provinces`) · Category Mapping (เร็วๆ นี้ — P5) | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
 
 ## 6. Backend API (`backend/src/server.ts` + `*Routes.ts`)
 
@@ -103,33 +103,46 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/categories` | – | `categoriesController.ts` |
 | GET `/api/place-dropdown/provinces` · `/districts?province=` | – | `placeDropdownController.ts` |
 | GET `/api/places?ids=a,b` | ✓ | `placesController.ts` |
-| POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` | ✓ | `tripController.ts` |
+| POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` · PUT `/api/trips/:tripId/addcategories` (D-38) | ✓ | `tripController.ts` |
 | POST `/api/poi/trips/:tripId/calculate-poi` | ✓ | `poiController.ts` |
 | POST `/api/itinerary/trips/:tripId/draft` | ✓ | `itineraryController.buildDraft` |
 | GET `/api/itinerary/trips/:tripId` | ✓ | `getSavedItinerary` |
 | PUT `/api/itinerary/trips/:tripId` | ✓ | `confirmItinerary` |
-| GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (**ไม่เช็คว่าเป็นเจ้าของทริป**) | `getAutoTripPlacesTest` |
+| GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
 | POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` |
+| GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
+| GET `/api/admin/provinces` | ✓ + admin | `admin/provinces/provincesController.getProvinces` — จังหวัดจาก CSV + จำนวนแถว CSV / ใน `places` / การตัดสินใจ |
+| GET `/api/admin/provinces/:province/review` | ✓ + admin | `getProvinceReview` — กลุ่มที่อาจซ้ำ + แถวที่มีปัญหา (`pipeline/review/buildReview.ts`) |
+| PUT · DELETE `/api/admin/provinces/:province/groups` | ✓ + admin | `putGroupDecision` / `deleteGroupDecision` — body `{ attIds, sets: [{ attIds, primaryAttId, fieldSources?, fieldValues?, lat?, lng? }], note? }` (เลือก/พิมพ์ได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) |
+| PUT · DELETE `/api/admin/provinces/:province/rows/:attId` | ✓ + admin | `putRowDecision` / `deleteRowDecision` — body `{ kind: exclude \| ok \| fix_location, lat?, lng?, note? }` |
+| GET `/api/admin/provinces/:province/import/preview?limit=N` | ✓ + admin | `admin/imports/importController.getImportPreview` — จำนวนแถวที่จะนำเข้า/ข้าม, จำนวน request Google โดยประมาณ, `blockers` (ไม่เรียก Google) |
+| POST `/api/admin/provinces/:province/import` | ✓ + admin | `startImport` — body `{ limit_rows? }` · ตรวจเงื่อนไขซ้ำ (409 + `blockers`) แล้วสร้าง job และรันเบื้องหลัง → 202 `{ job }` · ⚠️ เรียก Google จริง (มีค่าใช้จ่าย) |
+| GET `/api/admin/provinces/:province/imports` | ✓ + admin | `getProvinceImports` — ประวัติ job ของจังหวัด (50 ล่าสุด) |
+| GET `/api/admin/imports/:jobId` · POST `/api/admin/imports/:jobId/cancel` | ✓ + admin | `getImportJob` (ความคืบหน้า) / `cancelImportJob` (หยุดก่อนแถวถัดไป, 409 ถ้า job ไม่ได้ทำงานอยู่) |
+| GET `/api/admin/imports/:jobId/items?status=&page=` | ✓ + admin | `getImportItems` — ผลรายสถานที่ หน้าละ 100 แถว (page เริ่ม 0) พร้อม `csv_name`, `csv_location` จาก CSV |
+| GET `/api/admin/provinces/:province/import/pending` | ✓ + admin | `getPendingImports` — แถว `needs_review_*` ของทุก job ในจังหวัด (P4c) |
+| POST `/api/admin/imports/items/:itemId/resolve` | ✓ + admin | `resolveImportItem` — body `{ action: accept_google | csv_only | skip }` · 409 เมื่อทำไม่ได้ (เช่นแถวซ้ำ/พิกัดเสีย/ตัดสินไปแล้ว) · ⚠️ accept_google เรียก Google Details 1 ครั้ง |
 
-Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`AuthContext.tsx`)
+Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
 
 ## 7. ตารางฐานข้อมูล (อนุมานจาก query — ไม่มี schema/migration ใน repo)
+> โครงสร้างจริงจาก Supabase (snapshot 2026-10-18) อยู่ที่ [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) — ถ้าขัดกับหัวข้อนี้ให้ยึดไฟล์นั้น
 
 `users`, `trips`, `trip_categories`, `trip_days`, `categories`, `places`, `place_categories`, `poi_scores`, `itineraries`
 
 คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `categories.default_duration_min`, `place_categories.confidence_score`, `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
-**Schema จริง, RLS policy, FK/CASCADE: ยังไม่ทราบ / ต้องตรวจสอบเพิ่มเติม ใน Supabase dashboard**
+**Schema จริง, RLS, FK/CASCADE:** ดู [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) (snapshot 2026-10-18 + การเปลี่ยนแปลงหลังจากนั้น: PK ทุกตารางเป็น uuid — T23) · RLS ปิดทุกตารางเดิม · FK ส่วนใหญ่ `ON DELETE CASCADE`
 
 ## 8. บริการภายนอก
 
 | บริการ | ใช้ที่ไหน | หมายเหตุ |
 |---|---|---|
-| Supabase (Auth + Postgres) | backend `config/db.ts` (service role), data-pipeline (anon key), frontend `config/db.ts` (ไม่ได้ใช้งาน) | |
+| Supabase (Auth + Postgres) | backend `config/db.ts` (service role) · frontend ไม่ได้เรียก Supabase ตรง (ทุกอย่างผ่าน backend) | |
 | OpenRouteService (HeiGIT) Matrix | backend `utils/orsDistance.ts`, `utils/orsTravelMatrix.ts` | default base `https://api.heigit.org/openrouteservice`; ถ้าไม่มี key จะใช้ haversine แทน |
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
-| Open-Meteo | backend `utils/weatherForecast.ts` (+ `weatherDebug.ts` ยิงซ้ำเพื่อ debug ทุกครั้งที่คำนวณ POI) | ไม่ต้องใช้ key |
+| Open-Meteo | backend `utils/weatherForecast.ts` | ไม่ต้องใช้ key |
 | Google Maps JS | frontend `LocationPinPicker.tsx` | `VITE_GOOGLE_MAPS_API_KEY` |
-| Google Places (Find/Details) | data-pipeline | `GOOGLE_PLACES_API_KEY` |
+| Google Places (Find/Details, Legacy API) | backend `admin/pipeline/import/googlePlaces.ts` (R5 P4 — เรียกเมื่อ admin กดนำเข้า/ยอมรับผล Google เท่านั้น มีค่าใช้จ่าย) | `GOOGLE_PLACES_API_KEY` |
 | OSM tiles | Leaflet ใน frontend | |
 
 ## 9. Environment Variables (เฉพาะชื่อ — ห้ามคัดลอกค่า)
@@ -141,14 +154,12 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `PORT` | port ของ API | ✓ | ✓ |
 | backend | `FRONTEND_URL` | — | ✓ | **✗ ไม่ถูกใช้** (CORS เปิดทุก origin, redirect ใน register hardcode `http://localhost:5173/login`) |
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
+| backend | `GOOGLE_PLACES_API_KEY` | Google Places (Find Place + Details) สำหรับนำเข้าใน admin (R5 P4) — ผู้ใช้ย้ายค่ามาจาก `data-pipeline/.env` แล้ว 2026-10-18 | ✓ | ✓ `admin/imports/importController.ts` (R5 P4a/P4c) |
 | backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (มี default) | ✗ | ✓ (`config/ors.ts`) |
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
-| frontend | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | client ฝั่ง browser | ✓ | ✓ (แต่ไม่มีที่ใช้ client นี้) |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
 | frontend | `VITE_ORS_API_KEY` | ORS directions จาก browser | ✓ | ✓ |
 | frontend | `VITE_ORS_BASE_URL`, `VITE_ORS_PROFILE` | optional | ✗ | ✓ |
-| data-pipeline | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_PLACES_API_KEY` | | ✓ | ✓ |
-| data-pipeline | `TARGET_PROVINCE`, `PLACES_LIMIT`, `GOOGLE_DELAY_MS`, `SAMPLE_LIMIT` | ตั้งผ่าน `cross-env` ใน scripts | ✗ | ✓ |
 
 ตัวแปรที่ขึ้นต้นด้วย `VITE_` จะถูกฝังลงใน JS bundle ที่ส่งให้ browser ทุกครั้ง
 

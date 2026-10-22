@@ -25,7 +25,7 @@ import {
   Info, Loader2, MapPin, TriangleAlert, Wallet, X,
 } from "lucide-react";
 import Navbar from "../../../../components/navbar";
-import { useAuth } from "../../../auth/hooks/useAuth";
+import { useAuth } from "../../../../system/auth/useAuth";
 import RouteMap from "../components/RouteMap";
 import {
   buildDayItems,
@@ -35,6 +35,17 @@ import {
   type PriceNature,
   type TravelMatrix,
 } from "../lib/itineraryBuilder";
+import type { OpeningHours } from "../lib/openingHoursChecker";
+import {
+  DAY_NAMES_TH,
+  formatBaht,
+  formatDistance,
+  formatTime,
+  formatTimeRange,
+  formatTravelTime,
+  formatVisitDate,
+} from "../../lib/format";
+import { openIntervalsForDay } from "../../lib/openingDays";
 
 // ---------- Types ----------
 
@@ -46,17 +57,13 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  // ✅ v2 (sync กับ placesController.ts): เลิก coalesce กับ categories.default_price_level แล้ว —
-  // ราคาจริงจาก Google ตรงๆ null ได้จริง (เดิม comment นี้บอกว่า coalesce เสร็จจาก backend เสมอ
-  // ซึ่งไม่ตรงกับ backend เวอร์ชันปัจจุบันแล้ว)
-  price_level: number | null;
-  // ✅ ใหม่ — แทน has_price_level เดิม backend ส่งมาให้ตัดสิน cost แทนการเดา (ดู
-  // itineraryBuilder.ts::getPlaceCost) — null ได้เผื่อ category ไม่ครบ (ไม่ควรเกิดจริง)
+  price_level: number | null; // ราคาจริงจาก Google (null = ไม่มีข้อมูล)
+  // ใช้ตัดสิน cost ใน itineraryBuilder.ts::getPlaceCost — null ได้เผื่อ category ไม่ครบ (ไม่ควรเกิดจริง)
   price_nature: PriceNature | null;
   formatted_address: string | null;
   phone_number?: string | null;
   website?: string | null;
-  opening_hours?: any;
+  opening_hours?: OpeningHours | null;
   user_ratings_total?: number | null;
   att_type_label?: string | null;
   att_category_label?: string | null;
@@ -70,14 +77,13 @@ interface MergedPlace {
 }
 
 interface DraftTripDay {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string;
   startTime: string | null;
   endTime: string | null;
   dailyBudget: number | null;
-  // ✅ เพิ่มใหม่ — ต้องส่งต่อเข้า DayAssignment ตอน recompute client-side ให้ isBudgetConflict
-  // ตรงกับที่ backend คำนวณ (ดู itineraryBuilder.ts::buildDayItems)
+  // ส่งต่อเข้า DayAssignment ตอน recompute ให้ isBudgetConflict ตรงกับ backend
   useBudget: boolean;
 }
 
@@ -87,7 +93,7 @@ interface DraftResponse {
   tripStartLng: number;
   tripDays: DraftTripDay[];
   items: ItineraryItemResult[];
-  // ✅ ระยะทาง/เวลาเดินทางตามถนน (ORS + fallback รายคู่) จาก backend — buildDayItems lookup จากนี้ตอนลาก
+  // ระยะทาง/เวลาเดินทางตามถนน (ORS + fallback รายคู่) จาก backend — buildDayItems lookup จากนี้ตอนลาก
   // ไม่ยิง ORS เอง (มี key __trip_start__ สำหรับ leg แรกของ Day 1)
   travelMatrix: TravelMatrix;
 }
@@ -103,44 +109,8 @@ const UNASSIGNED_KEY = "unassigned";
 // ref คงที่ กัน useMemo recompute โดยไม่จำเป็นเมื่อ draft ไม่มี matrix (เช่น router state เก่า)
 const EMPTY_TRAVEL_MATRIX: TravelMatrix = {};
 
-function dayKey(tripDayId: number) {
+function dayKey(tripDayId: string) {
   return `day-${tripDayId}`;
-}
-
-function formatTime(time: string | null): string {
-  if (!time) return "—";
-  return time.slice(0, 5) + " น.";
-}
-
-function formatVisitDate(visitDate: string): string {
-  const date = new Date(visitDate + "T00:00:00");
-  return date.toLocaleDateString("th-TH", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function formatBaht(amount: number): string {
-  return amount.toLocaleString("th-TH") + " ฿";
-}
-
-function formatTimeRange(start: string | null, end: string | null): string {
-  if (!start && !end) return "—";
-  return `${start ? start.slice(0, 5) : "—"} - ${end ? end.slice(0, 5) : "—"} น.`;
-}
-
-function formatTravelTime(minutes: number): string {
-  const total = Math.round(minutes);
-  if (total < 1) return "น้อยกว่า 1 นาที";
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m} นาที`;
-  return m === 0 ? `${h} ชม.` : `${h} ชม. ${m} นาที`;
-}
-
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`;
 }
 
 const cardClass =
@@ -150,43 +120,16 @@ const primaryBtn =
   "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
 
 // ---------- แยกเหตุผลที่ "ไม่อยู่ในเวลาเปิด" ----------
-// ใช้ periods ชุดเดียวกับ isPlaceOpenAt() (ดู openingHoursChecker.ts) แต่บอกเหตุผลละเอียดขึ้น:
-// ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่ — คำนวณเพื่อแสดงผลเท่านั้น ไม่กระทบ flag เดิม
-
-const DAY_NAMES_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
-
-function hhmmToMin(t: string): number {
-  return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2, 4), 10);
-}
+// ใช้ periods ชุดเดียวกับ openingHoursChecker.ts แต่บอกเหตุผลละเอียดขึ้น:
+// ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่ — คำนวณเพื่อแสดงผลเท่านั้น ไม่กระทบ flag
 
 function fmtMin(m: number): string {
   const x = ((m % 1440) + 1440) % 1440;
   return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
 }
 
-// ช่วงเวลาเปิดที่ทับวัน day (หน่วยนาทีนับจากเที่ยงคืนของวันนั้น) รวมช่วงข้ามเที่ยงคืนจากเมื่อวาน
-function openIntervalsForDay(oh: any, day: number): { start: number; end: number }[] | "24h" | null {
-  const periods = oh?.periods;
-  if (!Array.isArray(periods) || periods.length === 0) return null;
-  if (periods.length === 1 && !periods[0]?.close) return "24h";
-
-  const out: { start: number; end: number }[] = [];
-  for (const p of periods) {
-    if (!p?.close || !p?.open) continue;
-    const openMin = hhmmToMin(p.open.time);
-    let span = ((p.close.day - p.open.day + 7) % 7) * 1440 + hhmmToMin(p.close.time) - openMin;
-    if (span <= 0) span += 7 * 1440;
-    for (const off of [0, 1]) {
-      if ((p.open.day + off) % 7 !== day) continue;
-      const start = openMin - off * 1440;
-      if (start + span > 0) out.push({ start, end: start + span });
-    }
-  }
-  return out;
-}
-
 function describeClosure(
-  oh: any,
+  oh: OpeningHours | null | undefined,
   dayOfWeek: number,
   startTime: string | null,
   endTime: string | null
@@ -395,7 +338,7 @@ function PlaceCard({
             </span>
           )}
 
-          {/* ✅ v2: placeCost เป็น number | null — ไม่ทราบราคาแน่ชัดต้องบอกตรงๆ ไม่ใช่ "0 ฿" */}
+          {/* placeCost เป็น null ได้ — ไม่ทราบราคาต้องบอกตรงๆ ไม่ใช่ "0 ฿" */}
           <span className="flex items-center gap-1">
             <Wallet size={13} strokeWidth={1.75} className="shrink-0" />
             {item.isCostUnknown ? (
@@ -540,7 +483,7 @@ export default function ItineraryEditor() {
   useEffect(() => {
     if (!state?.draft) return;
 
-    const itemsByDay = new Map<number, ItineraryItemResult[]>();
+    const itemsByDay = new Map<string, ItineraryItemResult[]>();
     for (const item of state.draft.items) {
       const list = itemsByDay.get(item.tripDayId) ?? [];
       list.push(item);
@@ -590,9 +533,7 @@ export default function ItineraryEditor() {
         placeId: p.placeId,
         latitude: p.place.latitude,
         longitude: p.place.longitude,
-        // ✅ v2 (sync กับ itineraryBuilder.ts frontend port + placesController.ts): เลิกส่ง
-        // priceLevel/hasPriceLevel (contract เก่า) — ส่ง rawPriceLevel ดิบๆ ไม่เดา ให้
-        // getPlaceCost() ในนั้นเป็นคนตัดสินใจแปลงเป็นบาทเอง
+        // ราคาดิบ ไม่เดา — getPlaceCost() ใน itineraryBuilder.ts แปลงเป็นบาทเอง
         rawPriceLevel: p.place.price_level,
         // priceNature ไม่ควรเป็น null จริงในทางปฏิบัติ (categories!inner บังคับมีเสมอฝั่ง backend)
         // แต่ fallback เป็น "paid" กันไว้เผื่อข้อมูลผิดปกติ — เลือกฝั่งนี้เพราะ
@@ -780,9 +721,9 @@ export default function ItineraryEditor() {
       }
 
       navigate(`/trip/${tripId}/detail`);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setSaveError(err.message || "เกิดข้อผิดพลาดในการบันทึกแผนเดินทาง");
+      setSaveError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการบันทึกแผนเดินทาง");
     } finally {
       setSaving(false);
     }
@@ -913,7 +854,7 @@ export default function ItineraryEditor() {
                             วันที่ {day.dayNumber}
                           </h3>
                           <p className="text-xs text-[color:var(--muted)] mt-0.5">
-                            {formatVisitDate(day.visitDate)}
+                            {formatVisitDate(day.visitDate, "short")}
                             {day.startTime && day.endTime && (
                               <> · {formatTime(day.startTime)} - {formatTime(day.endTime)}</>
                             )}

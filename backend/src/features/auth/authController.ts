@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { supabase } from "../../config/db";
+import { supabase, createAuthClient } from "../../config/db";
 
 // Register
 export const register = async (req: Request, res: Response) => {
@@ -7,7 +7,7 @@ export const register = async (req: Request, res: Response) => {
 
   try {
     // 1️⃣ สร้าง user ใน Supabase Auth ก่อน
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await createAuthClient().auth.signUp({
       email,
       password,
       options: {
@@ -57,8 +57,8 @@ export const register = async (req: Request, res: Response) => {
     res.json({
       message: "สมัครสมาชิกสำเร็จ! กรุณายืนยัน email ของคุณก่อนเข้าสู่ระบบ.",
     });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
+  } catch (err) {
+    res.status(500).json({ message: (err as { message?: string } | null)?.message });
   }
 };
 
@@ -69,7 +69,7 @@ export const login = async (req: Request, res: Response) => {
 
   try {
     // Supabase Auth login
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await createAuthClient().auth.signInWithPassword({
       email,
       password,
     });
@@ -96,8 +96,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // save profile ลง users table ของเราเอง (upsert)
-    // login — แค่ดึง profile มาแสดง ไม่ต้อง upsert
+    // ดึง profile จากตาราง users มาส่งกลับ (ไม่ upsert)
     const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("*")
@@ -116,8 +115,8 @@ export const login = async (req: Request, res: Response) => {
       user: profile,
       session: data.session,
     });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
+  } catch (err) {
+    res.status(500).json({ message: (err as { message?: string } | null)?.message });
   }
 };
 export const logout = async (req: Request, res: Response) => {

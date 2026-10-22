@@ -7,14 +7,17 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
-import { useAuth } from "../../auth/hooks/useAuth";
-import RecommendationMap, { categoryColor } from "../recommendations/RecommendationMap";
-import type { MapFocus, MapPlace } from "../recommendations/RecommendationMap";
+import { useAuth } from "../../../system/auth/useAuth";
+import RecommendationMap, { categoryColor } from "./RecommendationMap";
+import type { MapFocus, MapPlace } from "./RecommendationMap";
+import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
+import { DAY_NAMES_TH, formatVisitDate } from "../lib/format";
+import { closedTripDates, tripDates } from "../lib/openingDays";
 
-// ✅ ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
+// ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
 type PriceConfidence = "real" | "inferred_high" | "inferred_low" | null;
 
-// ✅ ตรงกับ DistanceSource ฝั่ง backend (orsDistance.ts) — ors = ระยะทางถนนจริงทั้งหมด
+// ตรงกับ DistanceSource ฝั่ง backend (orsDistance.ts) — ors = ระยะทางถนนจริงทั้งหมด
 type DistanceSource = "ors" | "haversine" | "mixed";
 
 interface PoiResult {
@@ -29,7 +32,7 @@ interface PoiResult {
   placeCost: number | null;
   perPersonDailyBudget: number | null;
   priceConfidence: PriceConfidence;
-  // ✅ แหล่งของระยะทางรายสถานที่ (backend ใหม่) — ไม่มี = ใช้ distanceSource ระดับหน้าแทน
+  // แหล่งของระยะทางรายสถานที่ — ไม่มี = ใช้ distanceSource ระดับหน้าแทน
   distanceMethod?: "ors" | "haversine";
 }
 
@@ -45,7 +48,7 @@ interface PlaceInfo {
   formatted_address: string | null;
   phone_number?: string | null;
   website?: string | null;
-  opening_hours?: any;
+  opening_hours?: OpeningHours | null;
   user_ratings_total?: number | null;
   att_type_label?: string | null;
   att_category_label?: string | null;
@@ -60,9 +63,8 @@ interface MergedPlace extends PoiResult {
 // โครงสร้างจริงตาม openingHoursChecker.ts: periods[{ open:{day,time:"HHMM"}, close?:{day,time} }]
 // day: 0 = อาทิตย์ ... 6 = เสาร์ · เปิด 24 ชม. = มี period เดียวและไม่มี close
 // · วันที่ปิดจะไม่มี period ของวันนั้นเลย · ไม่มี periods (หรือว่าง) = ไม่มีข้อมูล
-// ใช้กติกาเดียวกับ isPlaceOpenAt() เพื่อให้ตัวเลขที่เห็นตรงกับป้าย "ปิดแล้วช่วงนี้" ในหน้าจัดแผน
+// ใช้กติกาเดียวกับ openingHoursChecker.ts เพื่อให้ตัวเลขที่เห็นตรงกับป้ายเวลาเปิด-ปิดในหน้าจัดแผน
 
-const DAY_NAMES_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // แสดงจันทร์ -> อาทิตย์
 
 interface HoursView {
@@ -71,12 +73,12 @@ interface HoursView {
 }
 
 // "0930" -> "09:30"
-function toHHMM(p: any): string | null {
+function toHHMM(p: { time?: unknown } | undefined): string | null {
   const t = p?.time;
   return typeof t === "string" && /^\d{4}$/.test(t) ? `${t.slice(0, 2)}:${t.slice(2)}` : null;
 }
 
-function parseOpeningHours(oh: any): HoursView | null {
+function parseOpeningHours(oh: OpeningHours | null | undefined): HoursView | null {
   const periods = oh?.periods;
   if (!Array.isArray(periods) || periods.length === 0) return null;
 
@@ -193,14 +195,38 @@ export default function TripRecommendations() {
   const [autoCreatingRoute, setAutoCreatingRoute] = useState(false);
   const [autoTripError, setAutoTripError] = useState<string | null>(null);
 
-  // ✅ ตัวกรองหมวดหมู่ที่เลือกไว้ — null = แสดงทุกหมวดหมู่
+  // ตัวกรองหมวดหมู่ที่เลือกไว้ — null = แสดงทุกหมวดหมู่
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // ✅ แผนที่: view ใช้สลับแท็บรายการ/แผนที่บนมือถือ · focus ใช้สั่งให้แผนที่เลื่อนไปที่หมุด + ไฮไลต์การ์ด
+  // แผนที่: view ใช้สลับแท็บรายการ/แผนที่บนมือถือ · focus ใช้สั่งให้แผนที่เลื่อนไปที่หมุด + ไฮไลต์การ์ด
   const [view, setView] = useState<"list" | "map">("list");
   const [focus, setFocus] = useState<MapFocus | null>(null);
 
-  // ✅ กันเรียก calculate-poi ซ้ำสำหรับทริปเดิม (StrictMode / session เปลี่ยน reference)
+  // ช่วงวันเดินทาง — ใช้เตือนบนการ์ดว่าสถานที่ปิดทั้งวันในวันไหนของทริป (คะแนน POI ไม่ได้ดูเวลาเปิด-ปิด)
+  const [tripRange, setTripRange] = useState<{ start: string; end: string } | null>(null);
+
+  useEffect(() => {
+    if (!session || !tripId) return;
+    let cancelled = false;
+
+    fetch(`/api/trips/${tripId}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { trip?: { start_date?: string; end_date?: string } } | null) => {
+        const trip = data?.trip;
+        if (!cancelled && trip?.start_date && trip.end_date) {
+          setTripRange({ start: trip.start_date, end: trip.end_date });
+        }
+      })
+      .catch((err) => console.error("Fetch trip dates error:", err)); // ไม่มีช่วงวัน = ไม่แสดงคำเตือน
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId, session]);
+
+  // กันเรียก calculate-poi ซ้ำสำหรับทริปเดิม (StrictMode / session เปลี่ยน reference)
   const fetchedForTripRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -283,9 +309,9 @@ export default function TripRecommendations() {
         }));
 
         setPlaces(merged);
-      } catch (err: any) {
+      } catch (err) {
         console.error(err);
-        setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        setError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
       } finally {
         setLoading(false);
       }
@@ -346,14 +372,15 @@ export default function TripRecommendations() {
           places: selectedPlaces,
         },
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setCreateRouteError(err.message || "เกิดข้อผิดพลาดในการสร้างเส้นทาง");
+      setCreateRouteError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการสร้างเส้นทาง");
     } finally {
       setCreatingRoute(false);
     }
   };
 
+  // เช็คว่ามีสถานที่สำหรับ Auto Trip (auto-places) ก่อนเปิดหน้า Auto Trip ซึ่งจัดทริปเอง
   const handleAutoTrip = async () => {
     if (!tripId || !session) return;
 
@@ -379,25 +406,19 @@ export default function TripRecommendations() {
         );
       }
 
-      console.log("Auto Trip result:", data);
-
-      navigate(`/trip/${tripId}/auto`, {
-        state: {
-          autoTrip: data,
-        },
-      });
-    } catch (err: any) {
+      navigate(`/trip/${tripId}/auto`);
+    } catch (err) {
       console.error("Auto Trip error:", err);
 
       setAutoTripError(
-        err.message || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ"
+        (err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ"
       );
     } finally {
       setAutoCreatingRoute(false);
     }
   };
 
-  // ✅ รายการหมวดหมู่ unique จากผลลัพธ์จริง ใช้ทำแถบกรองแนวนอน
+  // รายการหมวดหมู่ unique จากผลลัพธ์จริง ใช้ทำแถบกรองแนวนอน
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
     places.forEach((p) => {
@@ -406,13 +427,13 @@ export default function TripRecommendations() {
     return Array.from(set);
   }, [places]);
 
-  // ✅ การ์ดที่จะแสดงจริงหลังกรองหมวดหมู่ (rank ยังอิงจาก places เต็มชุดเสมอ)
+  // การ์ดที่จะแสดงจริงหลังกรองหมวดหมู่ (rank ยังอิงจาก places เต็มชุดเสมอ)
   const displayedPlaces = useMemo(() => {
     if (!selectedCategory) return places;
     return places.filter((p) => p.categoryName === selectedCategory);
   }, [places, selectedCategory]);
 
-  // ✅ หมุดบนแผนที่ — ใช้ชุดเดียวกับการ์ดที่แสดงอยู่ (หลังกรองหมวดหมู่) เลขอันดับตรงกับบนการ์ด
+  // หมุดบนแผนที่ — ใช้ชุดเดียวกับการ์ดที่แสดงอยู่ (หลังกรองหมวดหมู่) เลขอันดับตรงกับบนการ์ด
   const mapPlaces = useMemo<MapPlace[]>(() => {
     const rank = new Map(places.map((p, i) => [p.placeId, i + 1]));
     return displayedPlaces.flatMap((item) => {
@@ -466,6 +487,14 @@ export default function TripRecommendations() {
       (distanceSource === "ors" ? "ors" : distanceSource ? "haversine" : null);
     const approx = method === "haversine";
     const hours = parseOpeningHours(p?.opening_hours);
+    // วันของทริปที่สถานที่นี้ปิดทั้งวัน (ไม่มีข้อมูลเวลาเปิด-ปิด = ไม่เตือน)
+    const closedDates = tripRange
+      ? closedTripDates(p?.opening_hours, tripRange.start, tripRange.end)
+      : [];
+    const closedAllTrip =
+      tripRange !== null &&
+      closedDates.length > 0 &&
+      closedDates.length === tripDates(tripRange.start, tripRange.end).length;
 
     return (
       <li
@@ -561,6 +590,15 @@ export default function TripRecommendations() {
             <p className="mt-2 flex items-center gap-1.5 text-sm text-[color:var(--muted)]">
               <Clock size={16} strokeWidth={1.75} className="shrink-0" />
               ไม่ทราบเวลาเปิด-ปิด
+            </p>
+          )}
+
+          {closedDates.length > 0 && (
+            <p className="mt-2 flex items-start gap-1.5 text-sm text-[color:var(--danger)]">
+              <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0 mt-0.5" />
+              {closedAllTrip
+                ? "ปิดทุกวันของทริปนี้"
+                : `ปิดทั้งวันในวันเดินทาง: ${closedDates.map((d) => formatVisitDate(d, "short")).join(", ")}`}
             </p>
           )}
 

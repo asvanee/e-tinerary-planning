@@ -107,7 +107,8 @@ async function fetchChunk(
 
     const json = await res.json();
     // หลายพิกัด → array, พิกัดเดียว → object เดี่ยว
-    const list: any[] = Array.isArray(json) ? json : [json];
+    const list: ({ daily?: { precipitation_probability_max?: unknown } } | null)[] =
+      Array.isArray(json) ? json : [json];
 
     if (list.length !== grids.length) {
       console.error(
@@ -120,8 +121,8 @@ async function fetchChunk(
       const avg = averageOf(item?.daily?.precipitation_probability_max);
       if (avg !== null) out.set(grids[i], avg);
     });
-  } catch (err: any) {
-    console.error(`Open-Meteo fetch error: ${err?.message ?? err}`);
+  } catch (err) {
+    console.error(`Open-Meteo fetch error: ${(err as { message?: string } | null)?.message ?? err}`);
   }
 
   return out;

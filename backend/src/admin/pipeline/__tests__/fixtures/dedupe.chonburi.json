@@ -1,0 +1,254 @@
+{
+  "source": "data-pipeline/src/testDedupe.ts @ 12073f3 (2026-10-18)",
+  "province": "ชลบุรี",
+  "rowsBefore": 188,
+  "locationOverridesApplied": 0,
+  "rowsAfter": 178,
+  "mergedGroups": [
+    {
+      "representativeAttId": "20100518224629675",
+      "droppedAttIds": [
+        "20241220131515001",
+        "20241220130749001"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "name"
+      ]
+    },
+    {
+      "representativeAttId": "20211221223109734282",
+      "droppedAttIds": [
+        "201005182246293342"
+      ],
+      "matchedBy": [
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2015120421550718291",
+      "droppedAttIds": [
+        "2011032413512715425"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2015120421550718079",
+      "droppedAttIds": [
+        "201005182246292956"
+      ],
+      "matchedBy": [
+        "website"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "2015120421550717997",
+      "droppedAttIds": [
+        "201005182246291174"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ],
+      "confirmedBy": [
+        "location"
+      ]
+    },
+    {
+      "representativeAttId": "20100518224629675",
+      "droppedAttIds": [
+        "20241220131453001"
+      ],
+      "matchedBy": [
+        "manual"
+      ],
+      "confirmedBy": [
+        "manual"
+      ]
+    },
+    {
+      "representativeAttId": "20160528174922008571",
+      "droppedAttIds": [
+        "2015120421550717990"
+      ],
+      "matchedBy": [
+        "manual"
+      ],
+      "confirmedBy": [
+        "manual"
+      ]
+    },
+    {
+      "representativeAttId": "201005182246293199",
+      "droppedAttIds": [
+        "2015120421550718071"
+      ],
+      "matchedBy": [
+        "manual"
+      ],
+      "confirmedBy": [
+        "manual"
+      ]
+    },
+    {
+      "representativeAttId": "201005182246293395",
+      "droppedAttIds": [
+        "201005182246293300"
+      ],
+      "matchedBy": [
+        "manual"
+      ],
+      "confirmedBy": [
+        "manual"
+      ]
+    }
+  ],
+  "reviewGroups": [
+    {
+      "attIds": [
+        "20160528170226008563",
+        "2015120421550718072",
+        "2010120911214113304"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "2016010510155820163",
+        "2015120421550718304",
+        "2015120421550718300",
+        "2015120421550718297",
+        "2015120421550718123",
+        "2015120421550717984",
+        "2011032413571115426",
+        "2011032413454815424",
+        "2011032410463615418",
+        "20100518224629889",
+        "201005182246292266",
+        "201005182246291963",
+        "20100518224629189",
+        "20200908183352469711"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550718121",
+        "201005182246293235",
+        "2010120911214112696"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550718119",
+        "2015120421550718063",
+        "2015120421550718003",
+        "2010120911214112697",
+        "201005182246293428"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550718052",
+        "2015120421550718051",
+        "2015120421550718074"
+      ],
+      "matchedBy": [
+        "website",
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2010120911214114470",
+        "201005182246293207"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "2010120911214112694",
+        "201005182246293423"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "201005182246293148",
+        "201005182246293101"
+      ],
+      "matchedBy": [
+        "website"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550718307",
+        "2015120421550718075"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550718303",
+        "2015120421550718129",
+        "201005182246293232"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "2015120421550718067",
+        "20100518224629350"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    },
+    {
+      "attIds": [
+        "20100518224629568",
+        "20100518224629483"
+      ],
+      "matchedBy": [
+        "phone"
+      ]
+    }
+  ]
+}

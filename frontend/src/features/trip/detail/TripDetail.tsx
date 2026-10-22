@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
-import { useAuth } from "../../auth/hooks/useAuth";
+import { useAuth } from "../../../system/auth/useAuth";
 import RouteMap from "../e-tinerary/components/RouteMap";
+import {
+  formatBaht,
+  formatDistance,
+  formatTime,
+  formatTimeRange,
+  formatTravelTime,
+  formatVisitDate,
+} from "../lib/format";
 import {
   ArrowLeft,
   CalendarDays,
@@ -23,15 +31,12 @@ import {
 } from "lucide-react";
 
 /**
- * tripDetail.tsx
- *
- * ตำแหน่งไฟล์: frontend/src/features/trip/detail/TripDetail.tsx (พี่น้องกับ e-tinerary/,
- * create/, myTrips/, recommendations/ ภายใต้ trip/ — ไม่ได้ซ้อนอยู่ใน e-tinerary/)
+ * TripDetail.tsx — แผนการเดินทางที่ยืนยันแล้ว
  *
  * หน้าที่ user มาถึงหลังกด "ยืนยันแผน" ใน ItineraryEditor.tsx
  * Route: `/trip/:tripId/detail`
  *
- * ✅ ต่อ backend จริงแล้ว (ไม่ใช้ mock อีกต่อไป) — ยิง 2 endpoint พร้อมกัน:
+ * ยิง 2 endpoint พร้อมกัน:
  * - GET /api/trips/:tripId              (tripController.ts::getTripById)      -> ข้อมูลสรุปทริป
  * - GET /api/itinerary/trips/:tripId    (itineraryController.ts::getSavedItinerary)
  *   -> trip_days + itinerary items ที่ "ยืนยันแล้ว" เท่านั้น (join places มาให้แล้วในคำตอบเดียว)
@@ -54,20 +59,17 @@ interface ScheduleItem {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  // ✅ แก้บั๊ก: null ได้จริง (food/paid_other ที่ไม่มี price_level จริง) — เดิม type ผิดเป็น
-  // number เฉยๆ ทำให้ formatBaht(null) พังตอน render (ดู comment ที่ TimelineStop ด้านล่าง)
-  placeCost: number | null;
+  placeCost: number | null; // null = ไม่ทราบราคา (paid ที่ไม่มี price_level จริง)
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
-  // ✅ เพิ่มใหม่: มาจาก getSavedItinerary() ที่แก้ให้ derive จาก place_cost === null
-  // (ดู itineraryController.ts) — ใช้แยก "ไม่ทราบราคา" ออกจาก "รู้ว่าฟรี/0 บาท"
+  // getSavedItinerary() คิดจาก place_cost === null — แยก "ไม่ทราบราคา" ออกจาก "ฟรี/0 บาท"
   isCostUnknown: boolean;
 }
 
 interface TripDay {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string;
   dailyBudget: number | null;
@@ -96,7 +98,7 @@ interface TripSummary {
   availableTimePerDay: number | null;
 
   categories?: {
-      category_id:number;
+      category_id: string;
       category_name:string;
   }[];
 
@@ -129,7 +131,7 @@ interface TripRow {
   start_lng: number;
 
   categories?: {
-      category_id: number;
+      category_id: string;
       category_name: string;
   }[];
 }
@@ -146,18 +148,16 @@ interface SavedItineraryItemRow {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  // ✅ แก้บั๊ก: null ได้จริงจาก DB (place_cost คอลัมน์ nullable) — ดู comment ที่ ScheduleItem
-  placeCost: number | null;
+  placeCost: number | null; // place_cost เป็น nullable
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
-  // ✅ เพิ่มใหม่ — ต้องตรงกับ field ใหม่ที่ getSavedItinerary() ส่งมา
   isCostUnknown: boolean;
 }
 
 interface SavedItineraryDayRow {
-  tripDayId: number;
+  tripDayId: string;
   dayNumber: number;
   visitDate: string;
   dailyBudget: number | null;
@@ -230,21 +230,7 @@ function mapSavedDay(row: SavedItineraryDayRow): TripDay {
   };
 }
 
-// ---------- Helpers (เหมือน ItineraryEditor.tsx เพื่อให้ format ตรงกันทั้งแอป) ----------
-
-function formatTime(time: string | null): string {
-  if (!time) return "—";
-  return time.slice(0, 5) + " น.";
-}
-
-function formatVisitDate(visitDate: string): string {
-  const date = new Date(visitDate + "T00:00:00");
-  return date.toLocaleDateString("th-TH", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
+// ---------- Helpers (formatter ที่ใช้ร่วมกับหน้าอื่นอยู่ใน ../lib/format) ----------
 
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
@@ -254,30 +240,6 @@ function formatDateRange(start: string, end: string): string {
     ...opts,
     year: "numeric",
   })}`;
-}
-
-function formatBaht(amount: number): string {
-  return amount.toLocaleString("th-TH") + " ฿";
-}
-
-function formatTimeRange(start: string | null, end: string | null): string {
-  if (!start && !end) return "—";
-  return `${start ? start.slice(0, 5) : "—"} - ${end ? end.slice(0, 5) : "—"} น.`;
-}
-
-// เวลาเดินทางเป็นนาที -> "6 นาที" / "1 ชม. 5 นาที"
-function formatTravelTime(minutes: number): string {
-  const total = Math.round(minutes);
-  if (total < 1) return "น้อยกว่า 1 นาที";
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m} นาที`;
-  return m === 0 ? `${h} ชม.` : `${h} ชม. ${m} นาที`;
-}
-
-// ระยะทางเป็นกม. -> น้อยกว่า 1 กม. แสดงเป็นเมตร (เช่น "300 ม.")
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`;
 }
 
 const BUDGET_SCOPE_LABELS: Record<string, string> = {
@@ -443,7 +405,7 @@ export default function TripDetail() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // ✅ เพิ่มใหม่: state เฉพาะปุ่ม "แก้ไขเส้นทาง" — แยกจาก loadError หลัก เพราะเป็นคนละ error
+  // state เฉพาะปุ่ม "แก้ไขเส้นทาง" — แยกจาก loadError หลัก เพราะเป็นคนละ error
   // (โหลดหน้าไม่สำเร็จ vs กดปุ่มแล้วเตรียมข้อมูลไปหน้า editor ไม่สำเร็จ)
   const [preparingEdit, setPreparingEdit] = useState(false);
   const [editActionError, setEditActionError] = useState<string | null>(null);
@@ -482,7 +444,7 @@ export default function TripDetail() {
         const itineraryData: SavedItineraryResponse = await itineraryRes.json();
         if (!itineraryRes.ok) {
           throw new Error(
-            (itineraryData as any).message || "ดึงข้อมูลแผนเดินทางไม่สำเร็จ"
+            (itineraryData as { message?: string }).message || "ดึงข้อมูลแผนเดินทางไม่สำเร็จ"
           );
         }
 
@@ -490,10 +452,10 @@ export default function TripDetail() {
 
         setTrip(mapTripRow(tripData.trip));
         setDays(itineraryData.tripDays.map(mapSavedDay));
-      } catch (err: any) {
+      } catch (err) {
         if (!cancelled) {
           console.error(err);
-          setLoadError(err.message || "เกิดข้อผิดพลาดในการโหลดแผนการเดินทาง");
+          setLoadError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการโหลดแผนการเดินทาง");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -529,9 +491,7 @@ export default function TripDetail() {
     let places = 0;
     for (const day of days) {
       for (const item of day.items) {
-        // ✅ แก้บั๊ก: item.placeCost เป็น number | null แล้ว — ไม่นับที่ "ไม่ทราบราคา" เข้ายอดรวม
-        // (เดิม `cost += item.placeCost` รอด runtime เพราะ JS coerce null -> 0 ได้เอง แต่ตอนนี้ type
-        // ถูกต้องแล้วต้องเขียนให้ TS ผ่านด้วย — ใช้เกณฑ์เดียวกับ itineraryBuilder.ts::cumulativeCost)
+        // ไม่นับที่ "ไม่ทราบราคา" เข้ายอดรวม (เกณฑ์เดียวกับ itineraryBuilder.ts::cumulativeCost)
         cost += item.placeCost ?? 0;
         places += 1;
       }
@@ -540,17 +500,16 @@ export default function TripDetail() {
   }, [days]);
 
   /**
-   * ✅ เพิ่มใหม่: กด "แก้ไขเส้นทาง"
+   * กด "แก้ไขเส้นทาง"
    *
    * ItineraryEditor.tsx ต้องการ location.state.draft + .places เสมอ (ไม่มี fallback ดึงเองจาก
-   * tripId) ดังนั้น navigate ตรงๆ จากหน้านี้จะค้างที่ "กำลังตรวจสอบข้อมูล..." ตลอดไป — ต้อง:
+   * tripId) จึงต้อง:
    * 1) ดึง place_ids ทั้งหมดจาก itinerary ที่บันทึกไว้แล้ว (ทุกวันรวมกัน, unique)
    * 2) ยิง GET /api/places?ids=... ใหม่ (เอาข้อมูลสถานที่ล่าสุด ไม่ใช้ของเก่าที่ cache ไว้ในหน้านี้
    *    เพราะ field ที่ TripDetail ดึงมาจาก itinerary ไม่ครบเท่า PlaceInfo ที่ Editor ต้องใช้ เช่น
    *    price_level, default_duration_min, opening_hours)
-   * 3) ยิง POST /draft ซ้ำด้วยชุด place_ids เดิม — ให้ backend คำนวณ startTime/endTime/conflict
-   *    ใหม่ทั้งหมดตาม placement algorithm เดียวกับตอนสร้างครั้งแรก (ยัดวันแรก + TSP) ไม่ใช้ค่าที่
-   *    เคย confirm ไว้ตรงๆ เพราะ Editor คาดหวัง shape ผลลัพธ์แบบ draft เสมอ
+   * 3) ยิง POST /draft ซ้ำด้วยชุด place_ids เดิม (Editor คาดหวัง shape แบบ draft เสมอ)
+   *    ⚠️ draft ไม่จัดสถานที่ลงวัน ทุกที่จึงกลับไปอยู่ใน "ยังไม่จัดลงวัน" ไม่ใช่ตามแผนที่ยืนยันไว้
    * 4) navigate ไป editor พร้อม state ชุดเดียวกับที่ TripRecommendations.tsx ส่งให้
    *
    * ถ้ายังไม่มีสถานที่เลย (totals.places === 0) ไม่มีอะไรให้ "แก้" — พาไปหน้าเลือกสถานที่แทน
@@ -576,9 +535,7 @@ export default function TripDetail() {
         "Content-Type": "application/json",
       };
 
-      // ⚠️ สมมติฐาน: GET /api/places?ids=... คืน { places: PlaceInfo[] } (snake_case ตรงกับ
-      // PlaceInfo ใน ItineraryEditor.tsx) — ยังไม่เคยเห็น controller จริงของ endpoint นี้
-      // ถ้า response shape จริงต่างจากนี้ ต้องแก้ตรงจุดนี้จุดเดียว
+      // GET /api/places?ids=... คืน { places: PlaceInfo[] } (snake_case ตรงกับ PlaceInfo ใน ItineraryEditor.tsx)
       const placesRes = await fetch(`/api/places?ids=${placeIds.join(",")}`, {
         headers: authHeader,
       });
@@ -600,7 +557,7 @@ export default function TripDetail() {
         throw new Error(draftData.message || "จัดร่างเส้นทางใหม่ไม่สำเร็จ");
       }
 
-      const mergedPlaces = (placesData.places ?? []).map((place: any) => ({
+      const mergedPlaces = (placesData.places ?? []).map((place: { place_id: string }) => ({
         placeId: place.place_id,
         place,
       }));
@@ -612,10 +569,10 @@ export default function TripDetail() {
           places: mergedPlaces,
         },
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setEditActionError(
-        err.message || "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ"
+        (err as { message?: string } | null)?.message || "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ"
       );
     } finally {
       setPreparingEdit(false);
@@ -842,7 +799,7 @@ export default function TripDetail() {
                     วันที่ {day.dayNumber}
                     <span className="font-normal text-[color:var(--deep)] text-base">
                       {" "}
-                      — {formatVisitDate(day.visitDate)}
+                      — {formatVisitDate(day.visitDate, "long")}
                     </span>
                   </h2>
                   {day.dailyBudget !== null && (

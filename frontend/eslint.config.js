@@ -19,5 +19,9 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // พารามิเตอร์ที่ขึ้นต้นด้วย _ = ตั้งใจไม่ใช้ (เก็บ signature เดิม เช่น buildInitialDraft)
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 ])

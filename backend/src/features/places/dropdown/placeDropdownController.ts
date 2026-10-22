@@ -2,26 +2,17 @@ import { Request, Response } from "express";
 import { supabase } from "../../../config/db";
 
 /**
- * placeDropdownController.ts
- * รวม endpoint ที่ใช้ populate dropdown ในฟอร์มสร้างทริป (createTrip.tsx):
- * - จังหวัด (province)
- * - อำเภอ/เขต (district)
- * ทั้งสองดึงค่าจริงจากตาราง places แทนการ hardcode/ให้พิมพ์เอง เพื่อกันผู้ใช้เลือก/พิมพ์
- * ค่าที่ไม่มีข้อมูลจริงในระบบ แล้วได้ผลลัพธ์ 0 ที่แบบเงียบๆ ตอนคำนวณ POI score
+ * dropdown จังหวัด/อำเภอในฟอร์มสร้างทริป (createTrip.tsx) — ดึงค่าจริงจากตาราง places
+ * เพื่อให้ผู้ใช้เลือกได้เฉพาะพื้นที่ที่มีสถานที่ในระบบ (ไม่ได้ผล POI 0 ที่แบบเงียบๆ)
  *
- * mount ที่ /api/place-dropdown (ไม่ใช่ /api/places — path นั้นถูกใช้โดย
- * features/places/placesRoutes.ts เดิมอยู่แล้ว ดู PROJECT_BRIEF หัวข้อ 3.12)
+ * mount ที่ /api/place-dropdown (แยกจาก /api/places ของ placesRoutes.ts)
  */
 
 /**
  * GET /api/place-dropdown/provinces
- *
- * คืนรายชื่อจังหวัดที่มีสถานที่จริงอยู่ในระบบเท่านั้น (distinct, sort ตามตัวอักษรไทย)
- * ใช้แทน array 77 จังหวัดที่ hardcode ไว้เดิมใน createTrip.tsx — ข้อมูลตอนนี้มีแค่
- * กรุงเทพฯ จังหวัดเดียว ถ้าปล่อยให้เลือกจังหวัดอื่นที่ยังไม่มีข้อมูล places จะได้
- * ผลลัพธ์ 0 ที่แบบเงียบๆ เหมือนบั๊ก province/district null ที่เคยเจอ
+ * รายชื่อจังหวัดที่มีสถานที่ในระบบ (distinct, เรียงตามตัวอักษรไทย)
  */
-export const getProvinces = async (req: Request, res: Response) => {
+export const getProvinces = async (_req: Request, res: Response) => {
   const { data, error } = await supabase
     .from("places")
     .select("province")
@@ -46,9 +37,8 @@ export const getProvinces = async (req: Request, res: Response) => {
  * GET /api/place-dropdown/districts
  * GET /api/place-dropdown/districts?province=กรุงเทพมหานคร
  *
- * คืนรายชื่อ district ที่มีอยู่จริงใน places (distinct, sort ตามตัวอักษรไทย)
- * ถ้าส่ง province มา -> กรองเฉพาะ district ที่อยู่ในจังหวัดนั้น
- * ถ้าไม่ส่ง province -> คืน district ทั้งหมดที่มีในระบบ
+ * รายชื่อ district ที่มีใน places (distinct, เรียงตามตัวอักษรไทย)
+ * ส่ง province มา -> เฉพาะจังหวัดนั้น · ไม่ส่ง -> ทั้งหมด
  */
 export const getDistricts = async (req: Request, res: Response) => {
   const { province } = req.query;

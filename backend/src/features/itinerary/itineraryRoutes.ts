@@ -19,10 +19,10 @@ router.get("/trips/:tripId", requireAuth, getSavedItinerary);
 // 3. ยืนยันแผน (re-validate ซ้ำฝั่ง backend แล้ว insert ลง itineraries)
 router.put("/trips/:tripId", requireAuth, confirmItinerary);
 
-// 4. ทดสอบดึงสถานที่สำหรับ Auto Trip
+// 4. สถานที่ที่ Auto Trip จะใช้ (หน้า TripRecommendations เช็คก่อนเปิดหน้า Auto Trip)
 router.get("/trips/:tripId/auto-places", requireAuth, getAutoTripPlacesTest);
 
-// 5. ✅ เพิ่มใหม่: จัดทริปอัตโนมัติ (Auto Trip Engine)
+// 5. จัดทริปอัตโนมัติ (Auto Trip)
 router.post("/trips/:tripId/auto", requireAuth, buildAutoTripController);
 
 export default router;

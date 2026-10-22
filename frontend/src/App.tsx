@@ -4,13 +4,20 @@ import Register from "./features/auth/register/register";
 import ConfirmEmail from "./features/auth/confirmEmail/confirmEmail";
 import Login from "./features/auth/login/login";
 import Home from "./features/home/home";
-import ProtectedRoute from "./features/auth/components/ProtectedRoute";
+import ProtectedRoute from "./system/auth/ProtectedRoute";
 import CreateTrip from "./features/trip/create/createTrip";
 import TripRecommendations from "./features/trip/recommendations/TripRecommendations";
 import MyTrips from "./features/trip/myTrips/MyTrips";
 import ItineraryEditor from "./features/trip/e-tinerary/editor/ItineraryEditor";
 import TripDetail from "./features/trip/detail/TripDetail";
 import AutoTrip from "./features/trip/e-tinerary/auto/auto";
+import AdminLogin from "./admin/login/AdminLogin";
+import AdminRoute from "./admin/AdminRoute";
+import AdminLayout from "./admin/AdminLayout";
+import AdminDashboard from "./admin/dashboard/AdminDashboard";
+import ProvinceList from "./admin/provinces/ProvinceList";
+import ProvinceReview from "./admin/provinces/ProvinceReview";
+import ProvinceImport from "./admin/imports/ProvinceImport";
 
 export default function App() {
   return (
@@ -86,6 +93,49 @@ export default function App() {
             </ProtectedRoute>
   }
 />
+
+        {/* Admin Panel (R5, D-24) — สิทธิ์ตรวจที่ backend ผ่าน AdminRoute */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminDashboard />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/provinces"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <ProvinceList />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/provinces/:province"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <ProvinceReview />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/provinces/:province/import"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <ProvinceImport />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

@@ -1,3 +1,4 @@
+import type { OpeningHours } from "../../utils/openingHoursChecker";
 import {
   nearestNeighborTsp,
   calculateDistanceKm,
@@ -8,32 +9,16 @@ import {
  * Types
  * ========================================================= */
 
+// ชื่อ field เป็นรูปแบบเดียวกับ selected_places ที่ส่งกลับ frontend
 export interface AutoPlace {
-  // รองรับทั้ง camelCase และ snake_case เพื่อไม่ให้ Type ตกหล่น
-  place_id?: string;
-  placeId?: string;
-
-  place_name?: string;
-  placeName?: string;
-
-  categoryName?: string;
-  category_name?: string;
-
-  poiScore?: number;
-  poi_score?: number;
-
+  place_id: string;
+  place_name: string;
+  categoryName: string;
+  poiScore: number;
   latitude: number;
   longitude: number;
-
-  opening_hours?: any;
-  openingHours?: any;
-
-  /**
-   * เวลาเฉลี่ยที่ใช้เที่ยวสถานที่
-   * หน่วย: นาที
-   */
-  default_duration_min?: number | null;
-  defaultDurationMin?: number | null;
+  opening_hours: OpeningHours | null;
+  default_duration_min: number; // เวลาเฉลี่ยที่ใช้เที่ยว (นาที)
 }
 
 export interface TripInfo {
@@ -54,7 +39,7 @@ export interface TripInfo {
   available_time_per_day?: number | null;
 }
 
-export interface AutoTripStop {
+interface AutoTripStop {
   place_id: string;
   place_name: string;
 
@@ -76,7 +61,7 @@ export interface AutoTripStop {
   previous_place_name: string;
 }
 
-export interface AutoTripDay {
+interface AutoTripDay {
   day: number;
   date: string;
 
@@ -87,7 +72,7 @@ export interface AutoTripDay {
   total_visit_time_min: number;
 }
 
-export interface AutoTripResult {
+interface AutoTripResult {
   trip_id: string;
 
   selected_places: AutoPlace[];
@@ -103,6 +88,7 @@ export interface AutoTripResult {
 
 const DEFAULT_DAY_END = "18:00";
 const DEFAULT_TRAVEL_SPEED_KMH = 30;
+const TRIP_START_NAME = "จุดเริ่มต้นทริป";
 
 /* =========================================================
  * Time Utilities
@@ -133,6 +119,24 @@ function calculateTravelTimeMin(distanceKm: number): number {
   return Math.ceil((distanceKm / DEFAULT_TRAVEL_SPEED_KMH) * 60);
 }
 
+function tripStartPoint(startLat: number, startLng: number): TspPlace {
+  return {
+    place_id: "TRIP_START",
+    place_name: TRIP_START_NAME,
+    latitude: Number(startLat),
+    longitude: Number(startLng),
+  };
+}
+
+function toTspPlace(place: AutoPlace): TspPlace {
+  return {
+    place_id: place.place_id,
+    place_name: place.place_name,
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude),
+  };
+}
+
 /* =========================================================
  * Category
  * ========================================================= */
@@ -141,7 +145,7 @@ function groupByCategory(places: AutoPlace[]): Map<string, AutoPlace[]> {
   const grouped = new Map<string, AutoPlace[]>();
 
   for (const place of places) {
-    const catName = place.categoryName ?? place.category_name;
+    const catName = place.categoryName;
     if (!catName) {
       continue;
     }
@@ -155,24 +159,16 @@ function groupByCategory(places: AutoPlace[]): Map<string, AutoPlace[]> {
 }
 
 function sortByPoiScore(places: AutoPlace[]): AutoPlace[] {
-  return [...places].sort((a, b) => {
-    const scoreA = a.poiScore ?? a.poi_score ?? 0;
-    const scoreB = b.poiScore ?? b.poi_score ?? 0;
-    return scoreB - scoreA;
-  });
+  return [...places].sort((a, b) => b.poiScore - a.poiScore);
 }
 
 /* =========================================================
  * Opening Hours
  * ========================================================= */
 
-function isPlaceOpen(
-  place: AutoPlace,
-  date: Date,
-  visitStartMinute: number,
-  durationMin: number
-): boolean {
-  const openingHours = place.opening_hours ?? place.openingHours;
+// ⚠️ เช็คแค่คำว่า "closed" ใน weekday_text ของวันนั้น (ข้อมูลจริงเป็นภาษาไทย จึงแทบไม่เคยตรง)
+function isPlaceOpen(place: AutoPlace, date: Date): boolean {
+  const openingHours = place.opening_hours;
 
   if (!openingHours) {
     return true;
@@ -199,44 +195,15 @@ function isPlaceOpen(
  * Select Best Place Per Category
  * ========================================================= */
 
-function selectBestPlacePerCategory(
-  places: AutoPlace[],
-  date: Date,
-  startMinute: number
-): AutoPlace[] {
-  const grouped = groupByCategory(places);
+function selectBestPlacePerCategory(places: AutoPlace[], date: Date): AutoPlace[] {
   const selected: AutoPlace[] = [];
 
-  for (const [_category, categoryPlaces] of grouped.entries()) {
-    const sorted = sortByPoiScore(categoryPlaces);
-
-    for (const place of sorted) {
-      const duration =
-        place.default_duration_min ?? place.defaultDurationMin ?? 60;
-
-      const isOpen = isPlaceOpen(place, date, startMinute, duration);
-
-      if (isOpen) {
-        selected.push(place);
-        break;
-      }
-    }
+  for (const categoryPlaces of groupByCategory(places).values()) {
+    const best = sortByPoiScore(categoryPlaces).find((place) => isPlaceOpen(place, date));
+    if (best) selected.push(best);
   }
 
   return selected;
-}
-
-/* =========================================================
- * Convert to TSP Place
- * ========================================================= */
-
-function convertToTspPlaces(places: AutoPlace[]): TspPlace[] {
-  return places.map((place) => ({
-    place_id: (place.place_id ?? place.placeId)!,
-    place_name: (place.place_name ?? place.placeName)!,
-    latitude: Number(place.latitude),
-    longitude: Number(place.longitude),
-  }));
 }
 
 /* =========================================================
@@ -258,40 +225,24 @@ function buildDayRoute(
   let totalTravelTimeMin = 0;
   let totalVisitTimeMin = 0;
 
-  let previousPoint: TspPlace = {
-    place_id: "TRIP_START",
-    place_name: "จุดเริ่มต้นทริป",
-    latitude: Number(startLat),
-    longitude: Number(startLng),
-  };
-
-  let previousPlaceName = "จุดเริ่มต้นทริป";
+  let previousPoint = tripStartPoint(startLat, startLng);
+  let previousPlaceName = TRIP_START_NAME;
 
   for (const place of route) {
-    const pId = (place.place_id ?? place.placeId)!;
-    const pName = (place.place_name ?? place.placeName)!;
-
-    const to: TspPlace = {
-      place_id: pId,
-      place_name: pName,
-      latitude: Number(place.latitude),
-      longitude: Number(place.longitude),
-    };
+    const to = toTspPlace(place);
 
     const distanceKm = calculateDistanceKm(previousPoint, to);
     const travelTimeMin = calculateTravelTimeMin(distanceKm);
     const visitStart = addMinutes(currentTime, travelTimeMin);
 
-    const durationMin =
-      place.default_duration_min ?? place.defaultDurationMin ?? 60;
-
+    const durationMin = place.default_duration_min;
     const visitEnd = addMinutes(visitStart, durationMin);
 
     stops.push({
-      place_id: pId,
-      place_name: pName,
-      categoryName: place.categoryName ?? place.category_name ?? "",
-      poiScore: place.poiScore ?? place.poi_score ?? 0,
+      place_id: place.place_id,
+      place_name: place.place_name,
+      categoryName: place.categoryName,
+      poiScore: place.poiScore,
       latitude: Number(place.latitude),
       longitude: Number(place.longitude),
       start_time: visitStart,
@@ -308,8 +259,7 @@ function buildDayRoute(
     totalVisitTimeMin += durationMin;
 
     previousPoint = to;
-
-    previousPlaceName = pName;
+    previousPlaceName = place.place_name;
   }
 
   return {
@@ -326,6 +276,7 @@ function buildDayRoute(
  * Split Route Into Days
  * ========================================================= */
 
+// วันไหนใส่สถานที่ไม่ได้เลยจะไม่อยู่ในผลลัพธ์ (แต่ยังนับเลขวันต่อ)
 function splitRouteIntoDays(
   route: AutoPlace[],
   startDate: string,
@@ -340,7 +291,7 @@ function splitRouteIntoDays(
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  let currentDate = new Date(start);
+  const currentDate = new Date(start);
   let dayNumber = 1;
   let routeIndex = 0;
 
@@ -355,28 +306,15 @@ function splitRouteIntoDays(
         ? timeToMinutes(startTime) + availableTimePerDay * 60
         : timeToMinutes(DEFAULT_DAY_END);
 
-    let previousPoint: TspPlace = {
-      place_id: "TRIP_START",
-      place_name: "จุดเริ่มต้นทริป",
-      latitude: Number(startLat),
-      longitude: Number(startLng),
-    };
+    let previousPoint = tripStartPoint(startLat, startLng);
 
     while (routeIndex < route.length) {
       const place = route[routeIndex];
-      const duration =
-        place.default_duration_min ?? place.defaultDurationMin ?? 60;
-
-      const currentPlace: TspPlace = {
-        place_id: (place.place_id ?? place.placeId)!,
-        place_name: (place.place_name ?? place.placeName)!,
-        latitude: Number(place.latitude),
-        longitude: Number(place.longitude),
-      };
+      const currentPlace = toTspPlace(place);
 
       const distanceKm = calculateDistanceKm(previousPoint, currentPlace);
       const travelTime = calculateTravelTimeMin(distanceKm);
-      const requiredTime = travelTime + duration;
+      const requiredTime = travelTime + place.default_duration_min;
 
       if (currentTime + requiredTime > dayEnd) {
         break;
@@ -389,16 +327,9 @@ function splitRouteIntoDays(
     }
 
     if (todayPlaces.length > 0) {
-      const dayRoute = buildDayRoute(
-        dayNumber,
-        dateString,
-        todayPlaces,
-        startTime,
-        startLat,
-        startLng
+      days.push(
+        buildDayRoute(dayNumber, dateString, todayPlaces, startTime, startLat, startLng)
       );
-
-      days.push(dayRoute);
     }
 
     currentDate.setDate(currentDate.getDate() + 1);
@@ -412,44 +343,27 @@ function splitRouteIntoDays(
  * MAIN AUTO TRIP FUNCTION
  * ========================================================= */
 
-export function buildAutoTrip(
-  trip: TripInfo,
-  places: AutoPlace[]
-): AutoTripResult {
+export function buildAutoTrip(trip: TripInfo, places: AutoPlace[]): AutoTripResult {
   if (!places.length) {
     throw new Error("ไม่พบสถานที่สำหรับจัดทริป");
   }
 
-  const startDate = new Date(trip.start_date);
-  const startMinute = timeToMinutes(trip.start_time);
-
-  const selectedPlaces = selectBestPlacePerCategory(
-    places,
-    startDate,
-    startMinute
-  );
+  const selectedPlaces = selectBestPlacePerCategory(places, new Date(trip.start_date));
 
   if (selectedPlaces.length === 0) {
     throw new Error("ไม่พบสถานที่ที่สามารถจัดลงทริปได้");
   }
 
-  const tspPlaces = convertToTspPlaces(selectedPlaces);
-
-  const startPoint: TspPlace = {
-    place_id: "TRIP_START",
-    place_name: "จุดเริ่มต้นทริป",
-    latitude: Number(trip.start_lat),
-    longitude: Number(trip.start_lng),
-  };
-
-  const tspResult = nearestNeighborTsp(tspPlaces, startPoint);
+  const tspResult = nearestNeighborTsp(
+    selectedPlaces.map(toTspPlace),
+    tripStartPoint(trip.start_lat, trip.start_lng)
+  );
 
   const placeMap = new Map<string, AutoPlace>();
 
   for (const place of selectedPlaces) {
-    const key = place.place_id ?? place.placeId;
-    if (key) {
-      placeMap.set(key, place);
+    if (place.place_id) {
+      placeMap.set(place.place_id, place);
     }
   }
 
@@ -467,10 +381,7 @@ export function buildAutoTrip(
     trip.available_time_per_day
   );
 
-  const totalDistanceKm = days.reduce(
-    (total, day) => total + day.total_distance_km,
-    0
-  );
+  const totalDistanceKm = days.reduce((total, day) => total + day.total_distance_km, 0);
 
   return {
     trip_id: trip.trip_id,

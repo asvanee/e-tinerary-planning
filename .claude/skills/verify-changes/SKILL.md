@@ -9,11 +9,11 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | ตรวจ | Baseline |
 |---|---|
 | backend `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd` — T1 ไม่ได้แตะ backend) |
-| data-pipeline `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd`) |
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
-| frontend `npm run lint` | ❌ 33 errors, 4 warnings |
-| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ยังไม่ได้ทดสอบบน Linux/CI |
-| `npm test` (ทั้งสองฝั่ง) | ไม่มีไฟล์ test |
+| frontend `npm run lint` | ❌ 5 errors, 4 warnings (หลัง cleanup 2026-10-21 — `no-explicit-any` 0) |
+| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
+| backend `npm test` | ✅ 98 passed (6 suites, 2026-10-21 — dedupe + review + import + resolve ของ admin pipeline) |
+| frontend `npm test` | ไม่มีไฟล์ test |
 
 ถ้า baseline เปลี่ยนเพราะงานที่ทำเสร็จแล้ว ให้อัปเดตตารางนี้และ `docs/DEVELOPMENT_STATUS.md`
 
@@ -23,7 +23,6 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
    ```bash
    cd backend && npx tsc --noEmit
    cd frontend && npx tsc -b
-   cd data-pipeline && npx tsc --noEmit
    ```
 3. **Lint (frontend)**: `cd frontend && npm run lint` แล้วเทียบกับ baseline ห้ามเพิ่ม error ใหม่ในไฟล์ที่แตะ จะดูเฉพาะไฟล์ก็ได้: `npx eslint <path>`
 4. **Build (frontend)** ถ้าแตะ frontend: `cd frontend && npm run build`
@@ -47,13 +46,12 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 
 ## ปัญหาที่รู้แล้วของ environment
 - `node_modules` ปัจจุบันติดตั้งบน Windows ถ้ารันใน WSL/Linux/CI ต้อง `npm ci` ใหม่ในเครื่องนั้น (ห้ามลบ node_modules ของผู้ใช้เอง ให้ถามก่อน)
-- jest 30 กับ ts-jest 29 major version ไม่ตรงกัน ถ้า `npm test` ของ backend error ตอนโหลด transform ให้รายงานว่าเป็นปัญหา config (DEVELOPMENT_PLAN T15) ไม่ใช่ test fail
-- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 แต่ยังไม่ได้ยืนยันบน Linux/CI)
+- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 · ไม่ทดสอบบน Linux/CI ตาม D-22 แต่ยังต้องตั้งชื่อให้ตรงกันทุกตัวอักษร)
 
 ## ข้อควรระวัง
 - ห้ามรายงานว่าผ่านถ้าไม่ได้รันในรอบนี้ และห้ามคัดลอกผลจาก baseline มาใช้แทน
 - ห้ามแก้ไฟล์ test/config เพื่อให้ "ผ่าน" โดยไม่บอก
-- ห้ามรัน data-pipeline scripts เป็นส่วนหนึ่งของการตรวจ
+- ห้ามเรียก API นำเข้าของ admin (Google Places จริง) เป็นส่วนหนึ่งของการตรวจ — test ใช้ Google ปลอม
 
 ## หยุดแล้วถามผู้ใช้เมื่อ
 - ต้องติดตั้ง dependency ใหม่หรือ `npm ci` ใหม่

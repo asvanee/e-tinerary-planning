@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { supabase } from "../../config/db";
 
-export const getCategories = async (req: Request, res: Response) => {
+export const getCategories = async (_req: Request, res: Response) => {
   const { data, error } = await supabase
     .from("categories")
     .select("category_id, category_name");

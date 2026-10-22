@@ -50,3 +50,169 @@
   - ย้อนกลับด้วย `git restore` (ยังไม่ commit) หรือ `git revert` (commit แล้ว)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/CLAUDE_CODE_MIGRATION.md`, `docs/DEVELOPMENT_PLAN.md`, `.claude/skills/update-project-docs/SKILL.md`, `.claude/settings.json`
+
+### D-22 · 2026-10-17 · ไม่ทดสอบ build บน Linux/CI
+- บริบท: หลัง T1 build ผ่านบน Windows แต่ยังไม่เคยรันบน Linux/CI (Needs Verification #6)
+- ข้อสรุป: ไม่ต้องทดสอบ build บน Linux/CI เพราะเป็นโปรเจกต์ส่งงานที่ไม่ใช้ Linux/CI · ยังคงตั้งชื่อไฟล์และ import ให้ตรงกันทุกตัวอักษรตาม convention ใน CLAUDE.md
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/DEVELOPMENT_PLAN.md`, `.claude/skills/verify-changes/SKILL.md`
+
+### D-23 · 2026-10-17 · ทิศทางของ Admin Panel (R5) และการพักงานสูตร POI
+- บริบท: README R5 ระบุขอบเขตเป็นข้อเสนอเบื้องต้น · เดิมการเพิ่มจังหวัดทำโดยรัน `npm run upload:*` / `fetch-gmaps-categories:*` ใน data-pipeline และแก้กฎ dedupe ในโค้ด `manualOverrides.ts`
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - พักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3) จนกว่าเพื่อนจะ research เสร็จ แล้วทำ R5 ก่อน
+  - R5 = หน้า UI ที่ login ด้วย role `admin` ใช้ (1) เลือกเพิ่มจังหวัด (2) จัดการสถานที่ซ้ำ (3) จัดการ category mapping
+  - logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/` (เปลี่ยนจากรัน script เองเป็นสั่งผ่านหน้าเว็บ)
+  - ตอนนำเข้าจังหวัด ให้ดึง `gmaps_types` มาพร้อมข้อมูลสถานที่ในการเรียก Google Details ครั้งเดียว
+  - เก็บ `data-pipeline/chiangmai_*.txt` ไว้จนกู้ #20 และเขียน test ของ dedupe เสร็จ แล้วค่อยลบและ ignore `data-pipeline/*.txt`
+- ยังไม่ได้ตัดสินใจ (ดู DEVELOPMENT_PLAN R5 Q1–Q6): ทางที่ frontend เรียก service, ที่เก็บกฎ merge/override, กฎ Stage 3, การกู้ #20, เวลาที่ apply category mapping, test runner ของ data-pipeline
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-24 · 2026-10-18 · โครงสร้างของ Admin Panel: ย้ายงาน admin เข้า backend และเลิกใช้ data-pipeline (แทนที่ D-23 ข้อ "logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/`")
+- บริบท: ถ้า backend ตรวจสิทธิ์ admin แต่ action ของ admin อยู่ใน service แยกของ data-pipeline ต้องตรวจสิทธิ์ 2 ที่และ API แตก 2 server · repo ไม่มี workspace รวม การ import โค้ดข้าม package จึงทำไม่ได้ดี · backend มี Express, `requireAuth`, service role client (`config/db.ts`) และ jest อยู่แล้ว
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - API ของ admin ทั้งหมดอยู่ใน `backend/src/admin/` mount ที่ `/api/admin` ตรวจสิทธิ์ด้วย `requireAuth` + `requireAdmin` (อ่าน `users.role` จาก DB ทุก request ตาม Known Issue #22)
+  - โค้ดจาก `data-pipeline/` (dedupe, อ่าน CSV, Google Places) ย้ายเข้า `backend/src/admin/pipeline/` แบบ **copy แล้วปรับ** (ไม่เขียนใหม่จากศูนย์) และต้องมี jest test ยืนยันผลเท่าเดิมก่อนลบ
+  - ลบ `data-pipeline/` ใน phase สุดท้าย (P6) หลังย้ายและตรวจครบ — ต้องขอยืนยันจากผู้ใช้อีกครั้งก่อนลบ · ก่อนถึง P6 ไม่แก้การทำงานของ data-pipeline
+  - frontend: `src/features/` = หน้าของ user (ไม่เปลี่ยนชื่อ) · `src/admin/` = หน้าของ admin · `src/system/` = ของที่ใช้ร่วมกัน (ย้าย `AuthContext`, `useAuth`, `ProtectedRoute` มาไว้ที่ `src/system/auth/` และเพิ่ม `LoginForm`)
+  - login มี 2 หน้า: `/login` (user) และ `/admin/login` (admin) ใช้ `LoginForm` ร่วมกันและเรียก `/api/auth/login` เดิม · บัญชีที่ role เป็น `admin` login จากหน้าไหนก็ไป `/admin` (redirect เป็นแค่ UX สิทธิ์จริงตรวจที่ backend)
+  - ตอบ D-23 Q1 = frontend เรียก backend `/api/admin/*` (ไม่มี service แยก) · Q6 = ใช้ jest ของ backend ที่มีอยู่ (ไม่ต้องเพิ่ม test runner)
+  - Known Issue #15 (`.gitignore` ของ data-pipeline) ไม่ต้องแก้แยก เพราะโค้ดใหม่อยู่ใน backend — เอาบรรทัด ignore ออกตอนลบ data-pipeline ใน P6 · `data-pipeline/chiangmai_*.txt` เก็บไว้จนถึง P6 (ใช้เทียบผลใน P2)
+- ยังไม่ได้ตัดสินใจ: D-23 Q2 (ที่เก็บกฎ merge/override — แนะนำตาราง Supabase), Q3 (กฎ Stage 3), Q4 (กู้ #20 ทั้งหมดไหม), Q5 (apply category mapping ก่อน research POI เสร็จได้ไหม)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `CLAUDE.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `.claude/skills/feature-development/SKILL.md`
+
+### D-25 · 2026-10-18 · เขียนโค้ด pipeline ใหม่ใน backend ได้ (แทนที่ D-24 ข้อ "copy แล้วปรับ (ไม่เขียนใหม่จากศูนย์)")
+- บริบท: ผู้ใช้ต้องการโค้ดหลังบ้านของ admin ที่สะอาด แก้ logic ได้ และเอามาเฉพาะส่วนที่ใช้ ไม่ต้องคงโครงของ data-pipeline
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - เขียนโค้ดใหม่ใน `backend/src/admin/pipeline/` ได้ทั้งหมด ไฟล์/script/type ใน data-pipeline ที่ไม่ใช้ไม่ต้องย้ายมา
+  - ต้องมี characterization test (jest) ยืนยันว่าผลเท่ากับ data-pipeline เดิม (fixture จากการรัน `testDedupe.ts` จริง) · การเปลี่ยนพฤติกรรม (เช่นกู้ #20) ต้องแยก commit และอัปเดต fixture/ตัวเลขใน test ให้เห็นชัด
+  - เพิ่ม `csv-parse@^6.1.0` เป็น dependency ของ backend (ตัวเดียวกับ data-pipeline เพื่อให้ parse CSV เหมือนเดิม)
+  - `attraction.csv` copy ไป `backend/data/` (เนื้อหาเหมือนกันทุก byte — git ใช้ blob เดียวกัน) ส่วนของ data-pipeline เก็บไว้จนถึง P6
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/*`, `backend/package.json`, `backend/data/attraction.csv`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/PROJECT_OVERVIEW.md`, `CLAUDE.md`, `.claude/skills/verify-changes/SKILL.md`
+
+### D-26 · 2026-10-18 · การจัดการสถานที่ซ้ำ/มีปัญหาให้ admin ตัดสินใจผ่านหน้าเว็บ (แทนที่กฎ hard code ใน `dedupeRules.ts`)
+- บริบท: เดิมกฎ merge/ห้าม merge/แก้พิกัด/ตัดทิ้ง เขียนตายตัวในโค้ด (`manualOverrides.ts` → `dedupeRules.ts`) และบางส่วนหายไปใน `44d26dd` (#20) · ผู้ใช้ต้องการให้ admin เป็นคนตัดสินใจทีละกลุ่มผ่านหน้าเว็บ
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - flow: admin เลือกจังหวัด → backend อ่านสถานที่จาก `attraction.csv` **อย่างเดียว** → หาสถานที่ซ้ำ/มีปัญหาแล้วแสดงให้ admin → admin ตัดสินใจทีละกลุ่ม/แถว → บันทึกการตัดสินใจลง DB → ยืนยันนำเข้าแล้ว **ค่อยเรียก Google** (ก่อนหน้านั้นไม่มีค่าใช้จ่าย)
+  - merge เลือกค่าได้ **ทีละช่อง** (เช่น ชื่อจากแถว A พิกัดจากแถว B) ไม่ใช่แค่เลือกแถวหลัก
+  - หาสถานที่ซ้ำจาก **ชื่อ** ด้วย (นอกจาก website/phone) และเพิ่มการตรวจให้ครอบคลุมได้
+  - **ทิ้งกฎ hard code เดิม** (`locationOverrides`, `blockedMergePairs`, `forceMergeGroups`, `excludeIds` รวมของที่หายใน #20) ให้ admin ตัดสินใจใหม่ผ่านหน้าเว็บ — ยกเลิก R5 P2b (กู้ #20)
+  - **พิกัดยึด CSV เป็นหลัก** (เมื่อผ่านการตรวจ: ไม่พัง, อยู่ในไทย, ไม่ห่างจังหวัดผิดปกติ) · ใช้พิกัด Google เฉพาะเมื่อ CSV พังและจับคู่ผ่านแล้ว หรือ admin กรอกเอง
+  - **ตรวจการจับคู่กับ Google ก่อนรับข้อมูล** (Known Issue #30): ค้นด้วยชื่อไทยก่อน · ระยะพิกัด Google ↔ CSV ≤ 2 km ถือว่าตรง · > 2 km / ไม่เจอ / `google_place_id` ซ้ำกับแถวอื่น → ไม่รับข้อมูล Google (rating, เวลาเปิด, ราคา, ที่อยู่, `gmaps_types`) แล้วส่งให้ admin เลือก: ค้นใหม่ / ใส่ place ID เอง / นำเข้าแบบ CSV อย่างเดียว / ตัดทิ้ง — เพราะถ้าจับคู่ผิด ข้อมูล Google ทุกช่องผิดตาม ไม่ใช่แค่พิกัด
+  - **ข้อมูลเดิมใน `places` ยังไม่แก้** — เมื่อระบบใหม่เสร็จจะนำเข้าทุกจังหวัดใหม่แล้วลบข้อมูลเก่า · ⚠️ ลบ `places` จะ CASCADE ลบ `itineraries`/`poi_scores` ของทริปผู้ใช้ (`DATABASE_SCHEMA.md`) ต้องสำรองข้อมูลและให้ผู้ใช้ยืนยันอีกครั้งตอนลงมือ · **ผู้ใช้เลือก (2026-10-18): ลบแล้วนำเข้าใหม่** ยอมให้แผนเที่ยวของทริปเดิมหาย · ต้องทำหลัง category mapping (P5) พร้อมแล้ว เพราะ CASCADE ลบ `place_categories` ด้วย และ POI query เริ่มจาก `place_categories` (`poiPlaceQueries.ts`) สถานที่ที่ไม่มี category จะไม่ถูกแนะนำเลย
+  - โค้ด dedupe ของ P2a ยังใช้เป็นตัว **เสนอ** กลุ่ม · `dedupeRules.ts` จะถูกแทนด้วยการตัดสินใจใน DB · characterization test ของ P2a เก็บไว้ยืนยันว่าอัลกอริทึมไม่เปลี่ยนโดยไม่ตั้งใจ
+- ยังเป็นข้อเสนอ (รอผู้ใช้ยืนยันตอนวางแผน P3): หมวดของปัญหา, schema ตารางเก็บการตัดสินใจ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/ARCHITECTURE.md`, `backend/src/admin/pipeline/dedupeRules.ts` (comment)
+
+### D-27 · 2026-10-18 · กติกาการนำเข้า (R5 P4) — แทนที่ D-26 ข้อ "ระยะ Google ↔ CSV ≤ 2 km ถือว่าตรง" และข้อ "ชื่อ/เบอร์/เว็บใช้ CSV ก่อน" ที่เสนอไว้
+- บริบท: ตรวจข้อมูลเดิม (อ่านอย่างเดียว 2026-10-18) พบ Google คืนสถานที่ผิดได้แม้ห่างจาก CSV ไม่ถึง 1 km (เช่น "พิพิธภัณฑ์ท้องถิ่นเมืองมีนบุรี" → "ไทวัสดุ" 1.02 km) แต่ก็มีที่ถูกต้องแม้ห่างเกิน 1 km (เอเชียทีค 1.24 km) — ใช้ระยะอย่างเดียวไม่พอ
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
+  - **เกณฑ์จับคู่ Google:** ระยะ ≤ 100 m รับอัตโนมัติ · 100 m–1 km รับเมื่อชื่อคล้ายกัน · นอกนั้น (ชื่อไม่คล้าย, > 1 km, ไม่เจอ, `google_place_id` ซ้ำ) ส่งให้ admin ตัดสิน
+  - **ต้องตัดสินใจในหน้ารีวิวให้ครบก่อน** (กลุ่มและแถวที่มีปัญหาที่ค้างต้องเป็น 0) จึงจะเริ่มนำเข้าได้
+  - **ชื่อ, เบอร์, เว็บใช้ Google ก่อน** แล้วใช้ CSV เมื่อ Google ไม่มี (แบบเดิม) · พิกัดยังยึด CSV ตาม D-26
+  - **เขียน type จาก Google ลงตาราง `place_types`** (`source = 'google'`, เพิ่มเฉพาะคู่ `place_id`+`api_type_id` ที่ยังไม่มี — เช็คในโค้ด) นอกจาก `places.gmaps_types` · **`type_category_weights` ยังไม่แตะ** ผู้ใช้จะคุยหลักการ mapping ใหม่ก่อน (P5)
+  - **`place_types` ใช้ PK เดียว** (`place_type_id` identity) ไม่ใช้ composite key — ผู้ใช้รัน SQL แก้แล้ว 2026-10-18 (สำรองไว้ที่ `place_types_backup_20261018`) · หลักเดียวกับตารางใหม่ของ R5 ทุกตาราง
+  - ไม่เพิ่มตัวตรวจพิกัดหยาบ (ทศนิยม < 3 ตำแหน่ง, 34 แถวทั้งประเทศ) และไม่ทำปุ่มดึงพิกัดจาก short link ในหน้ารีวิว
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-28 · 2026-10-18 · primary key ทุกตารางเป็น uuid (ขยาย D-27 ข้อ "PK เดียว")
+- บริบท: `users`, `trips`, `places` ใช้ uuid อยู่แล้ว แต่ตารางอื่นยังเป็น int/bigint (`categories`, `trip_days`, `itineraries`, `poi_scores`, `place_categories`, `trip_categories`, `type_category_weights`, `place_types`, `admin_place_decisions`, `pipeline_jobs`, `pipeline_job_items`)
+- ข้อสรุป (ผู้ใช้ยืนยันแล้ว): ทุกตารางใช้ PK เดียวเป็น `uuid DEFAULT gen_random_uuid()` · ตารางใหม่ต่อจากนี้ก็เช่นกัน
+- การทำ: งาน **T23** — SQL อยู่ที่ `docs/sql/2026-10-19_uuid_primary_keys.sql` (สำรองทุกตารางก่อน, transaction เดียว, FK และ UNIQUE หลายคอลัมน์ที่โค้ดใช้อยู่สร้างกลับเหมือนเดิม) · **ต้องแก้โค้ดให้เสร็จก่อนรัน SQL** (type ของ id เป็น string และการเลือก "ล่าสุด" ต้องใช้ `decided_at`/`created_at` แทนลำดับเลข)
+- ข้อควรระวัง: เครื่องมือนอก repo ที่อ้าง id เป็นตัวเลข (เช่นของ Stage 3 ที่ใช้ `category_id` ใน `type_category_weights`) จะใช้ค่าเดิมไม่ได้ · ข้อมูลที่ export ไว้ก่อนหน้า (ถ้ามี) จะอ้าง id เก่า
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/sql/2026-10-19_uuid_primary_keys.sql`, `docs/DEVELOPMENT_PLAN.md` (T23), `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-29 · 2026-10-18 · แก้วัน/เวลา/งบต่อวันของทริป = ล้างแผนเดิม (แก้ Known Issue #6)
+- บริบท: `trip_days` ถูกสร้างครั้งเดียวใน `getOrCreateTripDays` แล้วไม่อัปเดตเมื่อแก้ทริป · ทางที่ sync ทีละวัน (update/insert/delete) ซับซ้อนและต้องตัดสินว่าสถานที่ในวันที่ถูกตัดไปอยู่ไหน
+- ข้อสรุป (ผู้ใช้เลือกทางที่ง่ายที่สุด): ถ้า `start_date`, `end_date`, `start_time`, `available_time_per_day` หรือ `daily_budget` เปลี่ยน `updateTrip` จะลบ `trip_days` ของทริปนั้น (CASCADE ลบ `itineraries` = แผนเดิม) แล้วครั้งหน้าที่จัดแผนจะสร้างวันใหม่จากข้อมูลล่าสุด · frontend ถามยืนยันก่อนบันทึก · ช่องอื่น (จังหวัด หมวดหมู่ จุดเริ่ม ฯลฯ) แผนเดิมยังอยู่ · หลังบันทึกไปหน้า recommendations เหมือนเดิม
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/trip/tripController.ts` (`updateTrip`), `backend/src/features/trip/tripDayStructure.ts`, `frontend/src/features/trip/create/createTrip.tsx`
+
+### D-30 · 2026-10-21 · รายละเอียดการนำเข้า R5 P4a (ขยาย D-26/D-27)
+- บริบท: ระหว่างวางแผน P4a พบว่า (1) โค้ดยังไม่ได้ใช้ `primary_att_id`/`field_sources` ของ merge (2) แผนเดิมใช้ upsert `onConflict google_place_id` ซึ่งอาจเขียนทับสถานที่ของจังหวัดอื่นเงียบๆ (3) เงื่อนไข "จังหวัดต้องยังไม่มีแถวใน `places`" ทำให้นำเข้าส่วนที่เหลือหลัง "ทดลอง N แถวแรก" ไม่ได้
+- ข้อสรุป (ผู้ใช้เลือกตามข้อเสนอทุกข้อ):
+  - **merge:** ใช้ `primary_att_id` เป็นแถวหลัก (= `places.att_id`) และเอาค่าแต่ละช่องตาม `field_sources` ช่องที่ไม่ได้เลือกใช้ค่าแถวหลัก
+  - **`google_place_id` ซ้ำ** (ใน job เดียวกัน หรือมีใน `places` อยู่แล้ว) → `needs_review_duplicate` ให้ admin ตัดสิน · บันทึก `places` ด้วย insert เท่านั้น (ไม่ upsert)
+  - **รันต่อได้:** เริ่ม job ได้ถ้าแถวของจังหวัดใน `places` มาจาก job ของระบบนี้ทั้งหมด · ข้าม ATT_ID ที่มีผลแล้ว (ทุกสถานะยกเว้น `error` ซึ่งลองใหม่ได้)
+  - **ชื่อคล้าย:** normalize แล้วชื่อหนึ่งอยู่ในอีกชื่อ หรือ `1 − Levenshtein / ความยาวที่ยาวกว่า ≥ 0.6` เทียบกับชื่อไทยและอังกฤษ (ไม่นับว่าง/"ไม่มี")
+  - **Google:** Places API (Legacy) — key เดิมใช้ได้ และรูปแบบ `opening_hours` ตรงกับ `openingHoursChecker.ts`
+  - **ค้นหา:** "ชื่อไทย อำเภอ จังหวัด" (ไม่มีชื่อไทยใช้ชื่ออังกฤษ) + `locationbias=circle:1000@พิกัด CSV` · ไม่เจอไม่ค้นซ้ำ (ส่งให้ admin, P4c มีปุ่มค้นใหม่) · หน่วง 200 ms หลังทุก request เป็นค่าคงที่ ไม่เพิ่ม env
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/`, `backend/src/admin/imports/`, `docs/DEVELOPMENT_PLAN.md`
+
+### D-31 · 2026-10-21 · merge เลือกค่าได้เฉพาะช่องที่ใช้ตอนนำเข้า (แทนที่ D-26 ข้อ "merge เลือกค่าได้ทีละช่อง" ส่วนที่ให้เลือกได้ทุกคอลัมน์)
+- บริบท: หน้า merge (P3b) ให้เลือกค่าได้ทุกคอลัมน์ของ CSV แต่การนำเข้า (P4a) อ่านแค่บางคอลัมน์ — เลือกช่องอื่น (เช่น ค่าเข้า, อีเมล, วันที่อัปเดต) ไม่มีผลกับ `places` และทำให้หน้ารีวิวรก
+- ข้อสรุป (ผู้ใช้สั่ง): เลือกค่าทีละช่องได้เฉพาะ 19 คอลัมน์ที่นำเข้าจริง — ชื่อไทย/อังกฤษ, พิกัด, เบอร์, เว็บ, ที่อยู่ (ATT_ADDRESS, ATT_ADDRESS_ALLEY, ATT_ADDRESS_ROAD, SUBDISTRICT_NAME_TH, DISTRICT_NAME_TH, ATT_POSTCODE), ATT_TYPE_LABEL, ATT_CATEGORY_LABEL, ATT_DETAIL_TH, Facebook/Instagram/TikTok/YouTube/LINE · หน้า merge เอาปุ่ม "แสดงทุกช่อง" ออก (แสดงช่องสำคัญ + ช่องที่นำเข้าซึ่งค่าต่างกันเท่านั้น) · backend ปฏิเสธ `fieldSources` ของช่องอื่น (400) · การตัดสินใจเก่าที่เลือกช่องอื่นไว้ไม่มีผลตอนนำเข้า (ไม่ต้องแก้ข้อมูลใน DB)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/placeRecord.ts` (`IMPORT_FIELDS`), `review/decisionInput.ts`, `import/importRows.ts`, `frontend/src/admin/lib/placeFields.ts` (`MERGE_FIELDS` ต้องตรงกัน), `frontend/src/admin/provinces/components/GroupCard.tsx`
+
+### D-32 · 2026-10-21 · merge พิมพ์ค่าเองได้ทุกช่องที่นำเข้า (ขยาย D-31)
+- บริบท: ตอน merge บางช่องว่างทุกแถว หรือมีค่าแต่ผิด (เช่นเบอร์โทร) — เดิมเลือกได้แค่ค่าจากแถวที่มีอยู่ ส่วนพิกัดพิมพ์เองได้ผ่าน `lat`/`lng`
+- ข้อสรุป (ผู้ใช้เลือก): ตอน merge ทุกช่องใน 19 ช่องที่นำเข้า (D-31) มีตัวเลือก "พิมพ์เอง" แม้แถวจะมีค่าอยู่แล้ว · ยกเว้นพิกัด (ใช้ช่อง "กรอกพิกัดเอง" เดิม) · เว้นว่าง = ไม่มีข้อมูลช่องนั้น · ใช้เฉพาะการ์ดกลุ่มที่รวม ≥ 2 แถว (แถวเดี่ยวยังแก้ได้แค่พิกัดในแท็บ "มีปัญหา") · ตอนนำเข้า ค่าที่พิมพ์เองทับค่าจากแถวหลัก/`field_sources`
+- การเก็บข้อมูล: คอลัมน์ใหม่ `admin_place_decisions.field_values jsonb` (ผู้ใช้รัน `ALTER TABLE` ใน `DATABASE_SCHEMA.md`) · backend ตรวจว่าเป็นช่องใน `IMPORT_FIELDS` ไม่ใช่พิกัด ไม่ซ้ำกับ `field_sources` และยาวไม่เกิน 1000 ตัวอักษร
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/review/decisionInput.ts`, `reviewTypes.ts`, `import/importRows.ts`, `frontend/src/admin/lib/reviewTypes.ts`, `frontend/src/admin/provinces/components/GroupCard.tsx`
+
+### D-33 · 2026-10-21 · รับผล Google เมื่อห่างไม่เกิน 1 km **และ** ชื่อคล้ายเท่านั้น (แทนที่ D-27 ข้อ "≤ 100 m รับอัตโนมัติ")
+- บริบท: ทดลองนำเข้าน่าน 5 แถวกับ Google จริง (job `44434e91-be17-46db-b71d-1b79dca93664`) — "เวียงภูเพียงแช่แห้ง" (ชุมชนโบราณ) ได้ "วงเรียนพระธาตุแช่แห้ง" (วงเวียน) ที่ระยะ 0 m และถูกรับอัตโนมัติ เพราะพิกัด CSV บางแถวคัดลอกมาจากหมุดของสิ่งที่อยู่ใกล้ๆ · ความคล้ายชื่อ 0.41 · อีก 4 แถวผลเท่าเดิมเมื่อเช็คชื่อทุกระยะ
+- ข้อสรุป (ผู้ใช้เลือก): ห่างไม่เกิน 1 km และชื่อคล้าย (เกณฑ์ชื่อตาม D-30) → รับ · ชื่อไม่คล้ายแม้ห่าง 0 m, ห่างเกิน 1 km หรือไม่มีพิกัด → `needs_review_mismatch` · แถวที่นำเข้าผิด (`20250620144750001`) ผู้ใช้ลบออกจาก `places` และตั้ง item เป็น `error` ให้ job ถัดไปลองใหม่ด้วยเกณฑ์นี้
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/matchCandidate.ts`, `importJob.ts`
+
+### D-34 · 2026-10-21 · เทียบชื่อกับ Google โดยแปลงเลขไทยก่อน · ไม่ลดเกณฑ์ความคล้าย (ขยาย D-33)
+- บริบท: ทดลองน่านรอบ 3 (10 แถว ผ่านหน้า P4b) — รับเอง 5 แถวถูกทั้งหมด แต่ส่งรีวิว 5 แถวที่ 4 แถวเป็นที่เดียวกันจริง (ตลาดน้ำ 4000 ปี ↔ ตลาดน้ำ ๔,๐๐๐ ปี, จุดชมวิว 1715, ถนนโค้งพับผ้า, วัดพระบรมธาตุแช่แห้ง) · ลองวัดความคล้ายแบบ Levenshtein และ LCS กับกรณีจริงทั้งถูกและผิด พบว่าช่วงคะแนนซ้อนกัน (LCS: ถูก 0.33–1.00, ผิด 0.64–0.75) — ลดเกณฑ์แล้วจะรับตลาดชุมชน/ร้านกาแฟที่ผิดเข้ามาด้วย
+- ข้อสรุป (ผู้ใช้เลือก): แปลงเลขไทย ๐–๙ เป็น 0–9 ก่อนเทียบชื่อ (เฉพาะการจับคู่ Google — `normalizeName` ของ dedupe ไม่เปลี่ยน) · เกณฑ์ความคล้ายคงเดิม · แถวที่ถูกแต่ระบบไม่กล้ารับให้ admin ยอมรับใน P4c (ข้อมูลผิดใน `places` เสียหายมากกว่าการกดยอมรับเพิ่ม)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/import/matchCandidate.ts`
+
+### D-35 · 2026-10-21 · ใช้ป้ายประเภทของ ททท. (`ATT_TYPE_LABEL`) เป็นหมวดของระบบ (แทนที่แนวทาง P5 เดิมที่ map type ของ Google → `categories` ด้วย weight / Stage 3)
+- บริบท: สถานที่หนึ่งใน Google มีหลาย type การเลือกให้เหลือ 1 หมวดต้องใช้ weight / `confidence_score` ซึ่งต้องมีงานวิจัยอ้างอิง (อาจารย์ไม่ให้ใช้ตัวเลขที่ทีมคิดเอง) · `attraction.csv` มีป้ายประเภท 1 ป้ายต่อสถานที่ (53 ป้ายใน `ATT_CATEGORY_LABEL` 3 กลุ่ม: ประวัติศาสตร์และวัฒนธรรม 4,302 แถว / ธรรมชาติ 2,634 / กิจกรรมพิเศษและนันทนาการ 1,686) และ `places` เก็บป้ายนี้ไว้แล้วใน `att_type_label` / `att_category_label`
+- ข้อสรุป (ผู้ใช้เลือก):
+  - หมวดของระบบมาจากป้ายของ ททท. โดยตรง: 1 สถานที่ = 1 หมวด จึงไม่ต้องเลือกด้วย confidence · ไม่ใช้ `place_types` / `type_category_weights` / `gmaps_types` ในการจัดหมวด
+  - ป้ายที่มีความหมายเดียวกันให้รวมเป็นหมวดเดียว ผู้ใช้จะตัดสินว่ารวมป้ายไหนบ้างใน P5 (คาดว่าเหลือไม่ถึงราว 35 หมวด) · หน้าสร้างทริปแสดงหมวดแยกตาม 3 กลุ่มใหญ่ของ ททท.
+  - คง `environment_type` / `price_nature` ไว้ใน `categories` (ผู้ใช้ยืนยันว่าสองค่านี้ไม่ติดเรื่องงานวิจัย)
+  - แก้โครงสร้าง DB และย้ายข้อมูลเดิมได้ (`categories`, `place_categories`, `trip_categories`) โดย Claude เขียน SQL ให้ และผู้ใช้เป็นคนรันเอง
+- ยังต้องตัดสินใน P5:
+  - รายการป้ายที่จะรวมกัน
+  - ป้าย "ประวัติความเป็นมา" (366 แถว) ซึ่งไม่ใช่ประเภทสถานที่
+  - ป้ายที่อยู่หลายกลุ่มใหญ่ (ส่วนใหญ่มีแค่ 1–6 แถวในกลุ่มที่สอง — เสนอให้ใช้กลุ่มที่มีแถวมากที่สุด)
+  - ป้ายที่มีน้อยมาก (เช่น งานประเพณี 4, โรงหนังเก่า 2)
+  - ค่า `category_score` ในสูตร POI (สูตรพักไว้ตาม D-23 — ต้องคุยกับทีม)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ (คาดการณ์): ตาราง `categories` / `place_categories` / `trip_categories`, `backend/src/features/poi/poiPlaceQueries.ts`, `features/categories/categoriesController.ts`, `frontend/src/features/trip/create/createTrip.tsx`, `backend/src/admin/pipeline/import/` (ใส่หมวดตอนนำเข้า), หน้า admin Category Mapping
+
+### D-36 · 2026-10-21 · ผู้ใช้กรอกเวลาที่จะอยู่แต่ละสถานที่เอง และเลิกใช้ `categories.default_duration_min`
+- บริบท: `default_duration_min` (ค่าเริ่มต้น 60 นาที และค่าต่อหมวด) เป็นตัวเลขที่ทีมกำหนดเองโดยไม่มีงานวิจัยรองรับ (เหตุผลเดียวกับ D-35)
+- ข้อสรุป (ผู้ใช้เลือก): ในหน้าจัดแผน (`ItineraryEditor`) ผู้ใช้กรอกเวลาที่จะอยู่ (นาที) ของแต่ละสถานที่ · ไม่มีค่าเริ่มต้น และยืนยันแผนไม่ได้จนกว่าจะกรอกครบ · เก็บค่าที่กรอกใน `itineraries` (เพิ่มคอลัมน์ใหม่ ผู้ใช้รัน SQL) · ค่านี้เป็น input ของผู้ใช้ backend จึงรับจาก client ได้ แต่ต้อง validate แล้วคำนวณเวลาเริ่ม/จบและ conflict ซ้ำเองเหมือนเดิม
+- ยังต้องตัดสินใน P5:
+  - POI filter ขั้นที่ 4 (ตัดสถานที่ที่ `default_duration_min` เกินเวลาต่อวัน) จะเอาออกหรือไม่ เพราะเป็นการเปลี่ยนลำดับ filter ที่ CLAUDE.md กำหนดไว้
+  - Auto Trip ยังใช้ `default_duration_min` อยู่ (`autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) ซึ่งเป็นงานของเพื่อน — ต้องแจ้งเพื่อนก่อนลบคอลัมน์
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ (คาดการณ์): mirror `itineraryBuilder.ts` / `openingHoursChecker.ts` (ทั้งสองฝั่ง), `itineraryController.ts` / `itineraryPlaceQueries.ts`, `placesController.ts`, `poiPlaceQueries.ts`, `ItineraryEditor.tsx`, `TripDetail.tsx`, `TripRecommendations.tsx` (type), ตาราง `itineraries`
+
+### D-37 · 2026-10-22 · ลบ `data-pipeline/` ก่อน P5 (R5 P6 — ขยาย D-24)
+- บริบท: D-24 วางแผนลบ `data-pipeline/` หลังระบบ admin ใช้แทนได้ (P6 ต่อจาก P5) · backend/frontend ไม่ได้ import หรือเรียกโค้ดใน `data-pipeline/` ตอนรัน (มีแค่ comment และ fixture ของ characterization test ที่ copy มาไว้ใน backend แล้ว) · D-35 ไม่ใช้ `fetchGmapsCategories.ts` จัดหมวดแล้ว
+- ข้อสรุป (ผู้ใช้เลือก): ลบเลยโดยไม่รอ P5 เพราะ (1) ผู้ใช้ทดสอบการนำเข้าผ่านหน้า admin กับน่านแล้ว (2) `data-pipeline/.env` มีตัวที่ backend ไม่มีแค่ `SUPABASE_ANON_KEY` ซึ่ง backend ไม่ใช้ · `data-pipeline/data/attraction.csv` เหมือน `backend/data/attraction.csv` ทุก byte · เอาบรรทัด `data-pipeline/` ออกจาก `.gitignore` (ปิด Known Issue #15)
+- ผลที่ยอมรับ: ไม่มีสคริปต์สำรองถ้าการนำเข้าใหม่แทนข้อมูล เชียงใหม่/ชลบุรี/กรุงเทพฯ มีปัญหา · ไฟล์ที่ track ไว้ 13 ไฟล์กู้ได้ด้วย `git show d73808f:data-pipeline/<ไฟล์>`
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `data-pipeline/` (ลบ), `.gitignore`, `CLAUDE.md`, `.claude/skills/*`, `docs/*`
+
+### D-38 · 2026-10-22 · รายละเอียด P5: fallback หมวด, ตัด POI filter ขั้นที่ 4, เวลาของ Auto Trip ต่อหมวด และลบ `confidence_score` / `default_duration_min` (ขยาย D-35, D-36)
+- บริบท: หลัง D-35 สถานที่มี 1 หมวด `confidence_score` (มาจาก weight ของ Stage 3) จึงไม่มีความหมาย · หลัง D-36 ไม่มี `default_duration_min` ให้ POI filter ขั้นที่ 4 ใช้ · ผู้ใช้คุยกับเพื่อนที่ทำ Auto Trip แล้ว 2026-10-22
+- ข้อสรุป (ผู้ใช้เลือก):
+  - เลือกหมวดแต่ในพื้นที่ไม่มีสถานที่หมวดนั้น → ใช้ fallback เดิม (ตัดเงื่อนไขหมวด แสดงทั้งพื้นที่ + ข้อความแจ้ง `categoryFallbackUsed`) ไม่เปลี่ยน
+  - `category_score` ในสูตร POI จะเป็น 1.0 ทุกที่ · การเอาออกจากสูตรรอทีม (D-23) — P5 ไม่แก้โค้ดสูตร
+  - ตัด POI filter ขั้นที่ 4 (เวลา) ออก ลำดับเหลือ province → category+fallback → budget · เวลาและเวลาเปิด-ปิดตรวจใน `ItineraryEditor` จากเวลาที่ผู้ใช้กรอก · แนวคิด "ตัดสถานที่ที่ปิดตลอดช่วงเวลาของทุกวันในทริป" (จาก `trip_days` + `opening_hours`) เป็นงานแยก คุยตอน R1/R3
+  - เวลาที่จะอยู่: เลือกสถานที่เอง = ผู้ใช้กรอกต่อสถานที่ใน `ItineraryEditor` (D-36) · Auto Trip = ผู้ใช้กรอกนาทีต่อหมวดตอนสร้าง: ทริปที่เลือกหมวดไว้ (`trip_categories`) → หน้า Auto Trip ให้กรอกเวลาของหมวดเหล่านั้นอย่างเดียว · ทริปที่ไม่ได้เลือกหมวด → กดปุ่ม Auto Trip แล้วเด้ง popup ให้เลือกหมวด + กรอกเวลา (ไม่ต้องไปหน้าแก้ทริป) → บันทึกหมวดลง `trip_categories` แล้วคำนวณ POI ใหม่ก่อนจัดทริป หน้าแนะนำจึงเปลี่ยนตาม · หน้าสร้างทริปเลือกหมวดหรือไม่ก็ได้เหมือนเดิม · ทุกหน้า (แนะนำ / Auto Trip) ใช้ `trip_categories` ชุดเดียวกัน · **Auto Trip ทั้งหมด (โค้ด, input, ผลลัพธ์) เพื่อนรับผิดชอบ** Claude ไม่แก้
+  - ลบ `place_categories.confidence_score` และ `categories.default_duration_min` (เพื่อนรับทราบแล้วว่าห้ามใช้) — ลบเป็นขั้นสุดท้ายหลังงานส่วนของเราใน P5 เสร็จ · `pickBestCategoryRows` ลบตาม · โครงสร้าง `place_categories` หลังลบคอลัมน์ (คงตาราง 1 แถวต่อสถานที่ / ย้ายเป็น `places.category_id` / หาจาก `att_type_label` → ตาราง ป้าย → หมวด) ตัดสินใน P5b
+  - endpoint ใหม่สำหรับ popup ของ Auto Trip: บันทึกเฉพาะหมวดของทริป (เช่น `PUT /api/trips/:tripId/categories` รับ `category_ids` · `requireAuth` + ตรวจเจ้าของ) — **ฝั่งเราทำ** ใน P5 · popup และการเรียกใช้เป็นของเพื่อน
+  - ลบตาราง `type_category_weights` (ไม่มีโค้ดใช้) และ `place_types` ใน P5 (แทนที่ D-27 ข้อ "เขียน type จาก Google ลง `place_types`") · type จาก Google ยังเก็บใน `places.gmaps_types` · ต้องเอา `insertPlaceTypes` ออกจากการนำเข้า (`importQueries.ts`, `importJob.ts`, `resolveItem.ts` + test) ก่อนลบตาราง · สำรองก่อนลบ
+- ผลที่ยอมรับ: query ของ Auto Trip ที่ยังอ่านสองคอลัมน์นี้ (`itineraryPlaceQueries.ts`, `autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) จะใช้ไม่ได้หลังรัน SQL ลบ จนกว่าเพื่อนแก้
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ตกลงกับเพื่อนที่ทำ Auto Trip)
+- ไฟล์ที่กระทบ (คาดการณ์): `backend/src/features/poi/poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`, `utils/bestCategoryRow.ts`, ตาราง `categories` / `place_categories` · หลังโค้ดเปลี่ยนต้องแก้ CLAUDE.md (ลำดับ filter ของ POI, กฎ multi-category dedupe)
