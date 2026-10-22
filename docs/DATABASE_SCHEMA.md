@@ -123,7 +123,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `user_ratings_total` | int4 | | |
 | `opening_hours` | jsonb | | (รูปแบบ Google `periods`/`weekday_text`) |
 | `formatted_address`, `province`, `district`, `phone_number`, `website` | text | | |
-| `att_id`, `att_type_label`, `att_category_label`, `att_detail_th` | text | | มาจาก `attraction.csv` |
+| `att_id`, `att_type_label`, `att_category_label`, `att_detail_th` | text | | มาจาก `attraction.csv` · `att_type_label` FK → `category_labels.att_type_label` + index `idx_places_att_type_label` (P5b 2026-10-22) |
 | `att_facebook`, `att_instagram`, `att_tiktok`, `att_youtube`, `att_line` | text | | มาจาก `attraction.csv` |
 | `gmaps_types` | text[] | | เติมโดย `fetchGmapsCategories.ts` |
 | `created_at` | timestamptz | | `now()` |
@@ -137,6 +137,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `category_name` | text | NOT NULL | UNIQUE |
 | `environment_type` | text | NOT NULL | CHECK `INDOOR` \| `OUTDOOR` \| `MIXED` |
 | `price_nature` | text | NOT NULL | CHECK `free` \| `paid` |
+| `parent_group` | text | | CHECK `HISTORY_CULTURE` \| `NATURE` \| `RECREATION` (กลุ่มใหญ่ ททท. — P5b 2026-10-22) · หมวดใหม่ 29 หมวด (D-39) มีค่า · หมวดอังกฤษเดิม 15 หมวดเป็น NULL จนกว่า SQL ชุดที่ 2 ลบหมวดเดิมแล้วตั้ง NOT NULL |
 | `default_duration_min` | int4 | | `60` · D-36: จะเลิกใช้ (ผู้ใช้กรอกเวลาเองใน `itineraries`) — Auto Trip ยังใช้อยู่ |
 | `created_at` | timestamptz | | `now()` |
 
@@ -213,6 +214,17 @@ ALTER TABLE public.admin_place_decisions ENABLE ROW LEVEL SECURITY;
 -- D-32 (2026-10-21): ค่าที่ admin พิมพ์เองตอน merge
 ALTER TABLE public.admin_place_decisions ADD COLUMN field_values jsonb;
 ```
+
+### `category_labels` (R5 P5b, D-39/D-40 — ✅ ผู้ใช้รัน `docs/sql/2026-10-22_p5b_1_category_labels.sql` แล้ว 2026-10-22 · Claude ตรวจด้วย select: 53 แถว, สถานที่ 1,230 แห่งได้หมวดผ่าน embed) · ยังไม่มีโค้ดใช้ (P5c)
+ป้าย ททท. → หมวด · `att_type_label` UNIQUE = 1 ป้ายอยู่ได้ 1 หมวด · admin ย้ายป้ายได้ในหน้า Category Mapping (P5e)
+| คอลัมน์ | type | null | default / constraint |
+|---|---|---|---|
+| `category_label_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
+| `att_type_label` | text | NOT NULL | UNIQUE · ถูกอ้างโดย `places.att_type_label` (FK `places_att_type_label_fkey` ON UPDATE CASCADE / ON DELETE RESTRICT) |
+| `category_id` | uuid | NOT NULL | FK → `categories` ON DELETE RESTRICT · index `idx_category_labels_category_id` |
+| `created_at` / `updated_at` | timestamptz | | `now()` |
+
+RLS เปิดและไม่มี policy (เข้าถึงได้เฉพาะ service role ของ backend) · หาหมวดของสถานที่ด้วย embed `places` → `category_labels!inner(categories!inner(...))` (ตรวจแล้วว่าใช้ได้ 2026-10-22) · สำรอง `backup_20261022_categories` (ลบได้เมื่อมั่นใจ)
 
 ### `pipeline_jobs` / `pipeline_job_items` (R5 P4 — ✅ ผู้ใช้สร้างแล้ว 2026-10-18 ตาม SQL ด้านล่าง) · ใช้ในโค้ด: `backend/src/admin/imports/importQueries.ts`
 job นำเข้าจังหวัด 1 แถวต่อ 1 job · ผลรายสถานที่ 1 แถวต่อ 1 ATT_ID · PK เดียวทั้งคู่ · RLS เปิด ไม่มี policy
