@@ -69,8 +69,8 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 ## จุดที่ต้องระวังเป็นพิเศษ
 - **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
 - **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
-- **Multi-category dedupe** (เลือก `confidence_score` สูงสุด) ต้องใช้เกณฑ์เดียวกันในทุก query — ใช้ `backend/src/utils/bestCategoryRow.ts`
-- **ลำดับ filter ของ POI** (province → category+fallback → budget → time) ห้ามสลับ
+- **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · `place_categories` + `bestCategoryRow.ts` เหลือใช้แค่ Auto Trip (ของเพื่อน) และจะลบใน P5g
+- **ลำดับ filter ของ POI** (province → category+fallback → budget) ห้ามสลับ — ขั้นเวลาตัดออกแล้ว (D-38)
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
 - `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน
 - **การนำเข้าใน admin เรียก Google Places ที่มีค่าใช้จ่าย** (`POST /api/admin/provinces/:province/import`, ยอมรับผล Google) — Claude ห้ามเรียกเอง ให้ผู้ใช้กดผ่านหน้าเว็บ · test ต้องใช้ Google ปลอมเสมอ

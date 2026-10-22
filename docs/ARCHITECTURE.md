@@ -52,13 +52,13 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 1. กรอง province (บังคับ) แล้ว AND กับ district ถ้ามี
 2. กรอง category ที่ผู้ใช้เลือก ถ้าเหลือ 0 ที่ ให้ fallback เป็นไม่กรอง category (`categoryFallbackUsed`)
 3. Hard filter งบ: ตัดที่ที่ `PRICE_LEVEL_TO_BAHT[priceLevel] > dailyBudget` ทิ้ง (ถ้าเป็น paid และไม่มีราคา ให้ปล่อยผ่าน)
-4. Hard filter เวลา: ตัดที่ที่ `default_duration_min > available_time_per_day*60` ทิ้ง (D-36 จะเลิกใช้ `default_duration_min` — ขั้นนี้ต้องตัดสินใน R5 P5 ว่าจะเอาออกหรือไม่)
+(ขั้นที่ 4 hard filter เวลาเดิม ตัดออกแล้ว 2026-10-22 — D-38, R5 P5c)
 
 จากนั้นคำนวณระยะทางถนนจากจุดเริ่มต้น (ORS ถ้าใช้ไม่ได้ใช้ haversine) และโอกาสฝนเฉลี่ยตาม grid 0.1° แล้วจึงคำนวณ `calculatePoiScore()`
 
 | มิติ | สูตร | weight |
 |---|---|---|
-| category | `confidence_score` (ถ้าไม่ได้เลือก category ให้ 1.0) | 0.35 |
+| category | 1.0 ทุกที่ตั้งแต่ P5c (1 สถานที่ = 1 หมวด ไม่มี confidence — D-38 · สูตรรอทีม D-23) | 0.35 |
 | rating | `rating/5` (ถ้าเป็น null ให้ 0.5) | 0.25 |
 | distance | `1/(1+km)` | 0.15 |
 | budget(=price) | free: 0.9 (มีราคา) / 0.8 (ไม่มี) · paid: `(80-20*level)/100` · paid ไม่มีราคา: weight 0 | 0.15 |
@@ -66,7 +66,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
 
-**Multi-category:** ที่หนึ่งอาจมีหลายแถวใน `place_categories` ทุก query (`poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController`, `getAutoTripPlaces`) จะเลือก **แถวที่ `confidence_score` สูงสุด** มาเป็นตัวแทน (เท่ากัน = แถวแรกที่เจอ) ผ่านฟังก์ชันเดียว `backend/src/utils/bestCategoryRow.ts::pickBestCategoryRows`
+**หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · `poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController` ใช้ embed `category_labels!inner(categories!inner(...))` · **ยกเว้น `getAutoTripPlaces`** (ของเพื่อน) ที่ยังอ่าน `place_categories` + `pickBestCategoryRows` (มีข้อมูลแค่เชียงใหม่) — ต้องเปลี่ยนก่อนรัน SQL P5b ชุดที่ 2
 
 ### 2.4 Itinerary (manual) — `features/itinerary/` + frontend mirror
 1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), `buildInitialDraft()` จะคืน `[]` เสมอ (final design คือไม่จัดลงวันอัตโนมัติ) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 25 km/h)

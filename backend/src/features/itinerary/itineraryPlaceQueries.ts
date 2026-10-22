@@ -24,9 +24,9 @@ export interface SelectedPlace {
   // price_level จริงจาก Google (null = ไม่มีข้อมูล) — itineraryBuilder.ts::getPlaceCost ตัดสินต่อเอง
   // (free → 0 บาท, paid → ไม่ทราบราคา ไม่เดา)
   rawPriceLevel: number | null;
-  priceNature: PriceNature; // ของ category ที่ confidence_score สูงสุด
+  priceNature: PriceNature; // ของหมวดจากป้าย ททท. (places -> category_labels -> categories)
   openingHours: OpeningHours | null;
-  defaultDurationMin: number; // categories.default_duration_min ผ่าน place_categories
+  defaultDurationMin: number; // categories.default_duration_min — ชั่วคราวจนกว่า P5f (ผู้ใช้กรอกเวลาเอง — D-36)
 }
 
 export interface TripOwnerAndStart {
@@ -217,29 +217,28 @@ export async function getOrCreateTripDays(tripId: string): Promise<TripDay[]> {
 }
 
 interface SelectedPlaceRow {
-  confidence_score: number | null;
-  categories: { default_duration_min: number | null; price_nature: PriceNature };
-  places: {
-    place_id: string;
-    latitude: number;
-    longitude: number;
-    price_level: number | null;
-    opening_hours: OpeningHours | null;
+  place_id: string;
+  latitude: number;
+  longitude: number;
+  price_level: number | null;
+  opening_hours: OpeningHours | null;
+  category_labels: {
+    categories: { default_duration_min: number | null; price_nature: PriceNature };
   };
 }
 
 /**
  * ข้อมูลสถานที่ที่ user เลือก (place_ids[]) สำหรับคำนวณ itinerary
- * join place_categories <- categories (`!inner` ปลอดภัยเพราะทุก place มี category)
- * แล้วเลือก category ที่ confidence_score สูงสุดต่อ place (เกณฑ์เดียวกับ poiPlaceQueries.ts)
+ * หมวดมาจากป้าย ททท.: places -> category_labels -> categories (เกณฑ์เดียวกับ poiPlaceQueries.ts)
+ * `!inner` ตัดสถานที่ที่ไม่มีหมวดออก — confirmItinerary จะตอบ 400 "พบสถานที่บางแห่งไม่มีอยู่ในระบบ"
  */
 export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPlace[]> {
   if (placeIds.length === 0) return [];
 
   const { data, error } = await supabase
-    .from("place_categories")
+    .from("places")
     .select(
-      "confidence_score, categories!inner(default_duration_min, price_nature), places!inner(place_id, latitude, longitude, price_level, opening_hours)"
+      "place_id, latitude, longitude, price_level, opening_hours, category_labels!inner(categories!inner(default_duration_min, price_nature))"
     )
     .in("place_id", placeIds);
 
@@ -250,15 +249,18 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
   // Supabase infer embed เป็น array แต่ relation นี้คืน object เดี่ยวจริง
   const rows = (data ?? []) as unknown as SelectedPlaceRow[];
 
-  return pickBestCategoryRows(rows, (row) => row.places.place_id).map((row) => ({
-    placeId: row.places.place_id,
-    latitude: row.places.latitude,
-    longitude: row.places.longitude,
-    rawPriceLevel: row.places.price_level,
-    priceNature: row.categories.price_nature,
-    openingHours: row.places.opening_hours,
-    defaultDurationMin: row.categories.default_duration_min ?? 60,
-  }));
+  return rows.map((row) => {
+    const category = row.category_labels.categories;
+    return {
+      placeId: row.place_id,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      rawPriceLevel: row.price_level,
+      priceNature: category.price_nature,
+      openingHours: row.opening_hours,
+      defaultDurationMin: category.default_duration_min ?? 60,
+    };
+  });
 }
 
 interface AutoTripRow {

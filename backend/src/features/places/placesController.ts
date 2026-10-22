@@ -1,19 +1,19 @@
 import { Request, Response } from "express";
 import { supabase } from "../../config/db";
-import { pickBestCategoryRows } from "../../utils/bestCategoryRow";
 
-interface PlaceDetailRow {
-  confidence_score: number | null;
-  categories: { default_duration_min: number | null; price_nature: string | null } | null;
-  places: ({ place_id: string; price_level: number | null } & Record<string, unknown>) | null;
-}
+type PlaceDetailRow = {
+  price_level: number | null;
+  category_labels: {
+    categories: { default_duration_min: number | null; price_nature: string | null };
+  };
+} & Record<string, unknown>;
 
 /**
  * GET /api/places?ids=uuid1,uuid2,uuid3
  * ข้อมูลสถานที่ตาม place_id — frontend ใช้ join กับผลของ /calculate-poi (ซึ่งมีแค่ placeId + คะแนน)
  * และหน้า itinerary editor ใช้ recompute เอง (ต้องใช้ default_duration_min, price_level, price_nature)
  *
- * join และเลือก category (confidence_score สูงสุด) แบบเดียวกับ itineraryPlaceQueries.ts::getSelectedPlaces
+ * หมวดมาจากป้าย ททท. (places -> category_labels -> categories) แบบเดียวกับ itineraryPlaceQueries.ts::getSelectedPlaces
  * เพื่อให้ค่าที่ editor เห็นตรงกับตอน backend re-validate ก่อน save
  * price_level เป็นราคาจริง (null ได้) · price_nature เป็น "free" | "paid"
  */
@@ -35,28 +35,25 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
 
   try {
     const { data, error } = await supabase
-      .from("place_categories")
+      .from("places")
       .select(
         `
-        confidence_score,
-        categories!inner(default_duration_min, price_nature),
-        places!inner(
-          place_id,
-          place_name,
-          province,
-          district,
-          latitude,
-          longitude,
-          rating,
-          price_level,
-          formatted_address,
-          phone_number,
-          website,
-          opening_hours,
-          user_ratings_total,
-          att_type_label,
-          att_category_label
-        )
+        place_id,
+        place_name,
+        province,
+        district,
+        latitude,
+        longitude,
+        rating,
+        price_level,
+        formatted_address,
+        phone_number,
+        website,
+        opening_hours,
+        user_ratings_total,
+        att_type_label,
+        att_category_label,
+        category_labels!inner(categories!inner(default_duration_min, price_nature))
       `
       )
       .in("place_id", placeIds);
@@ -68,16 +65,11 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
 
     const rows = (data ?? []) as unknown as PlaceDetailRow[];
 
-    const places = pickBestCategoryRows(rows, (row) => row.places?.place_id).map((row) => {
-      const { price_level: rawPriceLevel, ...placeRest } = row.places!;
-
-      return {
-        ...placeRest,
-        price_level: rawPriceLevel,
-        price_nature: row.categories?.price_nature ?? null,
-        default_duration_min: row.categories?.default_duration_min ?? 60,
-      };
-    });
+    const places = rows.map(({ category_labels, ...place }) => ({
+      ...place,
+      price_nature: category_labels.categories.price_nature ?? null,
+      default_duration_min: category_labels.categories.default_duration_min ?? 60,
+    }));
 
     return res.status(200).json({ places });
   } catch (err) {

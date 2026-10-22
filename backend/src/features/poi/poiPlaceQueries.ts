@@ -1,6 +1,5 @@
 import { supabase } from "../../config/db";
 import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
-import { pickBestCategoryRows } from "../../utils/bestCategoryRow";
 
 // ค่าของ categories.price_nature
 export type PriceNature = "free" | "paid";
@@ -48,10 +47,10 @@ export interface PlaceWithScore {
   // ราคาจริงจาก places.price_level ไม่ผ่าน fallback (null = ไม่มีข้อมูล) — ใช้คิด price_score
   rawPriceLevel: number | null;
 
-  // ค่าของ category ที่ confidence_score สูงสุดของ place นั้น (ดู pickBestCategoryRows)
+  // ค่าของหมวดที่ได้จากป้าย ททท. ของสถานที่ (1 สถานที่ = 1 หมวด — D-35)
   priceNature: PriceNature;
+  // ไม่มี confidence แล้ว (D-38) — เป็น null เสมอ calculateCategoryScore จึงได้ 1.0 ทุกที่ (สูตรรอทีม D-23)
   confidenceScore: number | null;
-  defaultDurationMin: number;
   categoryName: string;
   environmentType: EnvironmentType; // ใช้คำนวณ weather_score
 }
@@ -98,7 +97,7 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
  * 2. category (ถ้า user เลือกไว้) พร้อม fallback ถ้ากรองแล้วเหลือ 0 ที่
  * 3. งบ (hard filter): ตัดสถานที่ที่ place_cost > daily_budget
  *    (ข้ามถ้าไม่ได้ใช้งบ หรือเป็น paid ที่ไม่มีราคาจริง — ไม่เดาราคาแทน user)
- * 4. เวลา (hard filter): ตัดสถานที่ที่ default_duration_min > available_time_per_day (นาที)
+ * (ขั้นกรองเวลาเดิมตัดออกแล้ว — D-38: เวลาที่อยู่ผู้ใช้กรอกเอง ตรวจใน ItineraryEditor)
  */
 export async function getFilteredPlaces(
   tripId: string,
@@ -164,14 +163,6 @@ export async function getFilteredPlaces(
     });
   }
 
-  // ---- ขั้น 4: กรองเวลา (hard filter) ----
-  if (trip.availableTimePerDay !== null) {
-    const availableMinutes = trip.availableTimePerDay * 60;
-    places = places.filter(
-      (place) => place.defaultDurationMin <= availableMinutes
-    );
-  }
-
   return { places, categoryFallbackUsed };
 }
 
@@ -181,87 +172,77 @@ interface LocationFilter {
 }
 
 interface PlaceCategoryRow {
-  category_id: string;
-  confidence_score: number | null;
-  categories: {
-    default_duration_min: number | null;
-    price_nature: PriceNature;
-    category_name: string;
-    environment_type: EnvironmentType;
-  };
-  places: {
-    place_id: string;
-    latitude: number;
-    longitude: number;
-    rating: number | null;
-    price_level: number | null;
-    province: string | null;
-    district: string | null;
+  place_id: string;
+  latitude: number;
+  longitude: number;
+  rating: number | null;
+  price_level: number | null;
+  category_labels: {
+    categories: {
+      price_nature: PriceNature;
+      category_name: string;
+      environment_type: EnvironmentType;
+    };
   };
 }
 
 /**
- * Join places <- place_categories <- categories เสมอ (ให้รู้ default_duration_min ทุกกรณี)
+ * หมวดของสถานที่มาจากป้าย ททท.: places.att_type_label -> category_labels -> categories (D-35, D-39)
+ * `!inner` ตัดสถานที่ที่ไม่มีป้าย/หมวดออก · 1 สถานที่ได้ 1 แถวเสมอ
  * categoryIds = null -> ไม่กรอง category ใช้แค่ location (province + district ถ้ามี)
- * categoryIds = string[] -> กรองทั้ง location และ category_id IN (...)
- *
- * place หนึ่งมีได้หลาย category จึงเลือกแถวที่ confidence_score สูงสุดเป็นตัวแทน
- * (ไม่ sum/average ข้าม category) กัน place เดียวกันโผล่ซ้ำตามจำนวน category ที่ตรง
+ * categoryIds = string[] -> กรองทั้ง location และหมวด IN (...)
  */
 async function queryPlacesWithCategoryInfo(
   locationFilter: LocationFilter,
   categoryIds: string[] | null
 ): Promise<PlaceWithScore[]> {
   let query = supabase
-    .from("place_categories")
+    .from("places")
     .select(
-      "category_id, confidence_score, categories!inner(default_duration_min, price_nature, category_name, environment_type), places!inner(place_id, latitude, longitude, rating, price_level, province, district)"
+      "place_id, latitude, longitude, rating, price_level, category_labels!inner(categories!inner(price_nature, category_name, environment_type))"
     )
-    .eq("places.province", locationFilter.province);
+    .eq("province", locationFilter.province);
 
   if (locationFilter.district) {
-    query = query.eq("places.district", locationFilter.district);
+    query = query.eq("district", locationFilter.district);
   }
 
   if (categoryIds !== null) {
-    query = query.in("category_id", categoryIds);
+    query = query.in("category_labels.category_id", categoryIds);
   }
 
   const { data, error } = await query;
 
   if (error) {
-    throw new Error(`ดึง place_categories ไม่สำเร็จ: ${error.message}`);
+    throw new Error(`ดึงสถานที่ตามหมวดไม่สำเร็จ: ${error.message}`);
   }
 
   // Supabase infer embed เป็น array แต่ relation นี้คืน object เดี่ยวจริง
   const rows = (data ?? []) as unknown as PlaceCategoryRow[];
 
-  // ตอนไม่กรอง category (categoryIds === null) confidenceScore จะถูกบังคับเป็น null ด้านล่าง
-  // แถวตัวแทนจึงมีผลแค่ duration/ราคา/หมวดที่แสดง
-  return pickBestCategoryRows(rows, (row) => row.places.place_id).map((row) => {
-    const rawPriceLevel = row.places.price_level;
-    const priceNature = row.categories.price_nature;
+  return rows.map((row) => {
+    const category = row.category_labels.categories;
+    const rawPriceLevel = row.price_level;
+    const priceNature = category.price_nature;
 
     const effectivePriceLevel: number | null =
       rawPriceLevel ?? PRICE_NATURE_ESTIMATED_LEVEL[priceNature] ?? null;
 
     return {
-      placeId: row.places.place_id,
-      latitude: row.places.latitude,
-      longitude: row.places.longitude,
-      rating: row.places.rating,
+      placeId: row.place_id,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      rating: row.rating,
 
       priceLevel: effectivePriceLevel,
       rawPriceLevel,
       priceNature,
 
-      confidenceScore: categoryIds === null ? null : row.confidence_score,
+      confidenceScore: null,
 
-      defaultDurationMin: row.categories.default_duration_min ?? 60,
+      categoryName: category.category_name,
 
-      categoryName: row.categories.category_name,
-
-      environmentType: row.categories.environment_type,
+      environmentType: category.environment_type,
     };
   });
 }
