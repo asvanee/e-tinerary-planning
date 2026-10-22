@@ -512,7 +512,8 @@ export default function TripDetail() {
    *    เพราะ field ที่ TripDetail ดึงมาจาก itinerary ไม่ครบเท่า PlaceInfo ที่ Editor ต้องใช้ เช่น
    *    price_level, opening_hours)
    * 3) ยิง POST /draft ซ้ำด้วยชุด place_ids เดิม (Editor คาดหวัง shape แบบ draft เสมอ)
-   *    ⚠️ draft ไม่จัดสถานที่ลงวัน ทุกที่จึงกลับไปอยู่ใน "ยังไม่จัดลงวัน" ไม่ใช่ตามแผนที่ยืนยันไว้
+   *    draft ไม่จัดสถานที่ลงวัน (items = []) จึงแทน items ด้วยแผนที่บันทึกไว้ — Editor วางลงวันตาม
+   *    tripDayId + visitOrder (Known Issue #35)
    * 4) navigate ไป editor พร้อม state ชุดเดียวกับที่ TripRecommendations.tsx ส่งให้
    *    + visitDurations (เวลาที่เคยกรอกไว้ — D-36) ให้ editor ใส่ค่าเดิมให้
    *
@@ -569,7 +570,12 @@ export default function TripDetail() {
       navigate(`/trip/${tripIdParam}/editor`, {
         state: {
           tripId: tripIdParam,
-          draft: draftData,
+          draft: {
+            ...draftData,
+            items: days.flatMap((day) =>
+              day.items.map((item) => ({ ...item, tripDayId: day.tripDayId }))
+            ),
+          },
           places: mergedPlaces,
           visitDurations: Object.fromEntries(
             days.flatMap((day) =>
