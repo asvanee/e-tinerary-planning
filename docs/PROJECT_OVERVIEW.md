@@ -103,7 +103,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/categories` | – | `categoriesController.ts` |
 | GET `/api/place-dropdown/provinces` · `/districts?province=` | – | `placeDropdownController.ts` |
 | GET `/api/places?ids=a,b` | ✓ | `placesController.ts` |
-| POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` | ✓ | `tripController.ts` |
+| POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` · PUT `/api/trips/:tripId/addcategories` (D-38) | ✓ | `tripController.ts` |
 | POST `/api/poi/trips/:tripId/calculate-poi` | ✓ | `poiController.ts` |
 | POST `/api/itinerary/trips/:tripId/draft` | ✓ | `itineraryController.buildDraft` |
 | GET `/api/itinerary/trips/:tripId` | ✓ | `getSavedItinerary` |

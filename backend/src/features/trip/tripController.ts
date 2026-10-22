@@ -2,6 +2,7 @@ import { Response } from "express";
 import { supabase } from "../../config/db";
 import { AuthRequest } from "../auth/authMiddleware";
 import { DAY_STRUCTURE_FIELDS, DayStructure, dayStructureChanged } from "./tripDayStructure";
+import { diffTripCategories, parseCategoryIds, TripCategoryLink } from "./tripCategories";
 
 const VALID_SCOPES = ["GROUP", "PER_PERSON"];
 const VALID_PERIODS = ["TOTAL_TRIP", "PER_DAY"];
@@ -477,6 +478,112 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
     });
+  }
+};
+
+/**
+ * PUT /api/trips/:tripId/addcategories (D-38 — popup ของ Auto Trip)
+ * บันทึกหมวดของทริปเป็นชุดที่ส่งมา (แทนชุดเดิม ต้องมีอย่างน้อย 1) · ไม่คำนวณ POI ให้
+ * insert หมวดที่ขาดก่อนแล้วค่อยลบที่เกิน — ถ้าล้มกลางทาง หมวดเดิมไม่หาย
+ */
+export const updateTripCategories = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
+  }
+
+  const { tripId } = req.params;
+
+  if (!tripId || Array.isArray(tripId)) {
+    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
+  }
+
+  const parsed = parseCategoryIds((req.body as { category_ids?: unknown } | undefined)?.category_ids);
+  if ("error" in parsed) {
+    return res.status(400).json({ message: parsed.error });
+  }
+  const { ids } = parsed;
+  const failMessage = "บันทึกหมวดหมู่ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+
+  try {
+    const { data: trip, error: tripError } = await supabase
+      .from("trips")
+      .select("trip_id")
+      .eq("trip_id", tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (tripError) {
+      console.error("Load trip for categories error:", tripError);
+      return res.status(500).json({ message: failMessage });
+    }
+
+    if (!trip) {
+      return res
+        .status(404)
+        .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    }
+
+    const { data: found, error: categoriesError } = await supabase
+      .from("categories")
+      .select("category_id")
+      .in("category_id", ids);
+
+    if (categoriesError) {
+      console.error("Load categories error:", categoriesError);
+      return res.status(500).json({ message: failMessage });
+    }
+
+    if ((found ?? []).length !== ids.length) {
+      return res.status(400).json({ message: "มีหมวดหมู่ที่ไม่มีอยู่ในระบบ" });
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("trip_categories")
+      .select("trip_category_id, category_id")
+      .eq("trip_id", tripId);
+
+    if (existingError) {
+      console.error("Load trip_categories error:", existingError);
+      return res.status(500).json({ message: failMessage });
+    }
+
+    const { toAdd, toRemoveRowIds } = diffTripCategories(
+      (existing ?? []) as TripCategoryLink[],
+      ids
+    );
+
+    if (toAdd.length > 0) {
+      const { error: insertError } = await supabase
+        .from("trip_categories")
+        .insert(toTripCategoryRows(tripId, toAdd));
+
+      if (insertError) {
+        console.error("Insert trip_categories error:", insertError);
+        return res.status(500).json({ message: failMessage });
+      }
+    }
+
+    if (toRemoveRowIds.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("trip_categories")
+        .delete()
+        .eq("trip_id", tripId)
+        .in("trip_category_id", toRemoveRowIds);
+
+      if (deleteError) {
+        console.error("Delete trip_categories error:", deleteError);
+        return res.status(500).json({ message: failMessage });
+      }
+    }
+
+    return res.json({ message: "บันทึกหมวดหมู่สำเร็จ", category_ids: ids });
+  } catch (err) {
+    console.error("Update trip categories exception:", err);
+    return res.status(500).json({ message: failMessage });
   }
 };
 

@@ -4,6 +4,7 @@ import {
   getMyTrips,
   getTripById,
   updateTrip,
+  updateTripCategories,
   deleteTrip,
 } from "./tripController";
 import { requireAuth } from "../auth/authMiddleware";
@@ -15,6 +16,7 @@ router.post("/", requireAuth, createTrip);
 router.get("/", requireAuth, getMyTrips);
 router.get("/:tripId", requireAuth, getTripById);
 router.put("/:tripId", requireAuth, updateTrip);
+router.put("/:tripId/addcategories", requireAuth, updateTripCategories);
 router.delete("/:tripId", requireAuth, deleteTrip);
 
 export default router;
