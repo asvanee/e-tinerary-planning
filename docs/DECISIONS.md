@@ -202,3 +202,17 @@
 - ผลที่ยอมรับ: ไม่มีสคริปต์สำรองถ้าการนำเข้าใหม่แทนข้อมูล เชียงใหม่/ชลบุรี/กรุงเทพฯ มีปัญหา · ไฟล์ที่ track ไว้ 13 ไฟล์กู้ได้ด้วย `git show d73808f:data-pipeline/<ไฟล์>`
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `data-pipeline/` (ลบ), `.gitignore`, `CLAUDE.md`, `.claude/skills/*`, `docs/*`
+
+### D-38 · 2026-10-22 · รายละเอียด P5: fallback หมวด, ตัด POI filter ขั้นที่ 4, เวลาของ Auto Trip ต่อหมวด และลบ `confidence_score` / `default_duration_min` (ขยาย D-35, D-36)
+- บริบท: หลัง D-35 สถานที่มี 1 หมวด `confidence_score` (มาจาก weight ของ Stage 3) จึงไม่มีความหมาย · หลัง D-36 ไม่มี `default_duration_min` ให้ POI filter ขั้นที่ 4 ใช้ · ผู้ใช้คุยกับเพื่อนที่ทำ Auto Trip แล้ว 2026-10-22
+- ข้อสรุป (ผู้ใช้เลือก):
+  - เลือกหมวดแต่ในพื้นที่ไม่มีสถานที่หมวดนั้น → ใช้ fallback เดิม (ตัดเงื่อนไขหมวด แสดงทั้งพื้นที่ + ข้อความแจ้ง `categoryFallbackUsed`) ไม่เปลี่ยน
+  - `category_score` ในสูตร POI จะเป็น 1.0 ทุกที่ · การเอาออกจากสูตรรอทีม (D-23) — P5 ไม่แก้โค้ดสูตร
+  - ตัด POI filter ขั้นที่ 4 (เวลา) ออก ลำดับเหลือ province → category+fallback → budget · เวลาและเวลาเปิด-ปิดตรวจใน `ItineraryEditor` จากเวลาที่ผู้ใช้กรอก · แนวคิด "ตัดสถานที่ที่ปิดตลอดช่วงเวลาของทุกวันในทริป" (จาก `trip_days` + `opening_hours`) เป็นงานแยก คุยตอน R1/R3
+  - เวลาที่จะอยู่: เลือกสถานที่เอง = ผู้ใช้กรอกต่อสถานที่ใน `ItineraryEditor` (D-36) · Auto Trip = ผู้ใช้กรอกนาทีต่อหมวดตอนสร้าง: ทริปที่เลือกหมวดไว้ (`trip_categories`) → หน้า Auto Trip ให้กรอกเวลาของหมวดเหล่านั้นอย่างเดียว · ทริปที่ไม่ได้เลือกหมวด → กดปุ่ม Auto Trip แล้วเด้ง popup ให้เลือกหมวด + กรอกเวลา (ไม่ต้องไปหน้าแก้ทริป) → บันทึกหมวดลง `trip_categories` แล้วคำนวณ POI ใหม่ก่อนจัดทริป หน้าแนะนำจึงเปลี่ยนตาม · หน้าสร้างทริปเลือกหมวดหรือไม่ก็ได้เหมือนเดิม · ทุกหน้า (แนะนำ / Auto Trip) ใช้ `trip_categories` ชุดเดียวกัน · **Auto Trip ทั้งหมด (โค้ด, input, ผลลัพธ์) เพื่อนรับผิดชอบ** Claude ไม่แก้
+  - ลบ `place_categories.confidence_score` และ `categories.default_duration_min` (เพื่อนรับทราบแล้วว่าห้ามใช้) — ลบเป็นขั้นสุดท้ายหลังงานส่วนของเราใน P5 เสร็จ · `pickBestCategoryRows` ลบตาม · โครงสร้าง `place_categories` หลังลบคอลัมน์ (คงตาราง 1 แถวต่อสถานที่ / ย้ายเป็น `places.category_id` / หาจาก `att_type_label` → ตาราง ป้าย → หมวด) ตัดสินใน P5b
+  - endpoint ใหม่สำหรับ popup ของ Auto Trip: บันทึกเฉพาะหมวดของทริป (เช่น `PUT /api/trips/:tripId/categories` รับ `category_ids` · `requireAuth` + ตรวจเจ้าของ) — **ฝั่งเราทำ** ใน P5 · popup และการเรียกใช้เป็นของเพื่อน
+  - ลบตาราง `type_category_weights` (ไม่มีโค้ดใช้) และ `place_types` ใน P5 (แทนที่ D-27 ข้อ "เขียน type จาก Google ลง `place_types`") · type จาก Google ยังเก็บใน `places.gmaps_types` · ต้องเอา `insertPlaceTypes` ออกจากการนำเข้า (`importQueries.ts`, `importJob.ts`, `resolveItem.ts` + test) ก่อนลบตาราง · สำรองก่อนลบ
+- ผลที่ยอมรับ: query ของ Auto Trip ที่ยังอ่านสองคอลัมน์นี้ (`itineraryPlaceQueries.ts`, `autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) จะใช้ไม่ได้หลังรัน SQL ลบ จนกว่าเพื่อนแก้
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ตกลงกับเพื่อนที่ทำ Auto Trip)
+- ไฟล์ที่กระทบ (คาดการณ์): `backend/src/features/poi/poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`, `utils/bestCategoryRow.ts`, ตาราง `categories` / `place_categories` · หลังโค้ดเปลี่ยนต้องแก้ CLAUDE.md (ลำดับ filter ของ POI, กฎ multi-category dedupe)
