@@ -13,7 +13,7 @@
 5. หรือใช้ "จัดทริปอัตโนมัติ" (Auto Trip) (`backend/src/features/itinerary/autoTripBuilder.ts`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`)
 6. ยืนยันแผน (backend ตรวจซ้ำก่อนบันทึก) และดูแผนที่ยืนยันแล้ว (`TripDetail.tsx`)
 
-ข้อมูลสถานที่มาจาก `data-pipeline/` ซึ่งนำเข้า CSV สถานที่ท่องเที่ยว แล้วเติมรายละเอียดจาก Google Places API ลงตาราง `places` ใน Supabase
+ข้อมูลสถานที่มาจาก CSV สถานที่ท่องเที่ยวของ ททท. (`backend/data/attraction.csv`) ที่ admin ตรวจและนำเข้าผ่านหน้า `/admin` แล้วเติมรายละเอียดจาก Google Places API ลงตาราง `places` (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ เดิมมาจาก `data-pipeline/` ที่ลบแล้ว — D-37)
 
 ## 2. โครงสร้าง Repository
 
@@ -34,23 +34,19 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   ├── src/utils/             haversine, openingHoursChecker, orsDistance, orsTravelMatrix,
 │   │                          priceLevel, weatherForecast, bestCategoryRow
 │   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, provinces/, imports/ (job นำเข้า), pipeline/ (อ่าน CSV, dedupe, review, import — test ใน __tests__)
-│   ├── data/attraction.csv    สำเนาจาก data-pipeline (ใช้โดย admin pipeline)
+│   ├── data/attraction.csv    CSV สถานที่ของ ททท. (ใช้โดย admin pipeline)
 │   └── jest.config.js         ts-jest preset
-├── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
-│   ├── src/main.tsx           entry (AuthProvider > App)
-│   ├── src/App.tsx            ★ routing ทั้งหมด
-│   ├── src/components/navbar.tsx
-│   ├── src/features/          auth / home / welcome / trip/{create,recommendations,
-│   │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
-│   ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
-│   ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
-│   ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
-│   ├── eslint.config.js
-│   └── dist/                  ผลของ npm run build — ถูก gitignore
-└── data-pipeline/             สคริปต์ ts-node สำหรับนำเข้าข้อมูล (ไม่ใช่ส่วนของ runtime) — ตาม D-24 จะย้ายเข้า backend/src/admin/ แล้วลบใน R5 P6
-    ├── src/                   uploadCsvToSupabase, uploadProvinceGooglePlaces, dedupe,
-    │                          fetchGmapsCategories, findGoogleCollisionCandidates, test*.ts
-    └── data/attraction.csv    15,604 บรรทัด
+└── frontend/                  React 19 + Vite 7 + TypeScript + Tailwind 4
+    ├── src/main.tsx           entry (AuthProvider > App)
+    ├── src/App.tsx            ★ routing ทั้งหมด
+    ├── src/components/navbar.tsx
+    ├── src/features/          auth / home / welcome / trip/{create,recommendations,
+    │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
+    ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
+    ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
+    ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
+    ├── eslint.config.js
+    └── dist/                  ผลของ npm run build — ถูก gitignore
 ```
 
 ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 package ซึ่งติดตั้งบน **Windows** (พบ `@esbuild/win32-x64` และ `@rollup/rollup-win32-*`) และมีไฟล์ `.env` ทั้ง 3 package (ไม่ได้คัดลอกค่ามาไว้ในเอกสารนี้)
@@ -68,7 +64,6 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | Frontend DnD | `@dnd-kit/core`, `@dnd-kit/sortable` | `ItineraryEditor.tsx` |
 | Frontend test | Vitest `^4.1.10` (ไม่มีไฟล์ test) | `frontend/package.json` |
 | Lint | ESLint 9 flat config + typescript-eslint + react-hooks + react-refresh (frontend เท่านั้น) | `frontend/eslint.config.js` |
-| Data pipeline | ts-node, cross-env, csv-parse, axios | `data-pipeline/package.json` |
 | Package manager | npm (มี `package-lock.json` แยกแต่ละ package ไม่มี workspace รวม) | |
 | Node ที่ต้องใช้ | ยังไม่ทราบ — ไม่มี `engines`/`.nvmrc`; โค้ดใช้ global `fetch` และ `AbortSignal.timeout` จึงต้องใช้ Node ≥ 18 | `utils/orsTravelMatrix.ts`, `weatherForecast.ts` |
 
@@ -80,7 +75,6 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | backend | `npm test` → `jest` | test ของ admin pipeline (dedupe) |
 | backend | — | **ไม่มี** script `build` / `start` / `lint` (ตรวจ type ได้ด้วย `npx tsc --noEmit`) |
 | frontend | `npm run dev` (vite), `npm run build` (`tsc -b && vite build`), `npm run lint`, `npm run preview`, `npm test` (`vitest run`) | dev proxy `/api` → `localhost:5000` |
-| data-pipeline | `upload:*`, `test:*`, `find:collisions:chiangmai`, `fetch-gmaps-categories:chiangmai` | ⚠️ ส่วนใหญ่ **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** |
 
 ## 5. Frontend Routes (`frontend/src/App.tsx`)
 
@@ -143,12 +137,12 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 
 | บริการ | ใช้ที่ไหน | หมายเหตุ |
 |---|---|---|
-| Supabase (Auth + Postgres) | backend `config/db.ts` (service role), data-pipeline (anon key) · frontend ไม่ได้เรียก Supabase ตรง (ทุกอย่างผ่าน backend) | |
+| Supabase (Auth + Postgres) | backend `config/db.ts` (service role) · frontend ไม่ได้เรียก Supabase ตรง (ทุกอย่างผ่าน backend) | |
 | OpenRouteService (HeiGIT) Matrix | backend `utils/orsDistance.ts`, `utils/orsTravelMatrix.ts` | default base `https://api.heigit.org/openrouteservice`; ถ้าไม่มี key จะใช้ haversine แทน |
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
 | Open-Meteo | backend `utils/weatherForecast.ts` | ไม่ต้องใช้ key |
 | Google Maps JS | frontend `LocationPinPicker.tsx` | `VITE_GOOGLE_MAPS_API_KEY` |
-| Google Places (Find/Details, Legacy API) | backend `admin/pipeline/import/googlePlaces.ts` (R5 P4 — เรียกเมื่อ admin กดนำเข้า/ยอมรับผล Google เท่านั้น มีค่าใช้จ่าย) · data-pipeline (เดิม เลิกใช้) | `GOOGLE_PLACES_API_KEY` |
+| Google Places (Find/Details, Legacy API) | backend `admin/pipeline/import/googlePlaces.ts` (R5 P4 — เรียกเมื่อ admin กดนำเข้า/ยอมรับผล Google เท่านั้น มีค่าใช้จ่าย) | `GOOGLE_PLACES_API_KEY` |
 | OSM tiles | Leaflet ใน frontend | |
 
 ## 9. Environment Variables (เฉพาะชื่อ — ห้ามคัดลอกค่า)
@@ -166,8 +160,6 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
 | frontend | `VITE_ORS_API_KEY` | ORS directions จาก browser | ✓ | ✓ |
 | frontend | `VITE_ORS_BASE_URL`, `VITE_ORS_PROFILE` | optional | ✗ | ✓ |
-| data-pipeline | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_PLACES_API_KEY` | | ✓ | ✓ |
-| data-pipeline | `TARGET_PROVINCE`, `PLACES_LIMIT`, `GOOGLE_DELAY_MS`, `SAMPLE_LIMIT` | ตั้งผ่าน `cross-env` ใน scripts | ✗ | ✓ |
 
 ตัวแปรที่ขึ้นต้นด้วย `VITE_` จะถูกฝังลงใน JS bundle ที่ส่งให้ browser ทุกครั้ง
 

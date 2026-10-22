@@ -9,7 +9,6 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | ตรวจ | Baseline |
 |---|---|
 | backend `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd` — T1 ไม่ได้แตะ backend) |
-| data-pipeline `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd`) |
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
 | frontend `npm run lint` | ❌ 5 errors, 4 warnings (หลัง cleanup 2026-10-21 — `no-explicit-any` 0) |
 | frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
@@ -24,7 +23,6 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
    ```bash
    cd backend && npx tsc --noEmit
    cd frontend && npx tsc -b
-   cd data-pipeline && npx tsc --noEmit
    ```
 3. **Lint (frontend)**: `cd frontend && npm run lint` แล้วเทียบกับ baseline ห้ามเพิ่ม error ใหม่ในไฟล์ที่แตะ จะดูเฉพาะไฟล์ก็ได้: `npx eslint <path>`
 4. **Build (frontend)** ถ้าแตะ frontend: `cd frontend && npm run build`
@@ -53,7 +51,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 ## ข้อควรระวัง
 - ห้ามรายงานว่าผ่านถ้าไม่ได้รันในรอบนี้ และห้ามคัดลอกผลจาก baseline มาใช้แทน
 - ห้ามแก้ไฟล์ test/config เพื่อให้ "ผ่าน" โดยไม่บอก
-- ห้ามรัน data-pipeline scripts เป็นส่วนหนึ่งของการตรวจ
+- ห้ามเรียก API นำเข้าของ admin (Google Places จริง) เป็นส่วนหนึ่งของการตรวจ — test ใช้ Google ปลอม
 
 ## หยุดแล้วถามผู้ใช้เมื่อ
 - ต้องติดตั้ง dependency ใหม่หรือ `npm ci` ใหม่

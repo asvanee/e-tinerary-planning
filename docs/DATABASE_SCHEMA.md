@@ -111,7 +111,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `places` · rows ~1116 · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · เขียนโดย `data-pipeline/src/upload*.ts`, `fetchGmapsCategories.ts` และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
+### `places` · rows ~1116 · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · ข้อมูลเดิมเขียนโดย `data-pipeline/` (ลบแล้ว — D-37) และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |

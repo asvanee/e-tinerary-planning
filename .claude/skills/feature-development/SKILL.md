@@ -30,7 +30,7 @@ description: วางแผนและพัฒนาฟีเจอร์ใ�
 
 ## ข้อควรระวัง
 - ห้ามเพิ่ม dependency ถ้าไม่ได้รับอนุญาต
-- ห้ามแก้ data-pipeline หรือรัน upload script เพื่อ "เตรียมข้อมูล" (งาน admin ให้ copy โค้ดมาปรับใน `backend/src/admin/pipeline/` ตาม D-24)
+- ห้ามเรียก API นำเข้าของ admin เพื่อ "เตรียมข้อมูล" (Google Places มีค่าใช้จ่าย — ให้ผู้ใช้กดผ่านหน้าเว็บ)
 - route ของ admin ต้องผ่าน `requireAuth` + `requireAdmin` (อ่าน role จาก DB) และหน้า admin ต้องครอบด้วย `AdminRoute`
 - `daily_budget` คืองบรวมทั้งกลุ่มต่อวัน ซึ่ง frontend เป็นคนคำนวณ (D-01) ห้ามคำนวณซ้ำฝั่ง backend
 - ฟีเจอร์ที่ต้องใช้คอลัมน์หรือตารางใหม่: ต้องให้ผู้ใช้สร้างใน Supabase เอง Claude เขียน SQL ให้ได้ แต่ห้ามรันเอง

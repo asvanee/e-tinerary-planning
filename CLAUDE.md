@@ -4,13 +4,12 @@
 
 ## โปรเจกต์คืออะไร
 เว็บวางแผนทริปท่องเที่ยวในไทย (UI และข้อความภาษาไทย): สร้างทริป → ระบบให้คะแนนสถานที่ (POI score) → ผู้ใช้ลากจัดลงวัน (หรือใช้ Auto Trip) → backend ตรวจซ้ำแล้วบันทึก
-แยกเป็น 3 package อิสระ ไม่มี workspace รวม ต้อง `cd` เข้าไปในแต่ละ package ก่อนรันคำสั่ง
+แยกเป็น 2 package อิสระ ไม่มี workspace รวม ต้อง `cd` เข้าไปในแต่ละ package ก่อนรันคำสั่ง
 
 | Package | Stack | Entry |
 |---|---|---|
 | `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` |
 | `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
-| `data-pipeline/` | ts-node scripts นำเข้าสถานที่ลง Supabase — **ตาม D-24 จะย้ายเข้า `backend/src/admin/pipeline/` แล้วลบใน R5 P6** ก่อนถึงตอนนั้นห้ามแก้การทำงาน | `package.json` scripts |
 
 ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md` · โครงสร้าง DB: `docs/DATABASE_SCHEMA.md`
 **แผนงานหลักของทีมคือ `README.md`** (requirement R1–R5) ส่วน `docs/DEVELOPMENT_PLAN.md` ใช้ติดตามรายละเอียดทางเทคนิค (กลุ่ม 0 โยง R กับโค้ด) ห้ามแก้ README.md ถ้าไม่ได้รับคำสั่ง
@@ -28,7 +27,7 @@ cd frontend && npm run build       # tsc -b && vite build
 cd frontend && npm run lint
 cd frontend && npm test            # vitest run — ยังไม่มีไฟล์ test
 ```
-`data-pipeline` scripts (`upload:*`, `fetch-gmaps-categories:*`) **เขียนลง Supabase จริงและเรียก Google Places API ที่มีค่าใช้จ่าย** — ห้ามรันจนกว่าผู้ใช้จะสั่งชัดเจนเป็นครั้งๆ ส่วน `test:*` / `find:collisions:*` อ่าน CSV อย่างเดียว แต่ก็ยังควรถามก่อนรัน
+การนำเข้าสถานที่ทำผ่านหน้า admin (`backend/src/admin/`) — `data-pipeline/` เดิมลบแล้วใน R5 P6 (D-37, กู้ได้จาก git history ที่ `d73808f`)
 
 Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 98 tests (2026-10-21) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
@@ -44,7 +43,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 9. ใช้ docs/สถานะเป็นข้อมูลประกอบเท่านั้น ต้องตรวจโค้ดจริงก่อนตัดสินใจเสมอ
 
 ## Secrets และ Environment
-- `.env` อยู่ใน `backend/`, `frontend/`, `data-pipeline/` **ห้ามเปิดอ่าน แสดง copy หรือ log ค่าเหล่านี้** ถ้าต้องรู้ว่ามีตัวแปรอะไร ให้ดูจาก `.env.example` หรือ grep `process.env` / `import.meta.env` ในโค้ด
+- `.env` อยู่ใน `backend/`, `frontend/` **ห้ามเปิดอ่าน แสดง copy หรือ log ค่าเหล่านี้** ถ้าต้องรู้ว่ามีตัวแปรอะไร ให้ดูจาก `.env.example` หรือ grep `process.env` / `import.meta.env` ในโค้ด
 - ห้ามใส่ key/token ลงในโค้ด docs ตัวอย่างคำสั่ง หรือ commit message
 - ตัวแปร `VITE_*` ถูกฝังลงใน bundle ฝั่ง browser ห้ามใส่ secret ที่เป็นของ server ลงใน `VITE_*` เด็ดขาด
 - Backend ใช้ `SUPABASE_SERVICE_ROLE_KEY` ซึ่ง **ข้าม RLS** query ทุกตัวที่แตะข้อมูลของผู้ใช้จึงต้องกรองด้วย `user_id` เอง (ดู skill `supabase-data-access`)

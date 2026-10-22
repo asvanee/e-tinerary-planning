@@ -23,7 +23,6 @@ Express API (backend/src/server.ts)
   ├── อ่าน data/attraction.csv → ตรวจสถานที่ซ้ำ/มีปัญหา → admin_place_decisions
   └── job นำเข้า → Google Places (Find Place + Details) → places, place_types, pipeline_jobs/_items
 
-data-pipeline (สคริปต์เดิม รันเองด้วยมือ — เลิกใช้แล้ว จะลบใน R5 P6 ตาม D-24)
 ```
 
 backend เก็บ state ที่ไม่ได้อยู่ใน DB ไว้แค่ cache ใน memory (ORS, weather) เท่านั้น ถ้ารันหลาย instance cache จะไม่แชร์กัน
@@ -94,14 +93,13 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 4. **รอตรวจหลังนำเข้า** (P4c): admin เลือก ยอมรับผล Google (Details 1 ครั้ง) / นำเข้าจาก CSV อย่างเดียว (`csv:<ATT_ID>`) / ตัดทิ้ง → item เป็น `resolved`
 5. ⚠️ สถานที่ที่นำเข้าใหม่ยังไม่มี `place_categories` จึงยังไม่ถูกแนะนำในหน้า POI จนกว่า P5 (หมวดจากป้าย ททท. `places.att_type_label` — D-35)
 
-## 3. Data Pipeline (offline — เลิกใช้แล้ว)
-> ระบบใหม่อยู่ที่ `backend/src/admin/` (หัวข้อ 2.7) · `data-pipeline/` จะลบใน R5 P6 (D-24) · ด้านล่างคือสภาพของ data-pipeline เดิม (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ ใน `places` ตอนนี้มาจากสคริปต์นี้)
+## 3. Data Pipeline เดิม (ลบแล้ว)
+> ระบบใหม่อยู่ที่ `backend/src/admin/` (หัวข้อ 2.7) · `data-pipeline/` ลบแล้วใน R5 P6 (D-37 — กู้จาก git history ที่ `d73808f`) · ด้านล่างคือการทำงานของ data-pipeline เดิม เก็บไว้เพราะยังอธิบายที่มาของข้อมูลเดิม (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ ใน `places` ตอนนี้มาจากสคริปต์นี้)
 - `uploadCsvToSupabase.ts` / `uploadProvinceGooglePlaces.ts`: อ่าน `data/attraction.csv` กรองตาม `TARGET_PROVINCE` → dedupe (`dedupe.ts`, `manualOverrides.ts`) → Google Find Place + Details → upsert `places` (onConflict `google_place_id`)
 - พิกัดที่บันทึกลง `places` มาจาก Google (`details.geometry` → `found.geometry` → CSV เป็นทางสุดท้าย) และ Find Place ใช้ `locationbias` ซึ่งไม่จำกัดพื้นที่ จึงได้สถานที่ผิดได้ (Known Issue #30)
 - `fetchGmapsCategories.ts`: เติม `places.gmaps_types` (paginate ทีละ 1000)
 - การสร้าง `place_categories` / `confidence_score` (ที่ comment เรียกว่า "Stage 3") **ไม่พบโค้ดใน repo — ยังไม่ทราบว่าทำที่ไหน**
 - ใช้ `SUPABASE_ANON_KEY` ในการเขียนข้อมูล แปลว่า RLS ของ `places` น่าจะอนุญาตให้ anon เขียนได้ (**ต้องตรวจสอบ**)
-- `.gitignore` มีบรรทัด `data-pipeline/` ทำให้ไฟล์ใหม่ใน data-pipeline จะไม่ถูก track (ไฟล์ที่ track อยู่แล้วยังถูก track ต่อ)
 
 ## 4. Conventions ที่สังเกตได้
 - Backend: feature folder `features/<name>/<name>Routes.ts` + `<name>Controller.ts`, ไฟล์ช่วยตั้งชื่อเป็น `<name>PlaceQueries.ts` / `<name>Builder.ts`, utils ที่ใช้ร่วมกันอยู่ใน `src/utils/` · controller เป็น `async (req: AuthRequest, res)` คืน `{ message }` ภาษาไทย พร้อม status code · ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)`

@@ -195,3 +195,10 @@
   - Auto Trip ยังใช้ `default_duration_min` อยู่ (`autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) ซึ่งเป็นงานของเพื่อน — ต้องแจ้งเพื่อนก่อนลบคอลัมน์
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ (คาดการณ์): mirror `itineraryBuilder.ts` / `openingHoursChecker.ts` (ทั้งสองฝั่ง), `itineraryController.ts` / `itineraryPlaceQueries.ts`, `placesController.ts`, `poiPlaceQueries.ts`, `ItineraryEditor.tsx`, `TripDetail.tsx`, `TripRecommendations.tsx` (type), ตาราง `itineraries`
+
+### D-37 · 2026-10-22 · ลบ `data-pipeline/` ก่อน P5 (R5 P6 — ขยาย D-24)
+- บริบท: D-24 วางแผนลบ `data-pipeline/` หลังระบบ admin ใช้แทนได้ (P6 ต่อจาก P5) · backend/frontend ไม่ได้ import หรือเรียกโค้ดใน `data-pipeline/` ตอนรัน (มีแค่ comment และ fixture ของ characterization test ที่ copy มาไว้ใน backend แล้ว) · D-35 ไม่ใช้ `fetchGmapsCategories.ts` จัดหมวดแล้ว
+- ข้อสรุป (ผู้ใช้เลือก): ลบเลยโดยไม่รอ P5 เพราะ (1) ผู้ใช้ทดสอบการนำเข้าผ่านหน้า admin กับน่านแล้ว (2) `data-pipeline/.env` มีตัวที่ backend ไม่มีแค่ `SUPABASE_ANON_KEY` ซึ่ง backend ไม่ใช้ · `data-pipeline/data/attraction.csv` เหมือน `backend/data/attraction.csv` ทุก byte · เอาบรรทัด `data-pipeline/` ออกจาก `.gitignore` (ปิด Known Issue #15)
+- ผลที่ยอมรับ: ไม่มีสคริปต์สำรองถ้าการนำเข้าใหม่แทนข้อมูล เชียงใหม่/ชลบุรี/กรุงเทพฯ มีปัญหา · ไฟล์ที่ track ไว้ 13 ไฟล์กู้ได้ด้วย `git show d73808f:data-pipeline/<ไฟล์>`
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `data-pipeline/` (ลบ), `.gitignore`, `CLAUDE.md`, `.claude/skills/*`, `docs/*`
