@@ -74,7 +74,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `daily_budget` | numeric | | |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `trip_categories` · rows ~11 · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
+### `trip_categories` · rows ~11 (นับจริง 24 — 2026-10-22, P5-0) · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `trip_category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -84,7 +84,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 ไม่มี UNIQUE (`trip_id`, `category_id`) — ซ้ำได้ในระดับ DB
 
-### `itineraries` · rows ~20 · ใช้ในโค้ด: `itineraryController.ts`
+### `itineraries` · rows ~20 (นับจริง 22 — 2026-10-22) · ใช้ในโค้ด: `itineraryController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `itinerary_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -111,7 +111,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `places` · rows ~1116 · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · ข้อมูลเดิมเขียนโดย `data-pipeline/` (ลบแล้ว — D-37) และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
+### `places` · rows ~1116 (นับจริง 1,230 หลังนำเข้าน่าน — 2026-10-22; `att_type_label` ไม่ว่างทุกแถว) · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · ข้อมูลเดิมเขียนโดย `data-pipeline/` (ลบแล้ว — D-37) และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -130,7 +130,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 ไม่มี index ที่ `province` (query dropdown/POI กรองด้วย `province`)
 
-### `categories` · rows ไม่ทราบ (`reltuples = -1` ยังไม่เคย analyze) · ใช้ในโค้ด: `categoriesController.ts`, embed ใน `poiPlaceQueries.ts` / `itineraryPlaceQueries.ts`
+### `categories` · rows ไม่ทราบ (`reltuples = -1` ยังไม่เคย analyze — นับจริง 15 เมื่อ 2026-10-22, P5-0) · ใช้ในโค้ด: `categoriesController.ts`, embed ใน `poiPlaceQueries.ts` / `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -140,7 +140,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `default_duration_min` | int4 | | `60` · D-36: จะเลิกใช้ (ผู้ใช้กรอกเวลาเองใน `itineraries`) — Auto Trip ยังใช้อยู่ |
 | `created_at` | timestamptz | | `now()` |
 
-### `place_categories` · rows ~486 · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
+### `place_categories` · rows ~486 (นับจริง 486 = 429 สถานที่ เชียงใหม่ทั้งหมด — 2026-10-22) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_categories_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
