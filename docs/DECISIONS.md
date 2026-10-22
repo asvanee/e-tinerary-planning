@@ -282,3 +282,15 @@
   - เก็บตาราง `backup_20261022_*` ไว้ก่อน (Claude เสนอ ผู้ใช้ไม่ได้คัดค้าน) — ลบเมื่อมั่นใจ
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/admin/imports/importQueries.ts`, `admin/pipeline/import/importJob.ts`, `resolveItem.ts` (+ test), `features/categories/categoriesController.ts`, ตาราง `categories`, `place_categories`, `type_category_weights`, `place_types`
+
+### D-42 · 2026-10-22 · ทำเท่าที่จำเป็น — ตัดงานที่ไม่ทำให้ระบบพัง
+- บริบท: ผู้ใช้อยากทำให้ง่าย แก้เฉพาะสิ่งที่ถ้าไม่แก้แล้วงานพัง ไม่แก้เผื่ออนาคต
+- ข้อสรุป (ผู้ใช้เลือก):
+  - ตัดออก — ยังไม่ deploy รันแค่ local (D-21): T9, T10 (#8), security #22 #23 #24 #26 #27 · ⚠️ ถ้าจะ deploy จริง ต้องกลับมาดู #27 ก่อนอย่างอื่น
+  - ตัดออก — เผื่ออนาคต/ทำให้โค้ดสวย: B4 (T13, T14), T16 (ยกเว้น `RecommendationMap.tsx:209` ที่อาจเป็น bug จริง — ลองก่อน), T19, T20, T21, กลุ่ม 6
+  - ตัดออก — เกิดยาก: T3 (#7), T11, #25
+  - ไม่ใช่งานของเรา: T6 และ #9–12, #32–34 (Auto Trip ของเพื่อน)
+  - เก็บไว้: #35 และ `RecommendationMap.tsx:209` (ลองใน browser ก่อน พังจริงค่อยแก้) · R1/R3/T5 (requirement ทีม รอ research) · T7 ทำคู่กับการนำเข้า 3 จังหวัด
+  - B3 และ T8 เสร็จแล้ว แค่อัปเดตแผน
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md` (ไม่แตะโค้ด)

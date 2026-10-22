@@ -43,7 +43,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `created_at` | timestamptz | | `now()` |
 | `last_login` | timestamptz | | |
 
-### `trips` · rows ~13 · ใช้ในโค้ด: `tripController.ts`, `itineraryController.ts`, `itineraryPlaceQueries.ts`, `poiPlaceQueries.ts`
+### `trips` · rows ~13 (ลบทริปทดสอบทั้งหมดแล้ว → 0 — 2026-10-22) · ใช้ในโค้ด: `tripController.ts`, `itineraryController.ts`, `itineraryPlaceQueries.ts`, `poiPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `trip_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -64,7 +64,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `budget_period` | text | | CHECK `TOTAL_TRIP` \| `PER_DAY` |
 | `use_budget` | bool | NOT NULL | `true` |
 
-### `trip_days` · rows ~28 · ใช้ในโค้ด: `itineraryPlaceQueries.ts`
+### `trip_days` · rows ~28 (0 — 2026-10-22 ลบตามทริป) · ใช้ในโค้ด: `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `trip_day_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -75,7 +75,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `daily_budget` | numeric | | |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `trip_categories` · rows ~11 (นับจริง 24 — 2026-10-22, P5-0 · หลัง P5b ชุดที่ 2 เหลือ 3 แถวที่อ้างหมวดใหม่) · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
+### `trip_categories` · rows ~11 (นับจริง 24 — 2026-10-22, P5-0 · หลัง P5b ชุดที่ 2 เหลือ 3 แถวที่อ้างหมวดใหม่ · 0 — 2026-10-22 ลบตามทริป) · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `trip_category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -85,7 +85,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 ไม่มี UNIQUE (`trip_id`, `category_id`) — ซ้ำได้ในระดับ DB
 
-### `itineraries` · rows ~20 (นับจริง 22 — 2026-10-22) · ใช้ในโค้ด: `itineraryController.ts`
+### `itineraries` · rows ~20 (นับจริง 22 — 2026-10-22 · 0 หลังลบทริปทดสอบ) · ใช้ในโค้ด: `itineraryController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `itinerary_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -102,7 +102,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `is_budget_unknown` | bool | NOT NULL | `false` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `poi_scores` · rows ~394 · ใช้ในโค้ด: `poiController.ts`, `itineraryPlaceQueries.ts`
+### `poi_scores` · rows ~394 (0 — 2026-10-22 ลบตามทริป) · ใช้ในโค้ด: `poiController.ts`, `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `poi_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -113,7 +113,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `places` · rows ~1116 (นับจริง 1,230 หลังนำเข้าน่าน — 2026-10-22; `att_type_label` ไม่ว่างทุกแถว) · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · ข้อมูลเดิมเขียนโดย `data-pipeline/` (ลบแล้ว — D-37) และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
+### `places` · rows ~1116 (นับจริง 1,230 หลังนำเข้าน่าน — 2026-10-22 · **114 = น่านอย่างเดียว** หลังลบ กรุงเทพฯ/เชียงใหม่/ชลบุรี 2026-10-22 สำรองที่ `backup_20261022_places`; `att_type_label` ไม่ว่างทุกแถว) · ใช้ในโค้ด: `placeDropdownController.ts`, `config/db.ts` (ทดสอบการเชื่อมต่อ), embed ใน `placesController.ts` / `itineraryPlaceQueries.ts` · ข้อมูลเดิมเขียนโดย `data-pipeline/` (ลบแล้ว — D-37) และการนำเข้าใหม่ `backend/src/admin/imports/importQueries.ts` (insert เท่านั้น — D-30)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
