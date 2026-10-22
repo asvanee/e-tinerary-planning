@@ -20,9 +20,17 @@ const BUDGET_PERIODS = [
     { value: "PER_DAY", label: "ต่อวัน" },
 ];
 
+// กลุ่มใหญ่ของ ททท. (categories.parent_group — D-39) เรียงตามลำดับที่แสดง
+const CATEGORY_GROUPS = [
+    { value: "HISTORY_CULTURE", label: "ประวัติศาสตร์และวัฒนธรรม" },
+    { value: "NATURE", label: "ธรรมชาติ" },
+    { value: "RECREATION", label: "กิจกรรมพิเศษและนันทนาการ" },
+];
+
 interface Category {
     category_id: string;
     category_name: string;
+    parent_group: string;
 }
 
 interface TripSummary {
@@ -909,24 +917,35 @@ export default function CreateTrip() {
                                 </p>
                             ) : (
                                 <>
-                                    <div className="flex flex-wrap gap-2">
-                                        {categories.map((cat) => {
-                                            const selected = selectedCategoryIds.includes(cat.category_id);
+                                    <div className="flex flex-col gap-5">
+                                        {CATEGORY_GROUPS.map((group) => {
+                                            const groupCategories = categories.filter((cat) => cat.parent_group === group.value);
+                                            if (groupCategories.length === 0) return null;
                                             return (
-                                                <button
-                                                    key={cat.category_id}
-                                                    type="button"
-                                                    aria-pressed={selected}
-                                                    onClick={() => toggleCategory(cat.category_id)}
-                                                    className={`flex items-center gap-1.5 min-h-10 px-4 rounded-full border text-sm active:scale-[0.98] transition-all duration-200 ${
-                                                        selected
-                                                            ? "bg-[color:var(--navy)] border-[color:var(--navy)] text-white"
-                                                            : "bg-white border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)]"
-                                                    }`}
-                                                >
-                                                    {selected && <Check size={16} strokeWidth={2} />}
-                                                    {cat.category_name}
-                                                </button>
+                                                <div key={group.value} className="flex flex-col gap-2">
+                                                    <p className={labelClass}>{group.label}</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {groupCategories.map((cat) => {
+                                                            const selected = selectedCategoryIds.includes(cat.category_id);
+                                                            return (
+                                                                <button
+                                                                    key={cat.category_id}
+                                                                    type="button"
+                                                                    aria-pressed={selected}
+                                                                    onClick={() => toggleCategory(cat.category_id)}
+                                                                    className={`flex items-center gap-1.5 min-h-10 px-4 rounded-full border text-sm active:scale-[0.98] transition-all duration-200 ${
+                                                                        selected
+                                                                            ? "bg-[color:var(--navy)] border-[color:var(--navy)] text-white"
+                                                                            : "bg-white border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)]"
+                                                                    }`}
+                                                                >
+                                                                    {selected && <Check size={16} strokeWidth={2} />}
+                                                                    {cat.category_name}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
                                             );
                                         })}
                                     </div>
