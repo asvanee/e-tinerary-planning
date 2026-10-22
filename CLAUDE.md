@@ -29,7 +29,7 @@ cd frontend && npm test            # vitest run — ยังไม่มีไ�
 ```
 การนำเข้าสถานที่ทำผ่านหน้า admin (`backend/src/admin/`) — `data-pipeline/` เดิมลบแล้วใน R5 P6 (D-37, กู้ได้จาก git history ที่ `d73808f`)
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 120 tests (2026-10-22) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 131 tests (2026-10-22) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด

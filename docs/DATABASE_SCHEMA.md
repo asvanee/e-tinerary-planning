@@ -216,7 +216,7 @@ ALTER TABLE public.admin_place_decisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_place_decisions ADD COLUMN field_values jsonb;
 ```
 
-### `category_labels` (R5 P5b, D-39/D-40 — ✅ ผู้ใช้รัน `docs/sql/2026-10-22_p5b_1_category_labels.sql` แล้ว 2026-10-22 · Claude ตรวจด้วย select: 53 แถว, สถานที่ 1,230 แห่งได้หมวดผ่าน embed) · ยังไม่มีโค้ดใช้ (P5c)
+### `category_labels` (R5 P5b, D-39/D-40 — ✅ ผู้ใช้รัน `docs/sql/2026-10-22_p5b_1_category_labels.sql` แล้ว 2026-10-22 · Claude ตรวจด้วย select: 53 แถว, สถานที่ 1,230 แห่งได้หมวดผ่าน embed) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts` (`getSelectedPlaces`), `placesController.ts` (embed จาก `places`) · `admin/categories/categoryQueries.ts` (อ่าน + ย้ายป้าย — P5e)
 ป้าย ททท. → หมวด · `att_type_label` UNIQUE = 1 ป้ายอยู่ได้ 1 หมวด · admin ย้ายป้ายได้ในหน้า Category Mapping (P5e)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|

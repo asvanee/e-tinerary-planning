@@ -20,8 +20,9 @@ const TOOLS: AdminTool[] = [
   },
   {
     title: "Category Mapping",
-    description: "กำหนดการจับคู่ประเภทจาก Google กับหมวดหมู่ของระบบ",
+    description: "ย้ายป้ายประเภทของ ททท. ไปหมวดอื่น และแก้ชื่อ กลุ่ม ในร่ม/กลางแจ้ง ค่าเข้าชมของหมวด",
     icon: Tags,
+    to: "/admin/categories",
   },
 ];
 

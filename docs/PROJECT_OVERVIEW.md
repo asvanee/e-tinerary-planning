@@ -91,16 +91,17 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/trips` | `MyTrips.tsx` | ✓ |
 | `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
 | `/admin/provinces` | `admin/provinces/ProvinceList.tsx` (จังหวัดจาก CSV + สถานะ) | `AdminRoute` |
+| `/admin/categories` | `admin/categories/CategoryMapping.tsx` (R5 P5e, D-40) — หมวดแยก 3 กลุ่ม · แก้ชื่อ/กลุ่ม/ในร่ม-กลางแจ้ง/ค่าเข้าชม · ย้ายป้าย ททท. ไปหมวดอื่น (ถามยืนยันก่อน) | `AdminRoute` |
 | `/admin/provinces/:province` | `admin/provinces/ProvinceReview.tsx` (แท็บ น่าจะซ้ำ / ต้องตรวจสอบ / มีปัญหา / ตัดสินใจแล้ว — `components/GroupCard.tsx`, `ProblemRowCard.tsx` · ปุ่ม "นำเข้า" เมื่อตัดสินใจครบ) | `AdminRoute` |
 | `/admin/provinces/:province/import` | `admin/imports/ProvinceImport.tsx` (ดูตัวอย่าง → เริ่ม → ความคืบหน้า poll ทุก 2 วินาที → ผลรายแถว `ImportItemsTable.tsx` + ประวัติ job + ตัดสินแถวรอตรวจ `PendingReview.tsx`) | `AdminRoute` |
-| `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` — 2 การ์ด: ตรวจสถานที่ซ้ำและนำเข้าข้อมูล (→ `/admin/provinces`) · Category Mapping (เร็วๆ นี้ — P5) | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
+| `/admin` | `admin/dashboard/AdminDashboard.tsx` ใน `AdminLayout` — 2 การ์ด: ตรวจสถานที่ซ้ำและนำเข้าข้อมูล (→ `/admin/provinces`) · Category Mapping (→ `/admin/categories` — P5e) | `AdminRoute` (ถาม `GET /api/admin/me` ทุกครั้ง: 401 → `/admin/login`, 403 → `/home`) |
 
 ## 6. Backend API (`backend/src/server.ts` + `*Routes.ts`)
 
 | Method & Path | Auth | Controller |
 |---|---|---|
 | POST `/api/auth/register` · `/login` · `/logout` | – | `authController.ts` |
-| GET `/api/categories` | – | `categoriesController.ts` |
+| GET `/api/categories` | – | `categoriesController.ts` — `{ categories: [{ category_id, category_name, parent_group }] }` |
 | GET `/api/place-dropdown/provinces` · `/districts?province=` | – | `placeDropdownController.ts` |
 | GET `/api/places?ids=a,b` | ✓ | `placesController.ts` |
 | POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` · PUT `/api/trips/:tripId/addcategories` (D-38) | ✓ | `tripController.ts` |
@@ -111,6 +112,9 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
 | POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` |
 | GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
+| GET `/api/admin/categories` | ✓ + admin | `admin/categories/categoryController.getAdminCategories` — 29 หมวด + ป้ายในแต่ละหมวด + จำนวนสถานที่ต่อป้าย (R5 P5e) |
+| PUT `/api/admin/categories/:categoryId` | ✓ + admin | `putCategory` — body `{ category_name, parent_group, environment_type, price_nature }` (ครบทุกช่อง, `categoryInput.ts`) · ชื่อซ้ำ 409 · คืนรายการล่าสุด |
+| PUT `/api/admin/categories/labels/:labelId` | ✓ + admin | `putLabelCategory` — body `{ category_id }` ย้ายป้ายไปหมวดอื่น · คืนรายการล่าสุด |
 | GET `/api/admin/provinces` | ✓ + admin | `admin/provinces/provincesController.getProvinces` — จังหวัดจาก CSV + จำนวนแถว CSV / ใน `places` / การตัดสินใจ |
 | GET `/api/admin/provinces/:province/review` | ✓ + admin | `getProvinceReview` — กลุ่มที่อาจซ้ำ + แถวที่มีปัญหา (`pipeline/review/buildReview.ts`) |
 | PUT · DELETE `/api/admin/provinces/:province/groups` | ✓ + admin | `putGroupDecision` / `deleteGroupDecision` — body `{ attIds, sets: [{ attIds, primaryAttId, fieldSources?, fieldValues?, lat?, lng? }], note? }` (เลือก/พิมพ์ได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) |

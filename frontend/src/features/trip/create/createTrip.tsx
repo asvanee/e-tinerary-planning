@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
+import { CATEGORY_GROUPS } from "../../../system/categoryGroups";
 import LocationPinPicker from "./components/LocationPinPicker";
 import type { ReactNode } from "react";
 import {
@@ -18,13 +19,6 @@ const BUDGET_SCOPES = [
 const BUDGET_PERIODS = [
     { value: "TOTAL_TRIP", label: "ตลอดทั้งทริป" },
     { value: "PER_DAY", label: "ต่อวัน" },
-];
-
-// กลุ่มใหญ่ของ ททท. (categories.parent_group — D-39) เรียงตามลำดับที่แสดง
-const CATEGORY_GROUPS = [
-    { value: "HISTORY_CULTURE", label: "ประวัติศาสตร์และวัฒนธรรม" },
-    { value: "NATURE", label: "ธรรมชาติ" },
-    { value: "RECREATION", label: "กิจกรรมพิเศษและนันทนาการ" },
 ];
 
 interface Category {
