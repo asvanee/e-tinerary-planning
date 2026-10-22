@@ -17,7 +17,7 @@ description: วิเคราะห์หาสาเหตุและแก�
    - จุดที่มักเป็นต้นเหตุในโปรเจกต์นี้:
      - router state หายหลัง refresh (`ItineraryEditor`, `auto.tsx`)
      - field ชื่อไม่ตรงกันระหว่าง camelCase/snake_case (`dayNumber` vs `day_number`)
-     - multi-category dedupe ไม่ตรงกันระหว่าง query
+     - หมวดของสถานที่ไม่ได้หาผ่าน `places.att_type_label` → `category_labels` → `categories` แบบเดียวกันทุก query (D-39)
      - mirror logic ระหว่าง frontend/backend ไม่ตรงกัน → ทำให้ editor ไม่เห็น conflict แต่ confirm กลับได้ 400
      - `trip_days` ค้างค่าเดิมหลังแก้ทริป (Known Issue #6)
      - ORS/Open-Meteo fallback (ดู `distanceSource`, `weatherAvailable` ใน response)

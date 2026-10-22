@@ -9,8 +9,8 @@
 - **RLS ปิดทุกตาราง** (`rls=false` ครบ 11 ตาราง) · ไม่มี policy · ไม่มี enum · ไม่มี trigger ใน schema `public` (Known Issue #27)
 - ไม่มี trigger สร้างแถว `users` จาก `auth.users` — แถว `users` ถูก insert โดย `authController.register` เท่านั้น (ถ้า insert ไม่สำเร็จ login จะได้ `user: null` — Known Issue #29)
 - FK ส่วนใหญ่เป็น `ON DELETE CASCADE` (รายละเอียดในหัวข้อ "ความสัมพันธ์")
-- จำนวนแถว `places` (~1116) และ `place_types` (1605) **เกิน 1000** แล้ว — query ที่ select ทั้งตารางเสี่ยงถูกตัด (T7)
-- ตารางที่มีใน DB แต่ **ไม่มีโค้ดใน repo ใช้**: `place_types`, `type_category_weights` (ดูหมายเหตุ Stage 3)
+- จำนวนแถว `places` **เกิน 1000** แล้ว (1,230 — 2026-10-22) — query ที่ select ทั้งตารางต้องใช้ `.range()` (T7 · มี `selectAll` ใน `admin/provinces/decisionQueries.ts`)
+- **ลบแล้ว 2026-10-22 (R5 P5g — D-41):** ตาราง `place_categories`, `type_category_weights`, `place_types` และคอลัมน์ `categories.default_duration_min` · หมวดของสถานที่หาจาก `places.att_type_label` → `category_labels` → `categories` · ตาราง `backup_20261022_*` (5 ตาราง) ยังเก็บไว้
 
 ## ความสัมพันธ์ (FK)
 ```text
