@@ -74,7 +74,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `daily_budget` | numeric | | |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
-### `trip_categories` · rows ~11 (นับจริง 24 — 2026-10-22, P5-0) · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
+### `trip_categories` · rows ~11 (นับจริง 24 — 2026-10-22, P5-0 · หลัง P5b ชุดที่ 2 เหลือ 3 แถวที่อ้างหมวดใหม่) · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `trip_category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -130,18 +130,18 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 ไม่มี index ที่ `province` (query dropdown/POI กรองด้วย `province`)
 
-### `categories` · rows ไม่ทราบ (`reltuples = -1` ยังไม่เคย analyze — นับจริง 15 เมื่อ 2026-10-22, P5-0) · ใช้ในโค้ด: `categoriesController.ts`, embed ใน `poiPlaceQueries.ts` / `itineraryPlaceQueries.ts`
+### `categories` · rows 29 (หมวดจากป้าย ททท. — D-39 · หมวดอังกฤษเดิม 15 หมวดลบแล้ว 2026-10-22 P5b ชุดที่ 2 · สำรอง `backup_20261022_categories`) · ใช้ในโค้ด: `categoriesController.ts`, embed ใน `poiPlaceQueries.ts` / `itineraryPlaceQueries.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `category_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `category_name` | text | NOT NULL | UNIQUE |
 | `environment_type` | text | NOT NULL | CHECK `INDOOR` \| `OUTDOOR` \| `MIXED` |
 | `price_nature` | text | NOT NULL | CHECK `free` \| `paid` |
-| `parent_group` | text | | CHECK `HISTORY_CULTURE` \| `NATURE` \| `RECREATION` (กลุ่มใหญ่ ททท. — P5b 2026-10-22) · หมวดใหม่ 29 หมวด (D-39) มีค่า · หมวดอังกฤษเดิม 15 หมวดเป็น NULL จนกว่า SQL ชุดที่ 2 ลบหมวดเดิมแล้วตั้ง NOT NULL |
+| `parent_group` | text | NOT NULL | CHECK `HISTORY_CULTURE` \| `NATURE` \| `RECREATION` (กลุ่มใหญ่ ททท. — P5b 2026-10-22) |
 | `default_duration_min` | int4 | | `60` · D-36: จะเลิกใช้ (ผู้ใช้กรอกเวลาเองใน `itineraries`) — Auto Trip ยังใช้อยู่ |
 | `created_at` | timestamptz | | `now()` |
 
-### `place_categories` · rows ~486 (นับจริง 486 = 429 สถานที่ เชียงใหม่ทั้งหมด — 2026-10-22) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
+### `place_categories` · **ว่าง (0 แถว) ตั้งแต่ 2026-10-22** — ถูกลบตามหมวดเดิม (CASCADE) ใน P5b ชุดที่ 2 · สำรอง `backup_20261022_place_categories` (486) · ไม่ใช้แล้ว ลบตารางใน P5g · โค้ดที่ยังอ่าน: `getAutoTripPlaces` (ของเพื่อน — ได้ผลว่าง) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_categories_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -164,7 +164,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 - ไม่มี key ร่วมแล้ว DB จึงไม่กันคู่ (`place_id`, `api_type_id`) ซ้ำ — โค้ดต้องเช็คคู่ที่มีอยู่ก่อน insert · ถ้ามีเครื่องมือนอก repo upsert ด้วย `onConflict: "place_id,api_type_id"` จะ error
 - backup ตอนแก้ (`place_types_backup_20261018`) ผู้ใช้สั่งลบแล้ว 2026-10-18 (`docs/sql/2026-10-18_drop_backup_tables.sql`)
 
-### `type_category_weights` · rows ~108 · **ไม่มีโค้ดใน repo ใช้**
+### `type_category_weights` · rows 0 (ถูกลบตามหมวดเดิม 2026-10-22 · สำรอง `backup_20261022_type_category_weights` 107 แถว · ลบตารางใน P5g) · **ไม่มีโค้ดใน repo ใช้**
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
