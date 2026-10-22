@@ -223,14 +223,6 @@ export const supabaseImportStore: ImportStore = {
     return data.place_id as string;
   },
 
-  async insertPlaceTypes(placeId, types) {
-    if (types.length === 0) return;
-    const { error } = await supabase
-      .from("place_types")
-      .insert(types.map((apiTypeId) => ({ place_id: placeId, api_type_id: apiTypeId, source: "google" })));
-    if (error) throw error;
-  },
-
   async addItem(item) {
     const { error } = await supabase.from(ITEMS).insert(item);
     if (error) throw error;
@@ -253,7 +245,6 @@ export const supabaseImportStore: ImportStore = {
 export const supabaseResolveStore: ResolveStore = {
   findPlaceIdByGooglePlaceId: supabaseImportStore.findPlaceIdByGooglePlaceId,
   insertPlace: supabaseImportStore.insertPlace,
-  insertPlaceTypes: supabaseImportStore.insertPlaceTypes,
 
   // อัปเดตเฉพาะแถวที่ยังรอตรวจ — กันกดซ้ำ/สองแท็บตัดสินแถวเดียวกัน
   async markResolved(itemId, placeId, message) {

@@ -272,3 +272,13 @@
 - ผลที่ยอมรับ: การแก้ไม่ย้อนไปเปลี่ยนทริปเดิมทันที — `poi_scores` เปลี่ยนเมื่อคำนวณ POI ใหม่ · `itineraries.place_cost` ของแผนที่ยืนยันแล้วไม่เปลี่ยน
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ (คาดการณ์): `backend/src/admin/` (route ใหม่), `frontend/src/admin/` (หน้าใหม่), `AdminDashboard.tsx` (เปิดการ์ด), ตาราง mapping + `categories`
+
+### D-41 · 2026-10-22 · ล้างของเก่า P5g ก่อนเพื่อนแก้ Auto Trip (ขยาย D-38)
+- บริบท: D-38 ให้ลบ `confidence_score` / `default_duration_min` / `type_category_weights` / `place_types` หลังเพื่อนเลิกใช้ · ผู้ใช้แจ้งเพื่อนแล้วผ่าน `P5-Auto-Trip-brief.pdf` (ฉบับ 2) แต่เพื่อนยังไม่ได้แก้ · ระหว่าง P5b ตาราง `place_categories` ว่างไปแล้ว (Auto Trip ได้ผลว่างตั้งแต่ตอนนั้น)
+- ข้อสรุป (ผู้ใช้เลือก):
+  - ลบเลยโดยไม่รอเพื่อน: คอลัมน์ `categories.default_duration_min` และตาราง `place_categories`, `type_category_weights`, `place_types` (SQL `docs/sql/2026-10-22_p5g_drop_legacy.sql` — สำรอง `place_types` ไว้)
+  - **ไม่แตะโค้ด Auto Trip** (ตาม D-38) → Auto Trip ตอบ 500 จนกว่าเพื่อนแก้ · เก็บ `backend/src/utils/bestCategoryRow.ts` ไว้เพราะ `getAutoTripPlaces` import อยู่ (ลบแล้ว compile ไม่ผ่าน) ให้เพื่อนลบตอนแก้
+  - การนำเข้าเลิกเขียน `place_types` (type จาก Google ยังอยู่ใน `places.gmaps_types`) — แทนที่ D-27 ข้อเขียน `place_types`
+  - เก็บตาราง `backup_20261022_*` ไว้ก่อน (Claude เสนอ ผู้ใช้ไม่ได้คัดค้าน) — ลบเมื่อมั่นใจ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/admin/imports/importQueries.ts`, `admin/pipeline/import/importJob.ts`, `resolveItem.ts` (+ test), `features/categories/categoriesController.ts`, ตาราง `categories`, `place_categories`, `type_category_weights`, `place_types`

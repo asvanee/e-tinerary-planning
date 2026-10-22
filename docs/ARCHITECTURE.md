@@ -21,7 +21,7 @@ Express API (backend/src/server.ts)
 
 หน้า /admin ── /api/admin/* (requireAuth + requireAdmin) ── backend/src/admin/
   ├── อ่าน data/attraction.csv → ตรวจสถานที่ซ้ำ/มีปัญหา → admin_place_decisions
-  └── job นำเข้า → Google Places (Find Place + Details) → places, place_types, pipeline_jobs/_items
+  └── job นำเข้า → Google Places (Find Place + Details) → places, pipeline_jobs/_items (type จาก Google เก็บที่ `places.gmaps_types` — ไม่เขียน place_types แล้ว P5g)
 
 ```
 
@@ -66,7 +66,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
 
-**หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · `poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController` ใช้ embed `category_labels!inner(categories!inner(...))` · **ยกเว้น `getAutoTripPlaces`** (ของเพื่อน) ที่ยังอ่าน `place_categories` + `pickBestCategoryRows` (มีข้อมูลแค่เชียงใหม่) — ต้องเปลี่ยนก่อนรัน SQL P5b ชุดที่ 2
+**หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · `poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController` ใช้ embed `category_labels!inner(categories!inner(...))` · **ยกเว้น `getAutoTripPlaces`** (ของเพื่อน) ที่ยังอ่าน `place_categories` + `default_duration_min` + `pickBestCategoryRows` — ตาราง/คอลัมน์ลบแล้ว (P5g 2026-10-22) Auto Trip จึงตอบ 500 จนกว่าเพื่อนแก้ตาม `P5-Auto-Trip-brief`
 
 ### 2.4 Itinerary (manual) — `features/itinerary/` + frontend mirror
 1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), `buildInitialDraft()` จะคืน `[]` เสมอ (final design คือไม่จัดลงวันอัตโนมัติ) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 25 km/h)
@@ -91,14 +91,14 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 2. **ตรวจข้อมูล** `/admin/provinces/:province`: `pipeline/review/buildReview.ts` วิเคราะห์ CSV (dedupe + ตัวตรวจชื่อคล้าย/พิกัดใกล้/พิกัดพัง/ชื่อขยะ) → admin รวม (เลือกแถวหลัก, เลือกค่าทีละช่องหรือพิมพ์เองได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) / แยก / ตัดทิ้ง / แก้พิกัด → `admin_place_decisions` (`resolveDecisions` เลือกการตัดสินใจล่าสุด)
 3. **นำเข้า** `/admin/provinces/:province/import` (ต้องตัดสินใจครบ): preview ไม่เรียก Google → `pipeline/import/importRows.ts` สร้างแถวจาก CSV + การตัดสินใจ → job รันใน process (ทีละ 1 job, หน่วง 200 ms, ยกเลิกได้, เปิด server ใหม่ job ค้าง = failed) → ต่อแถว: Find Place "ชื่อไทย อำเภอ จังหวัด" (bias 1 km) → รับเมื่อห่าง ≤ 1 km **และ** ชื่อคล้าย (ครอบกัน หรือ Levenshtein ≥ 0.6, แปลงเลขไทยก่อน — D-33/D-34) → Details → insert `places` (พิกัดจาก CSV, ไม่ upsert) + `place_types` · ไม่ผ่าน/ไม่พบ/`google_place_id` ซ้ำ → `needs_review_*` · รันต่อได้โดยข้าม ATT_ID ที่มีผลแล้ว (D-30)
 4. **รอตรวจหลังนำเข้า** (P4c): admin เลือก ยอมรับผล Google (Details 1 ครั้ง) / นำเข้าจาก CSV อย่างเดียว (`csv:<ATT_ID>`) / ตัดทิ้ง → item เป็น `resolved`
-5. ⚠️ สถานที่ที่นำเข้าใหม่ยังไม่มี `place_categories` จึงยังไม่ถูกแนะนำในหน้า POI จนกว่า P5 (หมวดจากป้าย ททท. `places.att_type_label` — D-35)
+5. สถานที่ที่นำเข้าใหม่ได้หมวดจากป้าย ททท. อัตโนมัติ (`places.att_type_label` → `category_labels` — P5b/P5c) จึงถูกแนะนำได้ทันที
 
 ## 3. Data Pipeline เดิม (ลบแล้ว)
 > ระบบใหม่อยู่ที่ `backend/src/admin/` (หัวข้อ 2.7) · `data-pipeline/` ลบแล้วใน R5 P6 (D-37 — กู้จาก git history ที่ `d73808f`) · ด้านล่างคือการทำงานของ data-pipeline เดิม เก็บไว้เพราะยังอธิบายที่มาของข้อมูลเดิม (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ ใน `places` ตอนนี้มาจากสคริปต์นี้)
 - `uploadCsvToSupabase.ts` / `uploadProvinceGooglePlaces.ts`: อ่าน `data/attraction.csv` กรองตาม `TARGET_PROVINCE` → dedupe (`dedupe.ts`, `manualOverrides.ts`) → Google Find Place + Details → upsert `places` (onConflict `google_place_id`)
 - พิกัดที่บันทึกลง `places` มาจาก Google (`details.geometry` → `found.geometry` → CSV เป็นทางสุดท้าย) และ Find Place ใช้ `locationbias` ซึ่งไม่จำกัดพื้นที่ จึงได้สถานที่ผิดได้ (Known Issue #30)
 - `fetchGmapsCategories.ts`: เติม `places.gmaps_types` (paginate ทีละ 1000)
-- การสร้าง `place_categories` / `confidence_score` (ที่ comment เรียกว่า "Stage 3") **ไม่พบโค้ดใน repo — ยังไม่ทราบว่าทำที่ไหน**
+- การสร้าง `place_categories` / `confidence_score` (ที่ comment เรียกว่า "Stage 3") ไม่พบโค้ดใน repo — **ไม่เกี่ยวแล้ว** ตารางลบใน P5g (D-35)
 - ใช้ `SUPABASE_ANON_KEY` ในการเขียนข้อมูล แปลว่า RLS ของ `places` น่าจะอนุญาตให้ anon เขียนได้ (**ต้องตรวจสอบ**)
 
 ## 4. Conventions ที่สังเกตได้

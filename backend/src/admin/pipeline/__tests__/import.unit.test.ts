@@ -313,10 +313,9 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
     return { client, calls };
   }
 
-  function fakeStore(opts: { existing?: Record<string, string>; cancelAfter?: number; failTypes?: boolean } = {}) {
+  function fakeStore(opts: { existing?: Record<string, string>; cancelAfter?: number } = {}) {
     const items: ImportItem[] = [];
     const places: PlaceRecord[] = [];
-    const placeTypes: [string, string[]][] = [];
     const progress: number[] = [];
     let finished: { status: string; error: string | null } | null = null;
     let cancelChecks = 0;
@@ -332,10 +331,6 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
         places.push(record);
         return `place-${places.length}`;
       },
-      async insertPlaceTypes(placeId, types) {
-        if (opts.failTypes) throw new Error("types fail");
-        placeTypes.push([placeId, types]);
-      },
       async addItem(item) {
         items.push(item);
       },
@@ -346,7 +341,7 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
         finished = { status, error };
       },
     };
-    return { store, items, places, placeTypes, progress, finished: () => finished };
+    return { store, items, places, progress, finished: () => finished };
   }
 
   const at = (meters: number) => ({ location: north(meters) });
@@ -411,7 +406,7 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
     expect(db.items[5]).toMatchObject({ place_id: "place-old" });
     expect(db.places.map((p) => p.att_id)).toEqual(["1", "2"]);
     expect(db.places[0]).toMatchObject({ latitude: 18.79, longitude: 98.98 }); // พิกัด CSV ไม่ใช่ของ Google
-    expect(db.placeTypes).toEqual([["place-1", ["a", "b"]]]);
+    expect(db.places[0].gmaps_types).toEqual(["a", "a", "b"]); // type จาก Google เก็บใน places เท่านั้น (ไม่เขียน place_types — D-38)
     expect(google.calls).toEqual({ find: 7, details: 2 }); // แถวพิกัดเสียไม่เรียก Google · ไม่ผ่านเกณฑ์ไม่เรียก Details
     expect(db.progress).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(db.finished()).toEqual({ status: "done", error: null });
@@ -446,9 +441,9 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
     expect(db.finished()).toEqual({ status: "failed", error: "Google status REQUEST_DENIED" });
   });
 
-  test("place_types บันทึกไม่สำเร็จ ยังนับว่า imported พร้อมหมายเหตุ · หน่วงหลังทุก request", async () => {
+  test("imported ไม่มีหมายเหตุ · หน่วงหลังทุก request", async () => {
     const google = fakeGoogle({ ที่: { candidate: { place_id: "g", name: "ที่", geometry: at(0) }, details: { types: ["museum"] } } });
-    const db = fakeStore({ failTypes: true });
+    const db = fakeStore();
     const sleeps: number[] = [];
     await runImportJob({
       jobId: "job-4",
@@ -460,7 +455,7 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
         sleeps.push(ms);
       },
     });
-    expect(db.items[0]).toMatchObject({ status: "imported", message: "บันทึก place_types ไม่สำเร็จ" });
+    expect(db.items[0]).toMatchObject({ status: "imported", message: null });
     expect(sleeps).toEqual([200, 200]);
   });
 });

@@ -69,7 +69,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 ## จุดที่ต้องระวังเป็นพิเศษ
 - **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
 - **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
-- **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · `place_categories` + `bestCategoryRow.ts` เหลือใช้แค่ Auto Trip (ของเพื่อน) และจะลบใน P5g
+- **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · ตาราง `place_categories` / `type_category_weights` / `place_types` และคอลัมน์ `categories.default_duration_min` ลบแล้ว (P5g) · `bestCategoryRow.ts` ยังค้างเพราะ Auto Trip (ของเพื่อน) import อยู่ — ห้ามใช้ในโค้ดใหม่ ให้เพื่อนลบตอนแก้ Auto Trip
 - **ลำดับ filter ของ POI** (province → category+fallback → budget) ห้ามสลับ — ขั้นเวลาตัดออกแล้ว (D-38)
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
 - `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน

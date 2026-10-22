@@ -8,7 +8,7 @@ export type ResolveAction = "accept_google" | "csv_only" | "skip";
 export const RESOLVE_ACTIONS: readonly ResolveAction[] = ["accept_google", "csv_only", "skip"];
 
 /** ส่วนที่แตะ DB — ฝั่งจริงอยู่ที่ admin/imports/importQueries.ts */
-export type ResolveStore = Pick<ImportStore, "findPlaceIdByGooglePlaceId" | "insertPlace" | "insertPlaceTypes"> & {
+export type ResolveStore = Pick<ImportStore, "findPlaceIdByGooglePlaceId" | "insertPlace"> & {
   /** item → resolved (เฉพาะที่ยังเป็น needs_review_*) · false = ถูกตัดสินไปก่อนแล้ว */
   markResolved(itemId: string, placeId: string | null, message: string): Promise<boolean>;
 };
@@ -80,14 +80,5 @@ export async function resolveItem({
   }
 
   const placeId = await store.insertPlace(record);
-  let message = "admin ยอมรับผล Google";
-  if (record.gmaps_types) {
-    try {
-      await store.insertPlaceTypes(placeId, [...new Set(record.gmaps_types)]);
-    } catch (err) {
-      console.error(`resolve item ${item.item_id} place_types error:`, err);
-      message += " · บันทึก place_types ไม่สำเร็จ";
-    }
-  }
-  return resolve(placeId, message);
+  return resolve(placeId, "admin ยอมรับผล Google");
 }

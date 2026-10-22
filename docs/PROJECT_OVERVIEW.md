@@ -132,9 +132,9 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 ## 7. ตารางฐานข้อมูล (อนุมานจาก query — ไม่มี schema/migration ใน repo)
 > โครงสร้างจริงจาก Supabase (snapshot 2026-10-18) อยู่ที่ [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) — ถ้าขัดกับหัวข้อนี้ให้ยึดไฟล์นั้น
 
-`users`, `trips`, `trip_categories`, `trip_days`, `categories`, `places`, `place_categories`, `poi_scores`, `itineraries`
+`users`, `trips`, `trip_categories`, `trip_days`, `categories`, `category_labels`, `places`, `poi_scores`, `itineraries`
 
-คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `categories.default_duration_min` (เหลือแค่ Auto Trip ใช้ — ลบใน P5g), `itineraries.visit_duration_min` (เวลาที่ผู้ใช้กรอก — D-36), `place_categories.confidence_score` (ตารางว่างแล้ว — P5b), `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
+คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `itineraries.visit_duration_min` (เวลาที่ผู้ใช้กรอก — D-36) · `categories.default_duration_min` และตาราง `place_categories` ลบแล้ว (P5g — Auto Trip ของเพื่อนยังอ่านอยู่), `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
 **Schema จริง, RLS, FK/CASCADE:** ดู [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) (snapshot 2026-10-18 + การเปลี่ยนแปลงหลังจากนั้น: PK ทุกตารางเป็น uuid — T23) · RLS ปิดทุกตารางเดิม · FK ส่วนใหญ่ `ON DELETE CASCADE`
 
 ## 8. บริการภายนอก

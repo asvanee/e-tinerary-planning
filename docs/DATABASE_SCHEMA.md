@@ -18,8 +18,9 @@ auth.users.id ──CASCADE──► users.user_id
 users.user_id ──CASCADE──► trips.user_id
 trips.trip_id ──CASCADE──► trip_days.trip_id · poi_scores.trip_id · trip_categories.trip_id
 trip_days.trip_day_id ──CASCADE──► itineraries.trip_day_id
-places.place_id ──CASCADE──► itineraries.place_id · poi_scores.place_id · place_categories.place_id · place_types.place_id
-categories.category_id ──CASCADE──► place_categories.category_id · type_category_weights.category_id
+places.place_id ──CASCADE──► itineraries.place_id · poi_scores.place_id
+places.att_type_label ──(ON UPDATE CASCADE / ON DELETE RESTRICT)──► category_labels.att_type_label (P5b)
+category_labels.category_id ──(ON DELETE RESTRICT)──► categories.category_id (P5b)
 categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► trip_categories.category_id
 ```
 - ⚠️ **ลบแถวใน `places` = ลบ `itineraries` และ `poi_scores` ของทริปผู้ใช้ที่อ้างสถานที่นั้นไปด้วย** (รวม `place_categories`, `place_types`) — สำคัญกับการนำเข้าใหม่แทนข้อมูลเดิม (D-26: ผู้ใช้เลือกลบแล้วนำเข้าใหม่ ต้องทำหลัง category mapping พร้อม)
@@ -139,10 +140,10 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `environment_type` | text | NOT NULL | CHECK `INDOOR` \| `OUTDOOR` \| `MIXED` |
 | `price_nature` | text | NOT NULL | CHECK `free` \| `paid` |
 | `parent_group` | text | NOT NULL | CHECK `HISTORY_CULTURE` \| `NATURE` \| `RECREATION` (กลุ่มใหญ่ ททท. — P5b 2026-10-22) |
-| `default_duration_min` | int4 | | `60` · D-36: จะเลิกใช้ (ผู้ใช้กรอกเวลาเองใน `itineraries`) — Auto Trip ยังใช้อยู่ |
+| ~~`default_duration_min`~~ | — | | **ลบคอลัมน์แล้ว 2026-10-22 (P5g)** — เวลาที่อยู่ผู้ใช้กรอกเอง (`itineraries.visit_duration_min` — D-36) · Auto Trip ของเพื่อนยังอ่านอยู่จนกว่าจะแก้ |
 | `created_at` | timestamptz | | `now()` |
 
-### `place_categories` · **ว่าง (0 แถว) ตั้งแต่ 2026-10-22** — ถูกลบตามหมวดเดิม (CASCADE) ใน P5b ชุดที่ 2 · สำรอง `backup_20261022_place_categories` (486) · ไม่ใช้แล้ว ลบตารางใน P5g · โค้ดที่ยังอ่าน: `getAutoTripPlaces` (ของเพื่อน — ได้ผลว่าง) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
+### `place_categories` · **🗑️ ลบตารางแล้ว 2026-10-22 (R5 P5g — `docs/sql/2026-10-22_p5g_drop_legacy.sql`)** · ข้อมูลด้านล่างเป็นประวัติ · **ว่าง (0 แถว) ตั้งแต่ 2026-10-22** — ถูกลบตามหมวดเดิม (CASCADE) ใน P5b ชุดที่ 2 · สำรอง `backup_20261022_place_categories` (486) · ไม่ใช้แล้ว ลบตารางใน P5g · โค้ดที่ยังอ่าน: `getAutoTripPlaces` (ของเพื่อน — ได้ผลว่าง) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_categories_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
@@ -153,7 +154,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 1 สถานที่มีได้หลาย category — โค้ดเลือก `confidence_score` สูงสุด (กฎ multi-category dedupe ใน CLAUDE.md) · D-35 (R5 P5): จะสร้างใหม่จาก `places.att_type_label` เหลือ 1 หมวดต่อสถานที่ — `categories` / `place_categories` / `trip_categories` จะเปลี่ยนโครงสร้างและย้ายข้อมูล (SQL อยู่ใน P5)
 
-### `place_types` · rows 1605 (นับจริง 2026-10-18) · เขียนโดย `backend/src/admin/imports/importQueries.ts` (R5 P4 — D-27)
+### `place_types` · **🗑️ ลบตารางแล้ว 2026-10-22 (R5 P5g — `docs/sql/2026-10-22_p5g_drop_legacy.sql`)** · ข้อมูลด้านล่างเป็นประวัติ · rows 1605 (นับจริง 2026-10-18) · เขียนโดย `backend/src/admin/imports/importQueries.ts` (R5 P4 — D-27)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_type_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) — **เปลี่ยนจาก composite PK (`place_id`, `api_type_id`) เมื่อ 2026-10-18** (ผู้ใช้รัน SQL) (เป็น uuid ใน T23) |
@@ -165,7 +166,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 - ไม่มี key ร่วมแล้ว DB จึงไม่กันคู่ (`place_id`, `api_type_id`) ซ้ำ — โค้ดต้องเช็คคู่ที่มีอยู่ก่อน insert · ถ้ามีเครื่องมือนอก repo upsert ด้วย `onConflict: "place_id,api_type_id"` จะ error
 - backup ตอนแก้ (`place_types_backup_20261018`) ผู้ใช้สั่งลบแล้ว 2026-10-18 (`docs/sql/2026-10-18_drop_backup_tables.sql`)
 
-### `type_category_weights` · rows 0 (ถูกลบตามหมวดเดิม 2026-10-22 · สำรอง `backup_20261022_type_category_weights` 107 แถว · ลบตารางใน P5g) · **ไม่มีโค้ดใน repo ใช้**
+### `type_category_weights` · **🗑️ ลบตารางแล้ว 2026-10-22 (R5 P5g — `docs/sql/2026-10-22_p5g_drop_legacy.sql`)** · ข้อมูลด้านล่างเป็นประวัติ · rows 0 (ถูกลบตามหมวดเดิม 2026-10-22 · สำรอง `backup_20261022_type_category_weights` 107 แถว · ลบตารางใน P5g) · **ไม่มีโค้ดใน repo ใช้**
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
