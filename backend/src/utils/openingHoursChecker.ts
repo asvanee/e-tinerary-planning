@@ -51,7 +51,7 @@ function timeStringToMinutes(time: string): number {
  *
  * @param dayOfWeek      0=อาทิตย์ ... 6=เสาร์ (จาก trip_days.visit_date)
  * @param arrivalMinutes นาทีที่ไปถึง นับจากเที่ยงคืนของ dayOfWeek (เช่น 09:30 = 570)
- * @param durationMin    เวลาที่อยู่ที่นั่น (นาที) จาก categories.default_duration_min
+ * @param durationMin    เวลาที่อยู่ที่นั่น (นาที) ที่ผู้ใช้กรอก (0 = ยังไม่กรอก เช็คแค่ตอนไปถึง)
  */
 function isPlaceOpenAt(
   openingHours: OpeningHours | null | undefined,

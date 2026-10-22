@@ -95,6 +95,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `travel_time_from_prev` | int4 | | |
 | `distance_from_prev` | numeric | | |
 | `place_cost` | numeric | | |
+| `visit_duration_min` | int4 | | CHECK 1..1440 · เวลาที่ผู้ใช้กรอก (D-36) · เพิ่ม 2026-10-22 (`docs/sql/2026-10-22_p5f_visit_duration.sql`) · แถวที่บันทึกก่อน P5f เป็น NULL |
 | `is_time_conflict` | bool | | `false` |
 | `is_closed_conflict` / `is_budget_conflict` / `is_hours_unknown` | bool | | |
 | `is_budget_unknown` | bool | NOT NULL | `false` |

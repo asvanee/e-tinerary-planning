@@ -52,7 +52,6 @@ interface PlaceInfo {
   user_ratings_total?: number | null;
   att_type_label?: string | null;
   att_category_label?: string | null;
-  default_duration_min: number;
 }
 
 interface MergedPlace extends PoiResult {

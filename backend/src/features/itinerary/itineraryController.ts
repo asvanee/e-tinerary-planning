@@ -16,7 +16,10 @@ import {
   buildInitialDraft,
   buildItinerary,
   DayAssignment,
+  PlaceInput,
 } from "./itineraryBuilder";
+
+import { parseVisitDurations } from "./visitDurations";
 
 import {
   buildAutoTrip,
@@ -117,7 +120,10 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "ไม่พบข้อมูลสถานที่ที่เลือกในระบบ" });
     }
 
-    const placesById = new Map(places.map((place) => [place.placeId, place]));
+    // ร่างแผนยังไม่มีเวลาที่ผู้ใช้กรอก (D-36) — editor ให้กรอกเอง
+    const placesById = new Map<string, PlaceInput>(
+      places.map((place) => [place.placeId, { ...place, visitDurationMin: null }])
+    );
 
     const draftItems = buildInitialDraft(
       tripDays.map((day) => toDayAssignment(day, [])),
@@ -161,9 +167,10 @@ interface ConfirmDayInput {
 
 /**
  * PUT /api/itinerary/trips/:tripId
- * body: { days: { trip_day_id: string; place_ids: string[] }[] }
+ * body: { days: { trip_day_id: string; place_ids: string[] }[]; visit_durations: { [place_id]: นาที } }
  *
  * ยืนยันแผน — backend คำนวณซ้ำทั้งหมดด้วย buildItinerary() (ไม่เชื่อระยะ/เวลา/ราคาจาก frontend)
+ * เวลาที่อยู่เป็น input ของผู้ใช้ (D-36) รับจาก body แต่ต้องกรอกครบและอยู่ในช่วง
  * แล้ว delete-then-insert ทับแผนเดิมทั้งทริป
  */
 export const confirmItinerary = async (req: AuthRequest, res: Response) => {
@@ -173,7 +180,10 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: "ไม่พบรหัสทริป" });
   }
 
-  const { days } = req.body as { days: ConfirmDayInput[] };
+  const { days, visit_durations } = req.body as {
+    days: ConfirmDayInput[];
+    visit_durations?: unknown;
+  };
 
   if (!Array.isArray(days)) {
     return res.status(400).json({ message: "รูปแบบข้อมูลไม่ถูกต้อง" });
@@ -201,6 +211,12 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
 
     const allPlaceIds = Array.from(new Set(days.flatMap((day) => day.place_ids)));
 
+    const parsedDurations = parseVisitDurations(visit_durations, allPlaceIds);
+    if ("error" in parsedDurations) {
+      return res.status(400).json({ message: parsedDurations.error });
+    }
+    const { durations } = parsedDurations;
+
     const places = await getSelectedPlaces(allPlaceIds);
 
     // สถานที่ที่ส่งมาต้องมีอยู่จริงในระบบครบทุกตัว
@@ -210,7 +226,12 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const placesById = new Map(places.map((place) => [place.placeId, place]));
+    const placesById = new Map<string, PlaceInput>(
+      places.map((place) => [
+        place.placeId,
+        { ...place, visitDurationMin: durations.get(place.placeId) ?? null },
+      ])
+    );
 
     const dayAssignments = days.map((dayInput) =>
       toDayAssignment(tripDaysById.get(dayInput.trip_day_id)!, dayInput.place_ids)
@@ -284,6 +305,7 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       travel_time_from_prev: item.travelTimeFromPrev,
       distance_from_prev: item.distanceFromPrev,
       place_cost: item.placeCost,
+      visit_duration_min: durations.get(item.placeId) ?? null,
       is_time_conflict: item.isTimeConflict,
       is_closed_conflict: item.isClosedConflict,
       is_budget_conflict: item.isBudgetConflict,
@@ -331,6 +353,7 @@ interface SavedItineraryRow {
   travel_time_from_prev: number | null;
   distance_from_prev: number | null;
   place_cost: number | null;
+  visit_duration_min: number | null; // null = แผนที่บันทึกก่อน P5f (D-36)
   is_time_conflict: boolean;
   is_closed_conflict: boolean;
   is_budget_conflict: boolean;
@@ -369,6 +392,7 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
         travel_time_from_prev,
         distance_from_prev,
         place_cost,
+        visit_duration_min,
         is_time_conflict,
         is_closed_conflict,
         is_budget_conflict,
@@ -413,6 +437,7 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
           travelTimeFromPrev: row.travel_time_from_prev,
           distanceFromPrev: row.distance_from_prev,
           placeCost: row.place_cost,
+          visitDurationMin: row.visit_duration_min,
           isTimeConflict: row.is_time_conflict,
           isClosedConflict: row.is_closed_conflict,
           isBudgetConflict: row.is_budget_conflict,

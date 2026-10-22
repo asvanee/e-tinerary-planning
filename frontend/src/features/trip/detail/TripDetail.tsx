@@ -60,6 +60,7 @@ interface ScheduleItem {
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
   placeCost: number | null; // null = ไม่ทราบราคา (paid ที่ไม่มี price_level จริง)
+  visitDurationMin: number | null; // เวลาที่ผู้ใช้กรอก (D-36) · null = แผนที่บันทึกก่อน P5f
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
@@ -149,6 +150,7 @@ interface SavedItineraryItemRow {
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
   placeCost: number | null; // place_cost เป็น nullable
+  visitDurationMin: number | null;
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
@@ -221,6 +223,7 @@ function mapSavedDay(row: SavedItineraryDayRow): TripDay {
       travelTimeFromPrev: item.travelTimeFromPrev,
       distanceFromPrev: item.distanceFromPrev,
       placeCost: item.placeCost,
+      visitDurationMin: item.visitDurationMin,
       isTimeConflict: item.isTimeConflict,
       isClosedConflict: item.isClosedConflict,
       isBudgetConflict: item.isBudgetConflict,
@@ -507,10 +510,11 @@ export default function TripDetail() {
    * 1) ดึง place_ids ทั้งหมดจาก itinerary ที่บันทึกไว้แล้ว (ทุกวันรวมกัน, unique)
    * 2) ยิง GET /api/places?ids=... ใหม่ (เอาข้อมูลสถานที่ล่าสุด ไม่ใช้ของเก่าที่ cache ไว้ในหน้านี้
    *    เพราะ field ที่ TripDetail ดึงมาจาก itinerary ไม่ครบเท่า PlaceInfo ที่ Editor ต้องใช้ เช่น
-   *    price_level, default_duration_min, opening_hours)
+   *    price_level, opening_hours)
    * 3) ยิง POST /draft ซ้ำด้วยชุด place_ids เดิม (Editor คาดหวัง shape แบบ draft เสมอ)
    *    ⚠️ draft ไม่จัดสถานที่ลงวัน ทุกที่จึงกลับไปอยู่ใน "ยังไม่จัดลงวัน" ไม่ใช่ตามแผนที่ยืนยันไว้
    * 4) navigate ไป editor พร้อม state ชุดเดียวกับที่ TripRecommendations.tsx ส่งให้
+   *    + visitDurations (เวลาที่เคยกรอกไว้ — D-36) ให้ editor ใส่ค่าเดิมให้
    *
    * ถ้ายังไม่มีสถานที่เลย (totals.places === 0) ไม่มีอะไรให้ "แก้" — พาไปหน้าเลือกสถานที่แทน
    */
@@ -567,6 +571,13 @@ export default function TripDetail() {
           tripId: tripIdParam,
           draft: draftData,
           places: mergedPlaces,
+          visitDurations: Object.fromEntries(
+            days.flatMap((day) =>
+              day.items
+                .filter((item) => item.visitDurationMin !== null)
+                .map((item) => [item.placeId, item.visitDurationMin])
+            )
+          ),
         },
       });
     } catch (err) {

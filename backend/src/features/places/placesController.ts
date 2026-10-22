@@ -4,14 +4,14 @@ import { supabase } from "../../config/db";
 type PlaceDetailRow = {
   price_level: number | null;
   category_labels: {
-    categories: { default_duration_min: number | null; price_nature: string | null };
+    categories: { price_nature: string | null };
   };
 } & Record<string, unknown>;
 
 /**
  * GET /api/places?ids=uuid1,uuid2,uuid3
  * ข้อมูลสถานที่ตาม place_id — frontend ใช้ join กับผลของ /calculate-poi (ซึ่งมีแค่ placeId + คะแนน)
- * และหน้า itinerary editor ใช้ recompute เอง (ต้องใช้ default_duration_min, price_level, price_nature)
+ * และหน้า itinerary editor ใช้ recompute เอง (ต้องใช้ price_level, price_nature, opening_hours — เวลาที่อยู่ผู้ใช้กรอกเอง D-36)
  *
  * หมวดมาจากป้าย ททท. (places -> category_labels -> categories) แบบเดียวกับ itineraryPlaceQueries.ts::getSelectedPlaces
  * เพื่อให้ค่าที่ editor เห็นตรงกับตอน backend re-validate ก่อน save
@@ -53,7 +53,7 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
         user_ratings_total,
         att_type_label,
         att_category_label,
-        category_labels!inner(categories!inner(default_duration_min, price_nature))
+        category_labels!inner(categories!inner(price_nature))
       `
       )
       .in("place_id", placeIds);
@@ -68,7 +68,6 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
     const places = rows.map(({ category_labels, ...place }) => ({
       ...place,
       price_nature: category_labels.categories.price_nature ?? null,
-      default_duration_min: category_labels.categories.default_duration_min ?? 60,
     }));
 
     return res.status(200).json({ places });

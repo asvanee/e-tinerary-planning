@@ -26,7 +26,7 @@ export interface SelectedPlace {
   rawPriceLevel: number | null;
   priceNature: PriceNature; // ของหมวดจากป้าย ททท. (places -> category_labels -> categories)
   openingHours: OpeningHours | null;
-  defaultDurationMin: number; // categories.default_duration_min — ชั่วคราวจนกว่า P5f (ผู้ใช้กรอกเวลาเอง — D-36)
+  // เวลาที่อยู่ไม่ได้มาจาก DB — ผู้ใช้กรอกเอง (D-36) controller ใส่ visitDurationMin ก่อนเรียก itineraryBuilder
 }
 
 export interface TripOwnerAndStart {
@@ -223,7 +223,7 @@ interface SelectedPlaceRow {
   price_level: number | null;
   opening_hours: OpeningHours | null;
   category_labels: {
-    categories: { default_duration_min: number | null; price_nature: PriceNature };
+    categories: { price_nature: PriceNature };
   };
 }
 
@@ -238,7 +238,7 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
   const { data, error } = await supabase
     .from("places")
     .select(
-      "place_id, latitude, longitude, price_level, opening_hours, category_labels!inner(categories!inner(default_duration_min, price_nature))"
+      "place_id, latitude, longitude, price_level, opening_hours, category_labels!inner(categories!inner(price_nature))"
     )
     .in("place_id", placeIds);
 
@@ -249,18 +249,14 @@ export async function getSelectedPlaces(placeIds: string[]): Promise<SelectedPla
   // Supabase infer embed เป็น array แต่ relation นี้คืน object เดี่ยวจริง
   const rows = (data ?? []) as unknown as SelectedPlaceRow[];
 
-  return rows.map((row) => {
-    const category = row.category_labels.categories;
-    return {
-      placeId: row.place_id,
-      latitude: row.latitude,
-      longitude: row.longitude,
-      rawPriceLevel: row.price_level,
-      priceNature: category.price_nature,
-      openingHours: row.opening_hours,
-      defaultDurationMin: category.default_duration_min ?? 60,
-    };
-  });
+  return rows.map((row) => ({
+    placeId: row.place_id,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    rawPriceLevel: row.price_level,
+    priceNature: row.category_labels.categories.price_nature,
+    openingHours: row.opening_hours,
+  }));
 }
 
 interface AutoTripRow {

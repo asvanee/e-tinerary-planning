@@ -23,9 +23,11 @@ export interface PlaceInput {
   latitude: number;
   longitude: number;
   rawPriceLevel: number | null; // null = ไม่มีราคาจริงจาก Google
-  priceNature: PriceNature; // ของ category ที่ confidence_score สูงสุด
+  priceNature: PriceNature; // ของหมวดจากป้าย ททท.
   openingHours: OpeningHours | null;
-  defaultDurationMin: number;
+  // เวลาที่ผู้ใช้กรอกว่าจะอยู่ (นาที — D-36) · null = ยังไม่กรอก: ไม่รู้เวลาจบ
+  // จึงเช็คเวลาเปิดแค่ตอนไปถึง และสถานที่ถัดไปในวันนั้นคิดเวลาไม่ได้
+  visitDurationMin: number | null;
 }
 
 export interface DayAssignment {
@@ -258,14 +260,17 @@ export function buildDayItems(
       startMinutes = null;
     }
 
-    const endMinutes = startMinutes !== null ? startMinutes + place.defaultDurationMin : null;
+    const endMinutes =
+      startMinutes !== null && place.visitDurationMin !== null
+        ? startMinutes + place.visitDurationMin
+        : null;
 
     const isTimeConflict =
       dayEndMinutes !== null && endMinutes !== null ? endMinutes > dayEndMinutes : false;
 
     const { isOpen, hasData } =
       startMinutes !== null
-        ? checkOpeningStatus(place.openingHours, dayOfWeek, startMinutes, place.defaultDurationMin)
+        ? checkOpeningStatus(place.openingHours, dayOfWeek, startMinutes, place.visitDurationMin ?? 0)
         : { isOpen: true, hasData: false };
     const isClosedConflict = hasData ? !isOpen : false;
     const isHoursUnknown = !hasData;
