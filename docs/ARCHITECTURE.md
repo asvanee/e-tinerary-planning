@@ -30,9 +30,9 @@ backend เก็บ state ที่ไม่ได้อยู่ใน DB ไ�
 ## 2. Flow หลักของผู้ใช้
 
 ```text
-Register/Login ─► Home ─► Create Trip ─► Recommendations ─┬─► (เลือกสถานที่) ─► Itinerary Editor ─► Confirm ─► Trip Detail
-                                                          └─► Auto Trip ─────────────────────────► Confirm ─► Trip Detail
-MyTrips ─► Trip Detail ─► แก้ไขแผน (สร้าง draft ใหม่) / แก้ไขข้อมูลทริป (/trip/:id/edit → บันทึกแล้วไป Recommendations เพื่อคำนวณ POI ใหม่ · ถ้าวัน/เวลา/งบต่อวันเปลี่ยน แผนเดิมถูกล้าง — D-29)
+Register/Login ─► Home ─► Create Trip ─► Recommendations (แสดง POI Score) ─┬─► Itinerary Editor ─► Confirm ─► Trip Detail
+                                                                          └─► Auto Trip (กรอกเวลาต่อหมวด) ─► Confirm ─► Trip Detail
+MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / แก้ไขข้อมูลทริป (/trip/:id/edit → กลับ Recommendations · ถ้าวัน/เวลา/งบต่อวันเปลี่ยน แผนเดิมถูกล้าง — D-29)
 ```
 
 ### 2.1 Auth
@@ -66,7 +66,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
 
-**หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · `poiPlaceQueries`, `itineraryPlaceQueries.getSelectedPlaces`, `placesController` ใช้ embed `category_labels!inner(categories!inner(...))` · **ยกเว้น `getAutoTripPlaces`** (ของเพื่อน) ที่ยังอ่าน `place_categories` + `default_duration_min` + `pickBestCategoryRows` — ตาราง/คอลัมน์ลบแล้ว (P5g 2026-10-22) Auto Trip จึงตอบ 500 จนกว่าเพื่อนแก้ตาม `P5-Auto-Trip-brief`
+**หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · POI และ Auto Trip ใช้ relation นี้จับคู่สถานที่ · `getSelectedPlaces` ใช้ embed แบบไม่บังคับ inner join เพื่อไม่ให้ความสัมพันธ์หมวดตัดแถวสถานที่ออกจากผลค้นหา · Auto Trip โหลดหมวดที่ผู้ใช้เลือกจาก `trip_categories` → `categories` (D-45) · ไม่อ่านตาราง `place_categories` หรือคอลัมน์ `default_duration_min` ที่ถูกลบใน P5g
 
 ### 2.4 Itinerary (manual) — `features/itinerary/` + frontend mirror
 1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), `buildInitialDraft()` จะคืน `[]` เสมอ (final design คือไม่จัดลงวันอัตโนมัติ) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 25 km/h)
@@ -76,12 +76,14 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 ค่าคงที่ที่ต้องตรงกันทั้งสองฝั่ง: `TRIP_START_ID = "__trip_start__"`, `FALLBACK_AVG_SPEED_KMH = 25`, `PRICE_LEVEL_TO_BAHT = {0:0,1:200,2:450,3:900,4:1500}`, เวลาเดินทางขั้นต่ำ 1 นาที
 
-### 2.5 Auto Trip (ยังเป็นงานที่ทำค้างอยู่)
-`POST /itinerary/trips/:id/auto`:
-1. `getAutoTripPlaces()` อ่าน `poi_scores` ของทริป (จึงต้องคำนวณ POI มาก่อน)
-2. controller เลือก **ที่ที่คะแนนสูงสุด 1 ที่ต่อ category** แล้วกรองด้วย `isOpenAt()` ซึ่งรองรับเฉพาะ format `"08:00 - 17:00"` หรือ `{open, close}` เท่านั้น (ไม่ใช่ format `periods` ที่อยู่ใน DB จริง)
-3. `buildAutoTrip()` ใช้ nearest-neighbor TSP (haversine) แล้วแบ่งเป็นวันด้วยความเร็วคงที่ 30 km/h ถ้าไม่มี `available_time_per_day` จะใช้เวลาจบวัน 18:00
-4. ไม่บันทึกลง DB โดยตรง แต่หน้า `auto.tsx` จะ GET saved itinerary เพื่อหา trip days แล้ว PUT ผ่าน `confirmItinerary` (ซึ่ง re-validate ด้วย ORS matrix ทำให้ผลอาจไม่ตรงกับที่ auto คำนวณไว้)
+### 2.5 Auto Trip
+1. หน้า `/trip/:id/recommendations` เรียก `POST /poi/trips/:id/calculate-poi`, โหลดรายละเอียดสถานที่ แล้วแสดงรายการ/แผนที่เรียงตาม POI Score
+2. ผู้ใช้เลือกจัดทริปเองเพื่อไป Itinerary Editor หรือเลือก Auto Trip
+3. `GET /itinerary/trips/:id/auto/categories` ตรวจเจ้าของทริป แล้วคืนหมวดที่ผู้ใช้เลือกไว้ใน `trip_categories` เพื่อให้หน้า Auto Trip ขอเวลาทุกหมวดที่เลือก
+4. `POST /itinerary/trips/:id/auto` รับ `visitDurationByCategory: { [categoryId]: นาที }` · Backend ตรวจให้ครบทุกหมวดและเป็นหนึ่งใน 30, 60, 90, 120, 150 หรือ 180 นาที (D-44)
+5. Controller ส่งสถานที่ POI ทุกแห่งที่จับคู่กับหมวดที่เลือกพร้อมเวลาต่อหมวดให้ `buildAutoTrip()`
+6. Builder จัดทีละจุดจากตำแหน่งและเวลาปัจจุบัน; ในแต่ละหมวดลองสถานที่เรียงตาม POI Score โดยคำนวณเวลาไปถึงจริงและตรวจ `opening_hours.periods` ให้เปิดครอบคลุมเวลาที่เที่ยว · ไม่มี periods = ไม่ทราบเวลาและเลือกได้ (D-10/D-46) · ถ้าปิดให้ลองคะแนนถัดไป และถ้าหมวดนั้นไม่มีตัวเลือกในเวลานั้นจะลองใหม่วันถัดไป · เลือกได้สูงสุดหนึ่งแห่งต่อหมวด · ใช้ haversine 30 km/h และถ้าไม่มี `available_time_per_day` จะใช้เวลาจบวัน 18:00
+7. หน้า `auto.tsx` แสดงฟอร์มก่อนคำนวณ · ตอนยืนยันส่ง `visit_durations` พร้อมรายการวันให้ `confirmItinerary` ตรวจซ้ำและบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` ด้วย schema ที่มีอยู่แล้ว (D-36/D-43)
 
 ### 2.6 Trip Detail
 GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ปุ่ม "แก้ไขแผน" จะเรียก `/api/places?ids=` + `POST /draft` ใหม่ แล้วไป editor

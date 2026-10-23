@@ -677,7 +677,7 @@ export default function TripRecommendations() {
       <main className={`max-w-6xl mx-auto px-4 sm:px-8 py-6 ${isCustomMode ? "pb-28" : ""}`}>
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/trip/create")}
           className="font-prompt font-medium min-h-10 pr-4 pl-3 mb-4 flex items-center gap-1.5 rounded-xl text-[color:var(--navy)] bg-white border border-[color:var(--line)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200"
         >
           <ArrowLeft size={18} strokeWidth={1.75} />

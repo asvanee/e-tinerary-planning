@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
+import AutoTripDurationForm from "../../recommendations/AutoTripDurationForm";
+import type {
+  AutoTripResponse,
+  AutoTripStop,
+} from "./autoTripTypes";
 import {
   ArrowLeft,
   CalendarDays,
@@ -13,7 +18,6 @@ import {
   MapPin,
   MapPinned,
   Pencil,
-  RotateCw,
   Search,
   Sparkles,
   Star,
@@ -47,132 +51,17 @@ const secondaryBtn =
 const ghostBtn =
   "font-prompt font-medium min-h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200 whitespace-nowrap";
 
-// ---------- Types (ตรงกับ response ของ POST /api/itinerary/trips/:tripId/auto) ----------
-
-interface AutoTripStop {
-  place_id: string;
-  place_name: string;
-  categoryName?: string;
-  poiScore?: number;
-  latitude: number;
-  longitude: number;
-  start_time: string;
-  end_time: string;
-  duration_min: number;
-  travel_distance_km: number;
-  travel_time_min: number;
-  previous_place_name: string;
-}
-
-interface AutoTripDay {
-  day: number;
-  date: string;
-  stops: AutoTripStop[];
-  total_distance_km: number;
-  total_travel_time_min: number;
-  total_visit_time_min: number;
-}
-
-interface AutoTripResponse {
-  success?: boolean;
-  message?: string;
-  trip_id: string;
-  // จุดเริ่มต้นของทริป — ⚠️ backend ยังไม่ส่งมา (Known Issue #33)
-  start_lat?: number | null;
-  start_lng?: number | null;
-  selected_places?: unknown[];
-  days?: AutoTripDay[];
-  total_distance_km?: number;
-}
-
 // ---------- Main page ----------
 
 export default function AutoTrip() {
   const { tripId } = useParams();
   const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
+  const { session } = useAuth();
 
   const [data, setData] = useState<AutoTripResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-
-  // ---- จัดทริปอัตโนมัติ (backend คำนวณทุกครั้งที่เปิดหน้า) ----
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!session) {
-      navigate("/login");
-      return;
-    }
-
-    if (!tripId) {
-      setError("ไม่พบรหัสทริป");
-      setLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const fetchAutoTrip = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch(`/api/itinerary/trips/${tripId}/auto`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          signal: controller.signal,
-        });
-
-        const text = await response.text();
-
-        let result: AutoTripResponse;
-
-        try {
-          result = JSON.parse(text);
-        } catch {
-          throw new Error(`API ไม่ได้ส่ง JSON กลับมา (status ${response.status})`);
-        }
-
-        if (!response.ok) {
-          throw new Error(result.message || "จัดทริปอัตโนมัติไม่สำเร็จ");
-        }
-
-        setData(result);
-
-        if (!result.days || result.days.length === 0) {
-          setSelectedDay(0);
-        }
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-
-        console.error("Auto Trip error:", err);
-
-        setError(
-          (err as { message?: string } | null)?.message ||
-            "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ"
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchAutoTrip();
-
-    return () => {
-      controller.abort();
-    };
-  }, [tripId, session, authLoading, navigate]);
 
   const getDayStops = (dayIndex: number): AutoTripStop[] => {
     if (!data || !data.days || !data.days[dayIndex]) {
@@ -358,12 +247,10 @@ export default function AutoTrip() {
         throw new Error("ไม่พบข้อมูลวันเดินทางของทริปนี้ใน Supabase");
       }
 
-      // 2. payload: จับคู่ trip day ตามลำดับ (index) ของวันใน Auto Trip
-      // ⚠️ Auto Trip ข้ามวันที่ไม่มีสถานที่ (day.day อาจไม่เท่ากับ index + 1 — Known Issue #34)
+      // 2. payload: วันใน Auto Trip ใช้เลขวันจริง ซึ่งอาจข้ามวันที่ไม่มีสถานที่
       const days =
-        data.days?.map((day, index) => {
-          const stops = getDayStops(index);
-          const tripDayId = tripDays[index]?.tripDayId;
+        data.days?.map((day) => {
+          const tripDayId = tripDays[day.day - 1]?.tripDayId;
 
           if (!tripDayId) {
             throw new Error(`ไม่พบ trip_day_id ของวันที่ ${day.day}`);
@@ -371,13 +258,17 @@ export default function AutoTrip() {
 
           return {
             trip_day_id: tripDayId,
-            place_ids: stops.map((stop) => stop.place_id),
+            place_ids: day.stops.map((stop) => stop.place_id),
           };
         }) ?? [];
 
       if (days.length === 0) {
         throw new Error("ไม่มีข้อมูลวันที่ต้องการบันทึก");
       }
+
+      const visit_durations = Object.fromEntries(
+        allStops.map((stop) => [stop.place_id, stop.duration_min])
+      );
 
       // 3. บันทึก
       const response = await fetch(`/api/itinerary/trips/${tripId}`, {
@@ -388,6 +279,7 @@ export default function AutoTrip() {
         },
         body: JSON.stringify({
           days,
+          visit_durations,
         }),
       });
 
@@ -413,38 +305,38 @@ export default function AutoTrip() {
     }
   };
 
-  if (loading) {
+  if (!tripId || !session) {
     return (
       <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
         <Navbar />
-        <div className="flex flex-col items-center justify-center gap-3 px-4 py-24 text-center text-[color:var(--muted)]">
-          <Loader2 size={28} strokeWidth={1.75} className="animate-spin text-[color:var(--sky)]" />
-          <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">กำลังจัดทริปอัตโนมัติ</h2>
-          <p className="text-sm">ระบบกำลังวิเคราะห์สถานที่ และจัดลำดับเส้นทางที่เหมาะสม</p>
+        <div className="mx-auto max-w-xl px-4 py-16 text-center text-[color:var(--muted)]">
+          {!tripId ? "ไม่พบรหัสทริป" : "กรุณาเข้าสู่ระบบ"}
         </div>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (!data) {
     return (
       <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
         <Navbar />
         <div className="fade-in max-w-xl mx-auto px-4 py-16">
           <div className={`${cardClass} px-6 py-10 flex flex-col items-center gap-3 text-center`}>
-            <TriangleAlert size={40} strokeWidth={1.5} className="text-[color:var(--danger)]" />
-            <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">จัดทริปอัตโนมัติไม่สำเร็จ</h2>
-            <p className="text-sm text-[color:var(--muted)]">{error || "ไม่พบข้อมูลทริป"}</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-2">
-              <button onClick={handleBack} className={secondaryBtn}>
-                <ArrowLeft size={18} strokeWidth={1.75} />
-                กลับ
-              </button>
-              <button onClick={() => window.location.reload()} className={primaryBtn}>
-                <RotateCw size={18} strokeWidth={1.75} />
-                ลองอีกครั้ง
-              </button>
-            </div>
+            <h1 className="font-prompt font-semibold text-2xl text-[color:var(--navy)]">
+              กำหนดเวลาเที่ยว
+            </h1>
+            <AutoTripDurationForm
+              tripId={tripId}
+              accessToken={session.access_token}
+              onGenerated={(result) => {
+                setData(result);
+                setSelectedDay(0);
+              }}
+            />
+            <button onClick={handleBack} className={secondaryBtn}>
+              <ArrowLeft size={18} strokeWidth={1.75} />
+              กลับ
+            </button>
           </div>
         </div>
       </div>

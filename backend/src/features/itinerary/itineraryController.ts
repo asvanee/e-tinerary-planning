@@ -7,6 +7,7 @@ import {
   getOrCreateTripDays,
   getSelectedPlaces,
   getAutoTripPlaces,
+  getAutoTripCategories,
   AutoTripPlace,
   TripDay,
   TripOwnerAndStart,
@@ -20,6 +21,7 @@ import {
 } from "./itineraryBuilder";
 
 import { parseVisitDurations } from "./visitDurations";
+import { parseAutoTripDurations } from "./autoTripDurations";
 
 import {
   buildAutoTrip,
@@ -53,6 +55,16 @@ function toDayAssignment(day: TripDay, orderedPlaceIds: string[]): DayAssignment
 
 function errorMessage(err: unknown): string | undefined {
   return (err as { message?: string } | null)?.message;
+}
+
+function findMissingPlaceIds(
+  requestedIds: string[],
+  places: { placeId: string }[]
+): string[] {
+  const foundIds = new Set(places.map((place) => place.placeId.trim()));
+  return requestedIds
+    .map((id) => String(id).trim())
+    .filter((id) => !foundIds.has(id));
 }
 
 /**
@@ -115,9 +127,13 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
     }
 
     const places = await getSelectedPlaces(place_ids);
+    const missingPlaceIds = findMissingPlaceIds(place_ids, places);
 
-    if (places.length === 0) {
-      return res.status(400).json({ message: "ไม่พบข้อมูลสถานที่ที่เลือกในระบบ" });
+    if (missingPlaceIds.length > 0) {
+      return res.status(400).json({
+        message: "พบสถานที่บางแห่งไม่มีอยู่ในระบบ",
+        missing_place_ids: missingPlaceIds,
+      });
     }
 
     // ร่างแผนยังไม่มีเวลาที่ผู้ใช้กรอก (D-36) — editor ให้กรอกเอง
@@ -209,22 +225,45 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const allPlaceIds = Array.from(new Set(days.flatMap((day) => day.place_ids)));
+const allPlaceIds = Array.from(
+  new Set(
+    days.flatMap((day) =>
+      day.place_ids.map((id) => String(id).trim())
+    )
+  )
+);
 
-    const parsedDurations = parseVisitDurations(visit_durations, allPlaceIds);
-    if ("error" in parsedDurations) {
-      return res.status(400).json({ message: parsedDurations.error });
-    }
-    const { durations } = parsedDurations;
+// ตรวจสอบรหัสสถานที่เบื้องต้น
+if (allPlaceIds.some((id) => !id)) {
+  return res.status(400).json({
+    message: "พบรหัสสถานที่ว่าง กรุณาตรวจสอบข้อมูลที่ส่งมา",
+  });
+}
 
-    const places = await getSelectedPlaces(allPlaceIds);
+const parsedDurations = parseVisitDurations(
+  visit_durations,
+  allPlaceIds
+);
 
-    // สถานที่ที่ส่งมาต้องมีอยู่จริงในระบบครบทุกตัว
-    if (allPlaceIds.length > 0 && places.length !== allPlaceIds.length) {
-      return res.status(400).json({
-        message: "พบสถานที่บางแห่งไม่มีอยู่ในระบบ",
-      });
-    }
+if ("error" in parsedDurations) {
+  return res.status(400).json({
+    message: parsedDurations.error,
+  });
+}
+
+const { durations } = parsedDurations;
+
+const places = await getSelectedPlaces(allPlaceIds);
+const missingPlaceIds = findMissingPlaceIds(allPlaceIds, places);
+
+if (missingPlaceIds.length > 0) {
+  return res.status(400).json({
+    message: "พบสถานที่บางแห่งไม่มีอยู่ในระบบ",
+    missing_place_ids: missingPlaceIds,
+  });
+}
+
+
 
     const placesById = new Map<string, PlaceInput>(
       places.map((place) => [
@@ -491,64 +530,55 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
   }
 }
 
-/** "HH:mm" -> นาทีนับจาก 00:00 (null = รูปแบบไม่ถูกต้อง) */
-function parseTimeToMinutes(timeStr: string | null | undefined): number | null {
-  if (!timeStr) return null;
-  const parts = timeStr.split(":");
-  if (parts.length < 2) return null;
-  const hours = parseInt(parts[0], 10);
-  const minutes = parseInt(parts[1], 10);
-  if (isNaN(hours) || isNaN(minutes)) return null;
-  return hours * 60 + minutes;
-}
-
-/**
- * เช็กว่าช่วงเวลาเข้าชม (visitStart - visitEnd) อยู่ในเวลาเปิดหรือไม่ ไม่มีข้อมูล = ถือว่าเปิด
- * รองรับ string "08:00 - 17:00" หรือ object { open, close } / { start, end }
- * ⚠️ opening_hours จริงเป็นรูปแบบ Google ({ periods, weekday_text }) จึงคืน true เสมอ
- */
-function isOpenAt(openingHours: unknown, visitStartMin: number, visitEndMin: number): boolean {
-  if (!openingHours) return true;
-
-  if (typeof openingHours === "string") {
-    const times = openingHours.split("-").map((t) => t.trim());
-    if (times.length === 2) {
-      const openMin = parseTimeToMinutes(times[0]);
-      const closeMin = parseTimeToMinutes(times[1]);
-      if (openMin !== null && closeMin !== null) {
-        return visitStartMin >= openMin && visitEndMin <= closeMin;
-      }
-    }
-    return true;
-  }
-
-  if (typeof openingHours === "object") {
-    const hours = openingHours as Record<string, string | undefined>;
-    const openMin = parseTimeToMinutes(hours.open || hours.start);
-    const closeMin = parseTimeToMinutes(hours.close || hours.end);
-    if (openMin !== null && closeMin !== null) {
-      return visitStartMin >= openMin && visitEndMin <= closeMin;
-    }
-  }
-
-  return true;
-}
-
-function toAutoPlace(p: AutoTripPlace): AutoPlace {
+function toAutoPlace(
+  p: AutoTripPlace,
+  visitDurationMin: number
+): AutoPlace {
   return {
     place_id: String(p.placeId),
     place_name: String(p.placeName),
+    categoryId: String(p.categoryId),
     categoryName: p.categoryName ?? "",
     poiScore: Number(p.poiScore ?? 0),
     latitude: Number(p.latitude),
     longitude: Number(p.longitude),
     opening_hours: p.openingHours,
-    default_duration_min: p.defaultDurationMin ?? 60,
+    visitDurationMin,
   };
+}
+
+export async function getAutoTripCategoriesController(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const { tripId } = req.params;
+
+    if (!tripId || Array.isArray(tripId)) {
+      return res.status(400).json({ message: "ไม่พบรหัสทริป" });
+    }
+
+    const tripOwner = await loadOwnedTrip(tripId, req, res);
+    if (!tripOwner) return;
+
+    const categories = await getAutoTripCategories(tripId);
+
+    return res.status(200).json({
+      success: true,
+      categories,
+    });
+  } catch (error) {
+    console.error("getAutoTripCategoriesController error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "ไม่สามารถดึงประเภทสถานที่ได้",
+    });
+  }
 }
 
 /**
  * POST /api/itinerary/trips/:tripId/auto
+ * body: { visitDurationByCategory: { [categoryId]: นาที } }
  * จัดทริปอัตโนมัติจาก poi_scores ของทริป (1 สถานที่คะแนนสูงสุดต่อหมวด)
  */
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
@@ -588,38 +618,40 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       });
     }
 
-    const rawPlaces = await getAutoTripPlaces(tripId);
+    const categories = await getAutoTripCategories(tripId);
+    const categoryIds = categories.map((category) => category.categoryId);
+    const selectedCategoryIds = new Set(categoryIds);
+    const rawPlaces = (await getAutoTripPlaces(tripId)).filter((place) =>
+      selectedCategoryIds.has(place.categoryId)
+    );
 
-    if (!rawPlaces || rawPlaces.length === 0) {
+    if (rawPlaces.length === 0) {
       return res.status(400).json({
         message: "ไม่พบสถานที่ที่สามารถนำมาจัดทริปอัตโนมัติได้",
       });
     }
 
-    // เลือกสถานที่ที่ POI Score สูงสุดของแต่ละหมวด (เท่ากัน = ตัวแรกที่เจอ)
-    const categoryMap = new Map<string, AutoTripPlace>();
+    const requestBody = req.body as
+      | { visitDurationByCategory?: unknown }
+      | undefined;
+    const parsedDurations = parseAutoTripDurations(
+      requestBody?.visitDurationByCategory,
+      categoryIds
+    );
 
-    for (const place of rawPlaces) {
-      const catKey = String(place.categoryName ?? "unknown");
-      const existingPlace = categoryMap.get(catKey);
-
-      if (!existingPlace || Number(place.poiScore ?? 0) > Number(existingPlace.poiScore ?? 0)) {
-        categoryMap.set(catKey, place);
-      }
+    if ("error" in parsedDurations) {
+      return res.status(400).json({ message: parsedDurations.error });
     }
 
-    const topPlacesPerCategory = Array.from(categoryMap.values());
+    const placesWithDurations = rawPlaces.map((place) => {
+      const visitDurationMin = parsedDurations.durations.get(place.categoryId);
 
-    // กรองตามเวลาเปิด-ปิด ณ เวลาเริ่มเที่ยวของวัน — ถ้าไม่เหลือเลยใช้ทั้งหมดแทน
-    const tripStartTimeMin = parseTimeToMinutes(trip.start_time) ?? 540; // 09:00
-    const filteredPlaces = topPlacesPerCategory
-      .map(toAutoPlace)
-      .filter((p) =>
-        isOpenAt(p.opening_hours, tripStartTimeMin, tripStartTimeMin + p.default_duration_min)
-      );
+      if (visitDurationMin === undefined) {
+        throw new Error("ไม่พบเวลาเที่ยวของประเภทสถานที่");
+      }
 
-    const finalPlacesToUse: AutoPlace[] =
-      filteredPlaces.length > 0 ? filteredPlaces : topPlacesPerCategory.map(toAutoPlace);
+      return toAutoPlace(place, visitDurationMin);
+    });
 
     const tripInfo: TripInfo = {
       trip_id: String(trip.trip_id),
@@ -635,7 +667,13 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
           : null,
     };
 
-    const result = buildAutoTrip(tripInfo, finalPlacesToUse);
+    const result = buildAutoTrip(tripInfo, placesWithDurations);
+
+    if (result.selected_places.length === 0) {
+      return res.status(400).json({
+        message: "ไม่พบสถานที่ที่เปิดตามเวลาที่กำหนดในช่วงวันเดินทาง",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -649,7 +687,7 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
     console.error("buildAutoTripController error:", error);
     return res.status(500).json({
       success: false,
-      message: errorMessage(error) || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ",
+      message: "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ",
     });
   }
 }

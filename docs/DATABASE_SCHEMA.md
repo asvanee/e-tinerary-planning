@@ -140,10 +140,10 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `environment_type` | text | NOT NULL | CHECK `INDOOR` \| `OUTDOOR` \| `MIXED` |
 | `price_nature` | text | NOT NULL | CHECK `free` \| `paid` |
 | `parent_group` | text | NOT NULL | CHECK `HISTORY_CULTURE` \| `NATURE` \| `RECREATION` (กลุ่มใหญ่ ททท. — P5b 2026-10-22) |
-| ~~`default_duration_min`~~ | — | | **ลบคอลัมน์แล้ว 2026-10-22 (P5g)** — เวลาที่อยู่ผู้ใช้กรอกเอง (`itineraries.visit_duration_min` — D-36) · Auto Trip ของเพื่อนยังอ่านอยู่จนกว่าจะแก้ |
+| ~~`default_duration_min`~~ | — | | **ลบคอลัมน์แล้ว 2026-10-22 (P5g)** — เวลาเที่ยวมาจากค่าที่ผู้ใช้กรอก; Auto Trip ใช้ค่าต่อหมวดตอนจัดเส้นทางและบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` (D-36/D-43) |
 | `created_at` | timestamptz | | `now()` |
 
-### `place_categories` · **🗑️ ลบตารางแล้ว 2026-10-22 (R5 P5g — `docs/sql/2026-10-22_p5g_drop_legacy.sql`)** · ข้อมูลด้านล่างเป็นประวัติ · **ว่าง (0 แถว) ตั้งแต่ 2026-10-22** — ถูกลบตามหมวดเดิม (CASCADE) ใน P5b ชุดที่ 2 · สำรอง `backup_20261022_place_categories` (486) · ไม่ใช้แล้ว ลบตารางใน P5g · โค้ดที่ยังอ่าน: `getAutoTripPlaces` (ของเพื่อน — ได้ผลว่าง) · ใช้ในโค้ด: `poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`
+### `place_categories` · **🗑️ ลบตารางแล้ว 2026-10-22 (R5 P5g — `docs/sql/2026-10-22_p5g_drop_legacy.sql`)** · ข้อมูลด้านล่างเป็นประวัติ · **ว่าง (0 แถว) ตั้งแต่ 2026-10-22** — ถูกลบตามหมวดเดิม (CASCADE) ใน P5b ชุดที่ 2 · สำรอง `backup_20261022_place_categories` (486) · ไม่ใช้แล้วหลัง P5g · query หมวดปัจจุบันใช้ `places.category_labels → categories` (รวม `getAutoTripPlaces` ตั้งแต่ D-43)
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_categories_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
