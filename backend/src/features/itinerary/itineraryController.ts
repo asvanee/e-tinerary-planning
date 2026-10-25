@@ -532,7 +532,7 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
 
 function toAutoPlace(
   p: AutoTripPlace,
-  categoryTimeBudgetMin: number
+  requestedVisitDurationMin: number
 ): AutoPlace {
   return {
     place_id: String(p.placeId),
@@ -543,7 +543,7 @@ function toAutoPlace(
     latitude: Number(p.latitude),
     longitude: Number(p.longitude),
     opening_hours: p.openingHours,
-    categoryTimeBudgetMin,
+    requestedVisitDurationMin,
   };
 }
 
@@ -578,7 +578,7 @@ export async function getAutoTripCategoriesController(
 
 /**
  * POST /api/itinerary/trips/:tripId/auto
- * body: { visitDurationByCategory: { [categoryId]: เพดานเวลารวมเป็นนาที } }
+ * body: { visitDurationByCategory: { [categoryId]: เวลาเที่ยวต่อสถานที่เป็นนาที } }
  * จัดทริปอัตโนมัติจาก POI ของหมวดที่ผู้ใช้เลือก
  */
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
@@ -644,15 +644,13 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
     }
 
     const placesWithDurations = rawPlaces.map((place) => {
-      const categoryTimeBudgetMin = parsedDurations.durations.get(
-        place.categoryId
-      );
+      const requestedVisitDurationMin = parsedDurations.durations.get(place.categoryId);
 
-      if (categoryTimeBudgetMin === undefined) {
+      if (requestedVisitDurationMin === undefined) {
         throw new Error("ไม่พบเวลาเที่ยวของประเภทสถานที่");
       }
 
-      return toAutoPlace(place, categoryTimeBudgetMin);
+      return toAutoPlace(place, requestedVisitDurationMin);
     });
 
     const tripInfo: TripInfo = {

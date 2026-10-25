@@ -347,3 +347,14 @@
   - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+
+### D-48 · 2026-10-26 · ใช้เวลาเที่ยวที่กรอกแยกต่อสถานที่ใน Auto Trip
+- บริบท: ผู้ใช้ยืนยันว่าเวลาที่กรอกต่อหมวดหมายถึงเวลาเที่ยวต่อสถานที่ ไม่ใช่เวลาเฉลี่ยหรือเพดานรวมของหมวด (แทนที่ D-47)
+- ข้อสรุป:
+  - ตัวเลือก 30/60/90/120/150/180 นาทีเป็นเวลาเที่ยวต่อสถานที่ของหมวดนั้น; สถานที่ทุกแห่งในหมวดที่จัดได้ใช้เวลาที่เลือกแยกกัน ไม่หารเฉลี่ย และไม่รวมเวลาเดินทาง
+  - ใช้เฉพาะสถานที่ที่มี POI score ของทริปและจับคู่กับหมวดที่ผู้ใช้เลือก · สถานที่หนึ่งอาจจับคู่หลายหมวดได้ แต่ `place_id` เดียวกันห้ามถูกจัดซ้ำ
+  - เพิ่มสถานที่ตาม POI score จากมากไปน้อย; หลังเพิ่มจะลองจัดลำดับ nearest neighbor ใหม่และตำแหน่งแทรกที่เป็นไปได้ โดยแต่ละสถานที่ต้องพอดีกับเวลาที่เที่ยวได้ต่อวันและเวลาเปิด
+  - ถ้าเวลาเปิดหรือเวลาสิ้นสุดวันจำกัด อาจลดเวลาเที่ยวของจุดเท่าที่จำเป็น
+  - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`

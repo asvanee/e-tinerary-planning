@@ -1,7 +1,7 @@
 import { AutoPlace, buildAutoTrip, TripInfo } from "../autoTripBuilder";
 import { TRIP_START_ID } from "../../../utils/orsTravelMatrix";
 
-describe("buildAutoTrip category time budgets", () => {
+describe("buildAutoTrip per-place visit durations", () => {
   const trip: TripInfo = {
     trip_id: "trip-1",
     start_date: "2026-10-23",
@@ -16,7 +16,7 @@ describe("buildAutoTrip category time budgets", () => {
     periods: [{ open: { day: 5, time: open }, close: { day: 5, time: close } }],
   });
 
-  test("uses the category budget as the stop duration when there is no travel", () => {
+  test("uses the requested visit duration for a place when there is no travel", () => {
     const place: AutoPlace = {
       place_id: "place-1",
       place_name: "Place",
@@ -26,7 +26,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 90,
+      requestedVisitDurationMin: 90,
     };
 
     const result = buildAutoTrip(trip, [place]);
@@ -49,7 +49,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 60,
+      requestedVisitDurationMin: 60,
     };
 
     const result = buildAutoTrip(trip, [place]);
@@ -68,8 +68,8 @@ describe("buildAutoTrip category time budgets", () => {
       poiScore: 0.9,
       latitude: 18.8,
       longitude: 98.98,
-      opening_hours: fridayHours("1000", "1800"),
-      categoryTimeBudgetMin: 60,
+      opening_hours: fridayHours("1030", "1800"),
+      requestedVisitDurationMin: 60,
     };
     const openAtArrival: AutoPlace = {
       ...closedAtArrival,
@@ -101,7 +101,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 90,
+      requestedVisitDurationMin: 90,
     };
     const closedByArrival: AutoPlace = {
       ...firstCategoryPlace,
@@ -110,7 +110,7 @@ describe("buildAutoTrip category time budgets", () => {
       categoryName: "ธรรมชาติ",
       poiScore: 0.9,
       opening_hours: fridayHours("1000", "1020"),
-      categoryTimeBudgetMin: 30,
+      requestedVisitDurationMin: 30,
     };
     const openByArrival: AutoPlace = {
       ...closedByArrival,
@@ -150,7 +150,7 @@ describe("buildAutoTrip category time budgets", () => {
           { open: { day: 6, time: "0900" }, close: { day: 6, time: "1800" } },
         ],
       },
-      categoryTimeBudgetMin: 60,
+      requestedVisitDurationMin: 60,
     };
 
     const result = buildAutoTrip(multiDayTrip, [saturdayPlace]);
@@ -177,7 +177,7 @@ describe("buildAutoTrip category time budgets", () => {
           { open: { day: 6, time: "0900" }, close: { day: 6, time: "1800" } },
         ],
       },
-      categoryTimeBudgetMin: 60,
+      requestedVisitDurationMin: 60,
     };
 
     const result = buildAutoTrip(trip, [closedPlace]);
@@ -186,7 +186,7 @@ describe("buildAutoTrip category time budgets", () => {
     expect(result.days).toEqual([]);
   });
 
-  test("splits the remaining category budget across multiple unique places", () => {
+  test("applies the requested duration independently to every place in a category", () => {
     const firstPlace: AutoPlace = {
       place_id: "first-place",
       place_name: "First Place",
@@ -196,7 +196,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 120,
+      requestedVisitDurationMin: 120,
     };
     const secondPlace: AutoPlace = {
       ...firstPlace,
@@ -205,18 +205,21 @@ describe("buildAutoTrip category time budgets", () => {
       poiScore: 0.8,
     };
 
-    const result = buildAutoTrip(trip, [firstPlace, secondPlace]);
+    const result = buildAutoTrip(
+      { ...trip, available_time_per_day: 4 },
+      [firstPlace, secondPlace]
+    );
 
     expect(result.days[0].stops.map(({ place_id }) => place_id)).toEqual([
       "first-place",
       "second-place",
     ]);
     expect(result.days[0].stops.map(({ duration_min }) => duration_min)).toEqual([
-      60,
-      60,
+      120,
+      120,
     ]);
     expect(result.days[0].total_travel_time_min).toBe(0);
-    expect(result.days[0].total_visit_time_min).toBe(120);
+    expect(result.days[0].total_visit_time_min).toBe(240);
   });
 
   test("keeps travel time separate from the category visit-time budget", () => {
@@ -229,7 +232,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.95,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 60,
+      requestedVisitDurationMin: 60,
     };
 
     const result = buildAutoTrip(trip, [place]);
@@ -250,7 +253,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 90,
+      requestedVisitDurationMin: 90,
     };
 
     const result = buildAutoTrip(
@@ -285,7 +288,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 19.1,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 30,
+      requestedVisitDurationMin: 30,
     };
 
     const result = buildAutoTrip(
@@ -307,7 +310,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.9,
       longitude: 99.08,
       opening_hours: null,
-      categoryTimeBudgetMin: 60,
+      requestedVisitDurationMin: 60,
     };
     const nearerPlace: AutoPlace = {
       ...highScorePlace,
@@ -342,7 +345,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: null,
-      categoryTimeBudgetMin: 60,
+      requestedVisitDurationMin: 60,
     };
     const duplicateCategory = {
       ...place,
@@ -366,7 +369,7 @@ describe("buildAutoTrip category time budgets", () => {
       latitude: 18.8,
       longitude: 98.98,
       opening_hours: fridayHours("0900", "1000"),
-      categoryTimeBudgetMin: 120,
+      requestedVisitDurationMin: 120,
     };
     const secondPlace: AutoPlace = {
       ...firstPlace,

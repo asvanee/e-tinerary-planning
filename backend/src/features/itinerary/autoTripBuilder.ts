@@ -21,10 +21,10 @@ export interface AutoPlace {
   latitude: number;
   longitude: number;
   opening_hours: OpeningHours | null;
-  categoryTimeBudgetMin: number;
+  requestedVisitDurationMin: number;
 }
 
-interface ScheduledAutoPlace extends Omit<AutoPlace, "categoryTimeBudgetMin"> {
+interface ScheduledAutoPlace extends Omit<AutoPlace, "requestedVisitDurationMin"> {
   visitDurationMin: number;
 }
 
@@ -261,32 +261,9 @@ function evaluateSchedule(
   dates: Date[],
   travelMatrix?: TravelMatrix
 ): EvaluatedSchedule | null {
-  const categoryPlaces = new Map<string, AutoPlace[]>();
   const routeLegs = routes.map((route) =>
     getRouteLegs(route, trip.start_lat, trip.start_lng, travelMatrix)
   );
-
-  routes.forEach((route, dayIndex) => {
-    route.forEach((place) => {
-      const stops = categoryPlaces.get(place.categoryId) ?? [];
-      stops.push(place);
-      categoryPlaces.set(place.categoryId, stops);
-    });
-  });
-
-  const visitDurations = new Map<AutoPlace, number>();
-  for (const [categoryId, stops] of categoryPlaces) {
-    const budget = stops[0].categoryTimeBudgetMin;
-
-    // เวลาในงบหมวดคือเวลาเที่ยวเท่านั้น ไม่รวมเวลาเดินทางระหว่างจุด
-    const baseDuration = Math.floor(budget / stops.length);
-    let extraMinutes = budget % stops.length;
-
-    for (const stop of stops) {
-      visitDurations.set(stop, baseDuration + (extraMinutes > 0 ? 1 : 0));
-      extraMinutes--;
-    }
-  }
 
   const days: AutoTripDay[] = [];
   const selectedPlaces: ScheduledAutoPlace[] = [];
@@ -310,16 +287,13 @@ function evaluateSchedule(
     for (let stopIndex = 0; stopIndex < route.length; stopIndex++) {
       const place = route[stopIndex];
       const leg = routeLegs[dayIndex][stopIndex];
-      const requestedDuration = visitDurations.get(place);
-
-      if (requestedDuration === undefined) return null;
 
       const arrivalTime = currentTime + leg.travelTimeMin;
       const durationMin = getFeasibleVisitDuration(
         place,
         date.getUTCDay(),
         arrivalTime,
-        requestedDuration,
+        place.requestedVisitDurationMin,
         dayEnd
       );
       if (durationMin < 1) return null;
