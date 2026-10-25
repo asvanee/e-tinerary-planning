@@ -83,7 +83,11 @@ export default function App() {
 
           <Route
             path="/trip/:tripId/auto"
-            element={<AutoTrip />}
+            element={
+              <ProtectedRoute>
+                <AutoTrip />
+              </ProtectedRoute>
+            }
           />
 
         <Route

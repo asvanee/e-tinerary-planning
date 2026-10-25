@@ -2,9 +2,10 @@ import { Router } from "express";
 import {
   buildDraft,
   confirmItinerary,
-  getAutoTripPlacesTest,
   getSavedItinerary,
+  getAutoTripPlacesTest,
   buildAutoTripController,
+  getAutoTripCategoriesController,
 } from "./itineraryController";
 import { requireAuth } from "../auth/authMiddleware";
 
@@ -22,7 +23,14 @@ router.put("/trips/:tripId", requireAuth, confirmItinerary);
 // 4. สถานที่ที่ Auto Trip จะใช้ (หน้า TripRecommendations เช็คก่อนเปิดหน้า Auto Trip)
 router.get("/trips/:tripId/auto-places", requireAuth, getAutoTripPlacesTest);
 
-// 5. จัดทริปอัตโนมัติ (Auto Trip)
+// 5. ดึงประเภทสถานที่สำหรับ Auto Trip (ใช้สร้างช่องกรอกเวลาที่ Frontend)
+router.get(
+  "/trips/:tripId/auto/categories",
+  requireAuth,
+  getAutoTripCategoriesController
+);
+
+// 6. จัดทริปอัตโนมัติ (Auto Trip)
 router.post("/trips/:tripId/auto", requireAuth, buildAutoTripController);
 
 export default router;

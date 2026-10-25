@@ -72,7 +72,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | Package | คำสั่ง (มีอยู่จริงใน scripts) | หมายเหตุ |
 |---|---|---|
 | backend | `npm run dev` → `ts-node-dev --respawn --transpile-only src/server.ts` | port จาก `PORT` (default 5000); ถ้าเชื่อม Supabase ไม่ได้จะ `process.exit(1)` |
-| backend | `npm test` → `jest` | test ของ admin pipeline (dedupe) |
+| backend | `npm test` → `jest` | test ของ admin pipeline, trip และ itinerary |
 | backend | — | **ไม่มี** script `build` / `start` / `lint` (ตรวจ type ได้ด้วย `npx tsc --noEmit`) |
 | frontend | `npm run dev` (vite), `npm run build` (`tsc -b && vite build`), `npm run lint`, `npm run preview`, `npm test` (`vitest run`) | dev proxy `/api` → `localhost:5000` |
 
@@ -84,9 +84,9 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/register`, `/login`, `/confirm-email` | `features/auth/...` | – |
 | `/home` | `features/home/home.tsx` | ✓ |
 | `/trip/create`, `/trip/:tripId/edit` | `features/trip/create/createTrip.tsx` (ใช้ซ้ำสำหรับแก้ไข) | ✓ |
-| `/trip/:tripId/recommendations` | `TripRecommendations.tsx` (+ `RecommendationMap.tsx`) | ✓ |
+| `/trip/:tripId/recommendations` | `TripRecommendations.tsx` + `RecommendationMap.tsx` — คำนวณและแสดงสถานที่แนะนำพร้อม POI Score | ✓ |
 | `/trip/:tripId/editor` | `ItineraryEditor.tsx` (รับข้อมูลผ่าน router state) | ✓ |
-| `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` | **✗ ไม่ได้ครอบ `ProtectedRoute`** (แต่ภายในหน้าจะ redirect ไป `/login` ถ้าไม่มี session) |
+| `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` — กรอกเวลาเที่ยวต่อ category ก่อนจัดทริป | ✓ |
 | `/trip/:tripId/detail` | `TripDetail.tsx` | ✓ |
 | `/trips` | `MyTrips.tsx` | ✓ |
 | `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
@@ -110,7 +110,8 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/itinerary/trips/:tripId` | ✓ | `getSavedItinerary` |
 | PUT `/api/itinerary/trips/:tripId` | ✓ | `confirmItinerary` |
 | GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
-| POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` |
+| GET `/api/itinerary/trips/:tripId/auto/categories` | ✓ | `getAutoTripCategoriesController` — เช็คเจ้าของทริป · คืนหมวดที่เลือกจาก `trip_categories` |
+| POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` — body `{ visitDurationByCategory: { [categoryId]: นาที } }` (30/60/90/120/150/180 นาที — D-44) |
 | GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
 | GET `/api/admin/categories` | ✓ + admin | `admin/categories/categoryController.getAdminCategories` — 29 หมวด + ป้ายในแต่ละหมวด + จำนวนสถานที่ต่อป้าย (R5 P5e) |
 | PUT `/api/admin/categories/:categoryId` | ✓ + admin | `putCategory` — body `{ category_name, parent_group, environment_type, price_nature }` (ครบทุกช่อง, `categoryInput.ts`) · ชื่อซ้ำ 409 · คืนรายการล่าสุด |
@@ -134,7 +135,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 
 `users`, `trips`, `trip_categories`, `trip_days`, `categories`, `category_labels`, `places`, `poi_scores`, `itineraries`
 
-คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `itineraries.visit_duration_min` (เวลาที่ผู้ใช้กรอก — D-36) · `categories.default_duration_min` และตาราง `place_categories` ลบแล้ว (P5g — Auto Trip ของเพื่อนยังอ่านอยู่), `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
+คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `itineraries.visit_duration_min` (เวลาที่ผู้ใช้กรอก — D-36/D-43) · `categories.default_duration_min` และตาราง `place_categories` ถูกลบใน P5g; Auto Trip โหลดหมวดที่เลือกจาก `trip_categories` และจับคู่สถานที่ผ่าน `category_labels` (D-45) แล้วบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` · `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
 **Schema จริง, RLS, FK/CASCADE:** ดู [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) (snapshot 2026-10-18 + การเปลี่ยนแปลงหลังจากนั้น: PK ทุกตารางเป็น uuid — T23) · RLS ปิดทุกตารางเดิม · FK ส่วนใหญ่ `ON DELETE CASCADE`
 
 ## 8. บริการภายนอก

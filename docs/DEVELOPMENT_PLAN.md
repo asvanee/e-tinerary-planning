@@ -160,6 +160,7 @@
 
 ### ✂️ T6. ทำ Auto Trip ให้เสร็จ — P1 (commit `44d26dd` ระบุว่า "not done yet")
 - ✂️ **ตัดออก 2026-10-22 (D-42) — ไม่ใช่งานของเรา:** เพื่อนรับ Auto Trip ไป (รวม Known Issue #9–12, #32–34) · ไม่แตะโค้ด Auto Trip
+- **ข้อยกเว้นเฉพาะส่วน (D-43, 2026-10-23):** ผู้ใช้อนุมัติให้ต่อ flow กรอกเวลาเที่ยวต่อหมวดและส่งเวลาตอนยืนยันแผน · งาน Auto Trip ส่วนอื่นยังอยู่นอกขอบเขตตาม D-42
 - **ไฟล์:** `autoTripBuilder.ts`, `itineraryController.buildAutoTripController`, `itineraryPlaceQueries.getAutoTripPlaces`, `auto.tsx`, `App.tsx`
 - **สิ่งที่ต้องทำ (ข้อเสนอ):**
   1. ใช้ `checkOpeningStatus()` จาก `utils/openingHoursChecker.ts` แทน `isOpenAt`/`isPlaceOpen` (Known Issue #9)
