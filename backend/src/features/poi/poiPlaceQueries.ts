@@ -49,15 +49,22 @@ export interface PlaceWithScore {
 
   // ค่าของหมวดที่ได้จากป้าย ททท. ของสถานที่ (1 สถานที่ = 1 หมวด — D-35)
   priceNature: PriceNature;
-  // ไม่มี confidence แล้ว (D-38) — เป็น null เสมอ calculateCategoryScore จึงได้ 1.0 ทุกที่ (สูตรรอทีม D-23)
-  confidenceScore: number | null;
+  categoryId: string;
+  // true = อยู่ในหมวดที่ผู้ใช้เลือก · false = หมวดอื่นที่เติมเข้ามา · null = ผู้ใช้ไม่ได้เลือกหมวด (D-48)
+  categoryMatch: boolean | null;
   categoryName: string;
   environmentType: EnvironmentType; // ใช้คำนวณ weather_score
 }
 
+// จำนวนสถานที่แนะนำที่แสดง และเกณฑ์ว่าหมวดที่เลือกมี "พอ" หรือไม่ (D-48)
+export const POI_RESULT_LIMIT = 50;
+
 interface FilteredPlacesResult {
   places: PlaceWithScore[];
-  categoryFallbackUsed: boolean; // true = มี category_ids แต่กรองแล้วเหลือ 0 ที่ เลยตัด category filter ออก
+  // จำนวนสถานที่ที่ตรงหมวดที่เลือก (หลังกรองงบ) · null = ผู้ใช้ไม่ได้เลือกหมวด
+  categoryMatchCount: number | null;
+  // true = ตรงหมวดไม่ถึง POI_RESULT_LIMIT จึงเติมสถานที่หมวดอื่นในพื้นที่เข้ามาคิดคะแนนด้วย
+  categoryFilled: boolean;
 }
 
 /**
@@ -94,10 +101,13 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
 /**
  * Pipeline กรองสถานที่ ทำตามลำดับ ห้ามสลับ:
  * 1. province (บังคับเสมอ) + AND district ถ้า user ระบุมา
- * 2. category (ถ้า user เลือกไว้) พร้อม fallback ถ้ากรองแล้วเหลือ 0 ที่
- * 3. งบ (hard filter): ตัดสถานที่ที่ place_cost > daily_budget
+ * 2. งบ (hard filter): ตัดสถานที่ที่ place_cost > daily_budget
  *    (ข้ามถ้าไม่ได้ใช้งบ หรือเป็น paid ที่ไม่มีราคาจริง — ไม่เดาราคาแทน user)
+ * 3. category (ถ้า user เลือกไว้ — D-48): นับสถานที่ที่ตรงหมวด (หลังกรองงบ)
+ *    - ตรง ≥ POI_RESULT_LIMIT → เหลือเฉพาะที่ตรงหมวด
+ *    - ตรง < POI_RESULT_LIMIT (รวม 0) → เก็บทุกที่ในพื้นที่ ที่ไม่ตรงหมวดได้ category_score 0
  * (ขั้นกรองเวลาเดิมตัดออกแล้ว — D-38: เวลาที่อยู่ผู้ใช้กรอกเอง ตรวจใน ItineraryEditor)
+ * ผลลัพธ์เหมือนกรองหมวดก่อนงบ เพราะงบตัดรายสถานที่ไม่ขึ้นกับหมวด — แต่ต้องนับหมวดหลังงบ
  */
 export async function getFilteredPlaces(
   tripId: string,
@@ -105,7 +115,7 @@ export async function getFilteredPlaces(
 ): Promise<FilteredPlacesResult> {
   // กันข้อมูลเก่าที่ไม่มี province (ปัจจุบันบังคับกรอกเสมอ)
   if (!trip.province) {
-    return { places: [], categoryFallbackUsed: false };
+    return { places: [], categoryMatchCount: null, categoryFilled: false };
   }
 
   const locationFilter: LocationFilter = {
@@ -113,7 +123,6 @@ export async function getFilteredPlaces(
     district: trip.district, // null = กรองแค่ province
   };
 
-  // ---- ขั้น 1-2: province (+district ถ้ามี) + category (พร้อม fallback) ----
   const { data: tripCategories, error: tripCategoriesError } = await supabase
     .from("trip_categories")
     .select("category_id")
@@ -125,29 +134,14 @@ export async function getFilteredPlaces(
     );
   }
 
-  const categoryIds = (tripCategories ?? []).map((row) => row.category_id);
+  const categoryIds = new Set(
+    (tripCategories ?? []).map((row) => row.category_id as string)
+  );
 
-  let places: PlaceWithScore[];
-  let categoryFallbackUsed = false;
+  // ---- ขั้น 1: province (+district ถ้ามี) ----
+  let places = await queryPlacesWithCategoryInfo(locationFilter);
 
-  if (categoryIds.length === 0) {
-    places = await queryPlacesWithCategoryInfo(locationFilter, null);
-  } else {
-    const placesWithCategory = await queryPlacesWithCategoryInfo(
-      locationFilter,
-      categoryIds
-    );
-
-    if (placesWithCategory.length > 0) {
-      places = placesWithCategory;
-    } else {
-      // Fallback: กรองแล้วเหลือ 0 ที่ -> ตัด category filter ออก (location เดิม ไม่ตัด district)
-      places = await queryPlacesWithCategoryInfo(locationFilter, null);
-      categoryFallbackUsed = true;
-    }
-  }
-
-  // ---- ขั้น 3: กรองงบ (hard filter) ----
+  // ---- ขั้น 2: กรองงบ (hard filter) ----
   // ⚠️ ห้ามหาร numberOfPeople ตรงนี้ — trips.daily_budget เป็นค่าที่ frontend คำนวณตาม
   // budget_scope/budget_period มาแล้ว ต้องเทียบตรงๆ ให้ตรงกับ itineraryBuilder.ts
   // (เทียบ cumulativeCost กับ day.dailyBudget) ไม่งั้นผลตอนเลือก POI กับตอนจัดแผนจะขัดกัน
@@ -163,7 +157,23 @@ export async function getFilteredPlaces(
     });
   }
 
-  return { places, categoryFallbackUsed };
+  // ---- ขั้น 3: หมวด (D-48) ----
+  if (categoryIds.size === 0) {
+    return { places, categoryMatchCount: null, categoryFilled: false };
+  }
+
+  places = places.map((place) => ({
+    ...place,
+    categoryMatch: categoryIds.has(place.categoryId),
+  }));
+
+  const matched = places.filter((place) => place.categoryMatch);
+
+  if (matched.length >= POI_RESULT_LIMIT) {
+    return { places: matched, categoryMatchCount: matched.length, categoryFilled: false };
+  }
+
+  return { places, categoryMatchCount: matched.length, categoryFilled: true };
 }
 
 interface LocationFilter {
@@ -178,6 +188,7 @@ interface PlaceCategoryRow {
   rating: number | null;
   price_level: number | null;
   category_labels: {
+    category_id: string;
     categories: {
       price_nature: PriceNature;
       category_name: string;
@@ -189,26 +200,20 @@ interface PlaceCategoryRow {
 /**
  * หมวดของสถานที่มาจากป้าย ททท.: places.att_type_label -> category_labels -> categories (D-35, D-39)
  * `!inner` ตัดสถานที่ที่ไม่มีป้าย/หมวดออก · 1 สถานที่ได้ 1 แถวเสมอ
- * categoryIds = null -> ไม่กรอง category ใช้แค่ location (province + district ถ้ามี)
- * categoryIds = string[] -> กรองทั้ง location และหมวด IN (...)
+ * กรองแค่ location (province + district ถ้ามี) — การจับคู่หมวดทำใน getFilteredPlaces (D-48)
  */
 async function queryPlacesWithCategoryInfo(
-  locationFilter: LocationFilter,
-  categoryIds: string[] | null
+  locationFilter: LocationFilter
 ): Promise<PlaceWithScore[]> {
   let query = supabase
     .from("places")
     .select(
-      "place_id, latitude, longitude, rating, price_level, category_labels!inner(categories!inner(price_nature, category_name, environment_type))"
+      "place_id, latitude, longitude, rating, price_level, category_labels!inner(category_id, categories!inner(price_nature, category_name, environment_type))"
     )
     .eq("province", locationFilter.province);
 
   if (locationFilter.district) {
     query = query.eq("district", locationFilter.district);
-  }
-
-  if (categoryIds !== null) {
-    query = query.in("category_labels.category_id", categoryIds);
   }
 
   const { data, error } = await query;
@@ -238,7 +243,8 @@ async function queryPlacesWithCategoryInfo(
       rawPriceLevel,
       priceNature,
 
-      confidenceScore: null,
+      categoryId: row.category_labels.category_id,
+      categoryMatch: null, // getFilteredPlaces ใส่ค่าจริงเมื่อผู้ใช้เลือกหมวด
 
       categoryName: category.category_name,
 

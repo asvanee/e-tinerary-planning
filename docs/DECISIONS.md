@@ -342,3 +342,15 @@
 - ข้อสรุป (ผู้ใช้เลือก): หน้าสมัครสมาชิกเหลือ ชื่อผู้ใช้ / อีเมล / รหัสผ่าน · `register` เลิกรับและ insert `age`, `gender` · ลบคอลัมน์ `users.age`, `users.gender` ด้วย SQL ที่ผู้ใช้รันเอง ไม่สำรองข้อมูล (มีแต่บัญชีทดสอบ)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/auth/authController.ts`, `frontend/src/features/auth/register/register.tsx`, `frontend/src/system/auth/AuthContext.tsx`, `docs/sql/2026-10-25_drop_users_age_gender.sql`, `docs/DATABASE_SCHEMA.md`
+
+### D-48 · 2026-10-25 · category score: เติมหมวดอื่นเมื่อหมวดที่เลือกมีไม่ถึง 50 ที่ (R1 — แทนที่ D-38 ข้อ fallback หมวด)
+- บริบท: หลัง D-35/D-38 สถานที่มี 1 หมวด และ `category_score` เป็น 1.0 ทุกที่ หมวดจึงเป็นแค่ hard filter · ถ้าหมวดที่เลือกมีไม่ถึง Top 50 (เช่น น่าน "จุดชมวิว" 11 แห่ง) หน้าแนะนำแสดงแค่นั้น · วาวิจัยแล้วว่าจุดนี้คือที่ที่ category score ต้องทำงาน
+- ข้อสรุป (ผู้ใช้เลือก):
+  - `category_score`: ตรงหมวดที่เลือก (หมวดใดหมวดหนึ่ง) = 1 · ไม่ตรง = 0 · ไม่ได้เลือกหมวด = ตัด category ออกจากสูตร (แบ่ง weight 0.35 คืนให้ rating/distance/weather ตามสัดส่วน แบบเดียวกับตอนไม่ใช้งบ) และเก็บ `poi_scores.category_score` เป็น null
+  - ลำดับ: province → งบ → หมวด · นับจำนวนที่ตรงหมวด **หลังกรองงบ** — ≥ 50 ที่ เหลือเฉพาะที่ตรงหมวด (เหมือนเดิม) · < 50 ที่ (รวม 0 — แทน `categoryFallbackUsed`) เก็บทุกที่ในพื้นที่ แล้วเรียงทั้งหมดตาม POI Score อย่างเดียว (สถานที่ตรงหมวดที่คะแนนด้านอื่นต่ำอาจหลุด Top 50 ได้)
+  - น้ำหนักสูตรคงเดิม (0.35 / 0.25 / 0.15 / 0.15 / 0.10)
+  - response เปลี่ยนจาก `categoryFallbackUsed` เป็น `categoryMatchCount` + `categoryFilled` · หน้าแนะนำแสดง "ตรง/นอกหมวดหมู่ที่เลือก" และข้อความแจ้งเมื่อมีการเติม
+  - แก้พร้อมกัน: หลัง upsert Top 50 ลบแถว `poi_scores` ของทริปที่หลุดจากผลรอบนี้ (เดิมค้างอยู่ และ Auto Trip อ่านทุกแถว)
+- ผลที่ยอมรับ: `poi_scores` ของทริปที่หมวดไม่ถึง 50 มีสถานที่หมวดอื่นปนอยู่ — Auto Trip (กิ่ง) อ่านทุกแถว ต้องให้กิ่งตรวจว่าจัดเฉพาะหมวดของทริปหรือไม่
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/poi/poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `__tests__/poiScoreCalculator.test.ts`, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-25_poi_category_score_nullable.sql`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_PLAN.md`, skill `supabase-data-access`

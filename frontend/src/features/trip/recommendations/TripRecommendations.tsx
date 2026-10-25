@@ -23,7 +23,8 @@ type DistanceSource = "ors" | "haversine" | "mixed";
 interface PoiResult {
   placeId: string;
   categoryName: string;
-  categoryScore: number;
+  // 1 = ตรงหมวดที่เลือก · 0 = หมวดอื่นที่เติมเข้ามา · null = ไม่ได้เลือกหมวด (D-48)
+  categoryScore: number | null;
   ratingScore: number;
   distanceScore: number;
   budgetScore: number | null;
@@ -179,7 +180,8 @@ export default function TripRecommendations() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [categoryFallbackUsed, setCategoryFallbackUsed] = useState(false);
+  // จำนวนที่ตรงหมวดที่เลือก — มีค่าเมื่อหมวดที่เลือกมีไม่ถึง 50 แห่ง และระบบเติมหมวดอื่น (D-48)
+  const [filledMatchCount, setFilledMatchCount] = useState<number | null>(null);
   const [distanceSource, setDistanceSource] = useState<DistanceSource | null>(null);
 
   // State สำหรับเก็บรายการสถานที่ทั้งหมด
@@ -273,7 +275,7 @@ export default function TripRecommendations() {
         }
 
         const results: PoiResult[] = poiData.results ?? [];
-        setCategoryFallbackUsed(!!poiData.categoryFallbackUsed);
+        setFilledMatchCount(poiData.categoryFilled ? poiData.categoryMatchCount ?? 0 : null);
         setDistanceSource(poiData.distanceSource ?? null);
 
         if (results.length === 0) {
@@ -602,7 +604,11 @@ export default function TripRecommendations() {
           )}
 
           <div className="mt-3 pt-3 border-t border-[color:var(--line)] flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-[color:var(--muted)]">
-            <Metric icon={Tag}>ตรงหมวดหมู่ {(item.categoryScore * 100).toFixed(0)}%</Metric>
+            {item.categoryScore !== null && (
+              <Metric icon={Tag}>
+                {item.categoryScore === 1 ? "ตรงหมวดหมู่ที่เลือก" : "นอกหมวดหมู่ที่เลือก"}
+              </Metric>
+            )}
             <Metric icon={Star}>รีวิว {(item.ratingScore * 5).toFixed(1)}/5</Metric>
             <Metric
               icon={Navigation}
@@ -693,10 +699,14 @@ export default function TripRecommendations() {
           </p>
         </div>
 
-        {categoryFallbackUsed && (
+        {filledMatchCount !== null && (
           <p className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-4 bg-white border border-[color:var(--sky)] text-[color:var(--deep)]">
             <Info size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
-            <span>ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในจังหวัดนี้ ระบบจึงแสดงผลแบบตรงใจน้อยลง</span>
+            <span>
+              {filledMatchCount === 0
+                ? "ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในพื้นที่นี้ ระบบจึงแนะนำสถานที่หมวดอื่นแทน"
+                : `หมวดหมู่ที่เลือกมีสถานที่ ${filledMatchCount} แห่งในพื้นที่นี้ ระบบจึงเพิ่มสถานที่หมวดอื่นมาแนะนำด้วย`}
+            </span>
           </p>
         )}
 

@@ -50,9 +50,10 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 ### 2.3 POI Recommendation (`features/poi/`)
 pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับนี้ (ตามที่ comment ระบุ):
 1. กรอง province (บังคับ) แล้ว AND กับ district ถ้ามี
-2. กรอง category ที่ผู้ใช้เลือก ถ้าเหลือ 0 ที่ ให้ fallback เป็นไม่กรอง category (`categoryFallbackUsed`)
-3. Hard filter งบ: ตัดที่ที่ `PRICE_LEVEL_TO_BAHT[priceLevel] > dailyBudget` ทิ้ง (ถ้าเป็น paid และไม่มีราคา ให้ปล่อยผ่าน)
+2. Hard filter งบ: ตัดที่ที่ `PRICE_LEVEL_TO_BAHT[priceLevel] > dailyBudget` ทิ้ง (ถ้าเป็น paid และไม่มีราคา ให้ปล่อยผ่าน)
+3. หมวด (D-48): ถ้าผู้ใช้เลือกหมวด นับสถานที่ที่ตรงหมวด (หลังกรองงบ) — ≥ 50 ที่ เหลือเฉพาะที่ตรงหมวด · < 50 ที่ (รวม 0) เก็บทุกที่ในพื้นที่ ที่ไม่ตรงหมวดได้ `category_score` 0 (`categoryMatchCount`, `categoryFilled`) · ไม่ได้เลือกหมวด = ตัด category ออกจากสูตร
 (ขั้นที่ 4 hard filter เวลาเดิม ตัดออกแล้ว 2026-10-22 — D-38, R5 P5c)
+หลังคำนวณจะ upsert Top 50 ลง `poi_scores` แล้วลบแถวของทริปที่หลุดจากผลรอบนี้
 
 จากนั้นคำนวณระยะทางถนนจากจุดเริ่มต้น (ORS ถ้าใช้ไม่ได้ใช้ haversine) และโอกาสฝนเฉลี่ยตาม grid 0.1° แล้วจึงคำนวณ `calculatePoiScore()`
 

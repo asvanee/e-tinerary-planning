@@ -106,7 +106,8 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `poi_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
 | `trip_id` | uuid | NOT NULL | FK → `trips` CASCADE · UNIQUE (`trip_id`, `place_id`) |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE |
-| `category_score` / `rating_score` / `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
+| `category_score` | numeric | | (D-48: null = ผู้ใช้ไม่ได้เลือกหมวด · 1 = ตรงหมวด · 0 = หมวดอื่นที่เติมเข้ามา — ✅ ผู้ใช้รัน `docs/sql/2026-10-25_poi_category_score_nullable.sql` แล้ว 2026-10-25 — Claude ตรวจ: ทริปทดสอบที่ไม่เลือกหมวดบันทึก null ได้ 50 แถว) |
+| `rating_score` / `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
 | `budget_score` | numeric | | |
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |

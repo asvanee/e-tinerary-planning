@@ -12,18 +12,14 @@ import type { PriceNature, EnvironmentType } from "./poiPlaceQueries";
 // ---------- คะแนนรายด้าน ----------
 
 /**
- * category_score: ถ้าไม่ได้เลือก category เลย (confidenceScore = null) → default 1.0 ไม่ตัดคะแนน
- * ถ้าเลือกแล้ว match → ใช้ confidence_score ตรงๆ
- * ✅ แก้คอมเมนต์ (ของเดิมเข้าใจผิด): place หนึ่งมีได้หลาย category จริง (ดู
- * DATA_PREPARATION_4.md หัวข้อ 8.2 — เชียงใหม่ผ่าน Stage 3 แล้ว 429/429) แต่ฟังก์ชันนี้
- * ไม่ต้องรู้เรื่อง multi-category เลย เพราะ MAX aggregation (เลือก confidence_score สูงสุด
- * ต่อ place เมื่อแมทช์ได้หลาย category) ทำเสร็จแล้วตั้งแต่ต้นทางใน
- * queryPlacesWithCategoryInfo() (poiPlaceQueries.ts) — confidenceScore ที่ส่งเข้ามาที่นี่
- * จึงเป็นค่า best-match เดียวเสมอ ไม่ใช่ raw score ดิบที่อาจมีหลายค่าต่อ place
+ * category_score (D-48): 1 สถานที่ = 1 หมวด (D-39)
+ * - categoryMatch = true  → หมวดของสถานที่อยู่ในหมวดที่ผู้ใช้เลือก (หมวดใดหมวดหนึ่ง) → 1
+ * - categoryMatch = false → ไม่อยู่ในหมวดที่เลือก (ถูกเติมเข้ามาเพราะหมวดที่เลือกมีไม่ถึง 50 ที่) → 0
+ * - categoryMatch = null  → ผู้ใช้ไม่ได้เลือกหมวด → null = ตัด category ออกจากสูตร
  */
-export function calculateCategoryScore(confidenceScore: number | null): number {
-  if (confidenceScore === null) return 1.0;
-  return confidenceScore;
+export function calculateCategoryScore(categoryMatch: boolean | null): number | null {
+  if (categoryMatch === null) return null;
+  return categoryMatch ? 1 : 0;
 }
 
 /**
@@ -156,23 +152,25 @@ const WEIGHTS = {
   weather: 0.1,
 };
 
-const REMAINING_BASE_SUM =
-  WEIGHTS.category + WEIGHTS.rating + WEIGHTS.distance + WEIGHTS.weather; // 0.85
-
 /**
  * ✅ Generalize จาก WEIGHTS_NO_BUDGET เดิม (ที่รองรับแค่ 0 หรือ 0.15) ให้รับ budgetWeight
  * เป็นเศษส่วนใดก็ได้ระหว่าง 0-0.15 (ค่าที่เป็นไปได้จริงตอนนี้มี 2 ค่า: 0, 0.15 — เขียน
- * เป็นสูตรทั่วไปไว้เผื่ออนาคตมีค่าอื่นเพิ่ม) กระจายส่วนต่างคืนให้ 4 มิติที่เหลือตามสัดส่วนเดิม
+ * เป็นสูตรทั่วไปไว้เผื่ออนาคตมีค่าอื่นเพิ่ม) กระจายส่วนต่างคืนให้มิติที่เหลือตามสัดส่วนเดิม
  * ของมันเอง (renormalize ให้ผลรวม weight กลับมาเป็น 1 พอดีเสมอ)
  *
  * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> เหมือนสูตรเดิมทุกประการ (ไม่กระทบ real/inferred_high)
  * budgetWeight = 0    (ตัดทิ้ง) -> เหมือน WEIGHTS_NO_BUDGET เดิมทุกประการ (useBudget=false หรือ
  * paid+missing)
+ * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) -> ตัด category ออก แล้วกระจาย
+ * weight ของมันคืนให้ rating/distance/weather ด้วยวิธีเดียวกัน
  */
-function computeWeights(budgetWeight: number) {
-  const scale = (1 - budgetWeight) / REMAINING_BASE_SUM;
+function computeWeights(budgetWeight: number, includeCategory: boolean) {
+  const category = includeCategory ? WEIGHTS.category : 0;
+  const scale =
+    (1 - budgetWeight) /
+    (category + WEIGHTS.rating + WEIGHTS.distance + WEIGHTS.weather);
   return {
-    category: WEIGHTS.category * scale,
+    category: category * scale,
     rating: WEIGHTS.rating * scale,
     distance: WEIGHTS.distance * scale,
     weather: WEIGHTS.weather * scale,
@@ -181,7 +179,8 @@ function computeWeights(budgetWeight: number) {
 }
 
 export interface PoiScoreBreakdown {
-  categoryScore: number;
+  // null = ผู้ใช้ไม่ได้เลือกหมวด ไม่ได้คิดในสูตร (D-48)
+  categoryScore: number | null;
   ratingScore: number;
   distanceScore: number;
   // ✅ v2: ยังชื่อ budgetScore ตามเดิม (ลดจุดที่ต้องแก้ไฟล์อื่นที่ยังไม่เปิดดู เช่น
@@ -215,7 +214,7 @@ export interface PoiScoreBreakdown {
  * รับ input แบบ primitive ตรงๆ ไม่ใช่ object ก้อนใหญ่ ตามที่ตกลงกัน
  */
 export function calculatePoiScore(
-  confidenceScore: number | null,
+  categoryMatch: boolean | null, // null = ผู้ใช้ไม่ได้เลือกหมวด (D-48)
   rating: number | null,
   distanceKm: number, // ✅ ระยะทางถนนจากจุดเริ่มต้น (km) — คำนวณนอกฟังก์ชันนี้ทีเดียวทั้งก้อน
   dailyBudget: number | null,
@@ -228,7 +227,8 @@ export function calculatePoiScore(
   environmentType: EnvironmentType,
   rainProbability: number | null
 ): PoiScoreBreakdown {
-  const categoryScore = calculateCategoryScore(confidenceScore);
+  const categoryScore = calculateCategoryScore(categoryMatch);
+  const includeCategory = categoryScore !== null;
   const ratingScore = calculateRatingScore(rating);
   const distanceScore = calculateDistanceScore(distanceKm);
   const weatherScore = calculateWeatherScore(environmentType, rainProbability);
@@ -241,9 +241,9 @@ export function calculatePoiScore(
     dailyBudget === null ? null : dailyBudget / numberOfPeople;
 
   if (!useBudget) {
-    const weights = computeWeights(0);
+    const weights = computeWeights(0, includeCategory);
     const poiScore =
-      weights.category * categoryScore +
+      weights.category * (categoryScore ?? 0) +
       weights.rating * ratingScore +
       weights.distance * distanceScore +
       weights.weather * weatherScore;
@@ -264,10 +264,10 @@ export function calculatePoiScore(
   const { score: budgetScore, weight: budgetWeight, confidence } =
     calculatePriceScore(rawPriceLevel, priceNature);
 
-  const weights = computeWeights(budgetWeight);
+  const weights = computeWeights(budgetWeight, includeCategory);
 
   const poiScore =
-    weights.category * categoryScore +
+    weights.category * (categoryScore ?? 0) +
     weights.rating * ratingScore +
     weights.distance * distanceScore +
     weights.budget * budgetScore +

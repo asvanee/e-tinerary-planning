@@ -1,17 +1,29 @@
 import { Response } from "express";
 import { supabase } from "../../config/db";
 import { AuthRequest } from "../auth/authMiddleware";
-import { getTripInfo, getFilteredPlaces } from "./poiPlaceQueries";
+import { getTripInfo, getFilteredPlaces, POI_RESULT_LIMIT } from "./poiPlaceQueries";
 import { calculatePoiScore } from "./poiScoreCalculator";
 import { getRoadDistancesKm } from "../../utils/orsDistance";
 import { getAverageRainProbability, gridKey } from "../../utils/weatherForecast";
 
-const RESULT_LIMIT = 50;
+/**
+ * ลบแถว poi_scores ของทริปที่ไม่อยู่ในผลรอบล่าสุด (keepPlaceIds ว่าง = ลบทั้งทริป)
+ * เรียกหลัง upsert ผลใหม่สำเร็จเท่านั้น — ถ้า upsert พังผลเดิมยังอยู่ครบ
+ */
+async function deleteStalePoiScores(tripId: string, keepPlaceIds: string[]) {
+  let query = supabase.from("poi_scores").delete().eq("trip_id", tripId);
+
+  if (keepPlaceIds.length > 0) {
+    query = query.not("place_id", "in", `(${keepPlaceIds.join(",")})`);
+  }
+
+  return query;
+}
 
 /**
  * POST /api/poi/trips/:tripId/calculate-poi
  * คำนวณสดทุกครั้งที่เรียก ไม่ cache แล้ว upsert ทับผลเดิมของทริปใน poi_scores
- * (unique (trip_id, place_id))
+ * (unique (trip_id, place_id)) แล้วลบแถวที่หลุดจากผลรอบนี้ ให้ตารางเหลือเฉพาะผลล่าสุด
  */
 export const calculatePoi = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
@@ -38,17 +50,23 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // 2. กรองสถานที่ตามลำดับ province -> category(+fallback) -> budget -> time
-    const { places, categoryFallbackUsed } = await getFilteredPlaces(
+    // 2. กรองสถานที่ตามลำดับ province -> budget -> category (เติมหมวดอื่นถ้าไม่ถึง 50 — D-48)
+    const { places, categoryMatchCount, categoryFilled } = await getFilteredPlaces(
       tripId,
       trip
     );
 
     if (places.length === 0) {
+      const { error: clearError } = await deleteStalePoiScores(tripId, []);
+      if (clearError) {
+        console.error("Clear poi_scores error:", clearError.message);
+      }
+
       return res.status(200).json({
         message:
-          "ไม่พบสถานที่ที่ตรงเงื่อนไข (จังหวัด/งบ/เวลา) ของทริปนี้",
-        categoryFallbackUsed,
+          "ไม่พบสถานที่ที่ตรงเงื่อนไข (จังหวัด/งบ) ของทริปนี้",
+        categoryMatchCount,
+        categoryFilled,
         results: [],
       });
     }
@@ -80,7 +98,7 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       const distanceKm = distancesKm.get(place.placeId) as number;
 
       const breakdown = calculatePoiScore(
-        place.confidenceScore,
+        place.categoryMatch,
         place.rating,
         distanceKm,
         trip.dailyBudget,
@@ -104,7 +122,7 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
 
     // 4. เรียงคะแนนมากไปน้อย ตัดเหลือ 50 อันดับแรก
     scoredPlaces.sort((a, b) => b.poiScore - a.poiScore);
-    const topResults = scoredPlaces.slice(0, RESULT_LIMIT);
+    const topResults = scoredPlaces.slice(0, POI_RESULT_LIMIT);
 
     // 5. Upsert ลง poi_scores
     const upsertRows = topResults.map((result) => ({
@@ -130,9 +148,23 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // 6. ลบผลเก่าที่หลุด 50 อันดับรอบนี้ (Auto Trip อ่าน poi_scores ทุกแถวของทริป)
+    const { error: staleError } = await deleteStalePoiScores(
+      tripId,
+      topResults.map((result) => result.placeId)
+    );
+
+    if (staleError) {
+      console.error("Delete stale poi_scores error:", staleError.message);
+      return res.status(500).json({
+        message: "คำนวณคะแนนสำเร็จ แต่ล้างผลลัพธ์เก่าไม่สำเร็จ",
+      });
+    }
+
     return res.status(200).json({
       message: "คำนวณคะแนนสถานที่สำเร็จ",
-      categoryFallbackUsed,
+      categoryMatchCount, // null = ไม่ได้เลือกหมวด
+      categoryFilled, // true = หมวดที่เลือกมีไม่ถึง 50 ที่ เติมหมวดอื่นแล้ว
       distanceSource, // "ors" | "haversine" | "mixed"
       // true = มีพยากรณ์ฝนอย่างน้อยหนึ่งพื้นที่ (false = ใช้ fallback weather_score 1.0 ทุก place)
       weatherAvailable: rainByGrid.size > 0,

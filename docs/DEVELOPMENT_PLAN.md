@@ -12,11 +12,11 @@
 
 ### R1. ตรวจสอบและแก้ไข POI Score — เร่งด่วน (README 1.1, ลำดับ 1)
 - **สถานะใน README:** ยังไม่เริ่มยืนยัน
-- **ไฟล์:** `backend/src/features/poi/poiScoreCalculator.ts` (`calculatePoiScore`, `WEIGHTS`, `computeWeights`), `backend/src/features/poi/poiController.ts` (เรียงคะแนนแล้วตัด `RESULT_LIMIT = 50` = Top 50), `backend/src/features/poi/poiPlaceQueries.ts` (`getFilteredPlaces`, `queryPlacesWithCategoryInfo` — ข้อมูลที่ป้อนเข้าสูตร)
+- **ไฟล์:** `backend/src/features/poi/poiScoreCalculator.ts` (`calculatePoiScore`, `WEIGHTS`, `computeWeights`), `backend/src/features/poi/poiController.ts` (เรียงคะแนนแล้วตัด `POI_RESULT_LIMIT = 50` = Top 50 — ประกาศใน `poiPlaceQueries.ts`), `backend/src/features/poi/poiPlaceQueries.ts` (`getFilteredPlaces`, `queryPlacesWithCategoryInfo` — ข้อมูลที่ป้อนเข้าสูตร)
 - **ข้อเท็จจริง:** weight ฐาน category 0.35 / rating 0.25 / distance 0.15 / budget 0.15 / weather 0.1 (renormalize เมื่อ `useBudget=false`)
 - **งาน T ที่ซ้อน:** T13 (unit test `poiScoreCalculator.ts`) · T5 (ความหมายของงบ มีผลกับ budget filter/score) · T7 (ถ้าโดน limit 1000 แถว สถานที่จะหายไปก่อนจัดอันดับ) · T8 (`explainWeatherScore`/debug log ใช้ช่วยตรวจได้ก่อนจะเก็บกวาด) · กลุ่ม 6 (sensitivity ของค่า MIXED)
 - ⚠️ เปลี่ยนสูตรคะแนนเป็นงานเสี่ยงตาม CLAUDE.md กฎข้อ 4 ต้องเสนอแนวทางก่อน
-- **แนวคิดจากผู้ใช้ (2026-10-22 — บันทึกไว้ ยังไม่แก้ logic รอคุยพร้อมสูตร D-23):** ตอนนี้กรองหมวดเป็น hard filter และ `category_score` = 1.0 ทุกที่ (P5c) ถ้าหมวดที่เลือกมีสถานที่ไม่ถึง Top 50 (เช่น ทริปน่านเลือก "จุดชมวิว" ได้ 11 แห่ง) ผลจะมีแค่นั้น · แนวคิด: ให้ `category_score` ทำงานตรงนี้ — สถานที่ตรงหมวดได้คะแนนหมวดเต็ม แล้วเติมสถานที่หมวดอื่นที่คะแนนหมวดต่ำกว่าจนครบ 50 (แทน hard filter / fallback แบบทั้งหมดหรือไม่มีเลย) · กระทบลำดับ filter ใน CLAUDE.md และ `categoryFallbackUsed` ต้องตัดสินพร้อม R1
+- **✅ ทำแล้ว 2026-10-25 (D-48 — category score ตรง 1 / ไม่ตรง 0 · เติมหมวดอื่นเมื่อไม่ถึง 50 · ไม่เลือกหมวด = ตัดออกจากสูตร) · แนวคิดเดิมจากผู้ใช้ (2026-10-22):** ตอนนี้กรองหมวดเป็น hard filter และ `category_score` = 1.0 ทุกที่ (P5c) ถ้าหมวดที่เลือกมีสถานที่ไม่ถึง Top 50 (เช่น ทริปน่านเลือก "จุดชมวิว" ได้ 11 แห่ง) ผลจะมีแค่นั้น · แนวคิด: ให้ `category_score` ทำงานตรงนี้ — สถานที่ตรงหมวดได้คะแนนหมวดเต็ม แล้วเติมสถานที่หมวดอื่นที่คะแนนหมวดต่ำกว่าจนครบ 50 (แทน hard filter / fallback แบบทั้งหมดหรือไม่มีเลย) · กระทบลำดับ filter ใน CLAUDE.md และ `categoryFallbackUsed` ต้องตัดสินพร้อม R1
 
 ### R2. แก้ไขพิกัดผิดและข้อมูลผิดจังหวัด — เร่งด่วน (README 1.2, ลำดับ 2)
 - **สถานะใน README:** ยังไม่เริ่มยืนยัน
