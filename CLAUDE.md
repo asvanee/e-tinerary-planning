@@ -19,7 +19,7 @@
 # backend
 cd backend && npm run dev          # ts-node-dev src/server.ts (ต้องมี .env และ Supabase ต้องเชื่อมต่อได้ ไม่งั้น exit 1)
 cd backend && npx tsc --noEmit     # type check (ไม่มี script build/lint)
-cd backend && npm test             # jest — test ของ admin pipeline (dedupe) อ่าน backend/data/attraction.csv
+cd backend && npm test             # jest — test ของ admin pipeline (dedupe อ่าน backend/data/attraction.csv), trip และ Auto Trip
 
 # frontend  (dev proxy /api → http://localhost:5000)
 cd frontend && npm run dev
@@ -29,7 +29,7 @@ cd frontend && npm test            # vitest run — ยังไม่มีไ�
 ```
 การนำเข้าสถานที่ทำผ่านหน้า admin (`backend/src/admin/`) — `data-pipeline/` เดิมลบแล้วใน R5 P6 (D-37, กู้ได้จาก git history ที่ `d73808f`)
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 131 tests (2026-10-22) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 11 suites / 154 tests (2026-10-25 หลัง merge Auto Trip ของกิ่ง) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด
@@ -69,7 +69,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 ## จุดที่ต้องระวังเป็นพิเศษ
 - **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
 - **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
-- **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · ตาราง `place_categories` / `type_category_weights` / `place_types` และคอลัมน์ `categories.default_duration_min` ลบแล้ว (P5g) · `bestCategoryRow.ts` ยังค้างเพราะ Auto Trip (ของเพื่อน) import อยู่ — ห้ามใช้ในโค้ดใหม่ ให้เพื่อนลบตอนแก้ Auto Trip
+- **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · ตาราง `place_categories` / `type_category_weights` / `place_types` และคอลัมน์ `categories.default_duration_min` ลบแล้ว (P5g) · `bestCategoryRow.ts` ไม่มีโค้ด import แล้วหลังกิ่งแก้ Auto Trip (2026-10-23 `55634a7`) รอลบ — ห้ามใช้ในโค้ดใหม่
 - **ลำดับ filter ของ POI** (province → category+fallback → budget) ห้ามสลับ — ขั้นเวลาตัดออกแล้ว (D-38)
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
 - `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน

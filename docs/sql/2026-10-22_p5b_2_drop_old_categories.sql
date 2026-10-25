@@ -2,8 +2,8 @@
 -- R5 P5b ชุดที่ 2 · ลบหมวดอังกฤษเดิม 15 หมวด (D-39 — ผู้ใช้สั่ง 2026-10-22)
 -- รันใน Supabase SQL Editor ครั้งเดียว — ทั้งไฟล์อยู่ใน transaction เดียว ถ้าพังจะย้อนกลับเอง
 -- ⚠️ รันหลังโค้ด P5c (backend อ่านหมวดจากป้าย ททท.) เท่านั้น
--- ⚠️ Auto Trip (ของเพื่อน — getAutoTripPlaces) ยังอ่าน place_categories อยู่: หลังรันไฟล์นี้ place_categories
---    ถูกลบตามหมวดเดิม (FK CASCADE) ทั้ง 486 แถว Auto Trip จะไม่มีสถานที่ให้จัดจนกว่าเพื่อนเปลี่ยน query
+-- ⚠️ Auto Trip (ของกิ่ง — getAutoTripPlaces) ยังอ่าน place_categories อยู่: หลังรันไฟล์นี้ place_categories
+--    ถูกลบตามหมวดเดิม (FK CASCADE) ทั้ง 486 แถว Auto Trip จะไม่มีสถานที่ให้จัดจนกว่ากิ่งเปลี่ยน query
 -- สิ่งที่ทำ:
 --   1) ลบ trip_categories ที่อ้างหมวดเดิม (ตรวจ 2026-10-22: 24 แถว ใน 10 ทริป — ผู้ใช้เลือกลบ ไม่ย้าย)
 --   2) ลบหมวดเดิม (parent_group IS NULL) → place_categories และ type_category_weights ที่อ้างอยู่ถูกลบตาม (CASCADE)

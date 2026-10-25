@@ -2,9 +2,9 @@
 -- R5 P5g · ล้างของเก่าหลังเปลี่ยนเป็นหมวดจากป้าย ททท. (D-35, D-36, D-38)
 -- รันใน Supabase SQL Editor ครั้งเดียว — ทั้งไฟล์อยู่ใน transaction เดียว ถ้าพังจะย้อนกลับเอง
 -- ⚠️ รันหลัง commit โค้ด P5g (การนำเข้าเลิกเขียน place_types) และรีสตาร์ท backend แล้วเท่านั้น
--- ⚠️ Auto Trip (ของเพื่อน — getAutoTripPlaces / autoTripBuilder / buildAutoTripController) ยังอ่าน
---    place_categories และ default_duration_min: หลังรันไฟล์นี้ Auto Trip จะตอบ error 500 จนกว่าเพื่อนแก้
---    ตาม P5-Auto-Trip-brief (ผู้ใช้แจ้งเพื่อนแล้ว 2026-10-22 · เลือกไม่แตะโค้ด Auto Trip ตาม D-38)
+-- ⚠️ Auto Trip (ของกิ่ง — getAutoTripPlaces / autoTripBuilder / buildAutoTripController) ยังอ่าน
+--    place_categories และ default_duration_min: หลังรันไฟล์นี้ Auto Trip จะตอบ error 500 จนกว่ากิ่งแก้
+--    ตาม P5-Auto-Trip-brief (ผู้ใช้แจ้งกิ่งแล้ว 2026-10-22 · เลือกไม่แตะโค้ด Auto Trip ตาม D-38)
 -- สิ่งที่ทำ:
 --   1) สำรอง place_types (ตารางเดียวที่ยังมีข้อมูล)
 --   2) ลบคอลัมน์ categories.default_duration_min (เวลาที่อยู่ผู้ใช้กรอกเอง — itineraries.visit_duration_min)

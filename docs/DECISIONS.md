@@ -60,7 +60,7 @@
 ### D-23 · 2026-10-17 · ทิศทางของ Admin Panel (R5) และการพักงานสูตร POI
 - บริบท: README R5 ระบุขอบเขตเป็นข้อเสนอเบื้องต้น · เดิมการเพิ่มจังหวัดทำโดยรัน `npm run upload:*` / `fetch-gmaps-categories:*` ใน data-pipeline และแก้กฎ dedupe ในโค้ด `manualOverrides.ts`
 - ข้อสรุป (ผู้ใช้ยืนยันแล้ว):
-  - พักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3) จนกว่าเพื่อนจะ research เสร็จ แล้วทำ R5 ก่อน
+  - พักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3) จนกว่ากิ่งจะ research เสร็จ แล้วทำ R5 ก่อน
   - R5 = หน้า UI ที่ login ด้วย role `admin` ใช้ (1) เลือกเพิ่มจังหวัด (2) จัดการสถานที่ซ้ำ (3) จัดการ category mapping
   - logic ฝั่งหลังทั้งหมดอยู่ใน `data-pipeline/` (เปลี่ยนจากรัน script เองเป็นสั่งผ่านหน้าเว็บ)
   - ตอนนำเข้าจังหวัด ให้ดึง `gmaps_types` มาพร้อมข้อมูลสถานที่ในการเรียก Google Details ครั้งเดียว
@@ -192,7 +192,7 @@
 - ข้อสรุป (ผู้ใช้เลือก): ในหน้าจัดแผน (`ItineraryEditor`) ผู้ใช้กรอกเวลาที่จะอยู่ (นาที) ของแต่ละสถานที่ · ไม่มีค่าเริ่มต้น และยืนยันแผนไม่ได้จนกว่าจะกรอกครบ · เก็บค่าที่กรอกใน `itineraries` (เพิ่มคอลัมน์ใหม่ ผู้ใช้รัน SQL) · ค่านี้เป็น input ของผู้ใช้ backend จึงรับจาก client ได้ แต่ต้อง validate แล้วคำนวณเวลาเริ่ม/จบและ conflict ซ้ำเองเหมือนเดิม
 - ยังต้องตัดสินใน P5:
   - POI filter ขั้นที่ 4 (ตัดสถานที่ที่ `default_duration_min` เกินเวลาต่อวัน) จะเอาออกหรือไม่ เพราะเป็นการเปลี่ยนลำดับ filter ที่ CLAUDE.md กำหนดไว้
-  - Auto Trip ยังใช้ `default_duration_min` อยู่ (`autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) ซึ่งเป็นงานของเพื่อน — ต้องแจ้งเพื่อนก่อนลบคอลัมน์
+  - Auto Trip ยังใช้ `default_duration_min` อยู่ (`autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) ซึ่งเป็นงานของกิ่ง — ต้องแจ้งกิ่งก่อนลบคอลัมน์
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ (คาดการณ์): mirror `itineraryBuilder.ts` / `openingHoursChecker.ts` (ทั้งสองฝั่ง), `itineraryController.ts` / `itineraryPlaceQueries.ts`, `placesController.ts`, `poiPlaceQueries.ts`, `ItineraryEditor.tsx`, `TripDetail.tsx`, `TripRecommendations.tsx` (type), ตาราง `itineraries`
 
@@ -204,17 +204,17 @@
 - ไฟล์ที่กระทบ: `data-pipeline/` (ลบ), `.gitignore`, `CLAUDE.md`, `.claude/skills/*`, `docs/*`
 
 ### D-38 · 2026-10-22 · รายละเอียด P5: fallback หมวด, ตัด POI filter ขั้นที่ 4, เวลาของ Auto Trip ต่อหมวด และลบ `confidence_score` / `default_duration_min` (ขยาย D-35, D-36)
-- บริบท: หลัง D-35 สถานที่มี 1 หมวด `confidence_score` (มาจาก weight ของ Stage 3) จึงไม่มีความหมาย · หลัง D-36 ไม่มี `default_duration_min` ให้ POI filter ขั้นที่ 4 ใช้ · ผู้ใช้คุยกับเพื่อนที่ทำ Auto Trip แล้ว 2026-10-22
+- บริบท: หลัง D-35 สถานที่มี 1 หมวด `confidence_score` (มาจาก weight ของ Stage 3) จึงไม่มีความหมาย · หลัง D-36 ไม่มี `default_duration_min` ให้ POI filter ขั้นที่ 4 ใช้ · ผู้ใช้คุยกับกิ่ง (ผู้ทำ Auto Trip) แล้ว 2026-10-22
 - ข้อสรุป (ผู้ใช้เลือก):
   - เลือกหมวดแต่ในพื้นที่ไม่มีสถานที่หมวดนั้น → ใช้ fallback เดิม (ตัดเงื่อนไขหมวด แสดงทั้งพื้นที่ + ข้อความแจ้ง `categoryFallbackUsed`) ไม่เปลี่ยน
   - `category_score` ในสูตร POI จะเป็น 1.0 ทุกที่ · การเอาออกจากสูตรรอทีม (D-23) — P5 ไม่แก้โค้ดสูตร
   - ตัด POI filter ขั้นที่ 4 (เวลา) ออก ลำดับเหลือ province → category+fallback → budget · เวลาและเวลาเปิด-ปิดตรวจใน `ItineraryEditor` จากเวลาที่ผู้ใช้กรอก · แนวคิด "ตัดสถานที่ที่ปิดตลอดช่วงเวลาของทุกวันในทริป" (จาก `trip_days` + `opening_hours`) เป็นงานแยก คุยตอน R1/R3
-  - เวลาที่จะอยู่: เลือกสถานที่เอง = ผู้ใช้กรอกต่อสถานที่ใน `ItineraryEditor` (D-36) · Auto Trip = ผู้ใช้กรอกนาทีต่อหมวดตอนสร้าง: ทริปที่เลือกหมวดไว้ (`trip_categories`) → หน้า Auto Trip ให้กรอกเวลาของหมวดเหล่านั้นอย่างเดียว · ทริปที่ไม่ได้เลือกหมวด → กดปุ่ม Auto Trip แล้วเด้ง popup ให้เลือกหมวด + กรอกเวลา (ไม่ต้องไปหน้าแก้ทริป) → บันทึกหมวดลง `trip_categories` แล้วคำนวณ POI ใหม่ก่อนจัดทริป หน้าแนะนำจึงเปลี่ยนตาม · หน้าสร้างทริปเลือกหมวดหรือไม่ก็ได้เหมือนเดิม · ทุกหน้า (แนะนำ / Auto Trip) ใช้ `trip_categories` ชุดเดียวกัน · **Auto Trip ทั้งหมด (โค้ด, input, ผลลัพธ์) เพื่อนรับผิดชอบ** Claude ไม่แก้
-  - ลบ `place_categories.confidence_score` และ `categories.default_duration_min` (เพื่อนรับทราบแล้วว่าห้ามใช้) — ลบเป็นขั้นสุดท้ายหลังงานส่วนของเราใน P5 เสร็จ · `pickBestCategoryRows` ลบตาม · โครงสร้าง `place_categories` หลังลบคอลัมน์ (คงตาราง 1 แถวต่อสถานที่ / ย้ายเป็น `places.category_id` / หาจาก `att_type_label` → ตาราง ป้าย → หมวด) ตัดสินใน P5b
-  - endpoint ใหม่สำหรับ popup ของ Auto Trip: บันทึกเฉพาะหมวดของทริป (เช่น `PUT /api/trips/:tripId/categories` รับ `category_ids` · `requireAuth` + ตรวจเจ้าของ) — **ฝั่งเราทำ** ใน P5 · popup และการเรียกใช้เป็นของเพื่อน
+  - เวลาที่จะอยู่: เลือกสถานที่เอง = ผู้ใช้กรอกต่อสถานที่ใน `ItineraryEditor` (D-36) · Auto Trip = ผู้ใช้กรอกนาทีต่อหมวดตอนสร้าง: ทริปที่เลือกหมวดไว้ (`trip_categories`) → หน้า Auto Trip ให้กรอกเวลาของหมวดเหล่านั้นอย่างเดียว · ทริปที่ไม่ได้เลือกหมวด → กดปุ่ม Auto Trip แล้วเด้ง popup ให้เลือกหมวด + กรอกเวลา (ไม่ต้องไปหน้าแก้ทริป) → บันทึกหมวดลง `trip_categories` แล้วคำนวณ POI ใหม่ก่อนจัดทริป หน้าแนะนำจึงเปลี่ยนตาม · หน้าสร้างทริปเลือกหมวดหรือไม่ก็ได้เหมือนเดิม · ทุกหน้า (แนะนำ / Auto Trip) ใช้ `trip_categories` ชุดเดียวกัน · **Auto Trip ทั้งหมด (โค้ด, input, ผลลัพธ์) กิ่งรับผิดชอบ** Claude ไม่แก้
+  - ลบ `place_categories.confidence_score` และ `categories.default_duration_min` (กิ่งรับทราบแล้วว่าห้ามใช้) — ลบเป็นขั้นสุดท้ายหลังงานส่วนของเราใน P5 เสร็จ · `pickBestCategoryRows` ลบตาม · โครงสร้าง `place_categories` หลังลบคอลัมน์ (คงตาราง 1 แถวต่อสถานที่ / ย้ายเป็น `places.category_id` / หาจาก `att_type_label` → ตาราง ป้าย → หมวด) ตัดสินใน P5b
+  - endpoint ใหม่สำหรับ popup ของ Auto Trip: บันทึกเฉพาะหมวดของทริป (เช่น `PUT /api/trips/:tripId/categories` รับ `category_ids` · `requireAuth` + ตรวจเจ้าของ) — **ฝั่งเราทำ** ใน P5 · popup และการเรียกใช้เป็นของกิ่ง
   - ลบตาราง `type_category_weights` (ไม่มีโค้ดใช้) และ `place_types` ใน P5 (แทนที่ D-27 ข้อ "เขียน type จาก Google ลง `place_types`") · type จาก Google ยังเก็บใน `places.gmaps_types` · ต้องเอา `insertPlaceTypes` ออกจากการนำเข้า (`importQueries.ts`, `importJob.ts`, `resolveItem.ts` + test) ก่อนลบตาราง · สำรองก่อนลบ
-- ผลที่ยอมรับ: query ของ Auto Trip ที่ยังอ่านสองคอลัมน์นี้ (`itineraryPlaceQueries.ts`, `autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) จะใช้ไม่ได้หลังรัน SQL ลบ จนกว่าเพื่อนแก้
-- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ตกลงกับเพื่อนที่ทำ Auto Trip)
+- ผลที่ยอมรับ: query ของ Auto Trip ที่ยังอ่านสองคอลัมน์นี้ (`itineraryPlaceQueries.ts`, `autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) จะใช้ไม่ได้หลังรัน SQL ลบ จนกว่ากิ่งแก้
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ตกลงกับกิ่ง (ผู้ทำ Auto Trip))
 - ไฟล์ที่กระทบ (คาดการณ์): `backend/src/features/poi/poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`, `utils/bestCategoryRow.ts`, ตาราง `categories` / `place_categories` · หลังโค้ดเปลี่ยนต้องแก้ CLAUDE.md (ลำดับ filter ของ POI, กฎ multi-category dedupe)
 
 ### D-39 · 2026-10-22 · ตาราง ป้าย ททท. → หมวด (R5 P5a — ขยาย D-35)
@@ -273,11 +273,11 @@
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ (คาดการณ์): `backend/src/admin/` (route ใหม่), `frontend/src/admin/` (หน้าใหม่), `AdminDashboard.tsx` (เปิดการ์ด), ตาราง mapping + `categories`
 
-### D-41 · 2026-10-22 · ล้างของเก่า P5g ก่อนเพื่อนแก้ Auto Trip (ขยาย D-38)
-- บริบท: D-38 ให้ลบ `confidence_score` / `default_duration_min` / `type_category_weights` / `place_types` หลังเพื่อนเลิกใช้ · ผู้ใช้แจ้งเพื่อนแล้วผ่าน `P5-Auto-Trip-brief.pdf` (ฉบับ 2) แต่เพื่อนยังไม่ได้แก้ · ระหว่าง P5b ตาราง `place_categories` ว่างไปแล้ว (Auto Trip ได้ผลว่างตั้งแต่ตอนนั้น)
+### D-41 · 2026-10-22 · ล้างของเก่า P5g ก่อนกิ่งแก้ Auto Trip (ขยาย D-38)
+- บริบท: D-38 ให้ลบ `confidence_score` / `default_duration_min` / `type_category_weights` / `place_types` หลังกิ่งเลิกใช้ · ผู้ใช้แจ้งกิ่งแล้วผ่าน `P5-Auto-Trip-brief.pdf` (ฉบับ 2) แต่กิ่งยังไม่ได้แก้ · ระหว่าง P5b ตาราง `place_categories` ว่างไปแล้ว (Auto Trip ได้ผลว่างตั้งแต่ตอนนั้น)
 - ข้อสรุป (ผู้ใช้เลือก):
-  - ลบเลยโดยไม่รอเพื่อน: คอลัมน์ `categories.default_duration_min` และตาราง `place_categories`, `type_category_weights`, `place_types` (SQL `docs/sql/2026-10-22_p5g_drop_legacy.sql` — สำรอง `place_types` ไว้)
-  - **ไม่แตะโค้ด Auto Trip** (ตาม D-38) → Auto Trip ตอบ 500 จนกว่าเพื่อนแก้ · เก็บ `backend/src/utils/bestCategoryRow.ts` ไว้เพราะ `getAutoTripPlaces` import อยู่ (ลบแล้ว compile ไม่ผ่าน) ให้เพื่อนลบตอนแก้
+  - ลบเลยโดยไม่รอกิ่ง: คอลัมน์ `categories.default_duration_min` และตาราง `place_categories`, `type_category_weights`, `place_types` (SQL `docs/sql/2026-10-22_p5g_drop_legacy.sql` — สำรอง `place_types` ไว้)
+  - **ไม่แตะโค้ด Auto Trip** (ตาม D-38) → Auto Trip ตอบ 500 จนกว่ากิ่งแก้ · เก็บ `backend/src/utils/bestCategoryRow.ts` ไว้เพราะ `getAutoTripPlaces` import อยู่ (ลบแล้ว compile ไม่ผ่าน) ให้กิ่งลบตอนแก้
   - การนำเข้าเลิกเขียน `place_types` (type จาก Google ยังอยู่ใน `places.gmaps_types`) — แทนที่ D-27 ข้อเขียน `place_types`
   - เก็บตาราง `backup_20261022_*` ไว้ก่อน (Claude เสนอ ผู้ใช้ไม่ได้คัดค้าน) — ลบเมื่อมั่นใจ
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
@@ -289,20 +289,20 @@
   - ตัดออก — ยังไม่ deploy รันแค่ local (D-21): T9, T10 (#8), security #22 #23 #24 #26 #27 · ⚠️ ถ้าจะ deploy จริง ต้องกลับมาดู #27 ก่อนอย่างอื่น
   - ตัดออก — เผื่ออนาคต/ทำให้โค้ดสวย: B4 (T13, T14), T16 (ยกเว้น `RecommendationMap.tsx:209` ที่อาจเป็น bug จริง — ลองก่อน), T19, T20, T21, กลุ่ม 6
   - ตัดออก — เกิดยาก: T3 (#7), T11, #25
-  - ไม่ใช่งานของเรา: T6 และ #9–12, #32–34 (Auto Trip ของเพื่อน)
+  - ไม่ใช่งานของเรา: T6 และ #9–12, #32–34 (Auto Trip ของกิ่ง)
   - เก็บไว้: #35 และ `RecommendationMap.tsx:209` (ลองใน browser ก่อน พังจริงค่อยแก้) · R1/R3/T5 (requirement ทีม รอ research) · T7 ทำคู่กับการนำเข้า 3 จังหวัด
   - B3 และ T8 เสร็จแล้ว แค่อัปเดตแผน
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md` (ไม่แตะโค้ด)
 
 ### D-43 · 2026-10-23 · ข้อยกเว้นขอบเขต Auto Trip สำหรับเวลาต่อหมวด
-- บริบท: D-38/D-42 ระบุให้เพื่อนรับผิดชอบ Auto Trip และไม่แก้โค้ดส่วนนี้ · ผู้ใช้ยืนยันให้แก้เฉพาะ flow เวลาต่อหมวดที่ยังต่อไม่ครบ
+- บริบท: D-38/D-42 ระบุให้กิ่งรับผิดชอบ Auto Trip และไม่แก้โค้ดส่วนนี้ · กิ่งแก้เฉพาะ flow เวลาต่อหมวดที่ยังต่อไม่ครบ
 - ข้อสรุป:
   - หน้า Auto Trip โหลดหมวดจากชุดสถานที่ที่มีคะแนน POI ของทริป แล้วให้กรอกเวลาเที่ยวต่อหมวดเป็นจำนวนเต็ม 1–1440 นาที
   - Backend ตรวจเจ้าของทริปและตรวจค่าเวลา ก่อนนำเวลาเดียวกันไปใช้จัดตารางและกรองเวลาเปิด · ตอนยืนยันแผนส่ง `visit_durations` ตามเวลาที่จัดไว้ให้ `confirmItinerary` ตรวจซ้ำ
   - ข้อยกเว้นนี้ไม่ครอบคลุมการปรับสูตร POI, จำนวนสถานที่ต่อหมวด, การใช้ ORS แทน haversine, flow แก้ไขแผน หรือการคำนวณ POI ใหม่/เลือกหมวดเมื่อไม่มีสถานที่
   - ไม่เปลี่ยน schema ฐานข้อมูล
-- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ผู้ตัดสินใจ: กิ่ง
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/`, `frontend/src/components/AutoTripDurationForm.tsx`, `frontend/src/features/trip/e-tinerary/auto/`, `frontend/src/App.tsx`
 
 ### D-44 · 2026-10-23 · ตัวเลือกเวลาเที่ยวของ Auto Trip
@@ -312,7 +312,7 @@
   - Frontend แสดงตัวเลือกเหล่านี้ และ backend ปฏิเสธค่าอื่น แม้เรียก API โดยตรง
   - ไม่เปลี่ยนช่วง 1–1440 นาทีของ Itinerary Editor และ `itineraries.visit_duration_min` ตาม D-36
   - ไม่เปลี่ยน schema ฐานข้อมูลหรือ response shape
-- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ผู้ตัดสินใจ: กิ่ง
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripDurations.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
 
 ### D-45 · 2026-10-23 · ใช้หมวดที่เลือกจากทริปสำหรับฟอร์มเวลา Auto Trip
@@ -323,7 +323,7 @@
   - การค้นสถานที่ที่เลือกไม่ใช้ inner join ของหมวดเป็นเงื่อนไขตัดแถวสถานที่; ถ้าหาหมวดไม่พบและไม่มี `price_level` จริง ให้ถือราคาว่าไม่ทราบ ไม่อนุมานว่าเข้าฟรี
   - Backend ตรวจเวลาโดยอิงหมวดที่ผูกกับทริป และจัดเฉพาะสถานที่ POI ที่จับคู่กับหมวดที่เลือก
   - ไม่เปลี่ยน schema หรือ response shape
-- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ผู้ตัดสินใจ: กิ่ง
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
 
 ### D-46 · 2026-10-23 · ตรวจเวลาเปิด Auto Trip ณ เวลาถึงจริง
@@ -334,7 +334,7 @@
   - ตรวจตามวันเดินทางและเวลาไปถึงที่คำนวณจากจุดก่อนหน้า; ถ้าตัวเลือกคะแนนสูงสุดปิด ให้ลองตัวเลือกคะแนนถัดไปในหมวดเดียวกัน
   - ถ้าหมวดนั้นไม่มีสถานที่เปิดในเวลาที่จัดได้ จะไม่เลือกสถานที่ที่ทราบว่าปิด และลองจัดในวันถัดไปภายในช่วงทริป
   - คงพฤติกรรมสูงสุดหนึ่งสถานที่ต่อหมวดต่อทริป; ไม่เปลี่ยน API contract หรือ schema
-- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ผู้ตัดสินใจ: กิ่ง
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryController.ts`
 
 ### D-47 · 2026-10-25 · เลิกเก็บอายุและเพศของผู้ใช้
