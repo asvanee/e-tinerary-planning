@@ -25,7 +25,7 @@ ALTER TABLE public.backup_20261022_places ENABLE ROW LEVEL SECURITY;
 DELETE FROM public.places
 WHERE province IN ('เชียงใหม่', 'ชลบุรี', 'กรุงเทพมหานคร');
 
-COMMIT;โ
+COMMIT;
 
 -- ---------------------------------------------------------------------------
 -- ตรวจหลังรัน (อ่านอย่างเดียว) — backup = 1116 · places เหลือแค่น่าน 114
