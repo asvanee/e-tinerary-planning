@@ -294,3 +294,9 @@
   - B3 และ T8 เสร็จแล้ว แค่อัปเดตแผน
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `docs/DEVELOPMENT_PLAN.md` (ไม่แตะโค้ด)
+
+### D-47 · 2026-10-25 · เลิกเก็บอายุและเพศของผู้ใช้
+- บริบท: ระบบไม่ได้ใช้อายุ/เพศในส่วนไหน (ไม่มีโค้ดอ่านค่า) และผู้ใช้ไม่อยากเก็บข้อมูลที่ไม่จำเป็น
+- ข้อสรุป (ผู้ใช้เลือก): หน้าสมัครสมาชิกเหลือ ชื่อผู้ใช้ / อีเมล / รหัสผ่าน · `register` เลิกรับและ insert `age`, `gender` · ลบคอลัมน์ `users.age`, `users.gender` ด้วย SQL ที่ผู้ใช้รันเอง ไม่สำรองข้อมูล (มีแต่บัญชีทดสอบ)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/auth/authController.ts`, `frontend/src/features/auth/register/register.tsx`, `frontend/src/system/auth/AuthContext.tsx`, `docs/sql/2026-10-25_drop_users_age_gender.sql`, `docs/DATABASE_SCHEMA.md`

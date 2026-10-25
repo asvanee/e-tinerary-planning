@@ -3,7 +3,7 @@ import { supabase, createAuthClient } from "../../config/db";
 
 // Register
 export const register = async (req: Request, res: Response) => {
-  const { username, email, password, age, gender } = req.body;
+  const { username, email, password } = req.body;
 
   try {
     // 1️⃣ สร้าง user ใน Supabase Auth ก่อน
@@ -34,8 +34,6 @@ export const register = async (req: Request, res: Response) => {
         user_id: data.user?.id,
         username,
         email,
-        age,
-        gender,
         role: "user",
         is_active: true,
         email_verified: false,

@@ -29,7 +29,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 
 ## ตาราง
 
-### `users` · rows ~6 · ใช้ในโค้ด: `authController.ts`
+### `users` · rows ~6 · ใช้ในโค้ด: `authController.ts` · คอลัมน์ `age` / `gender` เอาออกแล้ว (D-47 — `docs/sql/2026-10-25_drop_users_age_gender.sql`, ผู้ใช้รันเอง)
 | คอลัมน์ | type | null | default |
 |---|---|---|---|
 | `user_id` | uuid | NOT NULL | — (PK, FK → `auth.users.id` CASCADE) |
@@ -38,8 +38,6 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `role` | text | NOT NULL | `'user'` · CHECK `admin` \| `user` |
 | `is_active` | bool | NOT NULL | `true` |
 | `email_verified` | bool | NOT NULL | `false` |
-| `age` | int4 | | |
-| `gender` | text | | CHECK `male` \| `female` \| `other` \| `unspecified` |
 | `created_at` | timestamptz | | `now()` |
 | `last_login` | timestamptz | | |
 

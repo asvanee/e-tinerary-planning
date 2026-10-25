@@ -11,19 +11,11 @@ import {
   CircleCheck,
 } from "lucide-react";
 
-const genders = [
-  { value: "male", label: "ชาย" },
-  { value: "female", label: "หญิง" },
-  { value: "unspecified", label: "ไม่ระบุ" },
-];
-
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState("male");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
@@ -48,7 +40,7 @@ export default function Register() {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password, age, gender }),
+        body: JSON.stringify({ username, email, password }),
       });
       const data = await res.json();
 
@@ -154,45 +146,6 @@ export default function Register() {
                   )}
                 </button>
               </div>
-            </div>
-
-            {/* Age + Gender */}
-            <div className="flex gap-3">
-              <div className="flex flex-col gap-1.5 w-28 shrink-0">
-                <label htmlFor="age" className={labelClass}>อายุ</label>
-                <input
-                  id="age"
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="อายุ"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                  min={1}
-                  className={inputClass}
-                />
-              </div>
-
-              <fieldset className="flex flex-col gap-1.5 flex-1 min-w-0">
-                <legend className={`${labelClass} mb-1.5`}>เพศ</legend>
-                <div className="flex gap-1.5">
-                  {genders.map((g) => (
-                    <label key={g.value} className="flex-1 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={g.value}
-                        checked={gender === g.value}
-                        onChange={(e) => setGender(e.target.value)}
-                        className="peer sr-only"
-                      />
-                      <span className="flex items-center justify-center min-h-12 px-1 text-sm rounded-xl border border-[color:var(--line)] bg-white text-[color:var(--muted)] transition-all duration-200 hover:border-[color:var(--sky)] peer-checked:bg-[color:var(--navy)] peer-checked:border-[color:var(--navy)] peer-checked:text-white peer-focus-visible:ring-4 peer-focus-visible:ring-[color:var(--line)]">
-                        {g.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
             </div>
 
             {/* Message (เต็มความกว้าง) */}
