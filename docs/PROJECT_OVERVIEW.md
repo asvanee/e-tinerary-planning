@@ -111,7 +111,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | PUT `/api/itinerary/trips/:tripId` | ✓ | `confirmItinerary` |
 | GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
 | GET `/api/itinerary/trips/:tripId/auto/categories` | ✓ | `getAutoTripCategoriesController` — เช็คเจ้าของทริป · คืนหมวดที่เลือกจาก `trip_categories` |
-| POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` — body `{ visitDurationByCategory: { [categoryId]: นาที } }` (30/60/90/120/150/180 นาที — D-44) |
+| POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` — body `{ visitDurationByCategory: { [categoryId]: นาที } }` (เพดานเวลารวมต่อหมวด 30/60/90/120/150/180 นาที รวมเที่ยวและเดินทาง — D-47) |
 | GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
 | GET `/api/admin/categories` | ✓ + admin | `admin/categories/categoryController.getAdminCategories` — 29 หมวด + ป้ายในแต่ละหมวด + จำนวนสถานที่ต่อป้าย (R5 P5e) |
 | PUT `/api/admin/categories/:categoryId` | ✓ + admin | `putCategory` — body `{ category_name, parent_group, environment_type, price_nature }` (ครบทุกช่อง, `categoryInput.ts`) · ชื่อซ้ำ 409 · คืนรายการล่าสุด |

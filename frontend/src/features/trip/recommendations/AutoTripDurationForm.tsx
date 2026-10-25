@@ -232,7 +232,7 @@ export default function AutoTripDurationForm({
       </h2>
 
       <p className="text-sm text-[color:var(--muted)]">
-        กรอกเวลาเป็นนาที ระบบจะใช้เวลาเดียวกันกับทุกสถานที่ในประเภทนั้น
+        กำหนดเวลาเที่ยวรวมของแต่ละประเภท โดยไม่รวมเวลาเดินทาง ระบบจะแบ่งเวลาเที่ยวให้สถานที่ที่จัดได้
       </p>
 
       {categories.length > 0 && (
@@ -269,7 +269,7 @@ export default function AutoTripDurationForm({
                 ))}
               </select>
               <p className="text-xs text-[color:var(--muted)]">
-                เลือกได้ 30, 60, 90, 120, 150 หรือ 180 นาที
+                เวลาเที่ยว 30, 60, 90, 120, 150 หรือ 180 นาที (ไม่รวมเวลาเดินทาง)
               </p>
             </div>
           ))}

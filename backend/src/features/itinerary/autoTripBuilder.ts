@@ -1,7 +1,9 @@
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { checkOpeningStatus } from "../../utils/openingHoursChecker";
+import { TRIP_START_ID, type TravelMatrix } from "../../utils/orsTravelMatrix";
 import {
   calculateDistanceKm,
+  nearestNeighborTsp,
   TspPlace,
 } from "./tspRouteOptimizer";
 
@@ -19,6 +21,10 @@ export interface AutoPlace {
   latitude: number;
   longitude: number;
   opening_hours: OpeningHours | null;
+  categoryTimeBudgetMin: number;
+}
+
+interface ScheduledAutoPlace extends Omit<AutoPlace, "categoryTimeBudgetMin"> {
   visitDurationMin: number;
 }
 
@@ -76,7 +82,7 @@ interface AutoTripDay {
 interface AutoTripResult {
   trip_id: string;
 
-  selected_places: AutoPlace[];
+  selected_places: ScheduledAutoPlace[];
 
   days: AutoTripDay[];
 
@@ -108,10 +114,6 @@ function minutesToTime(minutes: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function addMinutes(time: string, minutes: number): string {
-  return minutesToTime(timeToMinutes(time) + minutes);
-}
-
 /* =========================================================
  * Distance / Travel Time
  * ========================================================= */
@@ -138,232 +140,340 @@ function toTspPlace(place: AutoPlace): TspPlace {
   };
 }
 
-/* =========================================================
- * Category
- * ========================================================= */
-
-function groupByCategory(places: AutoPlace[]): Map<string, AutoPlace[]> {
-  const grouped = new Map<string, AutoPlace[]>();
-
-  for (const place of places) {
-    const categoryId = place.categoryId;
-    if (!categoryId) {
-      continue;
-    }
-
-    const current = grouped.get(categoryId) ?? [];
-    current.push(place);
-    grouped.set(categoryId, current);
-  }
-
-  return grouped;
+interface RouteLeg {
+  distanceKm: number;
+  travelTimeMin: number;
+  previousPlaceName: string;
 }
 
-function getOpeningHoursEligiblePlace(
-  categoryPlaces: AutoPlace[],
-  date: Date,
-  currentTime: number,
-  previousPoint: TspPlace,
-  dayEnd: number
-): { place: AutoPlace; distanceKm: number; travelTimeMin: number } | null {
-  for (const place of [...categoryPlaces].sort((a, b) => b.poiScore - a.poiScore)) {
-    const currentPlace = toTspPlace(place);
-    const distanceKm = calculateDistanceKm(previousPoint, currentPlace);
-    const travelTimeMin = calculateTravelTimeMin(distanceKm);
-    const arrivalTime = currentTime + travelTimeMin;
-
-    if (arrivalTime + place.visitDurationMin > dayEnd) continue;
-
-    const status = checkOpeningStatus(
-      place.opening_hours,
-      date.getUTCDay(),
-      arrivalTime,
-      place.visitDurationMin
-    );
-
-    if (!status.hasData || status.isOpen) {
-      return { place, distanceKm, travelTimeMin };
-    }
-  }
-
-  return null;
+interface EvaluatedSchedule {
+  days: AutoTripDay[];
+  selectedPlaces: ScheduledAutoPlace[];
+  totalTravelTimeMin: number;
 }
 
-/* =========================================================
- * Build One Day
- * ========================================================= */
+function getTripDates(startDate: string, endDate: string): Date[] {
+  const dates: Date[] = [];
+  const date = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
 
-function buildDayRoute(
-  dayNumber: number,
-  date: string,
+  while (date <= end) {
+    dates.push(new Date(date));
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+
+  return dates;
+}
+
+function getRouteLegs(
   route: AutoPlace[],
-  startTime: string,
   startLat: number,
-  startLng: number
-): AutoTripDay {
-  let currentTime = startTime;
-  const stops: AutoTripStop[] = [];
-
-  let totalDistanceKm = 0;
-  let totalTravelTimeMin = 0;
-  let totalVisitTimeMin = 0;
-
+  startLng: number,
+  travelMatrix?: TravelMatrix
+): RouteLeg[] {
   let previousPoint = tripStartPoint(startLat, startLng);
   let previousPlaceName = TRIP_START_NAME;
 
-  for (const place of route) {
-    const to = toTspPlace(place);
+  return route.map((place) => {
+    const point = toTspPlace(place);
+    const prevId = previousPoint.place_id === "TRIP_START" ? TRIP_START_ID : previousPoint.place_id;
+    const hit = travelMatrix?.[prevId]?.[place.place_id];
 
-    const distanceKm = calculateDistanceKm(previousPoint, to);
-    const travelTimeMin = calculateTravelTimeMin(distanceKm);
-    const visitStart = addMinutes(currentTime, travelTimeMin);
+    const distanceKm = hit
+      ? Number(hit.distanceKm.toFixed(2))
+      : calculateDistanceKm(previousPoint, point);
+    const travelTimeMin = hit ? hit.durationMin : calculateTravelTimeMin(distanceKm);
 
-    const durationMin = place.visitDurationMin;
-    const visitEnd = addMinutes(visitStart, durationMin);
+    const leg = {
+      distanceKm,
+      travelTimeMin,
+      previousPlaceName,
+    };
 
-    stops.push({
-      place_id: place.place_id,
-      place_name: place.place_name,
-      categoryName: place.categoryName,
-      poiScore: place.poiScore,
-      latitude: Number(place.latitude),
-      longitude: Number(place.longitude),
-      start_time: visitStart,
-      end_time: visitEnd,
-      duration_min: durationMin,
-      travel_distance_km: Number(distanceKm.toFixed(2)),
-      travel_time_min: travelTimeMin,
-      previous_place_name: previousPlaceName,
-    });
-
-    currentTime = visitEnd;
-    totalDistanceKm += distanceKm;
-    totalTravelTimeMin += travelTimeMin;
-    totalVisitTimeMin += durationMin;
-
-    previousPoint = to;
+    previousPoint = point;
     previousPlaceName = place.place_name;
-  }
-
-  return {
-    day: dayNumber,
-    date,
-    stops,
-    total_distance_km: Number(totalDistanceKm.toFixed(2)),
-    total_travel_time_min: totalTravelTimeMin,
-    total_visit_time_min: totalVisitTimeMin,
-  };
+    return leg;
+  });
 }
 
-/* =========================================================
- * Split Route Into Days
- * ========================================================= */
-
-// เลือกสถานที่ที่เปิด ณ เวลาไปถึงจริง แล้วคง category ไว้ใช้ได้เพียงครั้งเดียวต่อทริป
-function schedulePlacesIntoDays(
-  places: AutoPlace[],
-  startDate: string,
-  endDate: string,
-  startTime: string,
+function getNearestNeighborRoute(
+  route: AutoPlace[],
   startLat: number,
-  startLng: number,
-  availableTimePerDay?: number | null
-): { days: AutoTripDay[]; selectedPlaces: AutoPlace[] } {
+  startLng: number
+): AutoPlace[] {
+  const byId = new Map(route.map((place) => [place.place_id, place]));
+  const nearestRoute = nearestNeighborTsp(
+    route.map(toTspPlace),
+    tripStartPoint(startLat, startLng)
+  );
+
+  return nearestRoute.places.slice(1).flatMap((place) => {
+    const match = byId.get(place.place_id);
+    return match ? [match] : [];
+  });
+}
+
+function getFeasibleVisitDuration(
+  place: AutoPlace,
+  dayOfWeek: number,
+  arrivalTime: number,
+  requestedDuration: number,
+  dayEnd: number
+): number {
+  const maxDuration = Math.min(requestedDuration, dayEnd - arrivalTime);
+  if (maxDuration < 1) return 0;
+
+  const initialStatus = checkOpeningStatus(
+    place.opening_hours,
+    dayOfWeek,
+    arrivalTime,
+    0
+  );
+  if (!initialStatus.hasData) return maxDuration;
+
+  let minDuration = 1;
+  let maxFeasibleDuration = 0;
+  let upperBound = maxDuration;
+
+  while (minDuration <= upperBound) {
+    const duration = Math.floor((minDuration + upperBound) / 2);
+    const status = checkOpeningStatus(
+      place.opening_hours,
+      dayOfWeek,
+      arrivalTime,
+      duration
+    );
+
+    if (status.isOpen) {
+      maxFeasibleDuration = duration;
+      minDuration = duration + 1;
+    } else {
+      upperBound = duration - 1;
+    }
+  }
+
+  return maxFeasibleDuration;
+}
+
+function evaluateSchedule(
+  trip: TripInfo,
+  routes: AutoPlace[][],
+  dates: Date[],
+  travelMatrix?: TravelMatrix
+): EvaluatedSchedule | null {
+  const categoryPlaces = new Map<string, AutoPlace[]>();
+  const routeLegs = routes.map((route) =>
+    getRouteLegs(route, trip.start_lat, trip.start_lng, travelMatrix)
+  );
+
+  routes.forEach((route, dayIndex) => {
+    route.forEach((place) => {
+      const stops = categoryPlaces.get(place.categoryId) ?? [];
+      stops.push(place);
+      categoryPlaces.set(place.categoryId, stops);
+    });
+  });
+
+  const visitDurations = new Map<AutoPlace, number>();
+  for (const [categoryId, stops] of categoryPlaces) {
+    const budget = stops[0].categoryTimeBudgetMin;
+
+    // เวลาในงบหมวดคือเวลาเที่ยวเท่านั้น ไม่รวมเวลาเดินทางระหว่างจุด
+    const baseDuration = Math.floor(budget / stops.length);
+    let extraMinutes = budget % stops.length;
+
+    for (const stop of stops) {
+      visitDurations.set(stop, baseDuration + (extraMinutes > 0 ? 1 : 0));
+      extraMinutes--;
+    }
+  }
+
   const days: AutoTripDay[] = [];
-  const selectedPlaces: AutoPlace[] = [];
-  const start = new Date(`${startDate}T00:00:00Z`);
-  const end = new Date(`${endDate}T00:00:00Z`);
-  const currentDate = new Date(start);
-  const categories = groupByCategory(places);
-  let dayNumber = 1;
+  const selectedPlaces: ScheduledAutoPlace[] = [];
+  let totalTravelTimeMin = 0;
 
-  while (currentDate <= end && categories.size > 0) {
-    const dateString = currentDate.toISOString().slice(0, 10);
-    const todayPlaces: AutoPlace[] = [];
-    let currentTime = timeToMinutes(startTime);
+  for (let dayIndex = 0; dayIndex < routes.length; dayIndex++) {
+    const route = routes[dayIndex];
+    if (route.length === 0) continue;
+
+    const date = dates[dayIndex];
+    const dateString = date.toISOString().slice(0, 10);
     const dayEnd =
-      availableTimePerDay != null
-        ? timeToMinutes(startTime) + availableTimePerDay * 60
+      trip.available_time_per_day != null
+        ? timeToMinutes(trip.start_time) + trip.available_time_per_day * 60
         : timeToMinutes(DEFAULT_DAY_END);
-    let previousPoint = tripStartPoint(startLat, startLng);
+    let currentTime = timeToMinutes(trip.start_time);
+    let totalDistanceKm = 0;
+    let totalVisitTimeMin = 0;
+    const stops: AutoTripStop[] = [];
 
-    while (categories.size > 0) {
-      let next:
-        | {
-            categoryId: string;
-            place: AutoPlace;
-            distanceKm: number;
-            travelTimeMin: number;
-          }
-        | null = null;
+    for (let stopIndex = 0; stopIndex < route.length; stopIndex++) {
+      const place = route[stopIndex];
+      const leg = routeLegs[dayIndex][stopIndex];
+      const requestedDuration = visitDurations.get(place);
 
-      for (const [categoryId, categoryPlaces] of categories) {
-        const eligible = getOpeningHoursEligiblePlace(
-          categoryPlaces,
-          currentDate,
-          currentTime,
-          previousPoint,
-          dayEnd
+      if (requestedDuration === undefined) return null;
+
+      const arrivalTime = currentTime + leg.travelTimeMin;
+      const durationMin = getFeasibleVisitDuration(
+        place,
+        date.getUTCDay(),
+        arrivalTime,
+        requestedDuration,
+        dayEnd
+      );
+      if (durationMin < 1) return null;
+
+      const departureTime = arrivalTime + durationMin;
+
+      const scheduledPlace: ScheduledAutoPlace = {
+        place_id: place.place_id,
+        place_name: place.place_name,
+        categoryId: place.categoryId,
+        categoryName: place.categoryName,
+        poiScore: place.poiScore,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        opening_hours: place.opening_hours,
+        visitDurationMin: durationMin,
+      };
+      selectedPlaces.push(scheduledPlace);
+      stops.push({
+        place_id: place.place_id,
+        place_name: place.place_name,
+        categoryName: place.categoryName,
+        poiScore: place.poiScore,
+        latitude: Number(place.latitude),
+        longitude: Number(place.longitude),
+        start_time: minutesToTime(arrivalTime),
+        end_time: minutesToTime(departureTime),
+        duration_min: durationMin,
+        travel_distance_km: Number(leg.distanceKm.toFixed(2)),
+        travel_time_min: leg.travelTimeMin,
+        previous_place_name: leg.previousPlaceName,
+      });
+
+      currentTime = departureTime;
+      totalDistanceKm += leg.distanceKm;
+      totalTravelTimeMin += leg.travelTimeMin;
+      totalVisitTimeMin += durationMin;
+    }
+
+    days.push({
+      day: dayIndex + 1,
+      date: dateString,
+      stops,
+      total_distance_km: Number(totalDistanceKm.toFixed(2)),
+      total_travel_time_min: stops.reduce(
+        (total, stop) => total + stop.travel_time_min,
+        0
+      ),
+      total_visit_time_min: totalVisitTimeMin,
+    });
+  }
+
+  return { days, selectedPlaces, totalTravelTimeMin };
+}
+
+function schedulePlaces(
+  trip: TripInfo,
+  places: AutoPlace[],
+  travelMatrix?: TravelMatrix
+): EvaluatedSchedule {
+  const dates = getTripDates(trip.start_date, trip.end_date);
+  const routes = dates.map((): AutoPlace[] => []);
+  const candidates = [...places].sort((a, b) => b.poiScore - a.poiScore);
+  const selectedPlaceIds = new Set<string>();
+  let currentSchedule = evaluateSchedule(trip, routes, dates, travelMatrix);
+
+  while (currentSchedule) {
+    let nextCandidate: AutoPlace | null = null;
+    let nextRoutes: AutoPlace[][] | null = null;
+    let nextSchedule: EvaluatedSchedule | null = null;
+
+    for (const place of candidates) {
+      if (selectedPlaceIds.has(place.place_id)) continue;
+
+      let placeRoutes: AutoPlace[][] | null = null;
+      let placeSchedule: EvaluatedSchedule | null = null;
+
+      for (let dayIndex = 0; dayIndex < routes.length; dayIndex++) {
+        const nearestRoutes = routes.map((route) => [...route]);
+        nearestRoutes[dayIndex] = getNearestNeighborRoute(
+          [...routes[dayIndex], place],
+          trip.start_lat,
+          trip.start_lng
         );
-        if (!eligible) continue;
+        const nearestSchedule = evaluateSchedule(trip, nearestRoutes, dates, travelMatrix);
 
-        if (!next || eligible.distanceKm < next.distanceKm) {
-          next = {
-            categoryId,
-            place: eligible.place,
-            distanceKm: eligible.distanceKm,
-            travelTimeMin: eligible.travelTimeMin,
-          };
+        if (
+          nearestSchedule &&
+          (!placeSchedule ||
+            nearestSchedule.totalTravelTimeMin <
+              placeSchedule.totalTravelTimeMin)
+        ) {
+          placeRoutes = nearestRoutes;
+          placeSchedule = nearestSchedule;
+        }
+
+        for (
+          let insertionIndex = routes[dayIndex].length;
+          insertionIndex >= 0;
+          insertionIndex--
+        ) {
+          const trialRoutes = routes.map((route) => [...route]);
+          trialRoutes[dayIndex].splice(insertionIndex, 0, place);
+          const trialSchedule = evaluateSchedule(trip, trialRoutes, dates, travelMatrix);
+
+          if (
+            trialSchedule &&
+            (!placeSchedule ||
+              trialSchedule.totalTravelTimeMin <
+                placeSchedule.totalTravelTimeMin)
+          ) {
+            placeRoutes = trialRoutes;
+            placeSchedule = trialSchedule;
+          }
         }
       }
 
-      if (!next) break;
-
-      todayPlaces.push(next.place);
-      selectedPlaces.push(next.place);
-      currentTime += next.travelTimeMin + next.place.visitDurationMin;
-      previousPoint = toTspPlace(next.place);
-      categories.delete(next.categoryId);
+      if (placeRoutes && placeSchedule) {
+        nextCandidate = place;
+        nextRoutes = placeRoutes;
+        nextSchedule = placeSchedule;
+        break;
+      }
     }
 
-    if (todayPlaces.length > 0) {
-      days.push(
-        buildDayRoute(
-          dayNumber,
-          dateString,
-          todayPlaces,
-          startTime,
-          startLat,
-          startLng
-        )
-      );
-    }
+    if (!nextCandidate || !nextRoutes || !nextSchedule) break;
 
-    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-    dayNumber++;
+    selectedPlaceIds.add(nextCandidate.place_id);
+    routes.splice(0, routes.length, ...nextRoutes);
+    currentSchedule = nextSchedule;
   }
 
-  return { days, selectedPlaces };
+  if (!currentSchedule) {
+    throw new Error("ไม่สามารถคำนวณตาราง Auto Trip ได้");
+  }
+
+  return currentSchedule;
 }
 
 /* =========================================================
  * MAIN AUTO TRIP FUNCTION
  * ========================================================= */
 
-export function buildAutoTrip(trip: TripInfo, places: AutoPlace[]): AutoTripResult {
+export function buildAutoTrip(
+  trip: TripInfo,
+  places: AutoPlace[],
+  travelMatrix?: TravelMatrix
+): AutoTripResult {
   if (!places.length) {
     throw new Error("ไม่พบสถานที่สำหรับจัดทริป");
   }
 
-  const { days, selectedPlaces } = schedulePlacesIntoDays(
-    places,
-    trip.start_date,
-    trip.end_date,
-    trip.start_time,
-    trip.start_lat,
-    trip.start_lng,
-    trip.available_time_per_day
-  );
+  const result = schedulePlaces(trip, places, travelMatrix);
+  const { days, selectedPlaces } = result;
 
   const totalDistanceKm = days.reduce((total, day) => total + day.total_distance_km, 0);
 
