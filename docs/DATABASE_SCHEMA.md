@@ -51,10 +51,10 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `start_date` / `end_date` | date | NOT NULL | CHECK `end_date >= start_date` |
 | `start_time` | time | NOT NULL | |
 | `number_of_people` | int4 | NOT NULL | CHECK `> 0` |
-| `total_budget` | numeric | | |
+| `total_budget` | numeric | | ตัวเลขที่ผู้ใช้กรอกตาม `budget_scope`/`budget_period` (D-51 — ใช้แสดงผล/โหลดกลับเท่านั้น) |
 | `available_time_per_day` | int4 | NOT NULL | CHECK `> 0` |
 | `created_at` | timestamptz | | `now()` |
-| `daily_budget` | numeric | | |
+| `daily_budget` | numeric | | งบต่อคนต่อวัน (D-51) |
 | `start_lat` | float8 | | CHECK −90..90 |
 | `start_lng` | float8 | | CHECK −180..180 |
 | `start_address` | text | | |
@@ -70,7 +70,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `day_number` | int4 | NOT NULL | UNIQUE (`trip_id`, `day_number`) |
 | `visit_date` | date | NOT NULL | |
 | `start_time` / `end_time` | time | | |
-| `daily_budget` | numeric | | |
+| `daily_budget` | numeric | | งบต่อคนต่อวัน (D-51) |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
 ### `trip_categories` · rows ~11 (นับจริง 24 — 2026-10-22, P5-0 · หลัง P5b ชุดที่ 2 เหลือ 3 แถวที่อ้างหมวดใหม่ · 0 — 2026-10-22 ลบตามทริป) · ใช้ในโค้ด: `tripController.ts`, `poiPlaceQueries.ts`
@@ -108,7 +108,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE |
 | `category_score` | numeric | | (D-48: null = ผู้ใช้ไม่ได้เลือกหมวด · 1 = ตรงหมวด · 0 = หมวดอื่นที่เติมเข้ามา — ✅ ผู้ใช้รัน `docs/sql/2026-10-25_poi_category_score_nullable.sql` แล้ว 2026-10-25 — Claude ตรวจ: ทริปทดสอบที่ไม่เลือกหมวดบันทึก null ได้ 50 แถว) |
 | `rating_score` / `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
-| `budget_score` | numeric | | |
+| `budget_score` | numeric | | price score `1 − ราคา ÷ งบต่อคนต่อวัน` · null = ไม่ได้ตั้งงบหรือไม่ทราบราคา (D-52) |
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 

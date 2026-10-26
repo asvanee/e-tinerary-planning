@@ -135,7 +135,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 
 `users`, `trips`, `trip_categories`, `trip_days`, `categories`, `category_labels`, `places`, `poi_scores`, `itineraries`
 
-คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_level`, `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `itineraries.visit_duration_min` (เวลาที่ผู้ใช้กรอก — D-36/D-43) · `categories.default_duration_min` และตาราง `place_categories` ถูกลบใน P5g; Auto Trip โหลดหมวดที่เลือกจาก `trip_categories` และจับคู่สถานที่ผ่าน `category_labels` (D-45) แล้วบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` · `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
+คอลัมน์ที่พบใน query เช่น `places.opening_hours` (jsonb รูปแบบ Google `periods`), `places.price_range_start` / `price_range_end` (ราคาต่อคน บาท — D-52 · `price_level` เหลือแค่ Auto Trip), `categories.price_nature` (`free`|`paid`), `categories.environment_type` (`INDOOR`|`OUTDOOR`|`MIXED`), `itineraries.visit_duration_min` (เวลาที่ผู้ใช้กรอก — D-36/D-43) · `categories.default_duration_min` และตาราง `place_categories` ถูกลบใน P5g; Auto Trip โหลดหมวดที่เลือกจาก `trip_categories` และจับคู่สถานที่ผ่าน `category_labels` (D-45) แล้วบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` · `poi_scores` (unique `trip_id,place_id`), `trip_days` (unique `trip_id,day_number` ตาม comment)
 **Schema จริง, RLS, FK/CASCADE:** ดู [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) (snapshot 2026-10-18 + การเปลี่ยนแปลงหลังจากนั้น: PK ทุกตารางเป็น uuid — T23) · RLS ปิดทุกตารางเดิม · FK ส่วนใหญ่ `ON DELETE CASCADE`
 
 ## 8. บริการภายนอก

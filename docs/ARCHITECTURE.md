@@ -62,7 +62,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 | category | 1.0 ทุกที่ตั้งแต่ P5c (1 สถานที่ = 1 หมวด ไม่มี confidence — D-38 · สูตรรอทีม D-23) | 0.35 |
 | rating | `rating/5` (ถ้าเป็น null ให้ 0.5) | 0.25 |
 | distance | `1/(1+km)` | 0.15 |
-| budget(=price) | free: 0.9 (มีราคา) / 0.8 (ไม่มี) · paid: `(80-20*level)/100` · paid ไม่มีราคา: weight 0 | 0.15 |
+| budget(=price) | `1 − placeCost ÷ daily_budget` (cap 0–1 · งบต่อคนต่อวัน D-51) · placeCost จาก `getPlaceCost` (priceRange → free = 0) · ไม่ได้ตั้งงบหรือไม่ทราบราคา: weight 0 (D-52) | 0.15 |
 | weather | `exposure*(1-rain)+(1-exposure)` ใช้ OUTDOOR=1, MIXED=0.5, INDOOR=0 · ไม่มีพยากรณ์ให้ 1.0 | 0.10 |
 
 ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
@@ -85,6 +85,8 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 5. Controller ส่ง candidate จาก `poi_scores` ที่จับคู่กับหมวดที่เลือกทั้งหมดให้ `buildAutoTrip()`; หาก place จับคู่หลายหมวดจะมี candidate ต่อหมวด แต่ builder ห้ามจัด `place_id` ซ้ำ
 6. Builder ทดลอง candidate ตาม POI Score จากมากไปน้อย; หลังเพิ่มจะลองจัดลำดับ nearest neighbor ใหม่และตำแหน่งแทรกที่เป็นไปได้ พร้อมคำนวณตารางทั้งทริปใหม่ทุกครั้ง · ใช้เวลาที่เลือกของหมวดนั้นแยกกับสถานที่แต่ละแห่ง ไม่หารเฉลี่ย และไม่หักเวลาเดินทาง; เวลาเดินทางยังนับในกำหนดการรายวันและเวลาเดินทางรวม · ลดเวลาเที่ยวได้เมื่อเวลาเปิดหรือเวลาจบวันจำกัด · สถานที่ที่มีเวลาเปิดต้องเปิดตลอดเวลาที่เที่ยวจริง; ไม่มี periods = ไม่ทราบเวลาและเลือกได้ (D-10/D-46) · ใช้ ORS Matrix และ fallback Haversine; ถ้าไม่มี `available_time_per_day` จะใช้เวลาจบวัน 18:00 (D-50)
 7. หน้า `auto.tsx` แสดงฟอร์มก่อนคำนวณ · แผนที่ใช้ `RouteMap` component เดียวกับ Itinerary Editor (Leaflet + OpenStreetMap + ORS Directions) และ backend ส่งพิกัดจุดเริ่มต้นมาด้วย · ตอนยืนยันส่ง `visit_durations` พร้อมรายการวันให้ `confirmItinerary` ตรวจซ้ำและบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` ด้วย schema ที่มีอยู่แล้ว (D-36/D-43)
+
+⚠️ ยังไม่สอดคล้องกับ `itineraryBuilder` (รอกิ่ง — DEVELOPMENT_STATUS #38–#41): วันที่ 2+ คิดขาเดินทางจากจุดเริ่ม · ไม่คิดงบ · ยังอ่าน `price_level` · เวลาวันอ่านจาก `trips` ไม่ใช่ `trip_days`
 
 ### 2.6 Trip Detail
 GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ปุ่ม "แก้ไขแผน" จะเรียก `/api/places?ids=` + `POST /draft` ใหม่ แล้วไป editor
