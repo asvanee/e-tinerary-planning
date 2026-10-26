@@ -10,6 +10,8 @@ export interface PlaceRecord {
   longitude: number;
   rating: number | null;
   price_level: number | null;
+  price_range_start: number | null;
+  price_range_end: number | null;
   user_ratings_total: number | null;
   opening_hours: OpeningHours | null;
   formatted_address: string | null;
@@ -81,7 +83,7 @@ function buildAddress(row: AttractionRow): string | null {
  * record ของ places จากแถว CSV + ผล Google ที่จับคู่ผ่านแล้ว (D-26/D-27)
  * - พิกัดจาก CSV เสมอ (หลัง admin แก้แล้ว)
  * - ชื่อ/เบอร์/เว็บ: Google ก่อน แล้วค่อย CSV
- * - rating, user_ratings_total, price_level, opening_hours, ที่อยู่, gmaps_types: Google
+ * - rating, user_ratings_total, price_level, price_range_*, opening_hours, ที่อยู่, gmaps_types: Google
  * - province/district และ att_*: CSV
  */
 export function buildPlaceRecord(
@@ -98,6 +100,8 @@ export function buildPlaceRecord(
     longitude: coords.lng,
     rating: details.rating ?? null,
     price_level: details.price_level ?? null,
+    price_range_start: details.price_range_start ?? null,
+    price_range_end: details.price_range_end ?? null,
     user_ratings_total: details.user_ratings_total ?? null,
     opening_hours: details.opening_hours ?? null,
     formatted_address: clean(details.formatted_address) ?? clean(candidate.formatted_address) ?? buildAddress(row),

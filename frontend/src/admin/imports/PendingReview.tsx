@@ -43,7 +43,7 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
   }, [base, token, reloadKey, refresh]);
 
   const resolve = async (item: ImportItem, action: ResolveAction) => {
-    if (action === "accept_google" && !window.confirm("ยอมรับผล Google จะเรียก Place Details 1 ครั้ง (มีค่าใช้จ่าย) ต้องการต่อไหม")) {
+    if (action === "accept_google" && !window.confirm("ยอมรับผล Google จะเรียก Place Details และราคา (Places API New) อย่างละ 1 ครั้ง (มีค่าใช้จ่าย) ต้องการต่อไหม")) {
       return;
     }
     setBusyItemId(item.item_id);

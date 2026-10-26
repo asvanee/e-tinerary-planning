@@ -80,7 +80,13 @@ describe("Google Places client (fetch ปลอม)", () => {
 
   test("getDetails ขอ field รวม type และคืน result · NOT_FOUND → error", async () => {
     const ok = fakeFetch({ status: "OK", result: { place_id: "g1", types: ["museum"] } });
-    expect(await createGooglePlacesClient("KEY", ok.fn).getDetails("g1")).toEqual({ place_id: "g1", types: ["museum"] });
+    // fetch ปลอมคืน body เดิมให้ Places API (New) ด้วย → ไม่มี priceRange = null
+    expect(await createGooglePlacesClient("KEY", ok.fn).getDetails("g1")).toEqual({
+      place_id: "g1",
+      types: ["museum"],
+      price_range_start: null,
+      price_range_end: null,
+    });
     const params = new URL(ok.urls[0]).searchParams;
     expect(params.get("place_id")).toBe("g1");
     expect(params.get("fields")).toContain("opening_hours");
@@ -88,6 +94,57 @@ describe("Google Places client (fetch ปลอม)", () => {
 
     const missing = createGooglePlacesClient("KEY", fakeFetch({ status: "NOT_FOUND" }).fn);
     await expect(missing.getDetails("g1")).rejects.toBeInstanceOf(GoogleApiError);
+  });
+});
+
+describe("getDetails ขอ priceRange จาก Places API (New) (D-52 — fetch ปลอม)", () => {
+  const DETAILS_OK = { status: "OK", result: { place_id: "g1", price_level: 1 } };
+
+  // legacy Details ตอบ DETAILS_OK เสมอ · Places API (New) ตอบตาม newStatus/newBody
+  function routedFetch(newBody: unknown, newStatus = 200) {
+    const calls: { url: string; headers?: Record<string, string> }[] = [];
+    const fn = async (url: string, init?: { headers?: Record<string, string> }) => {
+      calls.push({ url, headers: init?.headers });
+      if (url.startsWith("https://places.googleapis.com/")) {
+        return { ok: newStatus >= 200 && newStatus < 300, status: newStatus, json: async () => newBody };
+      }
+      return { ok: true, status: 200, json: async () => DETAILS_OK };
+    };
+    return { fn, calls };
+  }
+  const thb = (units: string) => ({ currencyCode: "THB", units });
+
+  test("มี priceRange THB → เติม price_range_start/end · ส่ง key และ FieldMask ทาง header", async () => {
+    const { fn, calls } = routedFetch({ priceRange: { startPrice: thb("1"), endPrice: thb("200") } });
+    const details = await createGooglePlacesClient("KEY", fn).getDetails("g1");
+    expect(details).toMatchObject({ price_level: 1, price_range_start: 1, price_range_end: 200 });
+    const newCall = calls.find((c) => c.url.startsWith("https://places.googleapis.com/"));
+    expect(newCall?.url).toBe("https://places.googleapis.com/v1/places/g1");
+    expect(newCall?.headers).toEqual({ "X-Goog-Api-Key": "KEY", "X-Goog-FieldMask": "priceRange" });
+  });
+
+  test.each([
+    ["ช่วงแบบมากกว่า X (ไม่มี endPrice)", { priceRange: { startPrice: thb("1000") } }, 1000, null],
+    ["ไม่ใช่เงินบาท", { priceRange: { startPrice: { currencyCode: "USD", units: "10" } } }, null, null],
+    ["ไม่มี priceRange", {}, null, null],
+  ])("%s", async (_label, body, start, end) => {
+    const details = await createGooglePlacesClient("KEY", routedFetch(body).fn).getDetails("g1");
+    expect(details.price_range_start).toBe(start);
+    expect(details.price_range_end).toBe(end);
+  });
+
+  test.each([403, 429])("HTTP %i → GoogleApiError แบบ fatal (หยุดทั้ง job)", async (status) => {
+    const err = await createGooglePlacesClient("KEY", routedFetch({}, status).fn).getDetails("g1").catch((e) => e);
+    expect(err).toBeInstanceOf(GoogleApiError);
+    expect(err.fatal).toBe(true);
+    expect(err.message).not.toContain("KEY");
+  });
+
+  test("error อื่น → นำเข้าต่อโดยไม่มีราคา", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const details = await createGooglePlacesClient("KEY", routedFetch({}, 500).fn).getDetails("g1");
+    expect(details).toMatchObject({ place_id: "g1", price_range_start: null, price_range_end: null });
+    spy.mockRestore();
   });
 });
 
@@ -249,7 +306,15 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
       csv,
       { lat: 18.7, lng: 98.9 },
       { place_id: "g1", name: "ชื่อ candidate", geometry: { location: { lat: 1, lng: 1 } } },
-      { place_id: "g1", name: "ชื่อ Google", website: "https://g.com", rating: 4.5, types: ["place_of_worship"] }
+      {
+        place_id: "g1",
+        name: "ชื่อ Google",
+        website: "https://g.com",
+        rating: 4.5,
+        types: ["place_of_worship"],
+        price_range_start: 1,
+        price_range_end: 200,
+      }
     );
     expect(record).toMatchObject({
       google_place_id: "g1",
@@ -260,6 +325,8 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
       phone_number: "053111111",
       rating: 4.5,
       price_level: null,
+      price_range_start: 1,
+      price_range_end: 200,
       opening_hours: null,
       gmaps_types: ["place_of_worship"],
       province: "เชียงใหม่",
@@ -275,6 +342,8 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
     expect(record.place_name).toBe("ชื่อ CSV");
     expect(record.website).toBeNull(); // "ไม่มี" ใน CSV
     expect(record.gmaps_types).toBeNull();
+    expect(record.price_range_start).toBeNull();
+    expect(record.price_range_end).toBeNull();
     expect(record.formatted_address).toBe("เมืองเชียงใหม่, เชียงใหม่");
   });
 

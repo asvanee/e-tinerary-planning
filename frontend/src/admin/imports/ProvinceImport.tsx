@@ -121,7 +121,8 @@ export default function ProvinceImport() {
     const confirmed = window.confirm(
       `เริ่มนำเข้า ${toProcess.toLocaleString()} สถานที่ของ${province}?\n` +
         `จะเรียก Google Find Place ${googleRequests.findPlace.toLocaleString()} ครั้ง ` +
-        `และ Place Details ไม่เกิน ${googleRequests.detailsMax.toLocaleString()} ครั้ง (มีค่าใช้จ่าย)`
+        `· Place Details ไม่เกิน ${googleRequests.detailsMax.toLocaleString()} ครั้ง ` +
+        `และราคา (Places API New) ไม่เกิน ${googleRequests.detailsMax.toLocaleString()} ครั้ง (มีค่าใช้จ่าย)`
     );
     if (!confirmed) return;
 
@@ -224,7 +225,7 @@ export default function ProvinceImport() {
               <Stat label="สถานที่หลังตรวจข้อมูล" value={preview.importRows} />
               <Stat label="มีผลจากรอบก่อนแล้ว (ข้าม)" value={preview.alreadyDone} />
               <Stat label="จะนำเข้ารอบนี้" value={preview.toProcess} />
-              <Stat label="เรียก Google ไม่เกิน (ครั้ง)" value={preview.googleRequests.findPlace + preview.googleRequests.detailsMax} />
+              <Stat label="เรียก Google ไม่เกิน (ครั้ง)" value={preview.googleRequests.findPlace + preview.googleRequests.detailsMax * 2} />
             </div>
             {preview.invalidLocation > 0 && (
               <p className="mt-2 text-sm text-[color:var(--deep)]">

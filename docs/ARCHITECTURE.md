@@ -21,7 +21,7 @@ Express API (backend/src/server.ts)
 
 หน้า /admin ── /api/admin/* (requireAuth + requireAdmin) ── backend/src/admin/
   ├── อ่าน data/attraction.csv → ตรวจสถานที่ซ้ำ/มีปัญหา → admin_place_decisions
-  └── job นำเข้า → Google Places (Find Place + Details) → places, pipeline_jobs/_items (type จาก Google เก็บที่ `places.gmaps_types` — ไม่เขียน place_types แล้ว P5g)
+  └── job นำเข้า → Google Places (Find Place + Details + Places API (New) priceRange — D-52) → places, pipeline_jobs/_items (type จาก Google เก็บที่ `places.gmaps_types` — ไม่เขียน place_types แล้ว P5g)
 
 ```
 
@@ -94,8 +94,8 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 ### 2.7 Admin: ตรวจข้อมูลและนำเข้าจังหวัด (R5) — `backend/src/admin/` + `frontend/src/admin/`
 1. `/admin` → การ์ด "ตรวจสถานที่ซ้ำและนำเข้าข้อมูล" → `/admin/provinces` (จังหวัดจาก CSV + จำนวนใน `places`/การตัดสินใจ)
 2. **ตรวจข้อมูล** `/admin/provinces/:province`: `pipeline/review/buildReview.ts` วิเคราะห์ CSV (dedupe + ตัวตรวจชื่อคล้าย/พิกัดใกล้/พิกัดพัง/ชื่อขยะ) → admin รวม (เลือกแถวหลัก, เลือกค่าทีละช่องหรือพิมพ์เองได้เฉพาะ 19 ช่องที่นำเข้า — D-31/D-32) / แยก / ตัดทิ้ง / แก้พิกัด → `admin_place_decisions` (`resolveDecisions` เลือกการตัดสินใจล่าสุด)
-3. **นำเข้า** `/admin/provinces/:province/import` (ต้องตัดสินใจครบ): preview ไม่เรียก Google → `pipeline/import/importRows.ts` สร้างแถวจาก CSV + การตัดสินใจ → job รันใน process (ทีละ 1 job, หน่วง 200 ms, ยกเลิกได้, เปิด server ใหม่ job ค้าง = failed) → ต่อแถว: Find Place "ชื่อไทย อำเภอ จังหวัด" (bias 1 km) → รับเมื่อห่าง ≤ 1 km **และ** ชื่อคล้าย (ครอบกัน หรือ Levenshtein ≥ 0.6, แปลงเลขไทยก่อน — D-33/D-34) → Details → insert `places` (พิกัดจาก CSV, ไม่ upsert · type จาก Google อยู่ใน `gmaps_types` — ไม่เขียน `place_types` แล้ว D-41) · ไม่ผ่าน/ไม่พบ/`google_place_id` ซ้ำ → `needs_review_*` · รันต่อได้โดยข้าม ATT_ID ที่มีผลแล้ว (D-30)
-4. **รอตรวจหลังนำเข้า** (P4c): admin เลือก ยอมรับผล Google (Details 1 ครั้ง) / นำเข้าจาก CSV อย่างเดียว (`csv:<ATT_ID>`) / ตัดทิ้ง → item เป็น `resolved`
+3. **นำเข้า** `/admin/provinces/:province/import` (ต้องตัดสินใจครบ): preview ไม่เรียก Google → `pipeline/import/importRows.ts` สร้างแถวจาก CSV + การตัดสินใจ → job รันใน process (ทีละ 1 job, หน่วง 200 ms, ยกเลิกได้, เปิด server ใหม่ job ค้าง = failed) → ต่อแถว: Find Place "ชื่อไทย อำเภอ จังหวัด" (bias 1 km) → รับเมื่อห่าง ≤ 1 km **และ** ชื่อคล้าย (ครอบกัน หรือ Levenshtein ≥ 0.6, แปลงเลขไทยก่อน — D-33/D-34) → Details + priceRange จาก Places API (New) (THB เท่านั้น · 403/429 หยุด job · error อื่นนำเข้าต่อโดยไม่มีราคา — D-52) → insert `places` (พิกัดจาก CSV, ไม่ upsert · type จาก Google อยู่ใน `gmaps_types` — ไม่เขียน `place_types` แล้ว D-41) · ไม่ผ่าน/ไม่พบ/`google_place_id` ซ้ำ → `needs_review_*` · รันต่อได้โดยข้าม ATT_ID ที่มีผลแล้ว (D-30)
+4. **รอตรวจหลังนำเข้า** (P4c): admin เลือก ยอมรับผล Google (Details + priceRange อย่างละ 1 ครั้ง) / นำเข้าจาก CSV อย่างเดียว (`csv:<ATT_ID>`) / ตัดทิ้ง → item เป็น `resolved`
 5. สถานที่ที่นำเข้าใหม่ได้หมวดจากป้าย ททท. อัตโนมัติ (`places.att_type_label` → `category_labels` — P5b/P5c) จึงถูกแนะนำได้ทันที
 
 ## 3. Data Pipeline เดิม (ลบแล้ว)
