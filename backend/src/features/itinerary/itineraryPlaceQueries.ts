@@ -42,7 +42,8 @@ export interface AutoTripPlace {
   latitude: number;
   longitude: number;
   openingHours: OpeningHours | null;
-  rawPriceLevel: number | null;
+  priceRangeStart: number | null;
+  priceRangeEnd: number | null;
   priceNature: PriceNature;
 }
 
@@ -94,7 +95,8 @@ interface AutoTripPlaceRow {
   latitude: number;
   longitude: number;
   opening_hours: OpeningHours | null;
-  price_level: number | null;
+  price_range_start: number | null;
+  price_range_end: number | null;
   category_labels:
     | {
         categories: AutoTripCategory | AutoTripCategory[] | null;
@@ -355,7 +357,8 @@ export async function getAutoTripPlaces(
         latitude,
         longitude,
         opening_hours,
-        price_level,
+        price_range_start,
+        price_range_end,
         category_labels!inner(
           categories!inner(
             category_id,
@@ -407,7 +410,8 @@ export async function getAutoTripPlaces(
           latitude: Number(place.latitude),
           longitude: Number(place.longitude),
           openingHours: place.opening_hours ?? null,
-          rawPriceLevel: place.price_level ?? null,
+          priceRangeStart: place.price_range_start ?? null,
+          priceRangeEnd: place.price_range_end ?? null,
           priceNature: category.price_nature,
         });
       }

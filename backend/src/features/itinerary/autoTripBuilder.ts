@@ -6,6 +6,8 @@ import {
   nearestNeighborTsp,
   TspPlace,
 } from "./tspRouteOptimizer";
+import { getPlaceCost } from "./itineraryBuilder";
+import type { PriceNature } from "../poi/poiPlaceQueries";
 
 /* =========================================================
  * Types
@@ -22,9 +24,19 @@ export interface AutoPlace {
   longitude: number;
   opening_hours: OpeningHours | null;
   requestedVisitDurationMin: number;
+  priceRangeStart?: number | null;
+  priceRangeEnd?: number | null;
+  priceNature?: PriceNature;
+  isRecommendation?: boolean;
 }
 
-interface ScheduledAutoPlace extends Omit<AutoPlace, "requestedVisitDurationMin"> {
+interface ScheduledAutoPlace extends Omit<
+  AutoPlace,
+  | "requestedVisitDurationMin"
+  | "priceRangeStart"
+  | "priceRangeEnd"
+  | "priceNature"
+> {
   visitDurationMin: number;
 }
 
@@ -44,6 +56,19 @@ export interface TripInfo {
 
   // จำนวนชั่วโมงที่เที่ยวได้ต่อวัน
   available_time_per_day?: number | null;
+
+  use_budget?: boolean;
+  daily_budget?: number | null;
+  trip_days?: AutoTripDaySchedule[];
+}
+
+export interface AutoTripDaySchedule {
+  dayNumber: number;
+  visitDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  dailyBudget: number | null;
+  useBudget: boolean;
 }
 
 interface AutoTripStop {
@@ -66,6 +91,7 @@ interface AutoTripStop {
   travel_time_min: number;
 
   previous_place_name: string;
+  is_recommendation: boolean;
 }
 
 interface AutoTripDay {
@@ -93,9 +119,11 @@ interface AutoTripResult {
  * Constants
  * ========================================================= */
 
+const LAST_DAY_MINUTE = 24 * 60 - 1;
 const DEFAULT_DAY_END = "18:00";
 const DEFAULT_TRAVEL_SPEED_KMH = 30;
 const TRIP_START_NAME = "จุดเริ่มต้นทริป";
+const DAY_START_NAME = "เริ่มต้นวัน";
 
 /* =========================================================
  * Time Utilities
@@ -169,13 +197,24 @@ function getRouteLegs(
   route: AutoPlace[],
   startLat: number,
   startLng: number,
-  travelMatrix?: TravelMatrix
+  travelMatrix: TravelMatrix | undefined,
+  includeTripStartLeg: boolean
 ): RouteLeg[] {
   let previousPoint = tripStartPoint(startLat, startLng);
   let previousPlaceName = TRIP_START_NAME;
 
-  return route.map((place) => {
+  return route.map((place, index) => {
     const point = toTspPlace(place);
+    if (index === 0 && !includeTripStartLeg) {
+      previousPoint = point;
+      previousPlaceName = DAY_START_NAME;
+      return {
+        distanceKm: 0,
+        travelTimeMin: 0,
+        previousPlaceName,
+      };
+    }
+
     const prevId = previousPoint.place_id === "TRIP_START" ? TRIP_START_ID : previousPoint.place_id;
     const hit = travelMatrix?.[prevId]?.[place.place_id];
 
@@ -261,27 +300,59 @@ function evaluateSchedule(
   dates: Date[],
   travelMatrix?: TravelMatrix
 ): EvaluatedSchedule | null {
-  const routeLegs = routes.map((route) =>
-    getRouteLegs(route, trip.start_lat, trip.start_lng, travelMatrix)
+  const selectionRouteLegs = routes.map((route) =>
+    getRouteLegs(
+      route,
+      trip.start_lat,
+      trip.start_lng,
+      travelMatrix,
+      true
+    )
+  );
+  const routeLegs = selectionRouteLegs.map((legs, dayIndex) =>
+    dayIndex === 0
+      ? legs
+      : legs.map((leg, index) =>
+          index === 0
+            ? {
+                ...leg,
+                distanceKm: 0,
+                travelTimeMin: 0,
+                previousPlaceName: DAY_START_NAME,
+              }
+            : leg
+        )
   );
 
   const days: AutoTripDay[] = [];
   const selectedPlaces: ScheduledAutoPlace[] = [];
-  let totalTravelTimeMin = 0;
+  const totalTravelTimeMin = selectionRouteLegs
+    .flat()
+    .reduce((total, leg) => total + leg.travelTimeMin, 0);
+
+  if (!routes.some((route) => route.length > 0)) {
+    return { days: [], selectedPlaces, totalTravelTimeMin };
+  }
 
   for (let dayIndex = 0; dayIndex < routes.length; dayIndex++) {
     const route = routes[dayIndex];
-    if (route.length === 0) continue;
-
     const date = dates[dayIndex];
     const dateString = date.toISOString().slice(0, 10);
-    const dayEnd =
-      trip.available_time_per_day != null
+    const tripDay = trip.trip_days?.[dayIndex];
+    const dayStartTime = tripDay?.startTime ?? trip.start_time;
+    const dayEnd = tripDay
+      ? tripDay.endTime
+        ? timeToMinutes(tripDay.endTime)
+        : LAST_DAY_MINUTE
+      : trip.available_time_per_day != null
         ? timeToMinutes(trip.start_time) + trip.available_time_per_day * 60
         : timeToMinutes(DEFAULT_DAY_END);
-    let currentTime = timeToMinutes(trip.start_time);
+    let currentTime = timeToMinutes(dayStartTime);
     let totalDistanceKm = 0;
     let totalVisitTimeMin = 0;
+    let dailyCost = 0;
+    const useBudget = tripDay?.useBudget ?? trip.use_budget === true;
+    const dailyBudget = tripDay ? tripDay.dailyBudget : trip.daily_budget;
     const stops: AutoTripStop[] = [];
 
     for (let stopIndex = 0; stopIndex < route.length; stopIndex++) {
@@ -298,6 +369,21 @@ function evaluateSchedule(
       );
       if (durationMin < 1) return null;
 
+      const placeCost = getPlaceCost(
+        place.priceRangeStart ?? null,
+        place.priceRangeEnd ?? null,
+        place.priceNature ?? "paid"
+      );
+      if (placeCost !== null) dailyCost += placeCost;
+      if (
+        useBudget &&
+        dailyBudget !== null &&
+        dailyBudget !== undefined &&
+        dailyCost > dailyBudget
+      ) {
+        return null;
+      }
+
       const departureTime = arrivalTime + durationMin;
 
       const scheduledPlace: ScheduledAutoPlace = {
@@ -310,6 +396,7 @@ function evaluateSchedule(
         longitude: place.longitude,
         opening_hours: place.opening_hours,
         visitDurationMin: durationMin,
+        isRecommendation: place.isRecommendation ?? false,
       };
       selectedPlaces.push(scheduledPlace);
       stops.push({
@@ -325,16 +412,16 @@ function evaluateSchedule(
         travel_distance_km: Number(leg.distanceKm.toFixed(2)),
         travel_time_min: leg.travelTimeMin,
         previous_place_name: leg.previousPlaceName,
+        is_recommendation: place.isRecommendation ?? false,
       });
 
       currentTime = departureTime;
       totalDistanceKm += leg.distanceKm;
-      totalTravelTimeMin += leg.travelTimeMin;
       totalVisitTimeMin += durationMin;
     }
 
     days.push({
-      day: dayIndex + 1,
+      day: tripDay?.dayNumber ?? dayIndex + 1,
       date: dateString,
       stops,
       total_distance_km: Number(totalDistanceKm.toFixed(2)),
@@ -349,12 +436,64 @@ function evaluateSchedule(
   return { days, selectedPlaces, totalTravelTimeMin };
 }
 
+interface PlaceInsertion {
+  routes: AutoPlace[][];
+  schedule: EvaluatedSchedule;
+}
+
+function findBestPlaceInsertion(
+  trip: TripInfo,
+  routes: AutoPlace[][],
+  dates: Date[],
+  dayIndex: number,
+  place: AutoPlace,
+  travelMatrix?: TravelMatrix
+): PlaceInsertion | null {
+  let bestInsertion: PlaceInsertion | null = null;
+
+  const nearestRoutes = routes.map((route) => [...route]);
+  nearestRoutes[dayIndex] = getNearestNeighborRoute(
+    [...routes[dayIndex], place],
+    trip.start_lat,
+    trip.start_lng
+  );
+  const nearestSchedule = evaluateSchedule(trip, nearestRoutes, dates, travelMatrix);
+
+  if (nearestSchedule) {
+    bestInsertion = { routes: nearestRoutes, schedule: nearestSchedule };
+  }
+
+  for (
+    let insertionIndex = routes[dayIndex].length;
+    insertionIndex >= 0;
+    insertionIndex--
+  ) {
+    const trialRoutes = routes.map((route) => [...route]);
+    trialRoutes[dayIndex].splice(insertionIndex, 0, place);
+    const trialSchedule = evaluateSchedule(trip, trialRoutes, dates, travelMatrix);
+
+    if (
+      trialSchedule &&
+      (!bestInsertion ||
+        trialSchedule.totalTravelTimeMin <
+          bestInsertion.schedule.totalTravelTimeMin)
+    ) {
+      bestInsertion = { routes: trialRoutes, schedule: trialSchedule };
+    }
+  }
+
+  return bestInsertion;
+}
+
 function schedulePlaces(
   trip: TripInfo,
   places: AutoPlace[],
+  recommendationPlaces: AutoPlace[],
   travelMatrix?: TravelMatrix
 ): EvaluatedSchedule {
-  const dates = getTripDates(trip.start_date, trip.end_date);
+  const dates = trip.trip_days
+    ? trip.trip_days.map((day) => new Date(`${day.visitDate}T00:00:00Z`))
+    : getTripDates(trip.start_date, trip.end_date);
   const routes = dates.map((): AutoPlace[] => []);
   const candidates = [...places].sort((a, b) => b.poiScore - a.poiScore);
   const selectedPlaceIds = new Set<string>();
@@ -372,42 +511,23 @@ function schedulePlaces(
       let placeSchedule: EvaluatedSchedule | null = null;
 
       for (let dayIndex = 0; dayIndex < routes.length; dayIndex++) {
-        const nearestRoutes = routes.map((route) => [...route]);
-        nearestRoutes[dayIndex] = getNearestNeighborRoute(
-          [...routes[dayIndex], place],
-          trip.start_lat,
-          trip.start_lng
+        const insertion = findBestPlaceInsertion(
+          trip,
+          routes,
+          dates,
+          dayIndex,
+          place,
+          travelMatrix
         );
-        const nearestSchedule = evaluateSchedule(trip, nearestRoutes, dates, travelMatrix);
 
         if (
-          nearestSchedule &&
+          insertion &&
           (!placeSchedule ||
-            nearestSchedule.totalTravelTimeMin <
+            insertion.schedule.totalTravelTimeMin <
               placeSchedule.totalTravelTimeMin)
         ) {
-          placeRoutes = nearestRoutes;
-          placeSchedule = nearestSchedule;
-        }
-
-        for (
-          let insertionIndex = routes[dayIndex].length;
-          insertionIndex >= 0;
-          insertionIndex--
-        ) {
-          const trialRoutes = routes.map((route) => [...route]);
-          trialRoutes[dayIndex].splice(insertionIndex, 0, place);
-          const trialSchedule = evaluateSchedule(trip, trialRoutes, dates, travelMatrix);
-
-          if (
-            trialSchedule &&
-            (!placeSchedule ||
-              trialSchedule.totalTravelTimeMin <
-                placeSchedule.totalTravelTimeMin)
-          ) {
-            placeRoutes = trialRoutes;
-            placeSchedule = trialSchedule;
-          }
+          placeRoutes = insertion.routes;
+          placeSchedule = insertion.schedule;
         }
       }
 
@@ -430,6 +550,57 @@ function schedulePlaces(
     throw new Error("ไม่สามารถคำนวณตาราง Auto Trip ได้");
   }
 
+  const sortedRecommendations = [...recommendationPlaces].sort(
+    (a, b) => b.poiScore - a.poiScore
+  );
+
+  for (let dayIndex = 0; dayIndex < routes.length; dayIndex++) {
+    for (const place of sortedRecommendations) {
+      if (selectedPlaceIds.has(place.place_id)) continue;
+
+      const recommendationRoutes = routes.map((route) => [...route]);
+      recommendationRoutes[dayIndex].push({
+        ...place,
+        isRecommendation: true,
+      });
+      const recommendationSchedule = evaluateSchedule(
+        trip,
+        recommendationRoutes,
+        dates,
+        travelMatrix
+      );
+      if (!recommendationSchedule) continue;
+
+      const existingDurations = new Map(
+        currentSchedule.selectedPlaces.map((selectedPlace) => [
+          selectedPlace.place_id,
+          selectedPlace.visitDurationMin,
+        ])
+      );
+      const preservesExistingDurations =
+        recommendationSchedule.selectedPlaces.every(
+          (selectedPlace) =>
+            !existingDurations.has(selectedPlace.place_id) ||
+            existingDurations.get(selectedPlace.place_id) ===
+              selectedPlace.visitDurationMin
+        );
+      const insertedRecommendation = recommendationSchedule.selectedPlaces.find(
+        (selectedPlace) => selectedPlace.place_id === place.place_id
+      );
+      if (
+        !preservesExistingDurations ||
+        insertedRecommendation?.visitDurationMin !== place.requestedVisitDurationMin
+      ) {
+        continue;
+      }
+
+      selectedPlaceIds.add(place.place_id);
+      routes.splice(0, routes.length, ...recommendationRoutes);
+      currentSchedule = recommendationSchedule;
+      break;
+    }
+  }
+
   return currentSchedule;
 }
 
@@ -440,13 +611,19 @@ function schedulePlaces(
 export function buildAutoTrip(
   trip: TripInfo,
   places: AutoPlace[],
-  travelMatrix?: TravelMatrix
+  travelMatrix?: TravelMatrix,
+  recommendationPlaces: AutoPlace[] = []
 ): AutoTripResult {
-  if (!places.length) {
+  if (!places.length && !recommendationPlaces.length) {
     throw new Error("ไม่พบสถานที่สำหรับจัดทริป");
   }
 
-  const result = schedulePlaces(trip, places, travelMatrix);
+  const result = schedulePlaces(
+    trip,
+    places,
+    recommendationPlaces,
+    travelMatrix
+  );
   const { days, selectedPlaces } = result;
 
   const totalDistanceKm = days.reduce((total, day) => total + day.total_distance_km, 0);
