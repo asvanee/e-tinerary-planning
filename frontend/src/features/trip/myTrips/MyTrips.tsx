@@ -25,17 +25,10 @@ interface Trip {
   start_time: string;
   number_of_people: number;
   total_budget: number | null;
-  budget_type: string | null;
   daily_budget: number | null;
   available_time_per_day: number | null;
   created_at: string;
 }
-
-const BUDGET_TYPE_LABELS: Record<string, string> = {
-  TOTAL: "งบรวมทั้งทริป",
-  PER_PERSON_TOTAL: "งบต่อคน",
-  PER_DAY: "งบต่อวัน",
-};
 
 // "2026-10-05" -> "5 ต.ค. 2569" (ถ้าแปลงไม่ได้ แสดงค่าดิบ)
 function formatDate(value: string) {
@@ -268,9 +261,6 @@ export default function MyTrips() {
                         <span className="flex items-center gap-1.5">
                           <Wallet size={16} strokeWidth={1.75} />
                           {Math.round(trip.daily_budget).toLocaleString()} บาท/คน/วัน
-                          {trip.budget_type
-                            ? ` (${BUDGET_TYPE_LABELS[trip.budget_type] || trip.budget_type})`
-                            : ""}
                         </span>
                       )}
                     </div>

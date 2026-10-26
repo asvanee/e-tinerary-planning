@@ -133,7 +133,7 @@ export interface PoiScoreBreakdown {
   weatherScore: number;
   poiScore: number;
   // placeCost = ราคาต่อคนที่รู้จาก Google (priceRange — D-52) ไม่เดาจากหมวด — null
-  // แปลว่า "ไม่ทราบราคาแน่ชัด" ไม่ใช่ "ฟรี" (ต่างจากพฤติกรรมเดิมที่เคย fallback มา coalesce)
+  // แปลว่า "ไม่ทราบราคาแน่ชัด" ไม่ใช่ "ฟรี"
   // frontend ควรแสดง "ไม่ทราบราคาแน่ชัด" แทนตัวเลขเมื่อ null ไม่ใช่ซ่อนไปเฉยๆ
   placeCost: number | null;
   perPersonDailyBudget: number | null;
@@ -167,10 +167,8 @@ export function calculatePoiScore(
   const distanceScore = calculateDistanceScore(distanceKm);
   const weatherScore = calculateWeatherScore(environmentType, rainProbability);
 
-  // ✅ placeCost/perPersonDailyBudget เป็นข้อมูลแสดงผลล้วนๆ ไม่เข้าสูตรคะแนนแล้ว —
-  // คำนวณแยกจาก useBudget เสมอ (แม้ useBudget=false ก็ยังอยากให้ frontend โชว์ราคาได้ถ้ารู้จริง)
+  // placeCost / perPersonDailyBudget ใช้แสดงผลเท่านั้น — คืนเสมอแม้ไม่ได้ตั้งงบ (ให้ frontend โชว์ราคาได้ถ้ารู้จริง)
   const placeCost = getKnownPrice(priceRangeStart, priceRangeEnd);
-  const perPersonDailyBudget = dailyBudget;
 
   const budgetScore =
     useBudget && dailyBudget !== null
@@ -194,6 +192,6 @@ export function calculatePoiScore(
     weatherScore,
     poiScore,
     placeCost,
-    perPersonDailyBudget,
+    perPersonDailyBudget: dailyBudget,
   };
 }

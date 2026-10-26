@@ -28,7 +28,7 @@ interface Category {
 }
 
 interface TripSummary {
-    dailyBudget: number | null;
+    groupPerDay: number | null;
     perPersonPerDay: number | null;
     people: number;
     tripDays: number;
@@ -585,7 +585,7 @@ export default function CreateTrip() {
             // สร้างทริปใหม่: แสดงสรุปใน modal ก่อนไปหน้าแนะนำ
             setCreatedTrip(result.trip);
             setSummary({
-                dailyBudget: dailyBudget !== null ? dailyBudget * people : null,
+                groupPerDay: dailyBudget !== null ? dailyBudget * people : null,
                 perPersonPerDay: dailyBudget,
                 people,
                 tripDays,
@@ -1075,8 +1075,8 @@ export default function CreateTrip() {
                                         <SummaryRow
                                             label="งบต่อวัน (ทั้งกลุ่ม)"
                                             value={
-                                                summary.dailyBudget !== null
-                                                    ? `${Math.round(summary.dailyBudget).toLocaleString()} บาท`
+                                                summary.groupPerDay !== null
+                                                    ? `${Math.round(summary.groupPerDay).toLocaleString()} บาท`
                                                     : "-"
                                             }
                                         />
