@@ -32,7 +32,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 │   │   ├── poi/               คำนวณ POI score
 │   │   └── itinerary/         draft / confirm / saved / auto trip
 │   ├── src/utils/             haversine, openingHoursChecker, orsDistance, orsTravelMatrix,
-│   │                          priceLevel, weatherForecast, bestCategoryRow
+│   │                          placePrice, timeString, errorMessage, weatherForecast
 │   ├── src/admin/             API ของ admin (D-24): requireAdmin, adminRoutes, provinces/, imports/ (job นำเข้า), pipeline/ (อ่าน CSV, dedupe, review, import — test ใน __tests__)
 │   ├── data/attraction.csv    CSV สถานที่ของ ททท. (ใช้โดย admin pipeline)
 │   └── jest.config.js         ts-jest preset

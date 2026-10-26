@@ -29,7 +29,7 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 ## Pattern ของโปรเจกต์ (ใช้ของที่มีอยู่ก่อนเขียนใหม่)
 | ต้องการ | ใช้ |
 |---|---|
-| หมวดของสถานที่ | embed `category_labels!inner(categories!inner(...))` จาก `places` (เช่น `getSelectedPlaces`) · `pickBestCategoryRows` เหลือแค่ Auto Trip — ห้ามใช้ในโค้ดใหม่ |
+| หมวดของสถานที่ | embed `category_labels!inner(categories!inner(...))` จาก `places` (เช่น `getSelectedPlaces`) |
 | query ที่อาจเกิน 1000 แถว | `selectAll` ใน `admin/provinces/decisionQueries.ts` + `.range()` |
 | ระยะทางเส้นตรง | `utils/haversine.ts` (mirror ฝั่ง frontend) |
 | format เวลา/ราคา/ระยะในหน้าทริป | `frontend/src/features/trip/lib/format.ts` |
