@@ -1,5 +1,6 @@
 import { supabase } from "../../config/db";
 import type { OpeningHours } from "../../utils/openingHoursChecker";
+import { minutesToTimeString, timeStringToMinutes } from "../../utils/timeString";
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
 /* =========================================================
@@ -137,19 +138,6 @@ function getCategoryRows(
         typeof category.category_id === "string" &&
         typeof category.category_name === "string"
     );
-}
-
-function timeStringToMinutes(time: string): number {
-  const [hh, mm] = time.split(":").map(Number);
-  return hh * 60 + mm;
-}
-
-function minutesToTimeString(totalMinutes: number): string {
-  const capped = Math.min(Math.max(totalMinutes, 0), 1439);
-  const hh = Math.floor(capped / 60);
-  const mm = capped % 60;
-
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
 }
 
 function enumerateDates(

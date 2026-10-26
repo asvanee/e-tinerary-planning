@@ -16,6 +16,7 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 | `backend/src/utils/haversine.ts` | `frontend/src/features/trip/e-tinerary/lib/haversine.ts` |
 | ค่าคงที่ `TRIP_START_ID`, `FALLBACK_AVG_SPEED_KMH`, type `TravelMatrix`/`TravelMetric` ใน `backend/src/utils/orsTravelMatrix.ts` | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
 | `getKnownPrice`, `getPlaceCost` ใน `backend/src/utils/placePrice.ts` (D-52 — POI filter / price score ใช้ตัวเดียวกัน) | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
+| `timeStringToMinutes`, `minutesToTimeString` ใน `backend/src/utils/timeString.ts` (`itineraryPlaceQueries.ts` ใช้ตัวเดียวกัน) | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
 | type `PriceNature` ใน `backend/src/features/poi/poiPlaceQueries.ts` | type ใน frontend lib |
 
 ค่าที่ต้องตรงกัน (ณ `0c980bd`): `TRIP_START_ID="__trip_start__"`, `FALLBACK_AVG_SPEED_KMH=25`, เวลาเดินทางขั้นต่ำ 1 นาที, เวลาที่เกิน 23:59 ให้ cap ไว้ที่ 23:59

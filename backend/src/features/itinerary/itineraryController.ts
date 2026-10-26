@@ -31,6 +31,7 @@ import {
 
 import { buildTravelMatrix, TRIP_START_ID } from "../../utils/orsTravelMatrix";
 import type { TravelPoint } from "../../utils/orsTravelMatrix";
+import { errorMessage } from "../../utils/errorMessage";
 
 function toTravelPoint(place: {
   placeId: string;
@@ -51,10 +52,6 @@ function toDayAssignment(day: TripDay, orderedPlaceIds: string[]): DayAssignment
     useBudget: day.useBudget,
     orderedPlaceIds,
   };
-}
-
-function errorMessage(err: unknown): string | undefined {
-  return (err as { message?: string } | null)?.message;
 }
 
 function findMissingPlaceIds(

@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { supabase } from "../../config/db";
 import { AuthRequest } from "../auth/authMiddleware";
+import { errorMessage } from "../../utils/errorMessage";
 import { DAY_STRUCTURE_FIELDS, DayStructure, dayStructureChanged } from "./tripDayStructure";
 import { diffTripCategories, parseCategoryIds, TripCategoryLink } from "./tripCategories";
 
@@ -25,10 +26,6 @@ interface TripBody {
   start_lat?: number | null;
   start_lng?: number | null;
   start_address?: string;
-}
-
-function errorMessage(err: unknown): string | undefined {
-  return (err as { message?: string } | null)?.message;
 }
 
 /**

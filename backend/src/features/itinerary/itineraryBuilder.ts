@@ -2,6 +2,7 @@ import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { haversineKm } from "../../utils/haversine";
 import { getPlaceCost } from "../../utils/placePrice";
+import { minutesToTimeString, timeStringToMinutes } from "../../utils/timeString";
 import {
   TRIP_START_ID,
   FALLBACK_AVG_SPEED_KMH,
@@ -76,18 +77,6 @@ export interface ItineraryItemResult {
 }
 
 // ---------- Helpers ----------
-
-function timeStringToMinutes(time: string): number {
-  const [hh, mm] = time.split(":").map(Number);
-  return hh * 60 + mm;
-}
-
-function minutesToTimeString(totalMinutes: number): string {
-  const capped = Math.min(Math.max(totalMinutes, 0), 24 * 60 - 1);
-  const hh = Math.floor(capped / 60);
-  const mm = capped % 60;
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
-}
 
 /**
  * 0 = อาทิตย์ ... 6 = เสาร์ ตรงกับ convention ของ places.opening_hours

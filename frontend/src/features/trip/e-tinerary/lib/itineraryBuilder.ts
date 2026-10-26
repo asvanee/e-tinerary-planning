@@ -79,6 +79,8 @@ export type TravelMatrix = Record<string, Record<string, TravelMetric>>;
 
 // ---------- Helpers ----------
 
+// timeStringToMinutes / minutesToTimeString — backend utils/timeString.ts
+
 function timeStringToMinutes(time: string): number {
   const [hh, mm] = time.split(":").map(Number);
   return hh * 60 + mm;
