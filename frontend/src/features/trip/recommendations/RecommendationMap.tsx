@@ -2,50 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-
-// ---------- สีหมวดหมู่ ----------
-// map ตามชื่อ category คงที่ (ไม่ใช่ตามลำดับที่เจอ) สีจึงไม่เปลี่ยนเวลากรองหมวดหมู่
-// 29 หมวดแยกด้วยสีล้วนๆ ได้ไม่สมบูรณ์ — หมุดมีเลขอันดับ และ popup/legend มีชื่อหมวดกำกับเสมอ
-// key ต้องตรงกับ categories.category_name (หมวดจากป้าย ททท. — D-39) ถ้า admin เปลี่ยนชื่อหมวด ต้องแก้ที่นี่ด้วย
-// ไม่งั้นหมวดนั้นจะเป็นสีเทา · ปรับสีได้ที่นี่ที่เดียว
-export const CATEGORY_COLORS: Record<string, string> = {
-  // ประวัติศาสตร์และวัฒนธรรม
-  "วัดและศาสนสถาน": "#E0A100",
-  "พิพิธภัณฑ์": "#7E57C2",
-  "โบราณสถานและสถานที่ทางประวัติศาสตร์": "#A0522D",
-  "ศูนย์วัฒนธรรมและประวัติศาสตร์": "#8D6E63",
-  "วิถีชีวิตชุมชน": "#D81B60",
-  "ศูนย์เรียนรู้และหัตถกรรม": "#8E24AA",
-  "ตลาดน้ำและตลาดโบราณ": "#FF7043",
-  // ธรรมชาติ
-  "อุทยานแห่งชาติและวนอุทยาน": "#2E9E5B",
-  "จุดชมวิว": "#0097A7",
-  "น้ำตก": "#1E88E5",
-  "ถ้ำ": "#424242",
-  "ภูเขาและธรณีวิทยา": "#9E9D24",
-  "ทุ่งดอกไม้": "#BA68C8",
-  "น้ำพุร้อน": "#F4511E",
-  "แม่น้ำ ทะเลสาบ และเขื่อน": "#283593",
-  "ทะเลและหมู่เกาะ": "#FBC02D",
-  "ป่าชายเลนและพื้นที่ชุ่มน้ำ": "#00897B",
-  "สวนพฤกษศาสตร์และศูนย์ศึกษาธรรมชาติ": "#7CB342",
-  "เขตรักษาพันธุ์สัตว์ป่า": "#6D4C41",
-  // นันทนาการ
-  "เกษตรและโครงการหลวง": "#9CB02F",
-  "แหล่งช้อปปิ้งและตลาด": "#E0529C",
-  "สวนสนุกและธีมปาร์ค": "#E53935",
-  "การแสดงและโรงละคร": "#6A1B9A",
-  "กีฬาและกิจกรรมผจญภัย": "#3949AB",
-  "จุดผ่านแดน": "#263238",
-  "ศูนย์ประชุม": "#78909C",
-  "สวนสัตว์": "#FFA000",
-  "สวนสาธารณะ": "#43A047",
-  "สุขภาพและความงาม": "#4FC3F7",
-};
-const FALLBACK_COLOR = "#6B7280";
-
-export const categoryColor = (name: string | null | undefined): string =>
-  (name && CATEGORY_COLORS[name]) || FALLBACK_COLOR;
+import { categoryColor } from "./categoryColors";
 
 // ---------- ชนิดข้อมูล ----------
 export interface MapPlace {
@@ -104,6 +61,19 @@ function makePinIcon(color: string, rank: number, selected: boolean, active: boo
     iconAnchor: [s / 2, Math.round(s * 1.21)],
     popupAnchor: [0, -Math.round(s * 1.15)],
   });
+}
+
+// icon ขึ้นกับสี/อันดับ/สถานะเท่านั้น — cache ระดับ module ใช้ซ้ำได้ทุก render (ไม่ต้องอ่าน ref ระหว่าง render)
+const pinIconCache = new Map<string, L.DivIcon>();
+
+function getPinIcon(color: string, rank: number, selected: boolean, active: boolean) {
+  const key = `${color}|${rank}|${selected}|${active}`;
+  let icon = pinIconCache.get(key);
+  if (!icon) {
+    icon = makePinIcon(color, rank, selected, active);
+    pinIconCache.set(key, icon);
+  }
+  return icon;
 }
 
 // ---------- ตัวช่วยที่ใช้ map instance ----------
@@ -183,7 +153,6 @@ export default function RecommendationMap({
   className = "",
 }: Props) {
   const markerRefs = useRef<Map<string, L.Marker>>(new Map());
-  const iconCache = useRef<Map<string, L.DivIcon>>(new Map());
 
   const { points, hiddenCount } = useMemo(() => {
     const valid = places.filter((p) => inThailand(p.lat, p.lng));
@@ -195,16 +164,6 @@ export default function RecommendationMap({
     points.forEach((p) => seen.add(p.categoryName));
     return Array.from(seen);
   }, [points]);
-
-  const getIcon = (color: string, rank: number, selected: boolean, active: boolean) => {
-    const key = `${color}|${rank}|${selected}|${active}`;
-    let icon = iconCache.current.get(key);
-    if (!icon) {
-      icon = makePinIcon(color, rank, selected, active);
-      iconCache.current.set(key, icon);
-    }
-    return icon;
-  };
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
@@ -232,7 +191,7 @@ export default function RecommendationMap({
               <Marker
                 key={p.placeId}
                 position={[p.lat, p.lng]}
-                icon={getIcon(color, p.rank, isCustomMode && selected, active)}
+                icon={getPinIcon(color, p.rank, isCustomMode && selected, active)}
                 title={`${p.rank}. ${p.name}`}
                 zIndexOffset={active ? 1000 : isCustomMode && selected ? 500 : 0}
                 ref={(m) => {

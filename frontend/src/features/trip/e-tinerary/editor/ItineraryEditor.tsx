@@ -109,8 +109,10 @@ interface LocationState {
 
 const UNASSIGNED_KEY = "unassigned";
 
-// ref คงที่ กัน useMemo recompute โดยไม่จำเป็นเมื่อ draft ไม่มี matrix (เช่น router state เก่า)
+// ref คงที่ กัน useMemo recompute โดยไม่จำเป็นเมื่อ router state ไม่มีค่า (เช่น state เก่า หรือรอ redirect)
 const EMPTY_TRAVEL_MATRIX: TravelMatrix = {};
+const EMPTY_TRIP_DAYS: DraftTripDay[] = [];
+const EMPTY_PLACES: MergedPlace[] = [];
 
 function dayKey(tripDayId: string) {
   return `day-${tripDayId}`;
@@ -522,8 +524,8 @@ export default function ItineraryEditor() {
   );
 
   const tripId = state?.tripId ?? tripIdParam ?? "";
-  const tripDaysMeta: DraftTripDay[] = state?.draft?.tripDays ?? [];
-  const places: MergedPlace[] = state?.places ?? [];
+  const tripDaysMeta: DraftTripDay[] = state?.draft?.tripDays ?? EMPTY_TRIP_DAYS;
+  const places: MergedPlace[] = state?.places ?? EMPTY_PLACES;
   const travelMatrix: TravelMatrix = state?.draft?.travelMatrix ?? EMPTY_TRAVEL_MATRIX;
 
   const sensors = useSensors(

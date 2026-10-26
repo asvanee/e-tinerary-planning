@@ -44,20 +44,28 @@ export default function LocationPinPicker({
             : DEFAULT_CENTER
     );
     const [pendingAddress, setPendingAddress] = useState<string | null>(null);
-    const [confirmed, setConfirmed] = useState(false);
+    // มีพิกัดตั้งแต่แรก = มาจากทริปที่บันทึกไว้แล้ว ถือว่ายืนยันอยู่แล้ว
+    const [confirmed, setConfirmed] = useState(initialLat != null && initialLng != null);
 
     const mapRef = useRef<google.maps.Map | null>(null);
     const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
     // โหมดแก้ไข: initialLat/initialLng มาจาก fetch แบบ async หลัง mount (useState ด้านบนไม่รู้)
-    // จึง sync หมุดทุกครั้งที่ค่าเปลี่ยน (เช่น null -> ค่าที่โหลดมาจาก API)
+    // จึง sync หมุดทุกครั้งที่ค่าเปลี่ยน (เช่น null -> ค่าที่โหลดมาจาก API) — ปรับ state ระหว่าง render
+    // ตามที่ React แนะนำ แทนการ setState ใน effect
+    const [syncedInitial, setSyncedInitial] = useState({ lat: initialLat, lng: initialLng });
+    if (syncedInitial.lat !== initialLat || syncedInitial.lng !== initialLng) {
+        setSyncedInitial({ lat: initialLat, lng: initialLng });
+        if (initialLat != null && initialLng != null) {
+            setMarkerPos({ lat: initialLat, lng: initialLng });
+            setConfirmed(true); // ค่านี้มาจากทริปที่บันทึกไว้แล้ว ถือว่ายืนยันอยู่แล้ว
+        }
+    }
+
+    // แผนที่เป็นระบบภายนอก — เลื่อนไปที่หมุดใน effect
     useEffect(() => {
         if (initialLat == null || initialLng == null) return;
-
-        const pos = { lat: initialLat, lng: initialLng };
-        setMarkerPos(pos);
-        setConfirmed(true); // ค่านี้มาจากทริปที่บันทึกไว้แล้ว ถือว่ายืนยันอยู่แล้ว
-        mapRef.current?.panTo(pos);
+        mapRef.current?.panTo({ lat: initialLat, lng: initialLng });
         mapRef.current?.setZoom(16);
     }, [initialLat, initialLng]);
 
