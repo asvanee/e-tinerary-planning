@@ -7,6 +7,7 @@ import type {
   AutoTripResponse,
   AutoTripStop,
 } from "./autoTripTypes";
+import RouteMap from "../components/RouteMap";
 import {
   ArrowLeft,
   CalendarDays,
@@ -16,7 +17,6 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
-  MapPinned,
   Pencil,
   Search,
   Sparkles,
@@ -24,19 +24,6 @@ import {
   Timer,
   TriangleAlert,
 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
-const defaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
 
 // ---------- Style constants (ใช้ token จาก global.css ชุดเดียวกับหน้า TripDetail) ----------
 
@@ -90,53 +77,21 @@ export default function AutoTrip() {
   const currentDay = data?.days?.[selectedDay];
   const currentStops = getDayStops(selectedDay);
 
-  const startPosition = useMemo<[number, number] | null>(() => {
-    if (data?.start_lat == null || data?.start_lng == null) {
-      return null;
-    }
-
-    const lat = Number(data.start_lat);
-    const lng = Number(data.start_lng);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return null;
-    }
-
-    return [lat, lng];
-  }, [data]);
-
-  // เส้นทางของวันที่เลือก: จุดเริ่มต้น (ถ้ามี) -> สถานที่ตามลำดับ
-  const routePositions = useMemo<[number, number][]>(() => {
-    const positions: [number, number][] = [];
-
-    if (startPosition) {
-      positions.push(startPosition);
-    }
-
-    currentStops.forEach((stop) => {
-      const lat = Number(stop.latitude);
-      const lng = Number(stop.longitude);
-
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        positions.push([lat, lng]);
-      }
-    });
-
-    return positions;
-  }, [startPosition, currentStops]);
-
-  // จุดกลางแผนที่: จุดเริ่มต้น -> สถานที่แรก -> กรุงเทพฯ (default)
-  const mapCenter = useMemo<[number, number]>(() => {
-    if (startPosition) {
-      return startPosition;
-    }
-
-    if (currentStops.length > 0) {
-      return [Number(currentStops[0].latitude), Number(currentStops[0].longitude)];
-    }
-
-    return [13.7563, 100.5018];
-  }, [startPosition, currentStops]);
+  const mapDays = useMemo(
+    () =>
+      (data?.days ?? []).map((day) => ({
+        tripDayId: `auto-day-${day.day}`,
+        dayNumber: day.day,
+        items: (day.stops ?? []).map((stop, index) => ({
+          placeId: stop.place_id,
+          lat: Number(stop.latitude),
+          lng: Number(stop.longitude),
+          placeName: stop.place_name,
+          visitOrder: index + 1,
+        })),
+      })),
+    [data?.days]
+  );
 
   // ---- format ----
   const formatDate = (date?: string) => {
@@ -463,82 +418,14 @@ export default function AutoTrip() {
           })}
         </div>
 
-        {/* ---- แผนที่ของวันที่เลือก ---- */}
-        <section className={`${cardClass} px-5 sm:px-6 py-5 mb-6`}>
-          <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)] flex items-center gap-2">
-            <MapPinned size={20} strokeWidth={1.75} className="text-[color:var(--sky)]" />
-            เส้นทางวันที่ {selectedDay + 1}
-          </h2>
-          {startPosition && (
-            <p className="text-sm text-[color:var(--muted)] mt-1">โดยเริ่มจากจุดเริ่มต้นของทริป</p>
-          )}
-
-          {currentStops.length === 0 ? (
-            <p className="text-sm text-[color:var(--muted)] py-10 text-center">ไม่มีข้อมูลสถานที่ สำหรับวันนี้</p>
-          ) : (
-            <div className="mt-4 rounded-xl overflow-hidden border border-[color:var(--line)]">
-              <MapContainer
-                key={`map-${selectedDay}-${mapCenter[0]}-${mapCenter[1]}`}
-                center={mapCenter}
-                zoom={13}
-                scrollWheelZoom={true}
-                style={{
-                  height: "450px",
-                  width: "100%",
-                }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
-                {routePositions.length > 1 && (
-                  <Polyline
-                    positions={routePositions}
-                    pathOptions={{
-                      color: "#2563eb",
-                      weight: 5,
-                      opacity: 0.8,
-                    }}
-                  />
-                )}
-
-                {startPosition && (
-                  <Marker position={startPosition} icon={defaultIcon}>
-                    <Popup>
-                      <div className="font-sarabun text-center min-w-[150px]">
-                        <strong className="font-prompt text-[color:var(--navy)]">จุดเริ่มต้น</strong>
-                        <p className="text-xs text-[color:var(--muted)]">จุดเริ่มต้น ของทริป</p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )}
-
-                {currentStops.map((stop, index) => (
-                  <Marker
-                    key={`${stop.place_id}-${index}`}
-                    position={[Number(stop.latitude), Number(stop.longitude)]}
-                    icon={defaultIcon}
-                  >
-                    <Popup>
-                      <div className="font-sarabun min-w-[190px] text-center">
-                        <p className="font-prompt text-xs font-medium text-[color:var(--sky)]">สถานที่ที่ {index + 1}</p>
-                        <strong className="font-prompt text-[color:var(--navy)]">{stop.place_name}</strong>
-                        <p className="mt-1 text-xs text-[color:var(--deep)]">
-                          เวลาเข้าชม {stop.start_time} - {stop.end_time}
-                        </p>
-                        <p className="text-xs text-[color:var(--deep)]">ระยะเวลา {formatDuration(stop.duration_min)}</p>
-                        <p className="text-xs text-[color:var(--muted)]">
-                          {formatDistance(stop.travel_distance_km)} · {formatDuration(stop.travel_time_min)}
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-            </div>
-          )}
-        </section>
+        {/* ---- แผนที่ทุกวัน ใช้ Leaflet + OSM + ORS Directions ร่วมกับหน้า editor ---- */}
+        <div className="mb-6">
+          <RouteMap
+            startLat={data.start_lat}
+            startLng={data.start_lng}
+            days={mapDays}
+          />
+        </div>
 
         {/* ---- กำหนดการของวันที่เลือก ---- */}
         <section className={`${cardClass} px-5 sm:px-6 py-5`}>

@@ -354,3 +354,24 @@
 - ผลที่ยอมรับ: `poi_scores` ของทริปที่หมวดไม่ถึง 50 มีสถานที่หมวดอื่นปนอยู่ — Auto Trip (กิ่ง) อ่านทุกแถว ต้องให้กิ่งตรวจว่าจัดเฉพาะหมวดของทริปหรือไม่
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/poi/poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `__tests__/poiScoreCalculator.test.ts`, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-25_poi_category_score_nullable.sql`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_PLAN.md`, skill `supabase-data-access`
+### D-49 · 2026-10-26 · เติมสถานที่ Auto Trip ภายในเวลารวมของแต่ละหมวด
+- บริบท: Auto Trip เดิมเลือกได้หนึ่งสถานที่ต่อหมวด และใช้เวลาที่กรอกเป็นเวลาเที่ยวต่อสถานที่ ทำให้ไม่สามารถเติมสถานที่เพิ่มภายในเวลาที่ผู้ใช้กำหนดได้
+- ข้อสรุป:
+  - แทนที่ความหมายเวลาใน D-44: ตัวเลือก 30/60/90/120/150/180 นาทีเป็นเวลาสำหรับเที่ยวสถานที่ต่อหมวดตลอดทริป ไม่รวมเวลาเดินทาง; เวลาเดินทางคิดแยกในกำหนดการรายวัน
+  - ใช้เฉพาะสถานที่ที่มี POI score ของทริปและจับคู่กับหมวดที่ผู้ใช้เลือก · สถานที่หนึ่งอาจจับคู่หลายหมวดได้ แต่ `place_id` เดียวกันห้ามถูกจัดซ้ำ
+  - เพิ่มสถานที่ตาม POI score จากมากไปน้อย; หลังเพิ่มให้จัดลำดับแบบ nearest neighbor ใหม่และทดลองตำแหน่งแทรกที่เป็นไปได้ พร้อมคำนวณตารางทั้งทริปใหม่ก่อนรับสถานที่ โดยต้องผ่านเพดานเวลาต่อหมวด, เวลาที่เที่ยวได้ต่อวัน และเวลาเปิดตลอดช่วงเที่ยว
+  - แบ่งเวลาเที่ยวของหมวดให้สถานที่ในหมวดนั้นโดยเฉลี่ย; ถ้าเวลาเปิดหรือเวลาสิ้นสุดวันจำกัด ให้ลดเวลาของจุดเท่าที่จำเป็น
+  - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
+- ผู้ตัดสินใจ: กิ่ง
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+
+### D-50 · 2026-10-26 · ใช้เวลาเที่ยวที่กรอกแยกต่อสถานที่ใน Auto Trip
+- บริบท: ผู้ใช้ยืนยันว่าเวลาที่กรอกต่อหมวดหมายถึงเวลาเที่ยวต่อสถานที่ ไม่ใช่เวลาเฉลี่ยหรือเพดานรวมของหมวด (แทนที่ D-49)
+- ข้อสรุป:
+  - ตัวเลือก 30/60/90/120/150/180 นาทีเป็นเวลาเที่ยวต่อสถานที่ของหมวดนั้น; สถานที่ทุกแห่งในหมวดที่จัดได้ใช้เวลาที่เลือกแยกกัน ไม่หารเฉลี่ย และไม่รวมเวลาเดินทาง
+  - ใช้เฉพาะสถานที่ที่มี POI score ของทริปและจับคู่กับหมวดที่ผู้ใช้เลือก · สถานที่หนึ่งอาจจับคู่หลายหมวดได้ แต่ `place_id` เดียวกันห้ามถูกจัดซ้ำ
+  - เพิ่มสถานที่ตาม POI score จากมากไปน้อย; หลังเพิ่มจะลองจัดลำดับ nearest neighbor ใหม่และตำแหน่งแทรกที่เป็นไปได้ โดยแต่ละสถานที่ต้องพอดีกับเวลาที่เที่ยวได้ต่อวันและเวลาเปิด
+  - ถ้าเวลาเปิดหรือเวลาสิ้นสุดวันจำกัด อาจลดเวลาเที่ยวของจุดเท่าที่จำเป็น
+  - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
+- ผู้ตัดสินใจ: กิ่ง
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`

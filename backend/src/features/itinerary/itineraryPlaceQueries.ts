@@ -405,22 +405,20 @@ export async function getAutoTripPlaces(
         ).values()
       );
 
-      const category = uniqueCategories[0];
-
-      if (!category) continue;
-
-      result.push({
-        placeId: place.place_id,
-        placeName: place.place_name,
-        categoryId: category.category_id,
-        categoryName: category.category_name,
-        poiScore: Number(row.poi_score ?? 0),
-        latitude: Number(place.latitude),
-        longitude: Number(place.longitude),
-        openingHours: place.opening_hours ?? null,
-        rawPriceLevel: place.price_level ?? null,
-        priceNature: category.price_nature,
-      });
+      for (const category of uniqueCategories) {
+        result.push({
+          placeId: place.place_id,
+          placeName: place.place_name,
+          categoryId: category.category_id,
+          categoryName: category.category_name,
+          poiScore: Number(row.poi_score ?? 0),
+          latitude: Number(place.latitude),
+          longitude: Number(place.longitude),
+          openingHours: place.opening_hours ?? null,
+          rawPriceLevel: place.price_level ?? null,
+          priceNature: category.price_nature,
+        });
+      }
     }
   }
 

@@ -81,10 +81,10 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 1. หน้า `/trip/:id/recommendations` เรียก `POST /poi/trips/:id/calculate-poi`, โหลดรายละเอียดสถานที่ แล้วแสดงรายการ/แผนที่เรียงตาม POI Score
 2. ผู้ใช้เลือกจัดทริปเองเพื่อไป Itinerary Editor หรือเลือก Auto Trip
 3. `GET /itinerary/trips/:id/auto/categories` ตรวจเจ้าของทริป แล้วคืนหมวดที่ผู้ใช้เลือกไว้ใน `trip_categories` เพื่อให้หน้า Auto Trip ขอเวลาทุกหมวดที่เลือก
-4. `POST /itinerary/trips/:id/auto` รับ `visitDurationByCategory: { [categoryId]: นาที }` · Backend ตรวจให้ครบทุกหมวดและเป็นหนึ่งใน 30, 60, 90, 120, 150 หรือ 180 นาที (D-44)
-5. Controller ส่งสถานที่ POI ทุกแห่งที่จับคู่กับหมวดที่เลือกพร้อมเวลาต่อหมวดให้ `buildAutoTrip()`
-6. Builder จัดทีละจุดจากตำแหน่งและเวลาปัจจุบัน; ในแต่ละหมวดลองสถานที่เรียงตาม POI Score โดยคำนวณเวลาไปถึงจริงและตรวจ `opening_hours.periods` ให้เปิดครอบคลุมเวลาที่เที่ยว · ไม่มี periods = ไม่ทราบเวลาและเลือกได้ (D-10/D-46) · ถ้าปิดให้ลองคะแนนถัดไป และถ้าหมวดนั้นไม่มีตัวเลือกในเวลานั้นจะลองใหม่วันถัดไป · เลือกได้สูงสุดหนึ่งแห่งต่อหมวด · ใช้ haversine 30 km/h และถ้าไม่มี `available_time_per_day` จะใช้เวลาจบวัน 18:00
-7. หน้า `auto.tsx` แสดงฟอร์มก่อนคำนวณ · ตอนยืนยันส่ง `visit_durations` พร้อมรายการวันให้ `confirmItinerary` ตรวจซ้ำและบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` ด้วย schema ที่มีอยู่แล้ว (D-36/D-43)
+4. `POST /itinerary/trips/:id/auto` รับ `visitDurationByCategory: { [categoryId]: นาที }` · Backend ตรวจให้ครบทุกหมวดและเป็นหนึ่งใน 30, 60, 90, 120, 150 หรือ 180 นาที; ค่านี้เป็นเวลาเที่ยวต่อสถานที่สำหรับสถานที่ในหมวดนั้น ไม่รวมเวลาเดินทาง และไม่หารเฉลี่ยเมื่อมีหลายสถานที่ (D-50)
+5. Controller ส่ง candidate จาก `poi_scores` ที่จับคู่กับหมวดที่เลือกทั้งหมดให้ `buildAutoTrip()`; หาก place จับคู่หลายหมวดจะมี candidate ต่อหมวด แต่ builder ห้ามจัด `place_id` ซ้ำ
+6. Builder ทดลอง candidate ตาม POI Score จากมากไปน้อย; หลังเพิ่มจะลองจัดลำดับ nearest neighbor ใหม่และตำแหน่งแทรกที่เป็นไปได้ พร้อมคำนวณตารางทั้งทริปใหม่ทุกครั้ง · ใช้เวลาที่เลือกของหมวดนั้นแยกกับสถานที่แต่ละแห่ง ไม่หารเฉลี่ย และไม่หักเวลาเดินทาง; เวลาเดินทางยังนับในกำหนดการรายวันและเวลาเดินทางรวม · ลดเวลาเที่ยวได้เมื่อเวลาเปิดหรือเวลาจบวันจำกัด · สถานที่ที่มีเวลาเปิดต้องเปิดตลอดเวลาที่เที่ยวจริง; ไม่มี periods = ไม่ทราบเวลาและเลือกได้ (D-10/D-46) · ใช้ ORS Matrix และ fallback Haversine; ถ้าไม่มี `available_time_per_day` จะใช้เวลาจบวัน 18:00 (D-50)
+7. หน้า `auto.tsx` แสดงฟอร์มก่อนคำนวณ · แผนที่ใช้ `RouteMap` component เดียวกับ Itinerary Editor (Leaflet + OpenStreetMap + ORS Directions) และ backend ส่งพิกัดจุดเริ่มต้นมาด้วย · ตอนยืนยันส่ง `visit_durations` พร้อมรายการวันให้ `confirmItinerary` ตรวจซ้ำและบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` ด้วย schema ที่มีอยู่แล้ว (D-36/D-43)
 
 ### 2.6 Trip Detail
 GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ปุ่ม "แก้ไขแผน" จะเรียก `/api/places?ids=` + `POST /draft` ใหม่ แล้วไป editor

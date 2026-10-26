@@ -532,7 +532,7 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
 
 function toAutoPlace(
   p: AutoTripPlace,
-  visitDurationMin: number
+  requestedVisitDurationMin: number
 ): AutoPlace {
   return {
     place_id: String(p.placeId),
@@ -543,7 +543,7 @@ function toAutoPlace(
     latitude: Number(p.latitude),
     longitude: Number(p.longitude),
     opening_hours: p.openingHours,
-    visitDurationMin,
+    requestedVisitDurationMin,
   };
 }
 
@@ -578,8 +578,8 @@ export async function getAutoTripCategoriesController(
 
 /**
  * POST /api/itinerary/trips/:tripId/auto
- * body: { visitDurationByCategory: { [categoryId]: นาที } }
- * จัดทริปอัตโนมัติจาก poi_scores ของทริป (1 สถานที่คะแนนสูงสุดต่อหมวด)
+ * body: { visitDurationByCategory: { [categoryId]: เวลาเที่ยวต่อสถานที่เป็นนาที } }
+ * จัดทริปอัตโนมัติจาก POI ของหมวดที่ผู้ใช้เลือก
  */
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
   try {
@@ -644,13 +644,13 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
     }
 
     const placesWithDurations = rawPlaces.map((place) => {
-      const visitDurationMin = parsedDurations.durations.get(place.categoryId);
+      const requestedVisitDurationMin = parsedDurations.durations.get(place.categoryId);
 
-      if (visitDurationMin === undefined) {
+      if (requestedVisitDurationMin === undefined) {
         throw new Error("ไม่พบเวลาเที่ยวของประเภทสถานที่");
       }
 
-      return toAutoPlace(place, visitDurationMin);
+      return toAutoPlace(place, requestedVisitDurationMin);
     });
 
     const tripInfo: TripInfo = {
@@ -667,7 +667,20 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
           : null,
     };
 
-    const result = buildAutoTrip(tripInfo, placesWithDurations);
+    const travelMatrix = await buildTravelMatrix([
+      {
+        id: TRIP_START_ID,
+        latitude: tripInfo.start_lat,
+        longitude: tripInfo.start_lng,
+      },
+      ...placesWithDurations.map((place) => ({
+        id: place.place_id,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      })),
+    ]);
+
+    const result = buildAutoTrip(tripInfo, placesWithDurations, travelMatrix);
 
     if (result.selected_places.length === 0) {
       return res.status(400).json({
@@ -679,6 +692,8 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       success: true,
       message: "จัดทริปอัตโนมัติสำเร็จ",
       trip_id: result.trip_id,
+      start_lat: tripInfo.start_lat,
+      start_lng: tripInfo.start_lng,
       selected_places: result.selected_places,
       days: result.days,
       total_distance_km: result.total_distance_km,
