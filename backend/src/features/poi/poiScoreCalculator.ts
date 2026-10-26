@@ -1,13 +1,5 @@
-import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
+import { getKnownPrice, getPlaceCost } from "../../utils/placePrice";
 import type { PriceNature, EnvironmentType } from "./poiPlaceQueries";
-
-/**
- * แปลง price_level (0-4) เป็นราคาบาทโดยประมาณ
- * ✅ Extract ไปเป็น shared constant แล้ว — ดู utils/priceLevel.ts
- * (เดิมประกาศซ้ำที่นี่กับ poiPlaceQueries.ts แยกกัน แก้ราคาต้องแก้ 2 ที่ ตอนนี้เหลือที่เดียว)
- * ยังใช้อยู่ที่นี่ แต่เปลี่ยนขอบเขตแล้ว — ใช้แค่คำนวณ placeCost สำหรับแสดงผล (ดูด้านล่าง)
- * ไม่ได้ใช้คำนวณ budget/price score อีกต่อไป (ดู PRICE_SCORE_REDESIGN.md)
- */
 
 // ---------- คะแนนรายด้าน ----------
 
@@ -76,70 +68,22 @@ export function calculateWeatherScore(
   return exposure * (1 - rain) + (1 - exposure) * 1;
 }
 
-// ---------- budget/price score (v2 — เขียนใหม่ทั้งหมด ดู PRICE_SCORE_REDESIGN.md) ----------
+// ---------- price score (D-52) ----------
 
 /**
- * ✅ v2 — เลิกเทียบกับ dailyBudget/numberOfPeople ในสูตรคะแนนแล้ว (มติที่ล็อกไว้ในเซสชันนี้)
- * เหตุผล: dailyBudget ทำหน้าที่ hard filter อยู่แล้วใน getFilteredPlaces() (poiPlaceQueries.ts)
- * — พอถึงขั้นคิดคะแนน place ที่เหลือทั้งหมด "จ่ายไหวอยู่แล้ว" เอามาเทียบซ้ำในสูตรคะแนนไม่ได้เพิ่ม
- * signal ใหม่ ตอนนี้ price_score ตอบคำถามคนละแบบ: "ราคานี้น่าสนใจแค่ไหนโดยทั่วไป" ไม่ขึ้นกับ
- * user คนไหนเลย เหมือน rating_score
- *
- * ✅ มติล่าสุด: ยุบ priceNature จาก 3 หมวด (free / food / paid_other) เหลือ 2 หมวด
- * (free / paid) — เพราะหลังจากตัดเครดิตของ food-missing ออกไปแล้ว food กับ paid_other
- * มี logic เหมือนกันทุกกรณี (ทั้งตอนมีข้อมูลราคาจริงและตอนไม่มี) จึงไม่มีเหตุผลต้องแยกกันอีก
- * รวมเป็นหมวด "paid" หมวดเดียว — ต้องอัปเดต PriceNature type ที่ poiPlaceQueries.ts ให้เหลือ
- * แค่ "free" | "paid" ด้วย (ไฟล์นั้นไม่ได้อยู่ใน context นี้ ยังไม่ได้แก้ให้)
- *
- * Lookup table (ตัดสินจาก priceNature ของ category ที่ confidence_score สูงสุด):
- *
- * | priceNature | price_level  | score | confidence     | weight |
- * |-------------|--------------|-------|-----------------|--------|
- * | free        | จริง = 0     | 90    | real            | 0.15   |
- * | free        | missing      | 80    | inferred_high   | 0.15   |
- * | paid        | จริง 0-4     | 80/60/40/20/0 (linear) | real | 0.15 |
- * | paid        | missing      | 0     | inferred_low    | 0      |
- *
- * free ไม่มี fallback ที่ "ลงโทษ" เพราะรู้อยู่แล้วว่าธรรมชาติราคาของหมวดเอนไปทางไหน — paid
- * ที่ missing ไม่มีหลักฐานพอจะเดา จึงตัด weight ออกทั้งมิติ (=0) — weight ที่ไม่ครบ 0.15
- * จะถูก renormalize คืนให้ 4 มิติที่เหลือใน calculatePoiScore() (ดู computeWeights ด้านล่าง)
+ * price_score (0-1): ยิ่งราคาต่อคนน้อยเทียบกับงบต่อคนต่อวัน (D-51) ยิ่งคะแนนสูง
+ * สูตร: 1 − placeCost / dailyBudget (cap 0-1) — ไม่มีค่าคงที่ที่ทีมตั้งเอง ใช้แค่ราคาจาก Google กับงบที่ผู้ใช้กรอก
+ * - ฟรี (placeCost 0) = 1 · ราคาเท่างบพอดี = 0 (ที่แพงกว่างบถูก hard filter ตัดไปแล้ว)
+ * - ไม่ทราบราคา (paid ที่ไม่มี priceRange) → null = ตัดมิติราคาออก แล้ว renormalize weight คืนให้มิติอื่น
+ * placeCost ใช้กฎเดียวกับ filter งบและ itineraryBuilder (utils/placePrice.ts::getPlaceCost)
  */
-function priceLevelToGradientScore(priceLevel: number): number {
-  // price_level 0→80, 1→60, 2→40, 3→20, 4→0 (linear เท่ากันทุกขั้น ตามที่ล็อกไว้)
-  return Math.max(0, 80 - priceLevel * 20);
-}
-
-export type PriceConfidence =
-  | "real"
-  | "inferred_high"
-  | "inferred_low";
-
-export interface PriceScoreResult {
-  score: number; // 0-1 (สเกลเดียวกับมิติอื่นๆ)
-  weight: number; // weight ของ budget dimension ที่ควรใช้ในสูตรรวม (0 - 0.15)
-  confidence: PriceConfidence;
-}
-
 export function calculatePriceScore(
-  rawPriceLevel: number | null,
-  priceNature: PriceNature
-): PriceScoreResult {
-  if (priceNature === "free") {
-    if (rawPriceLevel !== null) {
-      return { score: 90 / 100, weight: 0.15, confidence: "real" };
-    }
-    return { score: 80 / 100, weight: 0.15, confidence: "inferred_high" };
-  }
-
-  // priceNature === "paid" (รวม food + paid_other เดิมเข้าด้วยกันแล้ว — logic เหมือนกันทุกกรณี)
-  if (rawPriceLevel !== null) {
-    return {
-      score: priceLevelToGradientScore(rawPriceLevel) / 100,
-      weight: 0.15,
-      confidence: "real",
-    };
-  }
-  return { score: 0, weight: 0, confidence: "inferred_low" };
+  placeCost: number | null,
+  dailyBudget: number
+): number | null {
+  if (placeCost === null) return null;
+  if (dailyBudget <= 0) return placeCost === 0 ? 1 : 0;
+  return Math.min(1, Math.max(0, 1 - placeCost / dailyBudget));
 }
 
 // ---------- สูตรรวม ----------
@@ -158,9 +102,9 @@ const WEIGHTS = {
  * เป็นสูตรทั่วไปไว้เผื่ออนาคตมีค่าอื่นเพิ่ม) กระจายส่วนต่างคืนให้มิติที่เหลือตามสัดส่วนเดิม
  * ของมันเอง (renormalize ให้ผลรวม weight กลับมาเป็น 1 พอดีเสมอ)
  *
- * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> เหมือนสูตรเดิมทุกประการ (ไม่กระทบ real/inferred_high)
- * budgetWeight = 0    (ตัดทิ้ง) -> เหมือน WEIGHTS_NO_BUDGET เดิมทุกประการ (useBudget=false หรือ
- * paid+missing)
+ * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> เหมือนสูตรเดิมทุกประการ (รู้ราคา)
+ * budgetWeight = 0    (ตัดทิ้ง) -> เหมือน WEIGHTS_NO_BUDGET เดิมทุกประการ (ไม่ได้ตั้งงบ หรือ
+ * ไม่ทราบราคา)
  * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) -> ตัด category ออก แล้วกระจาย
  * weight ของมันคืนให้ rating/distance/weather ด้วยวิธีเดียวกัน
  */
@@ -183,18 +127,12 @@ export interface PoiScoreBreakdown {
   categoryScore: number | null;
   ratingScore: number;
   distanceScore: number;
-  // ✅ v2: ยังชื่อ budgetScore ตามเดิม (ลดจุดที่ต้องแก้ไฟล์อื่นที่ยังไม่เปิดดู เช่น
-  // itineraryBuilder.ts/frontend) แต่ความหมายเปลี่ยนเป็น "price_score" แล้ว — ไม่ได้วัดว่า
-  // "จ่ายไหวไหม" (นั่นคือหน้าที่ของ hard filter ใน poiPlaceQueries.ts) แต่วัดว่า "ราคานี้
-  // น่าสนใจแค่ไหนโดยทั่วไป" ไม่ขึ้นกับ dailyBudget ของ user คนไหนเลย
-  // null = ไม่ได้คิดในสูตรนี้เลย (useBudget=false เท่านั้น — ต่างจาก weight=0 ของ
-  // paid+missing ซึ่งยังคำนวณ score ได้ (=0) แค่ไม่ถูกใช้ในสูตรรวม)
+  // price_score (calculatePriceScore — D-52) เก็บในคอลัมน์ budget_score
+  // null = ไม่ได้คิดในสูตร (ไม่ได้ตั้งงบ หรือไม่ทราบราคา)
   budgetScore: number | null;
-  // ✅ ใหม่: ความมั่นใจของ budgetScore — null เมื่อ useBudget=false (ไม่ได้คิดเลย)
-  priceConfidence: PriceConfidence | null;
   weatherScore: number;
   poiScore: number;
-  // ✅ v2: placeCost มาจาก rawPriceLevel (ราคาจริงเท่านั้น) ไม่ fallback อีกต่อไป — null
+  // placeCost = ราคาต่อคนที่รู้จาก Google (priceRange — D-52) ไม่เดาจากหมวด — null
   // แปลว่า "ไม่ทราบราคาแน่ชัด" ไม่ใช่ "ฟรี" (ต่างจากพฤติกรรมเดิมที่เคย fallback มา coalesce)
   // frontend ควรแสดง "ไม่ทราบราคาแน่ชัด" แทนตัวเลขเมื่อ null ไม่ใช่ซ่อนไปเฉยๆ
   placeCost: number | null;
@@ -204,12 +142,8 @@ export interface PoiScoreBreakdown {
 /**
  * คำนวณคะแนนรวม POI_SCORE
  *
- * ✅ v2 — เปลี่ยน param จาก priceLevel เดี่ยวๆ เป็น rawPriceLevel + priceNature (ดู
- * poiPlaceQueries.ts::PlaceWithScore ที่ส่งสองค่านี้มาแทน effectivePriceLevel ตัวเดียว)
- * - useBudget = true  -> คำนวณ price_score จาก lookup table เสมอ (weight ผัน 0-0.15 ตาม
- *   confidence) แล้ว renormalize 4 มิติที่เหลือให้พอดีตาม weight ที่ได้
- * - useBudget = false -> ตัด budget dimension ทิ้งทั้งหมดทันที ไม่คำนวณ price_score เลย
- *   (พฤติกรรมเดิม ไม่เปลี่ยน)
+ * - ตั้งงบ (useBudget + dailyBudget) และรู้ราคา -> price_score weight 0.15
+ * - ไม่ได้ตั้งงบ หรือไม่ทราบราคา -> ตัดมิติราคาออก แล้ว renormalize มิติที่เหลือ
  *
  * รับ input แบบ primitive ตรงๆ ไม่ใช่ object ก้อนใหญ่ ตามที่ตกลงกัน
  */
@@ -218,7 +152,8 @@ export function calculatePoiScore(
   rating: number | null,
   distanceKm: number, // ✅ ระยะทางถนนจากจุดเริ่มต้น (km) — คำนวณนอกฟังก์ชันนี้ทีเดียวทั้งก้อน
   dailyBudget: number | null, // งบต่อคนต่อวัน (D-51)
-  rawPriceLevel: number | null,
+  priceRangeStart: number | null, // priceRange ต่อคน (บาท — D-52)
+  priceRangeEnd: number | null,
   priceNature: PriceNature,
   useBudget: boolean,
   // ✅ ใหม่ (weather): environment_type ของ category ที่ชนะ + โอกาสฝน (%) ของวัน/พื้นที่ของ place นี้
@@ -234,41 +169,21 @@ export function calculatePoiScore(
 
   // ✅ placeCost/perPersonDailyBudget เป็นข้อมูลแสดงผลล้วนๆ ไม่เข้าสูตรคะแนนแล้ว —
   // คำนวณแยกจาก useBudget เสมอ (แม้ useBudget=false ก็ยังอยากให้ frontend โชว์ราคาได้ถ้ารู้จริง)
-  const placeCost =
-    rawPriceLevel === null ? null : PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? null;
+  const placeCost = getKnownPrice(priceRangeStart, priceRangeEnd);
   const perPersonDailyBudget = dailyBudget;
 
-  if (!useBudget) {
-    const weights = computeWeights(0, includeCategory);
-    const poiScore =
-      weights.category * (categoryScore ?? 0) +
-      weights.rating * ratingScore +
-      weights.distance * distanceScore +
-      weights.weather * weatherScore;
+  const budgetScore =
+    useBudget && dailyBudget !== null
+      ? calculatePriceScore(getPlaceCost(priceRangeStart, priceRangeEnd, priceNature), dailyBudget)
+      : null;
 
-    return {
-      categoryScore,
-      ratingScore,
-      distanceScore,
-      budgetScore: null,
-      priceConfidence: null,
-      weatherScore,
-      poiScore,
-      placeCost,
-      perPersonDailyBudget,
-    };
-  }
-
-  const { score: budgetScore, weight: budgetWeight, confidence } =
-    calculatePriceScore(rawPriceLevel, priceNature);
-
-  const weights = computeWeights(budgetWeight, includeCategory);
+  const weights = computeWeights(budgetScore === null ? 0 : WEIGHTS.budget, includeCategory);
 
   const poiScore =
     weights.category * (categoryScore ?? 0) +
     weights.rating * ratingScore +
     weights.distance * distanceScore +
-    weights.budget * budgetScore +
+    weights.budget * (budgetScore ?? 0) +
     weights.weather * weatherScore;
 
   return {
@@ -276,7 +191,6 @@ export function calculatePoiScore(
     ratingScore,
     distanceScore,
     budgetScore,
-    priceConfidence: confidence,
     weatherScore,
     poiScore,
     placeCost,

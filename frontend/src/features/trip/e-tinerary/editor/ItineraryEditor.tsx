@@ -57,7 +57,9 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  price_level: number | null; // ราคาจริงจาก Google (null = ไม่มีข้อมูล)
+  // priceRange ต่อคน (บาท) จาก Google — D-52 · optional เผื่อ state เก่าที่ยังไม่มี field นี้
+  price_range_start?: number | null;
+  price_range_end?: number | null;
   // ใช้ตัดสิน cost ใน itineraryBuilder.ts::getPlaceCost — null ได้เผื่อ category ไม่ครบ (ไม่ควรเกิดจริง)
   price_nature: PriceNature | null;
   formatted_address: string | null;
@@ -583,8 +585,9 @@ export default function ItineraryEditor() {
         placeId: p.placeId,
         latitude: p.place.latitude,
         longitude: p.place.longitude,
-        // ราคาดิบ ไม่เดา — getPlaceCost() ใน itineraryBuilder.ts แปลงเป็นบาทเอง
-        rawPriceLevel: p.place.price_level,
+        // ราคาดิบ ไม่เดา — getPlaceCost() ใน itineraryBuilder.ts ตัดสินราคาเอง
+        priceRangeStart: p.place.price_range_start ?? null,
+        priceRangeEnd: p.place.price_range_end ?? null,
         // priceNature ไม่ควรเป็น null จริงในทางปฏิบัติ (categories!inner บังคับมีเสมอฝั่ง backend)
         // แต่ fallback เป็น "paid" กันไว้เผื่อข้อมูลผิดปกติ — เลือกฝั่งนี้เพราะ
         // "ไม่รู้ว่าฟรีไหม" ควรถือว่าไม่ฟรีไว้ก่อน (ปลอดภัยกับ isBudgetConflict มากกว่าเดาว่าฟรี)

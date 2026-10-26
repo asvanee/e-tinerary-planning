@@ -20,7 +20,8 @@ export interface SelectedPlace {
   placeId: string;
   latitude: number;
   longitude: number;
-  rawPriceLevel: number | null;
+  priceRangeStart: number | null;
+  priceRangeEnd: number | null;
   priceNature: PriceNature;
   openingHours: OpeningHours | null;
 }
@@ -67,7 +68,8 @@ interface SelectedPlaceRow {
   place_id: string;
   latitude: number;
   longitude: number;
-  price_level: number | null;
+  price_range_start: number | null;
+  price_range_end: number | null;
   opening_hours: OpeningHours | null;
   category_labels: CategoryLabelRow | CategoryLabelRow[] | null;
 }
@@ -309,7 +311,8 @@ export async function getSelectedPlaces(
       place_id,
       latitude,
       longitude,
-      price_level,
+      price_range_start,
+      price_range_end,
       opening_hours,
       category_labels(
         categories(price_nature)
@@ -332,7 +335,8 @@ export async function getSelectedPlaces(
       placeId: selectedRow.place_id,
       latitude: selectedRow.latitude,
       longitude: selectedRow.longitude,
-      rawPriceLevel: selectedRow.price_level,
+      priceRangeStart: selectedRow.price_range_start,
+      priceRangeEnd: selectedRow.price_range_end,
       // ถ้าไม่มีหมวดและไม่มีราคาจริง ห้ามอนุมานว่าสถานที่เข้าฟรี
       priceNature: category?.price_nature ?? "paid",
       openingHours: selectedRow.opening_hours,

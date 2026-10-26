@@ -11,14 +11,14 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 ## คู่ไฟล์ที่ต้องตรงกัน
 | Backend (source of truth) | Frontend mirror |
 |---|---|
-| `backend/src/features/itinerary/itineraryBuilder.ts` (`buildDayItems`, `buildItinerary`, `getPlaceCost`, `resolveTravelMetric`, `buildInitialDraft`, `buildNearestNeighborOrder`) | `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` |
+| `backend/src/features/itinerary/itineraryBuilder.ts` (`buildDayItems`, `buildItinerary`, `resolveTravelMetric`, `buildInitialDraft`, `buildNearestNeighborOrder`) | `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` |
 | `backend/src/utils/openingHoursChecker.ts` | `frontend/src/features/trip/e-tinerary/lib/openingHoursChecker.ts` |
 | `backend/src/utils/haversine.ts` | `frontend/src/features/trip/e-tinerary/lib/haversine.ts` |
 | ค่าคงที่ `TRIP_START_ID`, `FALLBACK_AVG_SPEED_KMH`, type `TravelMatrix`/`TravelMetric` ใน `backend/src/utils/orsTravelMatrix.ts` | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
-| `PRICE_LEVEL_TO_BAHT` ใน `backend/src/utils/priceLevel.ts` | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
+| `getKnownPrice`, `getPlaceCost` ใน `backend/src/utils/placePrice.ts` (D-52 — POI filter / price score ใช้ตัวเดียวกัน) | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
 | type `PriceNature` ใน `backend/src/features/poi/poiPlaceQueries.ts` | type ใน frontend lib |
 
-ค่าที่ต้องตรงกัน (ณ `0c980bd`): `TRIP_START_ID="__trip_start__"`, `FALLBACK_AVG_SPEED_KMH=25`, `PRICE_LEVEL_TO_BAHT={0:0,1:200,2:450,3:900,4:1500}`, เวลาเดินทางขั้นต่ำ 1 นาที, เวลาที่เกิน 23:59 ให้ cap ไว้ที่ 23:59
+ค่าที่ต้องตรงกัน (ณ `0c980bd`): `TRIP_START_ID="__trip_start__"`, `FALLBACK_AVG_SPEED_KMH=25`, เวลาเดินทางขั้นต่ำ 1 นาที, เวลาที่เกิน 23:59 ให้ cap ไว้ที่ 23:59
 
 นอกจากนี้ยังมีโค้ดที่ไม่ได้ mirror แต่ต้องสอดคล้องกัน: `toMinutes()` ใน `orsTravelMatrix.ts` และ logic ของ `autoTripBuilder.ts` (ซึ่งตอนนี้ **ไม่**ใช้ builder ตัวนี้ ดู Known Issue #9)
 

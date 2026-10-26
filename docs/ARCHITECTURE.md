@@ -50,7 +50,7 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 ### 2.3 POI Recommendation (`features/poi/`)
 pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับนี้ (ตามที่ comment ระบุ):
 1. กรอง province (บังคับ) แล้ว AND กับ district ถ้ามี
-2. Hard filter งบ: ตัดที่ที่ `PRICE_LEVEL_TO_BAHT[priceLevel] > dailyBudget` ทิ้ง (ถ้าเป็น paid และไม่มีราคา ให้ปล่อยผ่าน)
+2. Hard filter งบ: ตัดที่ที่ `getPlaceCost(...) > dailyBudget` ทิ้ง (`utils/placePrice.ts` — ขอบบน priceRange → ขอบล่าง → ไม่มีข้อมูล: free = 0 · paid ไม่ทราบราคาให้ปล่อยผ่าน — D-52)
 3. หมวด (D-48): ถ้าผู้ใช้เลือกหมวด นับสถานที่ที่ตรงหมวด (หลังกรองงบ) — ≥ 50 ที่ เหลือเฉพาะที่ตรงหมวด · < 50 ที่ (รวม 0) เก็บทุกที่ในพื้นที่ ที่ไม่ตรงหมวดได้ `category_score` 0 (`categoryMatchCount`, `categoryFilled`) · ไม่ได้เลือกหมวด = ตัด category ออกจากสูตร
 (ขั้นที่ 4 hard filter เวลาเดิม ตัดออกแล้ว 2026-10-22 — D-38, R5 P5c)
 หลังคำนวณจะ upsert Top 50 ลง `poi_scores` แล้วลบแถวของทริปที่หลุดจากผลรอบนี้
@@ -75,7 +75,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 3. `PUT /itinerary/trips/:id` `{days:[{trip_day_id, place_ids}], visit_durations:{[place_id]: นาที}}`: ตรวจเวลาที่อยู่ก่อน (`visitDurations.ts::parseVisitDurations` — ทุกสถานที่ในแผนต้องเป็นจำนวนเต็ม 1–1440 ไม่งั้น 400 ก่อนลบแผนเดิม · D-36) แล้ว backend สร้าง matrix ใหม่และ `buildItinerary()` ใหม่ ถ้ามี `isClosedConflict|isTimeConflict|isBudgetConflict` จะปฏิเสธ (400) **ก่อน**ลบ ถ้าผ่านจะลบ itineraries เดิมของทุกวันแล้ว insert ใหม่ (ไม่ใช่ transaction)
 4. กฎใน `buildDayItems`: Day 1 มี leg จาก `TRIP_START_ID` ส่วน Day 2+ ที่แรกไม่มี leg · เวลาที่อยู่ = `PlaceInput.visitDurationMin` ที่ผู้ใช้กรอกใน Editor (D-36, R5 P5f — แทน `categories.default_duration_min`) ถ้ายังไม่กรอก (null) ไม่มีเวลาจบ เช็คเวลาเปิดแค่ตอนไปถึง (duration 0) และสถานที่ถัดไปในวันนั้นไม่มีเวลา · บันทึกที่ `itineraries.visit_duration_min` · time conflict เกิดเมื่อ `end > trip_days.end_time` · closed conflict ตรวจจาก `periods` (รองรับร้านที่เปิดข้ามเที่ยงคืน) · ถ้าไม่มีข้อมูลเวลาเปิดจะได้ `isHoursUnknown` (ไม่ใช่ conflict) · `placeCost` ถ้าเป็น paid ที่ไม่มีราคาจะเป็น null และไม่นับเข้ายอดสะสม · budget conflict เกิดเมื่อ `useBudget && cumulativeCost > dailyBudget`
 
-ค่าคงที่ที่ต้องตรงกันทั้งสองฝั่ง: `TRIP_START_ID = "__trip_start__"`, `FALLBACK_AVG_SPEED_KMH = 25`, `PRICE_LEVEL_TO_BAHT = {0:0,1:200,2:450,3:900,4:1500}`, เวลาเดินทางขั้นต่ำ 1 นาที
+ค่าคงที่ที่ต้องตรงกันทั้งสองฝั่ง: `TRIP_START_ID = "__trip_start__"`, `FALLBACK_AVG_SPEED_KMH = 25`, ฟังก์ชันราคา `getKnownPrice` / `getPlaceCost` (backend อยู่ที่ `utils/placePrice.ts` — D-52), เวลาเดินทางขั้นต่ำ 1 นาที
 
 ### 2.5 Auto Trip
 1. หน้า `/trip/:id/recommendations` เรียก `POST /poi/trips/:id/calculate-poi`, โหลดรายละเอียดสถานที่ แล้วแสดงรายการ/แผนที่เรียงตาม POI Score

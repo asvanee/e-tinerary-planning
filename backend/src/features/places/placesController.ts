@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { supabase } from "../../config/db";
 
 type PlaceDetailRow = {
-  price_level: number | null;
   category_labels: {
     categories: { price_nature: string | null };
   };
@@ -11,11 +10,11 @@ type PlaceDetailRow = {
 /**
  * GET /api/places?ids=uuid1,uuid2,uuid3
  * ข้อมูลสถานที่ตาม place_id — frontend ใช้ join กับผลของ /calculate-poi (ซึ่งมีแค่ placeId + คะแนน)
- * และหน้า itinerary editor ใช้ recompute เอง (ต้องใช้ price_level, price_nature, opening_hours — เวลาที่อยู่ผู้ใช้กรอกเอง D-36)
+ * และหน้า itinerary editor ใช้ recompute เอง (ต้องใช้ price_range_*, price_nature, opening_hours — เวลาที่อยู่ผู้ใช้กรอกเอง D-36)
  *
  * หมวดมาจากป้าย ททท. (places -> category_labels -> categories) แบบเดียวกับ itineraryPlaceQueries.ts::getSelectedPlaces
  * เพื่อให้ค่าที่ editor เห็นตรงกับตอน backend re-validate ก่อน save
- * price_level เป็นราคาจริง (null ได้) · price_nature เป็น "free" | "paid"
+ * price_range_* เป็นราคาต่อคนจริงจาก Google (null ได้ — D-52) · price_nature เป็น "free" | "paid"
  */
 export const getPlacesByIds = async (req: Request, res: Response) => {
   const { ids } = req.query;
@@ -45,7 +44,8 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
         latitude,
         longitude,
         rating,
-        price_level,
+        price_range_start,
+        price_range_end,
         formatted_address,
         phone_number,
         website,

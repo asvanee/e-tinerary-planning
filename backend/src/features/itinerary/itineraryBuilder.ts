@@ -1,7 +1,7 @@
 import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { haversineKm } from "../../utils/haversine";
-import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
+import { getPlaceCost } from "../../utils/placePrice";
 import {
   TRIP_START_ID,
   FALLBACK_AVG_SPEED_KMH,
@@ -11,6 +11,8 @@ import {
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
 export type { TravelMatrix, TravelMetric };
+// ราคาต่อคนที่ใช้คิดงบ (D-52) — Auto Trip ต้องเรียกตัวนี้ ไม่เขียนกฎราคาซ้ำ
+export { getPlaceCost };
 
 /**
  * itineraryBuilder.ts (backend — source of truth)
@@ -36,7 +38,9 @@ export interface PlaceInput {
   placeId: string;
   latitude: number;
   longitude: number;
-  rawPriceLevel: number | null; // null = ไม่มีราคาจริงจาก Google
+  // priceRange ต่อคน (บาท) จาก Places API (New) — D-52 · null = ไม่มีข้อมูล
+  priceRangeStart: number | null;
+  priceRangeEnd: number | null;
   priceNature: PriceNature; // ของหมวดจากป้าย ททท.
   openingHours: OpeningHours | null;
   // เวลาที่ผู้ใช้กรอกว่าจะอยู่ (นาที — D-36) · null = ยังไม่กรอก: ไม่รู้เวลาจบ
@@ -92,21 +96,6 @@ function minutesToTimeString(totalMinutes: number): string {
 function getDayOfWeek(visitDate: string): number {
   const [y, m, d] = visitDate.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-}
-
-/**
- * ราคาต่อคนของสถานที่ (บาท) — มีราคาจริงใช้ราคาจริง
- * ไม่มีราคาจริง: free -> 0 บาท (วัด/สวนสาธารณะมักฟรีจริง) · paid -> null (ไม่ทราบราคา ไม่เดา)
- */
-function getPlaceCost(
-  rawPriceLevel: number | null,
-  priceNature: PriceNature
-): number | null {
-  if (rawPriceLevel !== null) {
-    return PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? 0;
-  }
-  if (priceNature === "free") return 0;
-  return null; // paid + missing = unknown จริง
 }
 
 /**
@@ -262,7 +251,11 @@ export function buildDayItems(
     const isClosedConflict = hasData ? !isOpen : false;
     const isHoursUnknown = !hasData;
 
-    const placeCost = getPlaceCost(place.rawPriceLevel, place.priceNature);
+    const placeCost = getPlaceCost(
+      place.priceRangeStart,
+      place.priceRangeEnd,
+      place.priceNature
+    );
     const isCostUnknown = placeCost === null;
     // ไม่ทราบราคาไม่กระทบยอดสะสม (ไม่เดาว่าฟรีหรือแพง)
     cumulativeCost += placeCost ?? 0;

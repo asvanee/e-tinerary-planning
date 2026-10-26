@@ -14,9 +14,6 @@ import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
 import { DAY_NAMES_TH, formatVisitDate } from "../lib/format";
 import { closedTripDates, tripDates } from "../lib/openingDays";
 
-// ตรงกับ PriceConfidence ฝั่ง backend (poiScoreCalculator.ts) — null เมื่อ useBudget = false
-type PriceConfidence = "real" | "inferred_high" | "inferred_low" | null;
-
 // ตรงกับ DistanceSource ฝั่ง backend (orsDistance.ts) — ors = ระยะทางถนนจริงทั้งหมด
 type DistanceSource = "ors" | "haversine" | "mixed";
 
@@ -32,7 +29,7 @@ interface PoiResult {
   poiScore: number;
   placeCost: number | null;
   perPersonDailyBudget: number | null;
-  priceConfidence: PriceConfidence;
+  priceNature: "free" | "paid"; // ใช้บอกว่าหมวดนี้มักไม่มีค่าใช้จ่ายเมื่อไม่ทราบราคา
   // แหล่งของระยะทางรายสถานที่ — ไม่มี = ใช้ distanceSource ระดับหน้าแทน
   distanceMethod?: "ors" | "haversine";
 }
@@ -45,7 +42,6 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  price_level: number;
   formatted_address: string | null;
   phone_number?: string | null;
   website?: string | null;
@@ -628,7 +624,7 @@ export default function TripRecommendations() {
             ) : (
               <span title="สถานที่นี้ไม่มีข้อมูลราคาจาก Google ระบบไม่เดาราคาแทนคุณ">
                 <Metric icon={Wallet}>
-                  {item.priceConfidence === "inferred_high"
+                  {item.priceNature === "free"
                     ? "ไม่ทราบราคาแน่ชัด (หมวดนี้มักไม่มีค่าใช้จ่าย)"
                     : "ไม่ทราบราคาแน่ชัด"}
                 </Metric>

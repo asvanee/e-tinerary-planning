@@ -102,7 +102,8 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
         place.rating,
         distanceKm,
         trip.dailyBudget,
-        place.rawPriceLevel,
+        place.priceRangeStart,
+        place.priceRangeEnd,
         place.priceNature,
         trip.useBudget,
         place.environmentType,
@@ -113,6 +114,8 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
         placeId: place.placeId,
         // ใช้แสดง badge หมวดหมู่ในหน้า Recommendation (ไม่อยู่ในสูตรคะแนน)
         categoryName: place.categoryName,
+        // ใช้บอกว่า "หมวดนี้มักไม่มีค่าใช้จ่าย" เมื่อไม่ทราบราคา (ไม่อยู่ในสูตรคะแนน)
+        priceNature: place.priceNature,
         // "ors" = ระยะทางถนนจริง, "haversine" = เส้นตรงประมาณ (ORS หาเส้นทางไปสถานที่นี้ไม่ได้)
         distanceMethod: perPlaceSource.get(place.placeId) ?? "haversine",
         ...breakdown,

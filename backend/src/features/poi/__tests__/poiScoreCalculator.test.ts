@@ -1,8 +1,8 @@
-import { calculateCategoryScore, calculatePoiScore } from "../poiScoreCalculator";
+import { calculateCategoryScore, calculatePoiScore, calculatePriceScore } from "../poiScoreCalculator";
 
 // rating 4, ระยะ 1 กม., ไม่มีพยากรณ์ฝน (weather 1.0), ไม่ใช้งบ
 function scoreWith(categoryMatch: boolean | null) {
-  return calculatePoiScore(categoryMatch, 4, 1, null, null, "free", false, "MIXED", null);
+  return calculatePoiScore(categoryMatch, 4, 1, null, null, null, "free", false, "MIXED", null);
 }
 
 describe("calculateCategoryScore (D-48)", () => {
@@ -37,21 +37,47 @@ describe("calculatePoiScore กับ category score (D-48)", () => {
     expect(result.poiScore).toBeCloseTo(expected, 10);
   });
 
-  test("ไม่ได้เลือกหมวด + ใช้งบ (free มีราคาจริง) → weight รวมยังเป็น 1", () => {
-    const result = calculatePoiScore(null, 5, 0, 1000, 0, "free", true, "INDOOR", null);
-    // ทุกด้านได้เต็ม ยกเว้น price (free + ราคาจริง = 0.9 ที่ weight 0.15)
-    expect(result.poiScore).toBeCloseTo(0.85 + 0.15 * 0.9, 10);
+  test("ไม่ได้เลือกหมวด + ใช้งบ (ฟรี) → weight รวมยังเป็น 1", () => {
+    const result = calculatePoiScore(null, 5, 0, 1000, null, null, "free", true, "INDOOR", null);
+    // ทุกด้านได้เต็ม รวม price (ฟรี = 1)
+    expect(result.poiScore).toBeCloseTo(1, 10);
   });
 });
 
 describe("calculatePoiScore กับงบต่อคน (D-51)", () => {
   test("daily_budget เป็นงบต่อคนแล้ว → perPersonDailyBudget ไม่หารจำนวนคนซ้ำ", () => {
-    const result = calculatePoiScore(true, 4, 1, 1000, 2, "paid", true, "MIXED", null);
+    const result = calculatePoiScore(true, 4, 1, 1000, 1, 200, "paid", true, "MIXED", null);
     expect(result.perPersonDailyBudget).toBe(1000);
-    expect(result.placeCost).toBe(450);
+    expect(result.placeCost).toBe(200);
   });
 
   test("ไม่ตั้งงบ → perPersonDailyBudget เป็น null", () => {
     expect(scoreWith(true).perPersonDailyBudget).toBeNull();
+  });
+});
+
+describe("price score จาก priceRange เทียบงบต่อคน (D-52)", () => {
+  test.each([
+    ["ฟรี", 0, 1000, 1],
+    ["ครึ่งหนึ่งของงบ", 500, 1000, 0.5],
+    ["เท่างบพอดี", 1000, 1000, 0],
+    ["แพงกว่างบ (cap ที่ 0)", 1500, 1000, 0],
+    ["ไม่ทราบราคา → ไม่คิด", null, 1000, null],
+    ["งบ 0 กับที่ฟรี", 0, 0, 1],
+  ])("%s", (_label, cost, budget, expected) => {
+    expect(calculatePriceScore(cost, budget)).toBe(expected);
+  });
+
+  test("ไม่ทราบราคา (paid ไม่มี priceRange) → ตัดมิติราคา ได้คะแนนเท่าไม่ตั้งงบ", () => {
+    const withBudget = calculatePoiScore(true, 4, 1, 1000, null, null, "paid", true, "MIXED", null);
+    const noBudget = calculatePoiScore(true, 4, 1, null, null, null, "paid", false, "MIXED", null);
+    expect(withBudget.budgetScore).toBeNull();
+    expect(withBudget.poiScore).toBeCloseTo(noBudget.poiScore, 10);
+  });
+
+  test("รู้ราคา → price weight 0.15 ใช้ขอบบนของ priceRange", () => {
+    const result = calculatePoiScore(true, 5, 0, 1000, 1, 200, "paid", true, "INDOOR", null);
+    expect(result.budgetScore).toBeCloseTo(0.8, 10);
+    expect(result.poiScore).toBeCloseTo(0.85 + 0.15 * 0.8, 10);
   });
 });

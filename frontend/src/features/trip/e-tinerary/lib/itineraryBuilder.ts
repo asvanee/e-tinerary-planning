@@ -22,7 +22,9 @@ export interface PlaceInput {
   placeId: string;
   latitude: number;
   longitude: number;
-  rawPriceLevel: number | null; // null = ไม่มีราคาจริงจาก Google
+  // priceRange ต่อคน (บาท) จาก Places API (New) — D-52 · null = ไม่มีข้อมูล
+  priceRangeStart: number | null;
+  priceRangeEnd: number | null;
   priceNature: PriceNature; // ของหมวดจากป้าย ททท.
   openingHours: OpeningHours | null;
   // เวลาที่ผู้ใช้กรอกว่าจะอยู่ (นาที — D-36) · null = ยังไม่กรอก: ไม่รู้เวลาจบ
@@ -75,15 +77,6 @@ export interface TravelMetric {
 /** matrix[fromId][toId] — from/to เป็น placeId หรือ TRIP_START_ID */
 export type TravelMatrix = Record<string, Record<string, TravelMetric>>;
 
-/** price_level (0-4) -> บาท — backend utils/priceLevel.ts */
-const PRICE_LEVEL_TO_BAHT: Record<number, number> = {
-  0: 0,
-  1: 200,
-  2: 450,
-  3: 900,
-  4: 1500,
-};
-
 // ---------- Helpers ----------
 
 function timeStringToMinutes(time: string): number {
@@ -108,16 +101,27 @@ function getDayOfWeek(visitDate: string): number {
 }
 
 /**
- * ราคาต่อคนของสถานที่ (บาท) — มีราคาจริงใช้ราคาจริง
- * ไม่มีราคาจริง: free -> 0 บาท (วัด/สวนสาธารณะมักฟรีจริง) · paid -> null (ไม่ทราบราคา ไม่เดา)
+ * ราคาที่รู้จาก Google: ขอบบนของ priceRange -> ขอบล่าง (ช่วงแบบ "มากกว่า X" ไม่มีขอบบน)
+ * null = Google ไม่มีข้อมูลราคา — backend utils/placePrice.ts (D-52)
+ */
+function getKnownPrice(
+  priceRangeStart: number | null,
+  priceRangeEnd: number | null
+): number | null {
+  return priceRangeEnd ?? priceRangeStart;
+}
+
+/**
+ * ราคาที่ใช้คิดงบ — ไม่มีราคาจาก Google: free -> 0 บาท (วัด/สวนสาธารณะมักฟรีจริง) · paid -> null (ไม่ทราบราคา ไม่เดา)
+ * backend utils/placePrice.ts
  */
 function getPlaceCost(
-  rawPriceLevel: number | null,
-  priceNature: PriceNature
+  priceRangeStart: number | null,
+  priceRangeEnd: number | null,
+  priceNature: "free" | "paid"
 ): number | null {
-  if (rawPriceLevel !== null) {
-    return PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? 0;
-  }
+  const knownPrice = getKnownPrice(priceRangeStart, priceRangeEnd);
+  if (knownPrice !== null) return knownPrice;
   if (priceNature === "free") return 0;
   return null; // paid + missing = unknown จริง
 }
@@ -275,7 +279,11 @@ export function buildDayItems(
     const isClosedConflict = hasData ? !isOpen : false;
     const isHoursUnknown = !hasData;
 
-    const placeCost = getPlaceCost(place.rawPriceLevel, place.priceNature);
+    const placeCost = getPlaceCost(
+      place.priceRangeStart,
+      place.priceRangeEnd,
+      place.priceNature
+    );
     const isCostUnknown = placeCost === null;
     // ไม่ทราบราคาไม่กระทบยอดสะสม (ไม่เดาว่าฟรีหรือแพง)
     cumulativeCost += placeCost ?? 0;

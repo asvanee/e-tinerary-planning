@@ -1,22 +1,11 @@
 import { supabase } from "../../config/db";
-import { PRICE_LEVEL_TO_BAHT } from "../../utils/priceLevel";
+import { getPlaceCost } from "../../utils/placePrice";
 
 // ค่าของ categories.price_nature
 export type PriceNature = "free" | "paid";
 
 // ค่าของ categories.environment_type — poiScoreCalculator.ts แปลงเป็นสัดส่วนที่โดนฝน
 export type EnvironmentType = "INDOOR" | "OUTDOOR" | "MIXED";
-
-/**
- * price_level โดยประมาณเมื่อ place ไม่มีราคาจริง — ใช้กับ hard filter งบเท่านั้น
- * (price_score ใช้ rawPriceLevel + priceNature ใน poiScoreCalculator.ts)
- *
- * ประมาณเฉพาะ free (มักฟรีจริง) · paid ที่ไม่มีราคาจริงไม่เดา (ราคากว้างตั้งแต่หลักสิบถึงหลักพัน)
- * จึงได้ null แล้วปล่อยผ่าน filter งบ — ตรงกับ price_score และ budget conflict ที่ไม่เดาเช่นกัน
- */
-const PRICE_NATURE_ESTIMATED_LEVEL: Partial<Record<PriceNature, number>> = {
-  free: 0,
-};
 
 export interface TripInfo {
   userId: string;
@@ -39,12 +28,9 @@ export interface PlaceWithScore {
   longitude: number;
   rating: number | null;
 
-  // ราคาจริง หรือประมาณด้วย PRICE_NATURE_ESTIMATED_LEVEL — ใช้กับ hard filter งบเท่านั้น
-  // ห้ามส่งเข้า calculatePoiScore() · null = paid ที่ไม่มีราคาจริง (ปล่อยผ่าน filter งบ)
-  priceLevel: number | null;
-
-  // ราคาจริงจาก places.price_level ไม่ผ่าน fallback (null = ไม่มีข้อมูล) — ใช้คิด price_score
-  rawPriceLevel: number | null;
+  // priceRange ต่อคน (บาท) จาก Places API (New) — D-52 · ใช้คิดราคาผ่าน utils/placePrice.ts
+  priceRangeStart: number | null;
+  priceRangeEnd: number | null;
 
   // ค่าของหมวดที่ได้จากป้าย ททท. ของสถานที่ (1 สถานที่ = 1 หมวด — D-35)
   priceNature: PriceNature;
@@ -147,9 +133,12 @@ export async function getFilteredPlaces(
     const dailyBudget = trip.dailyBudget;
 
     places = places.filter((place) => {
-      if (place.priceLevel === null) return true; // paid + ไม่รู้ราคาจริง — ปล่อยผ่าน ไม่เดา
-
-      const placeCost = PRICE_LEVEL_TO_BAHT[place.priceLevel] ?? 0;
+      const placeCost = getPlaceCost(
+        place.priceRangeStart,
+        place.priceRangeEnd,
+        place.priceNature
+      );
+      if (placeCost === null) return true; // paid + ไม่รู้ราคาจริง — ปล่อยผ่าน ไม่เดา
 
       return placeCost <= dailyBudget;
     });
@@ -184,7 +173,8 @@ interface PlaceCategoryRow {
   latitude: number;
   longitude: number;
   rating: number | null;
-  price_level: number | null;
+  price_range_start: number | null;
+  price_range_end: number | null;
   category_labels: {
     category_id: string;
     categories: {
@@ -206,7 +196,7 @@ async function queryPlacesWithCategoryInfo(
   let query = supabase
     .from("places")
     .select(
-      "place_id, latitude, longitude, rating, price_level, category_labels!inner(category_id, categories!inner(price_nature, category_name, environment_type))"
+      "place_id, latitude, longitude, rating, price_range_start, price_range_end, category_labels!inner(category_id, categories!inner(price_nature, category_name, environment_type))"
     )
     .eq("province", locationFilter.province);
 
@@ -225,21 +215,15 @@ async function queryPlacesWithCategoryInfo(
 
   return rows.map((row) => {
     const category = row.category_labels.categories;
-    const rawPriceLevel = row.price_level;
-    const priceNature = category.price_nature;
-
-    const effectivePriceLevel: number | null =
-      rawPriceLevel ?? PRICE_NATURE_ESTIMATED_LEVEL[priceNature] ?? null;
-
     return {
       placeId: row.place_id,
       latitude: row.latitude,
       longitude: row.longitude,
       rating: row.rating,
 
-      priceLevel: effectivePriceLevel,
-      rawPriceLevel,
-      priceNature,
+      priceRangeStart: row.price_range_start,
+      priceRangeEnd: row.price_range_end,
+      priceNature: category.price_nature,
 
       categoryId: row.category_labels.category_id,
       categoryMatch: null, // getFilteredPlaces ใส่ค่าจริงเมื่อผู้ใช้เลือกหมวด

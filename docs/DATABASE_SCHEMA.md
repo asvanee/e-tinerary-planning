@@ -120,7 +120,8 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `place_name` | text | NOT NULL | |
 | `latitude` / `longitude` | float8 | NOT NULL | ไม่มี CHECK ช่วงพิกัด (R2) |
 | `rating` | numeric | | CHECK 0..5 |
-| `price_level` | int4 | | CHECK 0..4 |
+| `price_level` | int4 | | CHECK 0..4 · โค้ดของเราเลิกใช้แล้ว (D-52) เหลือแค่ Auto Trip — รอลบหลังกิ่งย้ายไปใช้ priceRange |
+| `price_range_start` / `price_range_end` | numeric | | CHECK >= 0 · ราคาต่อคน (บาท, THB เท่านั้น) จาก Places API (New) `priceRange` · end ว่าง = ช่วงแบบ "มากกว่า X" (D-52 — `docs/sql/2026-10-26_places_price_range.sql`) |
 | `user_ratings_total` | int4 | | |
 | `opening_hours` | jsonb | | (รูปแบบ Google `periods`/`weekday_text`) |
 | `formatted_address`, `province`, `district`, `phone_number`, `website` | text | | |

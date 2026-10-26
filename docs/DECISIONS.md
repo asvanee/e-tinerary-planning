@@ -9,7 +9,7 @@
 | D-02 | Backend `itineraryBuilder.ts` คือ **source of truth** ส่วน frontend เก็บ copy แบบ mirror ไว้ recompute ทันที และ backend ต้อง re-validate ซ้ำก่อน save เสมอ | ลากวางแล้วเห็นผลทันทีโดยไม่ต้องรอ network | หัวไฟล์ `backend/.../itineraryBuilder.ts` |
 | D-03 | Itinerary editor เป็นแบบ **manual drag เท่านั้น** draft แรกไม่จัดลงวันให้ (`buildInitialDraft` คืน `[]`) และไม่มีปุ่ม "จัดลำดับอัตโนมัติ" ในหน้านี้ | final design | `itineraryBuilder.ts` |
 | D-04 | เก็บ `buildNearestNeighborOrder` ไว้ แม้ตอนนี้ไม่มีที่เรียกใช้ | อาจนำไปใช้กับ Auto Trip | `itineraryBuilder.ts` |
-| D-05 | ราคา v2: **ไม่เดาราคา** เมื่อไม่มี `price_level` จริง ยกเว้น category `free` (ให้ประมาณเป็น 0) ถ้าเป็น paid ที่ไม่มีราคา ให้ `placeCost=null`, ปล่อยผ่าน hard filter, ไม่นับเข้ายอดสะสม และให้ price weight = 0 | การเดาราคาซ่อนความไม่รู้ไว้และลงโทษผิด | `poiScoreCalculator.ts`, `poiPlaceQueries.ts`, `itineraryBuilder.ts` |
+| D-05 | ราคา v2 (ตั้งแต่ D-52 ใช้ priceRange แทน price_level — หลักไม่เดาราคาเหมือนเดิม): **ไม่เดาราคา** เมื่อไม่มี `price_level` จริง ยกเว้น category `free` (ให้ประมาณเป็น 0) ถ้าเป็น paid ที่ไม่มีราคา ให้ `placeCost=null`, ปล่อยผ่าน hard filter, ไม่นับเข้ายอดสะสม และให้ price weight = 0 | การเดาราคาซ่อนความไม่รู้ไว้และลงโทษผิด | `poiScoreCalculator.ts`, `poiPlaceQueries.ts`, `itineraryBuilder.ts` |
 | D-06 | `price_nature` เหลือแค่ `free` / `paid` (ยุบ food + paid_other) และ DB migrate แล้ว | logic ของสองหมวดเหมือนกันทุกกรณี | `poiPlaceQueries.ts` |
 | D-07 | เลิกใช้ `categories.default_price_level` ("column กำลังจะ drop") | ดู D-05 | หลายไฟล์ |
 | D-08 | Multi-category: เลือกแถว `confidence_score` สูงสุดต่อ place (MAX) ห้าม sum/average และต้องใช้เกณฑ์เดียวกันในทุก query | ค่าที่เห็นตอน POI list และตอน confirm ต้องตรงกัน | `poiPlaceQueries`, `itineraryPlaceQueries`, `placesController` |
@@ -21,7 +21,7 @@
 | D-14 | ใช้ ORS แทน Google Distance Matrix และ fallback เป็น haversine **ต่อคู่** (ห้าม throw) · fallback speed 25 km/h · เวลาเดินทางขั้นต่ำ 1 นาที | เกิน free tier ของ Google และระบบต้องไม่ล่มเมื่อ ORS ล่ม | `utils/orsTravelMatrix.ts`, `orsDistance.ts` |
 | D-15 | ORS base URL = `https://api.heigit.org/openrouteservice` (โดเมนเก่าปิดแล้วตาม comment) | | `config/ors.ts` |
 | D-16 | Weather v1 ใช้แค่โอกาสฝน เฉลี่ยทั้งช่วงทริป ใช้ grid 0.1° ถ้าไม่มีพยากรณ์ให้ score 1.0 ทุกที่ และค่า exposure INDOOR/MIXED/OUTDOOR = 0/0.5/1 | POI คำนวณก่อนจะรู้ว่าแต่ละที่ลงวันไหน | `weatherForecast.ts`, `poiScoreCalculator.ts` |
-| D-17 | POI weights: category .35, rating .25, distance .15, budget .15, weather .10 และ renormalize เมื่อ budget weight < .15 | | `poiScoreCalculator.ts` |
+| D-17 | POI weights: category .35, rating .25, distance .15, budget .15, weather .10 และ renormalize เมื่อ budget weight < .15 (D-52: budget = price score จาก priceRange เทียบงบต่อคน · ตัดออกเมื่อไม่ได้ตั้งงบหรือไม่ทราบราคา) | | `poiScoreCalculator.ts` |
 | D-18 | Insert `trip_categories` แบบ best-effort ไม่ rollback ทริปหลัก แต่คืน `categoryWarning` | ระบบเรียบง่าย ไม่ทำ fallback ซับซ้อน | `tripController.ts` |
 | D-19 | `trip_days` สร้างแบบ lazy ตอนเรียก draft/confirm/saved ครั้งแรก | | `getOrCreateTripDays` |
 | D-20 | `/api/place-dropdown` แยกจาก `/api/places` โดยตั้งใจ | กัน path ชนกัน | `server.ts` |
@@ -386,3 +386,16 @@
   - ข้อมูลเดิม: ลบทริปทดสอบทั้งหมด (`docs/sql/2026-10-26_delete_test_trips.sql`) ไม่แปลงค่า
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `frontend/src/features/trip/create/createTrip.tsx`, `backend/src/features/poi/poiScoreCalculator.ts` (`perPersonDailyBudget` เลิกหารจำนวนคน), `poiPlaceQueries.ts`, `poiController.ts`, `TripDetail.tsx`, `ItineraryEditor.tsx`, `MyTrips.tsx`, `docs/sql/2026-10-26_delete_test_trips.sql`
+
+### D-52 · 2026-10-26 · ราคาสถานที่ใช้ priceRange ของ Google อย่างเดียว และ price score เทียบงบต่อคน
+- บริบท: `PRICE_LEVEL_TO_BAHT` (200/450/900/1,500) และตาราง price score เดิม (0.9/0.8/80−20×ระดับ) ไม่มีแหล่งอ้างอิง · Google ไม่ผูก price_level กับจำนวนเงิน ("The exact amount indicated by a specific value will vary from region to region." — https://developers.google.com/maps/documentation/places/web-service/details) · Places API (New) มี `priceRange` เป็นเงินจริง (https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places · SKU Enterprise) ซึ่ง Google ระบุว่าเป็นราคาเฉลี่ยต่อคน (https://support.google.com/local-listings/answer/9851099)
+- ทดสอบน่าน 2026-10-26 (114 แห่ง, Google ตอบ 107): มี priceRange 6 แห่ง = ชุดเดียวกับที่มี price_level · ทุกแห่ง ฿1–200 · อีก 7 แห่งมี google_place_id แบบ "csv:..." (ไม่มีใน Google)
+- ข้อสรุป (ผู้ใช้เลือก):
+  - เพิ่ม `places.price_range_start` / `price_range_end` (บาท, THB เท่านั้น) · เลิกใช้ price_level และ `PRICE_LEVEL_TO_BAHT` ในโค้ดของเรา
+  - ราคาต่อคน = ขอบบนของ priceRange → ขอบล่าง (ช่วงแบบ "มากกว่า X") → ไม่มีข้อมูล: free = 0 / paid = ไม่ทราบ (`utils/placePrice.ts` `getKnownPrice` / `getPlaceCost` · frontend mirror ใน `lib/itineraryBuilder.ts`) · ใช้ทั้ง filter งบ, ยอดสะสม/งบเกิน, price score และราคาที่แสดงในหน้าแนะนำ
+  - price score (แทนตาราง v2 เดิมที่ไม่เทียบงบ) = 1 − ราคาต่อคน ÷ งบต่อคนต่อวัน (cap 0–1) weight 0.15 ตาม D-17 · ไม่ได้ตั้งงบหรือไม่ทราบราคา → ตัดมิติราคาแล้ว renormalize · `budget_score` เป็น null ในกรณีนั้น · เลิก `priceConfidence` (หน้าแนะนำใช้ `priceNature` บอก "หมวดนี้มักไม่มีค่าใช้จ่าย" แทน)
+  - น่าน: เติมราคา 6 แห่งจากผลทดสอบด้วย SQL ไม่เรียก Google ซ้ำ
+  - จังหวัดใหม่: การนำเข้าใน admin ขอ priceRange จาก Places API (New) ทุกสถานที่ (เพิ่ม 1 request Enterprise ต่อแห่ง) · key ไม่มีสิทธิ์/โควต้าหมด (403/429) หยุดทั้ง job · error อื่นนำเข้าต่อโดยไม่มีราคา
+  - คอลัมน์ `price_level` ยังเก็บและนำเข้าต่อ เพราะ Auto Trip (กิ่ง) ยัง select อยู่ — กิ่งต้องย้ายไปคิดราคาผ่าน `getPlaceCost` (export จาก `itineraryBuilder.ts`) แล้วจึงลบคอลัมน์และเลิกนำเข้า
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/utils/placePrice.ts` (เดิม `priceLevel.ts`), `itineraryBuilder.ts` (backend + frontend mirror), `itineraryPlaceQueries.ts` (`getSelectedPlaces`), `placesController.ts`, `poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `ItineraryEditor.tsx`, `TripRecommendations.tsx`, `backend/src/admin/pipeline/import/`, `frontend/src/admin/imports/`, `docs/sql/2026-10-26_places_price_range.sql`, skill `itinerary-mirror-sync`

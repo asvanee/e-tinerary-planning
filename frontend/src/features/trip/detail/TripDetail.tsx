@@ -510,7 +510,7 @@ export default function TripDetail() {
    * 1) ดึง place_ids ทั้งหมดจาก itinerary ที่บันทึกไว้แล้ว (ทุกวันรวมกัน, unique)
    * 2) ยิง GET /api/places?ids=... ใหม่ (เอาข้อมูลสถานที่ล่าสุด ไม่ใช้ของเก่าที่ cache ไว้ในหน้านี้
    *    เพราะ field ที่ TripDetail ดึงมาจาก itinerary ไม่ครบเท่า PlaceInfo ที่ Editor ต้องใช้ เช่น
-   *    price_level, opening_hours)
+   *    price_range_start/end, opening_hours)
    * 3) ยิง POST /draft ซ้ำด้วยชุด place_ids เดิม (Editor คาดหวัง shape แบบ draft เสมอ)
    *    draft ไม่จัดสถานที่ลงวัน (items = []) จึงแทน items ด้วยแผนที่บันทึกไว้ — Editor วางลงวันตาม
    *    tripDayId + visitOrder (Known Issue #35)
