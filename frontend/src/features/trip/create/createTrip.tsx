@@ -475,29 +475,25 @@ export default function CreateTrip() {
         // ไม่ติ๊กกำหนดงบ = null เสมอ แม้ state totalBudget จะมีเลขค้างอยู่
         const rawBudget = useBudget && totalBudget ? Number(totalBudget) : null;
 
+        // daily_budget = งบต่อคนต่อวัน (D-51) เทียบกับราคาต่อคนของสถานที่ได้ตรงๆ
         let dailyBudget: number | null = null;
-        let normalizedTotalBudget: number | null = rawBudget;
 
         if (rawBudget) {
             // 4 กรณีจาก scope (GROUP/PER_PERSON) x period (TOTAL_TRIP/PER_DAY)
             if (budgetScope === "GROUP" && budgetPeriod === "TOTAL_TRIP") {
-                dailyBudget = rawBudget / tripDays;
-                normalizedTotalBudget = rawBudget;
+                dailyBudget = rawBudget / tripDays / people;
             } else if (budgetScope === "GROUP" && budgetPeriod === "PER_DAY") {
-                dailyBudget = rawBudget;
-                normalizedTotalBudget = rawBudget * tripDays;
+                dailyBudget = rawBudget / people;
             } else if (budgetScope === "PER_PERSON" && budgetPeriod === "TOTAL_TRIP") {
-                normalizedTotalBudget = rawBudget * people;
-                dailyBudget = normalizedTotalBudget / tripDays;
+                dailyBudget = rawBudget / tripDays;
             } else if (budgetScope === "PER_PERSON" && budgetPeriod === "PER_DAY") {
-                dailyBudget = rawBudget * people;
-                normalizedTotalBudget = dailyBudget * tripDays;
+                dailyBudget = rawBudget;
             }
         }
 
         if (dailyBudget !== null && dailyBudget < 300) {
             const confirmed = confirm(
-                `งบประมาณต่อวันอยู่ที่ประมาณ ${Math.round(dailyBudget).toLocaleString()} บาท อาจไม่เพียงพอสำหรับบางสถานที่ ต้องการดำเนินการต่อหรือไม่?`
+                `งบประมาณต่อคนต่อวันอยู่ที่ประมาณ ${Math.round(dailyBudget).toLocaleString()} บาท อาจไม่เพียงพอสำหรับบางสถานที่ ต้องการดำเนินการต่อหรือไม่?`
             );
             if (!confirmed) return;
         }
@@ -534,7 +530,8 @@ export default function CreateTrip() {
 
     use_budget: useBudget,
 
-    total_budget: normalizedTotalBudget,
+    // ตัวเลขที่ผู้ใช้กรอกตาม scope/period — หน้าแก้ไขโหลดกลับเข้าช่องเดิม และ TripDetail แสดงคู่กับ scope/period
+    total_budget: rawBudget,
     budget_scope: useBudget ? budgetScope || null : null,
     budget_period: useBudget ? budgetPeriod || null : null,
     daily_budget: dailyBudget,
@@ -588,8 +585,8 @@ export default function CreateTrip() {
             // สร้างทริปใหม่: แสดงสรุปใน modal ก่อนไปหน้าแนะนำ
             setCreatedTrip(result.trip);
             setSummary({
-                dailyBudget,
-                perPersonPerDay: dailyBudget !== null ? dailyBudget / people : null,
+                dailyBudget: dailyBudget !== null ? dailyBudget * people : null,
+                perPersonPerDay: dailyBudget,
                 people,
                 tripDays,
             });
@@ -1076,7 +1073,7 @@ export default function CreateTrip() {
                                 {useBudget && (
                                     <>
                                         <SummaryRow
-                                            label="งบต่อวัน"
+                                            label="งบต่อวัน (ทั้งกลุ่ม)"
                                             value={
                                                 summary.dailyBudget !== null
                                                     ? `${Math.round(summary.dailyBudget).toLocaleString()} บาท`

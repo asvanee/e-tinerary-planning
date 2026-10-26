@@ -42,7 +42,7 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 - `logout` เรียก `supabase.auth.admin.signOut(token)`
 
 ### 2.2 สร้าง/แก้ไขทริป (`tripController.ts`)
-- frontend เป็นคนคำนวณ `daily_budget` (`createTrip.tsx` ~บรรทัด 494–511) จาก scope (`GROUP`/`PER_PERSON`) × period (`TOTAL_TRIP`/`PER_DAY`) ได้ผลเป็น **งบรวมของทั้งกลุ่มต่อวัน**
+- frontend เป็นคนคำนวณ `daily_budget` (`createTrip.tsx` ~บรรทัด 478–497) จาก scope (`GROUP`/`PER_PERSON`) × period (`TOTAL_TRIP`/`PER_DAY`) ได้ผลเป็น **งบต่อคนต่อวัน** (D-51) เทียบกับราคาต่อคนของสถานที่ตรงๆ
 - backend validate: ต้องมี province, ต้องปักหมุด, พิกัดต้องอยู่ในช่วง, `number_of_people` ต้องเป็นจำนวนเต็ม ≥ 1, `start_time + available_time_per_day` ต้องไม่เกินเที่ยงคืน
 - การบันทึก `trip_categories` เป็นแบบ best-effort (ไม่ rollback แต่คืน `categoryWarning`)
 - ownership: query ใช้ `.eq("trip_id").eq("user_id")` ทุกครั้ง

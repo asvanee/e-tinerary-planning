@@ -217,8 +217,7 @@ export function calculatePoiScore(
   categoryMatch: boolean | null, // null = ผู้ใช้ไม่ได้เลือกหมวด (D-48)
   rating: number | null,
   distanceKm: number, // ✅ ระยะทางถนนจากจุดเริ่มต้น (km) — คำนวณนอกฟังก์ชันนี้ทีเดียวทั้งก้อน
-  dailyBudget: number | null,
-  numberOfPeople: number,
+  dailyBudget: number | null, // งบต่อคนต่อวัน (D-51)
   rawPriceLevel: number | null,
   priceNature: PriceNature,
   useBudget: boolean,
@@ -237,8 +236,7 @@ export function calculatePoiScore(
   // คำนวณแยกจาก useBudget เสมอ (แม้ useBudget=false ก็ยังอยากให้ frontend โชว์ราคาได้ถ้ารู้จริง)
   const placeCost =
     rawPriceLevel === null ? null : PRICE_LEVEL_TO_BAHT[rawPriceLevel] ?? null;
-  const perPersonDailyBudget =
-    dailyBudget === null ? null : dailyBudget / numberOfPeople;
+  const perPersonDailyBudget = dailyBudget;
 
   if (!useBudget) {
     const weights = computeWeights(0, includeCategory);

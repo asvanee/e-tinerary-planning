@@ -5,7 +5,7 @@
 
 | ID | ข้อสรุป | เหตุผล (ตาม comment) | ที่อยู่ |
 |---|---|---|---|
-| D-01 | Business logic ของงบคำนวณที่ **frontend จุดเดียว** (`daily_budget` เป็นค่าสำเร็จรูป) backend ห้ามหารจำนวนคนซ้ำ | กันการคำนวณซ้ำซ้อน/ไม่ตรงกัน | `poiPlaceQueries.ts` ขั้น 3, `itineraryPlaceQueries.ts` |
+| D-01 | Business logic ของงบคำนวณที่ **frontend จุดเดียว** (`daily_budget` เป็นค่าสำเร็จรูป — งบต่อคนต่อวันตาม D-51) backend ห้ามหารจำนวนคนซ้ำ | กันการคำนวณซ้ำซ้อน/ไม่ตรงกัน | `poiPlaceQueries.ts` ขั้น 3, `itineraryPlaceQueries.ts` |
 | D-02 | Backend `itineraryBuilder.ts` คือ **source of truth** ส่วน frontend เก็บ copy แบบ mirror ไว้ recompute ทันที และ backend ต้อง re-validate ซ้ำก่อน save เสมอ | ลากวางแล้วเห็นผลทันทีโดยไม่ต้องรอ network | หัวไฟล์ `backend/.../itineraryBuilder.ts` |
 | D-03 | Itinerary editor เป็นแบบ **manual drag เท่านั้น** draft แรกไม่จัดลงวันให้ (`buildInitialDraft` คืน `[]`) และไม่มีปุ่ม "จัดลำดับอัตโนมัติ" ในหน้านี้ | final design | `itineraryBuilder.ts` |
 | D-04 | เก็บ `buildNearestNeighborOrder` ไว้ แม้ตอนนี้ไม่มีที่เรียกใช้ | อาจนำไปใช้กับ Auto Trip | `itineraryBuilder.ts` |
@@ -375,3 +375,14 @@
   - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
 - ผู้ตัดสินใจ: กิ่ง
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+
+### D-51 · 2026-10-26 · daily_budget เป็นงบต่อคนต่อวัน (ปิด Needs Verification #3 / T5 — ขยาย D-01)
+- บริบท: `daily_budget` เดิมเป็นงบรวมของทั้งกลุ่มต่อวัน แต่ราคาสถานที่ (`PRICE_LEVEL_TO_BAHT`) เป็นค่าเดียวไม่คูณจำนวนคน ไปหลายคนจึงดูเหมือนงบพอทั้งที่ไม่พอ · Google ระบุว่าช่วงราคาบน Maps คือ "the average price that people spend per head" (https://support.google.com/local-listings/answer/9851099)
+- ข้อสรุป (ผู้ใช้เลือก):
+  - `trips.daily_budget` / `trip_days.daily_budget` = **งบต่อคนต่อวัน** · `createTrip.tsx` แปลง 4 กรณี: ทั้งกลุ่ม/ตลอดทริป = งบ ÷ วัน ÷ คน · ทั้งกลุ่ม/ต่อวัน = งบ ÷ คน · ต่อคน/ตลอดทริป = งบ ÷ วัน · ต่อคน/ต่อวัน = งบ
+  - ราคาสถานที่ถือเป็นราคาต่อคน เทียบกับ `daily_budget` ตรงๆ — logic ใน `poiPlaceQueries` (กรองงบ) และ `itineraryBuilder` ทั้งสองฝั่ง (`cumulativeCost`) ไม่เปลี่ยน · backend ยังห้ามคูณ/หารจำนวนคนตาม D-01
+  - คำเตือนงบต่ำ (< 300 บาท) เทียบกับงบต่อคนต่อวัน · หน้าจอแสดงงบเป็น "/คน"
+  - `trips.total_budget` เก็บตัวเลขที่ผู้ใช้กรอกตาม scope/period ตรงๆ (เดิมเก็บยอดที่แปลงแล้ว ทำให้หน้าแก้ไขโหลดกลับผิดและบันทึกซ้ำแล้วงบพอง · TripDetail แสดงผิด) — ใช้แสดงผลและโหลดกลับเท่านั้น ไม่เข้า logic
+  - ข้อมูลเดิม: ลบทริปทดสอบทั้งหมด (`docs/sql/2026-10-26_delete_test_trips.sql`) ไม่แปลงค่า
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `frontend/src/features/trip/create/createTrip.tsx`, `backend/src/features/poi/poiScoreCalculator.ts` (`perPersonDailyBudget` เลิกหารจำนวนคน), `poiPlaceQueries.ts`, `poiController.ts`, `TripDetail.tsx`, `ItineraryEditor.tsx`, `MyTrips.tsx`, `docs/sql/2026-10-26_delete_test_trips.sql`

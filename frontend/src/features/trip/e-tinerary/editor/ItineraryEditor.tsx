@@ -915,7 +915,7 @@ export default function ItineraryEditor() {
                             {day.startTime && day.endTime && (
                               <> · {formatTime(day.startTime)} - {formatTime(day.endTime)}</>
                             )}
-                            {day.dailyBudget !== null && <> · งบ {formatBaht(day.dailyBudget)}</>}
+                            {day.dailyBudget !== null && <> · งบ {formatBaht(day.dailyBudget)}/คน</>}
                           </p>
                           {items.length > 0 && (
                             <p className="text-xs text-[color:var(--muted)] mt-0.5">

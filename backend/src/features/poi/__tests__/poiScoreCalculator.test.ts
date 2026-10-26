@@ -2,7 +2,7 @@ import { calculateCategoryScore, calculatePoiScore } from "../poiScoreCalculator
 
 // rating 4, ระยะ 1 กม., ไม่มีพยากรณ์ฝน (weather 1.0), ไม่ใช้งบ
 function scoreWith(categoryMatch: boolean | null) {
-  return calculatePoiScore(categoryMatch, 4, 1, null, 1, null, "free", false, "MIXED", null);
+  return calculatePoiScore(categoryMatch, 4, 1, null, null, "free", false, "MIXED", null);
 }
 
 describe("calculateCategoryScore (D-48)", () => {
@@ -38,8 +38,20 @@ describe("calculatePoiScore กับ category score (D-48)", () => {
   });
 
   test("ไม่ได้เลือกหมวด + ใช้งบ (free มีราคาจริง) → weight รวมยังเป็น 1", () => {
-    const result = calculatePoiScore(null, 5, 0, 1000, 1, 0, "free", true, "INDOOR", null);
+    const result = calculatePoiScore(null, 5, 0, 1000, 0, "free", true, "INDOOR", null);
     // ทุกด้านได้เต็ม ยกเว้น price (free + ราคาจริง = 0.9 ที่ weight 0.15)
     expect(result.poiScore).toBeCloseTo(0.85 + 0.15 * 0.9, 10);
+  });
+});
+
+describe("calculatePoiScore กับงบต่อคน (D-51)", () => {
+  test("daily_budget เป็นงบต่อคนแล้ว → perPersonDailyBudget ไม่หารจำนวนคนซ้ำ", () => {
+    const result = calculatePoiScore(true, 4, 1, 1000, 2, "paid", true, "MIXED", null);
+    expect(result.perPersonDailyBudget).toBe(1000);
+    expect(result.placeCost).toBe(450);
+  });
+
+  test("ไม่ตั้งงบ → perPersonDailyBudget เป็น null", () => {
+    expect(scoreWith(true).perPersonDailyBudget).toBeNull();
   });
 });

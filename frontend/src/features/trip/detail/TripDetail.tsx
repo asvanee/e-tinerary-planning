@@ -821,7 +821,7 @@ export default function TripDetail() {
                   </h2>
                   {day.dailyBudget !== null && (
                     <span className="text-sm text-[color:var(--muted)]">
-                      งบวันนี้ {formatBaht(day.dailyBudget)}
+                      งบวันนี้ {formatBaht(day.dailyBudget)}/คน
                     </span>
                   )}
                 </div>

@@ -267,7 +267,7 @@ export default function MyTrips() {
                       {trip.daily_budget !== null && (
                         <span className="flex items-center gap-1.5">
                           <Wallet size={16} strokeWidth={1.75} />
-                          {Math.round(trip.daily_budget).toLocaleString()} บาท/วัน
+                          {Math.round(trip.daily_budget).toLocaleString()} บาท/คน/วัน
                           {trip.budget_type
                             ? ` (${BUDGET_TYPE_LABELS[trip.budget_type] || trip.budget_type})`
                             : ""}

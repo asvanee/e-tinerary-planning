@@ -25,8 +25,7 @@ export interface TripInfo {
   district: string | null;
   startLat: number;
   startLng: number;
-  dailyBudget: number | null;
-  numberOfPeople: number;
+  dailyBudget: number | null; // งบต่อคนต่อวัน (D-51)
   availableTimePerDay: number | null; // ชั่วโมง ตาม schema ของ trips
   useBudget: boolean;
   // ช่วงวันเดินทาง "YYYY-MM-DD" — ใช้ดึงโอกาสฝนเฉลี่ย (utils/weatherForecast.ts)
@@ -74,7 +73,7 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "user_id, province, district, start_lat, start_lng, daily_budget, number_of_people, available_time_per_day, use_budget, start_date, end_date"
+      "user_id, province, district, start_lat, start_lng, daily_budget, available_time_per_day, use_budget, start_date, end_date"
     )
     .eq("trip_id", tripId)
     .single();
@@ -90,7 +89,6 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
     startLat: data.start_lat,
     startLng: data.start_lng,
     dailyBudget: data.daily_budget,
-    numberOfPeople: data.number_of_people,
     availableTimePerDay: data.available_time_per_day,
     useBudget: data.use_budget ?? false,
     startDate: data.start_date,
@@ -142,9 +140,9 @@ export async function getFilteredPlaces(
   let places = await queryPlacesWithCategoryInfo(locationFilter);
 
   // ---- ขั้น 2: กรองงบ (hard filter) ----
-  // ⚠️ ห้ามหาร numberOfPeople ตรงนี้ — trips.daily_budget เป็นค่าที่ frontend คำนวณตาม
-  // budget_scope/budget_period มาแล้ว ต้องเทียบตรงๆ ให้ตรงกับ itineraryBuilder.ts
-  // (เทียบ cumulativeCost กับ day.dailyBudget) ไม่งั้นผลตอนเลือก POI กับตอนจัดแผนจะขัดกัน
+  // trips.daily_budget เป็นงบต่อคนต่อวันที่ frontend คำนวณตาม budget_scope/budget_period มาแล้ว (D-01, D-51)
+  // เทียบกับราคาต่อคนตรงๆ ให้ตรงกับ itineraryBuilder.ts (เทียบ cumulativeCost กับ day.dailyBudget)
+  // ไม่งั้นผลตอนเลือก POI กับตอนจัดแผนจะขัดกัน
   if (trip.useBudget && trip.dailyBudget !== null) {
     const dailyBudget = trip.dailyBudget;
 

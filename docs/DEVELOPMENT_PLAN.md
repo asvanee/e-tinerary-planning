@@ -152,7 +152,7 @@
 
 ## กลุ่ม 2 — งานที่จำเป็นต่อฟีเจอร์หลัก
 
-### T5. ยืนยันความหมายของงบ (กลุ่ม vs ต่อคน) — P1
+### T5. ยืนยันความหมายของงบ (กลุ่ม vs ต่อคน) — P1 · ✅ 2026-10-26 (D-51: งบต่อคนต่อวัน)
 - **สถานะ:** Needs Verification #3
 - **ไฟล์:** `createTrip.tsx` (คำนวณ `daily_budget`), `poiPlaceQueries.getFilteredPlaces` (ขั้น 3), `itineraryBuilder.ts` ทั้งสองฝั่ง (`cumulativeCost`), `utils/priceLevel.ts`
 - **สิ่งที่ต้องทำ:** เจ้าของโปรเจกต์ต้องตอบว่า `PRICE_LEVEL_TO_BAHT` เป็นราคาต่อคนหรือไม่ ถ้าใช่ ต้องคูณ `number_of_people` หรือเทียบกับ `daily_budget / people` ให้ตรงกันทุกจุด และต้องบันทึกเป็น decision ใน DECISIONS.md
