@@ -101,7 +101,7 @@ export const login = async (req: Request, res: Response) => {
       .eq("user_id", user.id)
       .single();
 
-    if (profileError) console.log("Get profile error:", profileError);
+    if (profileError) console.error("Get profile error:", profileError);
 
     await supabase
       .from("users")

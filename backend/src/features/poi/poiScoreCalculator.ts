@@ -24,8 +24,8 @@ export function calculateRatingScore(rating: number | null): number {
 
 /**
  * distance_score: ยิ่งใกล้ยิ่งคะแนนสูง เข้าใกล้ 1 เมื่อระยะทาง = 0
- * ✅ รับ distanceKm สำเร็จรูปแล้ว (ระยะทางถนนจาก ORS Matrix — ดู utils/orsDistance.ts ซึ่งมี
- * fallback เป็น haversine ในตัว) เดิมรับพิกัด 4 ตัวแล้วคิด haversine เองที่นี่
+ * รับ distanceKm สำเร็จรูป (ระยะทางถนนจาก ORS Matrix — ดู utils/orsDistance.ts ซึ่งมี
+ * fallback เป็น haversine ในตัว)
  */
 export function calculateDistanceScore(distanceKm: number): number {
   return 1 / (1 + distanceKm);
@@ -97,14 +97,11 @@ const WEIGHTS = {
 };
 
 /**
- * ✅ Generalize จาก WEIGHTS_NO_BUDGET เดิม (ที่รองรับแค่ 0 หรือ 0.15) ให้รับ budgetWeight
- * เป็นเศษส่วนใดก็ได้ระหว่าง 0-0.15 (ค่าที่เป็นไปได้จริงตอนนี้มี 2 ค่า: 0, 0.15 — เขียน
- * เป็นสูตรทั่วไปไว้เผื่ออนาคตมีค่าอื่นเพิ่ม) กระจายส่วนต่างคืนให้มิติที่เหลือตามสัดส่วนเดิม
- * ของมันเอง (renormalize ให้ผลรวม weight กลับมาเป็น 1 พอดีเสมอ)
+ * รับ budgetWeight ระหว่าง 0-0.15 แล้วกระจายส่วนต่างคืนให้มิติที่เหลือตามสัดส่วนของมันเอง
+ * (renormalize ให้ผลรวม weight เป็น 1 พอดีเสมอ)
  *
- * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> เหมือนสูตรเดิมทุกประการ (รู้ราคา)
- * budgetWeight = 0    (ตัดทิ้ง) -> เหมือน WEIGHTS_NO_BUDGET เดิมทุกประการ (ไม่ได้ตั้งงบ หรือ
- * ไม่ทราบราคา)
+ * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> ใช้ WEIGHTS ตรงๆ (รู้ราคา)
+ * budgetWeight = 0    (ตัดทิ้ง) -> ตัดมิติราคาออก (ไม่ได้ตั้งงบ หรือไม่ทราบราคา)
  * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) -> ตัด category ออก แล้วกระจาย
  * weight ของมันคืนให้ rating/distance/weather ด้วยวิธีเดียวกัน
  */
@@ -150,13 +147,13 @@ export interface PoiScoreBreakdown {
 export function calculatePoiScore(
   categoryMatch: boolean | null, // null = ผู้ใช้ไม่ได้เลือกหมวด (D-48)
   rating: number | null,
-  distanceKm: number, // ✅ ระยะทางถนนจากจุดเริ่มต้น (km) — คำนวณนอกฟังก์ชันนี้ทีเดียวทั้งก้อน
+  distanceKm: number, // ระยะทางถนนจากจุดเริ่มต้น (km) — คำนวณนอกฟังก์ชันนี้ทีเดียวทั้งก้อน
   dailyBudget: number | null, // งบต่อคนต่อวัน (D-51)
   priceRangeStart: number | null, // priceRange ต่อคน (บาท — D-52)
   priceRangeEnd: number | null,
   priceNature: PriceNature,
   useBudget: boolean,
-  // ✅ ใหม่ (weather): environment_type ของ category ที่ชนะ + โอกาสฝน (%) ของวัน/พื้นที่ของ place นี้
+  // weather: environment_type ของหมวดสถานที่ + โอกาสฝน (%) ของวัน/พื้นที่ของ place นี้
   // rainProbability = null ได้ (ไม่มีพยากรณ์ → weather_score = 1.0 ทุกที่ ตาม fallback)
   environmentType: EnvironmentType,
   rainProbability: number | null
