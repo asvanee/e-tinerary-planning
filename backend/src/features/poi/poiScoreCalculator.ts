@@ -15,10 +15,11 @@ export function calculateCategoryScore(categoryMatch: boolean | null): number | 
 }
 
 /**
- * rating_score: rating null → ใช้ 0.5 คงที่
+ * rating_score (D-55): rating / 5
+ * - rating null (ไม่พบใน Google หรือยังไม่มีรีวิว) → null = ตัดรีวิวออกจากสูตร ไม่เดาคะแนน (แบบเดียวกับไม่ทราบราคา)
  */
-export function calculateRatingScore(rating: number | null): number {
-  if (rating === null) return 0.5;
+export function calculateRatingScore(rating: number | null): number | null {
+  if (rating === null) return null;
   return rating / 5;
 }
 
@@ -102,17 +103,18 @@ const WEIGHTS = {
  *
  * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> ใช้ WEIGHTS ตรงๆ (รู้ราคา)
  * budgetWeight = 0    (ตัดทิ้ง) -> ตัดมิติราคาออก (ไม่ได้ตั้งงบ หรือไม่ทราบราคา)
- * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) -> ตัด category ออก แล้วกระจาย
- * weight ของมันคืนให้ rating/distance/weather ด้วยวิธีเดียวกัน
+ * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) / includeRating = false (ไม่มี rating — D-55)
+ * -> ตัดด้านนั้นออก แล้วกระจาย weight ของมันคืนให้ด้านที่เหลือ (ยกเว้น budget) ด้วยวิธีเดียวกัน
  */
-function computeWeights(budgetWeight: number, includeCategory: boolean) {
+function computeWeights(budgetWeight: number, includeCategory: boolean, includeRating: boolean) {
   const category = includeCategory ? WEIGHTS.category : 0;
+  const rating = includeRating ? WEIGHTS.rating : 0;
   const scale =
     (1 - budgetWeight) /
-    (category + WEIGHTS.rating + WEIGHTS.distance + WEIGHTS.weather);
+    (category + rating + WEIGHTS.distance + WEIGHTS.weather);
   return {
     category: category * scale,
-    rating: WEIGHTS.rating * scale,
+    rating: rating * scale,
     distance: WEIGHTS.distance * scale,
     weather: WEIGHTS.weather * scale,
     budget: budgetWeight,
@@ -122,7 +124,8 @@ function computeWeights(budgetWeight: number, includeCategory: boolean) {
 export interface PoiScoreBreakdown {
   // null = ผู้ใช้ไม่ได้เลือกหมวด ไม่ได้คิดในสูตร (D-48)
   categoryScore: number | null;
-  ratingScore: number;
+  // null = ไม่มี rating ไม่ได้คิดในสูตร (D-55)
+  ratingScore: number | null;
   distanceScore: number;
   // price_score (calculatePriceScore — D-52) เก็บในคอลัมน์ budget_score
   // null = ไม่ได้คิดในสูตร (ไม่ได้ตั้งงบ หรือไม่ทราบราคา)
@@ -172,11 +175,15 @@ export function calculatePoiScore(
       ? calculatePriceScore(getPlaceCost(priceRangeStart, priceRangeEnd, priceNature), dailyBudget)
       : null;
 
-  const weights = computeWeights(budgetScore === null ? 0 : WEIGHTS.budget, includeCategory);
+  const weights = computeWeights(
+    budgetScore === null ? 0 : WEIGHTS.budget,
+    includeCategory,
+    ratingScore !== null
+  );
 
   const poiScore =
     weights.category * (categoryScore ?? 0) +
-    weights.rating * ratingScore +
+    weights.rating * (ratingScore ?? 0) +
     weights.distance * distanceScore +
     weights.budget * (budgetScore ?? 0) +
     weights.weather * weatherScore;

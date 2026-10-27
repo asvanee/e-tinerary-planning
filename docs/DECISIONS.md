@@ -420,6 +420,16 @@
   - วิธี: เปรียบเทียบเป็นคู่ 10 คู่ สเกล 1–9 (R.W. Saaty 1987 น. 163) · น้ำหนักจาก principal eigenvector (น. 170–171) · CR < 0.10 โดย RI ของ n = 5 = 1.12 (น. 171) · รวมผลแบบ AIP ด้วยค่าเฉลี่ยเรขาคณิตแล้ว normalize (Forman & Peniwati 1998 น. 167–168) — แผนเต็มอยู่ที่ `AHP-POI-weights-plan.pdf` (นอก repo)
   - การ renormalize เมื่อไม่ใช้งบ/ไม่ทราบราคา/ไม่เลือกหมวด (D-48, D-52) คงเดิม
 - รออาจารย์ตัดสิน: กลุ่มและจำนวนผู้ตอบ · วิธีจัดการคำตอบที่ CR ไม่ผ่าน (ให้แก้ หรือตัดออก) · ต้องประเมินผลหลังใช้หรือไม่
-- ข้อควรระวัง: ค่าภายในสูตรที่ยังไม่มีแหล่งอ้างอิงและ AHP ไม่ครอบคลุม — `calculateDistanceScore` = `1/(1+km)` (R3), `RAIN_EXPOSURE.MIXED` = 0.5, rating ที่ไม่มีข้อมูล = 0.5
+- ข้อควรระวัง: ค่าภายในสูตรที่ยังไม่มีแหล่งอ้างอิงและ AHP ไม่ครอบคลุม — `calculateDistanceScore` = `1/(1+km)` (R3), `RAIN_EXPOSURE.MIXED` = 0.5, rating ที่ไม่มีข้อมูล = 0.5 (แก้แล้วใน D-55 · MIXED ผู้ใช้ยอมรับให้คงไว้)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่จะกระทบ (เมื่อได้ผล AHP): `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`) + test
+
+### D-55 · 2026-10-27 · สถานที่ไม่มี rating = ตัดรีวิวออกจากสูตร POI (แทนค่า 0.5 คงที่) · **ทำแล้ว — รอผู้ใช้รัน SQL**
+- บริบท: `calculateRatingScore` ให้ 0.5 เมื่อไม่มี rating ซึ่งเป็นตัวเลขที่ไม่มีแหล่งอ้างอิง และหน้าแนะนำแสดง "รีวิว 2.5/5" ทั้งที่ไม่มีรีวิวจริง · ข้อมูลจริง 2026-10-27 (น่าน 114 แห่ง): ไม่มี rating 13 แห่ง — ไม่พบใน Google (`csv:`) 7 · พบแต่ยังไม่มีรีวิว 6
+- ข้อสรุป (ผู้ใช้เลือก "ทำแบบราคา"):
+  - ไม่มี rating → `rating_score` = null แล้วกระจาย weight 0.25 คืนให้ category/distance/weather ตามสัดส่วน · budget คงที่ 0.15 (วิธีเดียวกับตัด category ใน D-48 — กรณีอื่นคะแนนไม่เปลี่ยน)
+  - หน้าแนะนำแสดง "ยังไม่มีรีวิว"
+  - `RAIN_EXPOSURE.MIXED` = 0.5 ผู้ใช้ยอมรับให้คงไว้
+- ⚠️ ผู้ใช้ต้องรัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` ก่อนใช้โค้ด — ไม่งั้นทริปที่มีสถานที่ไม่มี rating บันทึก `poi_scores` ไม่สำเร็จ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`

@@ -44,6 +44,29 @@ describe("calculatePoiScore กับ category score (D-48)", () => {
   });
 });
 
+describe("calculatePoiScore เมื่อไม่มี rating (D-55)", () => {
+  const distance = 1 / (1 + 1);
+  const weather = 1;
+
+  test("ไม่มี rating → ตัดรีวิวออก แบ่ง weight คืนให้ category/distance/weather", () => {
+    const result = calculatePoiScore(true, null, 1, null, null, null, "free", false, "MIXED", null);
+    const expected = (0.35 * 1 + 0.15 * distance + 0.1 * weather) / 0.6;
+    expect(result.ratingScore).toBeNull();
+    expect(result.poiScore).toBeCloseTo(expected, 10);
+  });
+
+  test("ไม่มี rating + รู้ราคา → price weight ยังเป็น 0.15", () => {
+    const result = calculatePoiScore(true, null, 0, 1000, 1, 200, "paid", true, "INDOOR", null);
+    // category/distance/weather ได้เต็มทั้งหมด → รวม 0.85 · price 0.8
+    expect(result.poiScore).toBeCloseTo(0.85 + 0.15 * 0.8, 10);
+  });
+
+  test("ไม่มี rating + ไม่ได้เลือกหมวด → weight ที่เหลือรวมเป็น 1", () => {
+    const result = calculatePoiScore(null, null, 0, null, null, null, "free", false, "INDOOR", null);
+    expect(result.poiScore).toBeCloseTo(1, 10);
+  });
+});
+
 describe("calculatePoiScore กับงบต่อคน (D-51)", () => {
   test("daily_budget เป็นงบต่อคนแล้ว → perPersonDailyBudget ไม่หารจำนวนคนซ้ำ", () => {
     const result = calculatePoiScore(true, 4, 1, 1000, 1, 200, "paid", true, "MIXED", null);

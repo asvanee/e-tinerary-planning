@@ -23,7 +23,7 @@ interface PoiResult {
   categoryName: string;
   // 1 = ตรงหมวดที่เลือก · 0 = หมวดอื่นที่เติมเข้ามา · null = ไม่ได้เลือกหมวด (D-48)
   categoryScore: number | null;
-  ratingScore: number;
+  ratingScore: number | null; // null = ไม่มี rating (D-55)
   distanceScore: number;
   budgetScore: number | null;
   weatherScore: number;
@@ -606,7 +606,9 @@ export default function TripRecommendations() {
                 {item.categoryScore === 1 ? "ตรงหมวดหมู่ที่เลือก" : "นอกหมวดหมู่ที่เลือก"}
               </Metric>
             )}
-            <Metric icon={Star}>รีวิว {(item.ratingScore * 5).toFixed(1)}/5</Metric>
+            <Metric icon={Star}>
+              {item.ratingScore === null ? "ยังไม่มีรีวิว" : `รีวิว ${(item.ratingScore * 5).toFixed(1)}/5`}
+            </Metric>
             <Metric
               icon={Navigation}
               tone={approx ? "warn" : undefined}

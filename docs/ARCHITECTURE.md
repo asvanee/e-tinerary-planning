@@ -60,7 +60,7 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 | มิติ | สูตร | weight |
 |---|---|---|
 | category | 1.0 ทุกที่ตั้งแต่ P5c (1 สถานที่ = 1 หมวด ไม่มี confidence — D-38 · สูตรรอทีม D-23) | 0.35 |
-| rating | `rating/5` (ถ้าเป็น null ให้ 0.5) | 0.25 |
+| rating | `rating/5` · ไม่มี rating: weight 0 แล้วกระจายให้ category/distance/weather (D-55) | 0.25 |
 | distance | `1/(1+km)` | 0.15 |
 | budget(=price) | `1 − placeCost ÷ daily_budget` (cap 0–1 · งบต่อคนต่อวัน D-51) · placeCost จาก `getPlaceCost` (priceRange → free = 0) · ไม่ได้ตั้งงบหรือไม่ทราบราคา: weight 0 (D-52) | 0.15 |
 | weather | `exposure*(1-rain)+(1-exposure)` ใช้ OUTDOOR=1, MIXED=0.5, INDOOR=0 · ไม่มีพยากรณ์ให้ 1.0 | 0.10 |
