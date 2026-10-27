@@ -424,12 +424,12 @@
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่จะกระทบ (เมื่อได้ผล AHP): `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`) + test
 
-### D-55 · 2026-10-27 · สถานที่ไม่มี rating = ตัดรีวิวออกจากสูตร POI (แทนค่า 0.5 คงที่) · **ทำแล้ว — รอผู้ใช้รัน SQL**
+### D-55 · 2026-10-27 · สถานที่ไม่มี rating = ตัดรีวิวออกจากสูตร POI (แทนค่า 0.5 คงที่) · **ทำแล้ว — ผู้ใช้รัน SQL แล้ว 2026-10-27**
 - บริบท: `calculateRatingScore` ให้ 0.5 เมื่อไม่มี rating ซึ่งเป็นตัวเลขที่ไม่มีแหล่งอ้างอิง และหน้าแนะนำแสดง "รีวิว 2.5/5" ทั้งที่ไม่มีรีวิวจริง · ข้อมูลจริง 2026-10-27 (น่าน 114 แห่ง): ไม่มี rating 13 แห่ง — ไม่พบใน Google (`csv:`) 7 · พบแต่ยังไม่มีรีวิว 6
 - ข้อสรุป (ผู้ใช้เลือก "ทำแบบราคา"):
   - ไม่มี rating → `rating_score` = null แล้วกระจาย weight 0.25 คืนให้ category/distance/weather ตามสัดส่วน · budget คงที่ 0.15 (วิธีเดียวกับตัด category ใน D-48 — กรณีอื่นคะแนนไม่เปลี่ยน)
   - หน้าแนะนำแสดง "ยังไม่มีรีวิว"
   - `RAIN_EXPOSURE.MIXED` = 0.5 ผู้ใช้ยอมรับให้คงไว้
-- ⚠️ ผู้ใช้ต้องรัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` ก่อนใช้โค้ด — ไม่งั้นทริปที่มีสถานที่ไม่มี rating บันทึก `poi_scores` ไม่สำเร็จ
+- ✅ ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว (2026-10-27) — ยังไม่ได้ตรวจว่าการคำนวณรอบใหม่บันทึก `rating_score` = null ได้จริง (`poi_scores` ที่มีอยู่คำนวณก่อน D-55 ทั้งหมด)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`
