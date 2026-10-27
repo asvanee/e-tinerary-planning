@@ -11,6 +11,7 @@ export interface AutoTripStop {
   travel_distance_km: number;
   travel_time_min: number;
   previous_place_name: string;
+  is_recommendation: boolean;
 }
 
 export interface AutoTripDay {

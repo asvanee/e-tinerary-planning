@@ -529,7 +529,8 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
 
 function toAutoPlace(
   p: AutoTripPlace,
-  requestedVisitDurationMin: number
+  requestedVisitDurationMin: number,
+  isRecommendation = false
 ): AutoPlace {
   return {
     place_id: String(p.placeId),
@@ -541,6 +542,10 @@ function toAutoPlace(
     longitude: Number(p.longitude),
     opening_hours: p.openingHours,
     requestedVisitDurationMin,
+    priceRangeStart: p.priceRangeStart,
+    priceRangeEnd: p.priceRangeEnd,
+    priceNature: p.priceNature,
+    isRecommendation,
   };
 }
 
@@ -599,7 +604,9 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
         number_of_people,
         start_lat,
         start_lng,
-        available_time_per_day
+        available_time_per_day,
+        use_budget,
+        daily_budget
       `)
       .eq("trip_id", tripId)
       .single();
@@ -615,16 +622,25 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       });
     }
 
+    const tripDays = await getOrCreateTripDays(tripId);
+    if (tripDays.length === 0) {
+      return res.status(400).json({ message: "ทริปนี้ไม่มีวันเดินทางเลย" });
+    }
+
     const categories = await getAutoTripCategories(tripId);
+    if (categories.length === 0) {
+      return res.status(400).json({
+        message: "ทริปนี้ยังไม่มีประเภทสถานที่ที่เลือก",
+      });
+    }
+
     const categoryIds = categories.map((category) => category.categoryId);
     const selectedCategoryIds = new Set(categoryIds);
-    const rawPlaces = (await getAutoTripPlaces(tripId)).filter((place) =>
-      selectedCategoryIds.has(place.categoryId)
-    );
+    const rawPlaces = await getAutoTripPlaces(tripId);
 
     if (rawPlaces.length === 0) {
       return res.status(400).json({
-        message: "ไม่พบสถานที่ที่สามารถนำมาจัดทริปอัตโนมัติได้",
+        message: "ไม่พบสถานที่ที่มีคะแนน POI สำหรับทริปนี้",
       });
     }
 
@@ -640,7 +656,10 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: parsedDurations.error });
     }
 
-    const placesWithDurations = rawPlaces.map((place) => {
+    const selectedPlaces = rawPlaces.filter((place) =>
+      selectedCategoryIds.has(place.categoryId)
+    );
+    const placesWithDurations = selectedPlaces.map((place) => {
       const requestedVisitDurationMin = parsedDurations.durations.get(place.categoryId);
 
       if (requestedVisitDurationMin === undefined) {
@@ -649,6 +668,31 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
 
       return toAutoPlace(place, requestedVisitDurationMin);
     });
+    const selectedPlaceIds = new Set(
+      placesWithDurations.map((place) => place.place_id)
+    );
+    const fallbackDurationMin = Math.min(
+      ...parsedDurations.durations.values()
+    );
+    const recommendationPlacesById = new Map<string, AutoPlace>();
+
+    for (const place of rawPlaces) {
+      if (
+        selectedCategoryIds.has(place.categoryId) ||
+        selectedPlaceIds.has(place.placeId) ||
+        recommendationPlacesById.has(place.placeId)
+      ) {
+        continue;
+      }
+
+      recommendationPlacesById.set(
+        place.placeId,
+        toAutoPlace(place, fallbackDurationMin, true)
+      );
+    }
+    const recommendationPlaces = Array.from(
+      recommendationPlacesById.values()
+    );
 
     const tripInfo: TripInfo = {
       trip_id: String(trip.trip_id),
@@ -662,6 +706,18 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
         trip.available_time_per_day != null
           ? Number(trip.available_time_per_day)
           : null,
+      use_budget: trip.use_budget,
+      daily_budget:
+        trip.daily_budget != null ? Number(trip.daily_budget) : null,
+      trip_days: tripDays.map((day) => ({
+        dayNumber: day.dayNumber,
+        visitDate: day.visitDate,
+        startTime: day.startTime,
+        endTime: day.endTime,
+        dailyBudget:
+          day.dailyBudget != null ? Number(day.dailyBudget) : null,
+        useBudget: day.useBudget,
+      })),
     };
 
     const travelMatrix = await buildTravelMatrix([
@@ -675,13 +731,24 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
         latitude: place.latitude,
         longitude: place.longitude,
       })),
+      ...recommendationPlaces.map((place) => ({
+        id: place.place_id,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      })),
     ]);
 
-    const result = buildAutoTrip(tripInfo, placesWithDurations, travelMatrix);
+    const result = buildAutoTrip(
+      tripInfo,
+      placesWithDurations,
+      travelMatrix,
+      recommendationPlaces
+    );
 
     if (result.selected_places.length === 0) {
       return res.status(400).json({
-        message: "ไม่พบสถานที่ที่เปิดตามเวลาที่กำหนดในช่วงวันเดินทาง",
+        message:
+          "ไม่พบสถานที่จากหมวดที่เลือกหรือสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไขเวลาเปิดและเวลาเที่ยว",
       });
     }
 

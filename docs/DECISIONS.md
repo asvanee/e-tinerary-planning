@@ -400,6 +400,28 @@
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/utils/placePrice.ts` (เดิม `priceLevel.ts`), `itineraryBuilder.ts` (backend + frontend mirror), `itineraryPlaceQueries.ts` (`getSelectedPlaces`), `placesController.ts`, `poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `ItineraryEditor.tsx`, `TripRecommendations.tsx`, `backend/src/admin/pipeline/import/`, `frontend/src/admin/imports/`, `docs/sql/2026-10-26_places_price_range.sql`, skill `itinerary-mirror-sync`
 
+### D-53 · 2026-10-27 · Auto Trip เติมสถานที่แนะนำเพิ่มเติมจาก POI score ที่เหลือ
+- บริบท: สถานที่ในหมวดที่เลือกอาจไม่พอจัดทริปครบทุกวัน และไม่ต้องการให้วันว่างแสดงเป็นจำนวน 0 โดยไม่มีตัวเลือกทดแทน
+- ข้อสรุป:
+  - หลังจัดสถานที่จากหมวดที่เลือกแล้ว ให้ลองเพิ่มสถานที่จากหมวดอื่นที่ยังเหลือใน `poi_scores` เรียง POI score จากมากไปน้อย สูงสุดหนึ่งแห่งต่อวัน
+  - ใช้เวลาเที่ยวที่สั้นที่สุดจากหมวดที่ผู้ใช้กรอก; ห้ามใช้สถานที่ที่ไม่สามารถจัดได้ครบเวลาที่กำหนด หรือทำให้เวลาของสถานที่ที่จัดไว้แล้วลดลง
+  - ตรวจเวลาเปิดและข้อจำกัดเวลารายวันเหมือนสถานที่ปกติ; สถานที่ที่เพิ่มต้องไม่ซ้ำกับแผนหลักหรือรายการแนะนำอื่น
+  - เพิ่มสถานที่แนะนำต่อท้ายกำหนดการของวัน เพื่อให้ผู้ใช้เอาออกได้โดยไม่เปลี่ยนลำดับ/เวลาเดินทางของสถานที่หลัก
+  - หน้า Auto ติดป้าย “สถานที่แนะนำเพิ่มเติม”; ผู้ใช้เอาออกได้ก่อนยืนยัน และจะไม่ส่งสถานที่ที่เอาออกไปบันทึก
+  - ใช้เฉพาะ POI score ที่มีอยู่แล้ว ไม่เปลี่ยน D-48 หรือคำนวณ POI เพิ่ม; หากไม่มีตัวเลือกที่เหลือหรือจัดลงไม่ได้ ให้แจ้งว่าไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไข
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `autoTripTypes.ts`
+
+### D-54 · 2026-10-27 · Auto Trip ตรวจงบต่อวันด้วยราคา priceRange
+- บริบท: Auto Trip ไม่คัดสถานที่ตามงบระหว่างจัดแผน ทำให้ยอดต่อวันอาจเกินงบและถูกปฏิเสธตอนยืนยัน
+- ข้อสรุป:
+  - Auto Trip อ่าน `places.price_range_start` / `price_range_end` และใช้ `getPlaceCost()` จาก `itineraryBuilder.ts` เท่านั้น เพื่อให้กฎราคาเป็นแหล่งเดียวกับ Itinerary
+  - สะสมราคาแยกแต่ละวันและไม่จัด candidate ลงวันนั้นเมื่อยอดรวมเกิน `daily_budget`; ยอดเท่ากับงบได้
+  - ตรวจงบเมื่อ `use_budget === true` และ `daily_budget !== null` เท่านั้น; `getPlaceCost() === null` ไม่เพิ่มยอด และ `free` ที่ไม่มีราคาเป็น 0 ตาม D-52
+  - ใช้กับสถานที่หลักและสถานที่แนะนำเพิ่มเติม โดยไม่เปลี่ยนข้อมูลราคาที่ส่งในผล `selected_places`
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `itineraryController.ts`, `autoTripBuilder.ts`, `__tests__/autoTripBuilder.test.ts`
+
 ### D-55 · 2026-10-27 · น้ำหนัก POI ตั้งต้นใช้ Test 1 และให้ผู้ใช้ปรับน้ำหนักต่อทริปได้ (แทนที่ค่าน้ำหนักใน D-17) · **ถูกแทนที่โดย D-56 — ไม่ทำ**
 - บริบท: กิ่งทดลองน้ำหนัก 4 ชุด (Test 1–4) กับ Museum 14 แห่งในเมืองเชียงใหม่ (รายงาน `E-tinerary (4)/(5)/(6).pdf` นอก repo) และสรุปเสนอ Test 1 · งานวิจัยที่อ้าง (Kesorn et al. 2017, R.-Toubes et al. 2020, Xue & Zhang 2020, Lian 2022) สนับสนุนการเลือกปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก · ให้ผู้ใช้ปรับเองได้ ค่าตั้งต้นจึงเป็นแค่จุดเริ่ม
 - ข้อสรุป (ผู้ใช้เลือก):

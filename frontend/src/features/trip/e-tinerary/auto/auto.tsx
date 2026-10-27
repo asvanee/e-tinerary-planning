@@ -7,6 +7,7 @@ import type {
   AutoTripResponse,
   AutoTripStop,
 } from "./autoTripTypes";
+import type { ItineraryItemResult } from "../lib/itineraryBuilder";
 import RouteMap from "../components/RouteMap";
 import {
   ArrowLeft,
@@ -47,39 +48,65 @@ export default function AutoTrip() {
 
   const [data, setData] = useState<AutoTripResponse | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [removedRecommendationIds, setRemovedRecommendationIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const visibleDays = useMemo(
+    () =>
+      (data?.days ?? []).map((day) => {
+        const stops = (day.stops ?? []).filter(
+          (stop) =>
+            !stop.is_recommendation ||
+            !removedRecommendationIds.has(stop.place_id)
+        );
+
+        return {
+          ...day,
+          stops,
+          total_distance_km: stops.reduce(
+            (total, stop) => total + stop.travel_distance_km,
+            0
+          ),
+          total_travel_time_min: stops.reduce(
+            (total, stop) => total + stop.travel_time_min,
+            0
+          ),
+          total_visit_time_min: stops.reduce(
+            (total, stop) => total + stop.duration_min,
+            0
+          ),
+        };
+      }),
+    [data?.days, removedRecommendationIds]
+  );
 
   const getDayStops = (dayIndex: number): AutoTripStop[] => {
-    if (!data || !data.days || !data.days[dayIndex]) {
-      return [];
-    }
-
-    return data.days[dayIndex].stops ?? [];
+    return visibleDays[dayIndex]?.stops ?? [];
   };
 
   const allStops = useMemo(() => {
-    if (!data || !data.days) {
-      return [];
-    }
-
-    return data.days.flatMap((day) => day.stops ?? []);
-  }, [data]);
+    return visibleDays.flatMap((day) => day.stops);
+  }, [visibleDays]);
 
   // ---- สรุปทั้งทริป ----
   const totalPlaces = allStops.length;
-  const totalDays = data?.days?.length ?? 0;
-  const totalDistance =
-    data?.total_distance_km ??
-    data?.days?.reduce((sum, day) => sum + (day.total_distance_km ?? 0), 0) ??
-    0;
+  const totalDays = visibleDays.length;
+  const totalDistance = visibleDays.reduce(
+    (total, day) => total + day.total_distance_km,
+    0
+  );
 
-  const currentDay = data?.days?.[selectedDay];
+  const currentDay = visibleDays[selectedDay];
   const currentStops = getDayStops(selectedDay);
 
   const mapDays = useMemo(
     () =>
-      (data?.days ?? []).map((day) => ({
+      visibleDays.map((day) => ({
         tripDayId: `auto-day-${day.day}`,
         dayNumber: day.day,
         items: (day.stops ?? []).map((stop, index) => ({
@@ -90,7 +117,7 @@ export default function AutoTrip() {
           visitOrder: index + 1,
         })),
       })),
-    [data?.days]
+    [visibleDays]
   );
 
   // ---- format ----
@@ -152,14 +179,111 @@ export default function AutoTrip() {
     navigate(`/trip/${tripId}/recommendations`);
   };
 
-  // ⚠️ editor ต้องการ state.draft + state.places จึงเด้งกลับหน้า recommendations (Known Issue #10)
-  const handleEditTrip = () => {
-    navigate(`/trip/${tripId}/editor`, {
-      state: {
-        autoTrip: data,
-        tripId,
-      },
-    });
+  const handleEditTrip = async () => {
+    if (!tripId || !session) return;
+
+    const stops = visibleDays.flatMap((day) =>
+      day.stops.map((stop, index) => ({
+        dayNumber: day.day,
+        stop,
+        visitOrder: index + 1,
+      }))
+    );
+    const placeIds = Array.from(new Set(stops.map(({ stop }) => stop.place_id)));
+    if (placeIds.length === 0) {
+      handleBack();
+      return;
+    }
+
+    setEditing(true);
+    setEditError(null);
+
+    try {
+      const headers = {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      };
+      const [placesResponse, draftResponse] = await Promise.all([
+        fetch(`/api/places?ids=${placeIds.join(",")}`, { headers }),
+        fetch(`/api/itinerary/trips/${tripId}/draft`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ place_ids: placeIds }),
+        }),
+      ]);
+      const [placesResult, draftResult] = await Promise.all([
+        placesResponse.json(),
+        draftResponse.json(),
+      ]);
+
+      if (!placesResponse.ok) {
+        throw new Error(placesResult.message || "โหลดข้อมูลสถานที่ไม่สำเร็จ");
+      }
+      if (!draftResponse.ok) {
+        throw new Error(draftResult.message || "เตรียมข้อมูลวันเดินทางไม่สำเร็จ");
+      }
+
+      const tripDayIdByNumber = new Map<number, string>(
+        draftResult.tripDays.map(
+          (day: { dayNumber: number; tripDayId: string }) => [
+            day.dayNumber,
+            day.tripDayId,
+          ]
+        )
+      );
+      const items: ItineraryItemResult[] = stops.map(
+        ({ dayNumber, stop, visitOrder }) => {
+          const tripDayId = tripDayIdByNumber.get(dayNumber);
+          if (!tripDayId) {
+            throw new Error(`ไม่พบข้อมูลวันที่ ${dayNumber} สำหรับแก้ไขแผน`);
+          }
+          return {
+            tripDayId,
+            placeId: stop.place_id,
+            visitOrder,
+            startTime: stop.start_time,
+            endTime: stop.end_time,
+            travelTimeFromPrev: stop.travel_time_min,
+            distanceFromPrev: stop.travel_distance_km,
+            placeCost: null,
+            isCostUnknown: true,
+            isTimeConflict: false,
+            isClosedConflict: false,
+            isBudgetConflict: false,
+            isHoursUnknown: false,
+          };
+        }
+      );
+
+      const places = placesResult.places.map(
+        (place: { place_id: string }) => ({
+          placeId: place.place_id,
+          place,
+        })
+      );
+      if (places.length !== placeIds.length) {
+        throw new Error("โหลดข้อมูลสถานที่สำหรับแก้ไขแผนไม่ครบ");
+      }
+
+      navigate(`/trip/${tripId}/editor`, {
+        state: {
+          tripId,
+          draft: { ...draftResult, items },
+          places,
+          visitDurations: Object.fromEntries(
+            stops.map(({ stop }) => [stop.place_id, stop.duration_min])
+          ),
+        },
+      });
+    } catch (err) {
+      console.error("Prepare Auto Trip editor error:", err);
+      setEditError(
+        (err as { message?: string } | null)?.message ||
+          "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ"
+      );
+    } finally {
+      setEditing(false);
+    }
   };
 
   // บันทึกผ่าน PUT /api/itinerary/trips/:tripId (backend re-validate ซ้ำก่อนบันทึก)
@@ -204,7 +328,7 @@ export default function AutoTrip() {
 
       // 2. payload: วันใน Auto Trip ใช้เลขวันจริง ซึ่งอาจข้ามวันที่ไม่มีสถานที่
       const days =
-        data.days?.map((day) => {
+        visibleDays.map((day) => {
           const tripDayId = tripDays[day.day - 1]?.tripDayId;
 
           if (!tripDayId) {
@@ -285,6 +409,7 @@ export default function AutoTrip() {
               accessToken={session.access_token}
               onGenerated={(result) => {
                 setData(result);
+                setRemovedRecommendationIds(new Set());
                 setSelectedDay(0);
               }}
             />
@@ -340,7 +465,11 @@ export default function AutoTrip() {
 
           {/* Actions */}
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
-            <button onClick={handleConfirmTrip} disabled={saving} className={primaryBtn}>
+            <button
+              onClick={handleConfirmTrip}
+              disabled={saving || editing}
+              className={primaryBtn}
+            >
               {saving ? (
                 <>
                   <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
@@ -353,9 +482,17 @@ export default function AutoTrip() {
                 </>
               )}
             </button>
-            <button onClick={handleEditTrip} className={secondaryBtn}>
-              <Pencil size={18} strokeWidth={1.75} />
-              แก้ไขเส้นทาง
+            <button
+              onClick={handleEditTrip}
+              disabled={saving || editing}
+              className={secondaryBtn}
+            >
+              {editing ? (
+                <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+              ) : (
+                <Pencil size={18} strokeWidth={1.75} />
+              )}
+              {editing ? "กำลังเตรียมข้อมูล..." : "แก้ไขเส้นทาง"}
             </button>
             <button onClick={handleBack} className={ghostBtn}>
               <Search size={18} strokeWidth={1.75} />
@@ -379,6 +516,12 @@ export default function AutoTrip() {
               {saveMessage}
             </p>
           )}
+          {editError && (
+            <p role="alert" className="mt-3 flex items-center gap-2 text-sm text-[color:var(--danger)]">
+              <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0" />
+              {editError}
+            </p>
+          )}
         </section>
 
         {/* ---- สรุปตัวเลข ---- */}
@@ -394,7 +537,7 @@ export default function AutoTrip() {
 
         {/* ---- เลือกวัน ---- */}
         <div role="tablist" aria-label="เลือกวัน" className="flex flex-wrap gap-2 mb-4">
-          {data.days?.map((day, index) => {
+          {visibleDays.map((day, index) => {
             const stops = getDayStops(index);
             const active = selectedDay === index;
             return (
@@ -411,7 +554,10 @@ export default function AutoTrip() {
               >
                 <span className="block font-medium">วันที่ {day.day}</span>
                 <span className={`block text-xs ${active ? "text-white/80" : "text-[color:var(--muted)]"}`}>
-                  {formatDate(day.date)} · {stops.length} สถานที่
+                  {formatDate(day.date)} ·{" "}
+                  {stops.length > 0
+                    ? `${stops.length} สถานที่`
+                    : "ไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไข"}
                 </span>
               </button>
             );
@@ -446,7 +592,15 @@ export default function AutoTrip() {
           </div>
 
           {currentStops.length === 0 ? (
-            <p className="text-sm text-[color:var(--muted)] py-4 text-center">ไม่มีสถานที่ในวันนี้</p>
+            <p className="text-sm text-[color:var(--muted)] py-4 text-center">
+              {(data.days?.[selectedDay]?.stops ?? []).some(
+                (stop) =>
+                  stop.is_recommendation &&
+                  removedRecommendationIds.has(stop.place_id)
+              )
+                ? "นำสถานที่แนะนำเพิ่มเติมออกจากแผนแล้ว"
+                : "ไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไขเวลาและวันเปิดทำการ"}
+            </p>
           ) : (
             currentStops.map((stop, index) => {
               const score = stop.poiScore ?? 0;
@@ -482,6 +636,11 @@ export default function AutoTrip() {
                             {stop.categoryName}
                           </span>
                         )}
+                        {stop.is_recommendation && (
+                          <span className="mt-1 ml-2 inline-block text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                            สถานที่แนะนำเพิ่มเติม
+                          </span>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-prompt font-semibold text-2xl leading-none text-[color:var(--navy)]">
@@ -509,6 +668,20 @@ export default function AutoTrip() {
                       <ExternalLink size={14} strokeWidth={1.75} />
                       ดูตำแหน่งบน Google Maps
                     </button>
+                    {stop.is_recommendation && (
+                      <button
+                        onClick={() =>
+                          setRemovedRecommendationIds((previous) => {
+                            const next = new Set(previous);
+                            next.add(stop.place_id);
+                            return next;
+                          })
+                        }
+                        className="mt-3 ml-4 inline-flex items-center gap-1.5 text-sm text-[color:var(--danger)] underline underline-offset-2 hover:opacity-80"
+                      >
+                        ไม่เอาสถานที่นี้
+                      </button>
+                    )}
                   </div>
                 </div>
               );
