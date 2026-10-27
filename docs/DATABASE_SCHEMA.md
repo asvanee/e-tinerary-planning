@@ -107,7 +107,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `trip_id` | uuid | NOT NULL | FK → `trips` CASCADE · UNIQUE (`trip_id`, `place_id`) |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE |
 | `category_score` | numeric | | (D-48: null = ผู้ใช้ไม่ได้เลือกหมวด · 1 = ตรงหมวด · 0 = หมวดอื่นที่เติมเข้ามา — ✅ ผู้ใช้รัน `docs/sql/2026-10-25_poi_category_score_nullable.sql` แล้ว 2026-10-25 — Claude ตรวจ: ทริปทดสอบที่ไม่เลือกหมวดบันทึก null ได้ 50 แถว) |
-| `rating_score` | numeric | | null = สถานที่ไม่มี rating ไม่ได้คิดในสูตร (D-55) — ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว 2026-10-27 (ก่อนรัน: NOT NULL default `0`) |
+| `rating_score` | numeric | | null = สถานที่ไม่มี rating ไม่ได้คิดในสูตร (D-57) — ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว 2026-10-27 (ก่อนรัน: NOT NULL default `0`) |
 | `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
 | `budget_score` | numeric | | price score `1 − ราคา ÷ งบต่อคนต่อวัน` · null = ไม่ได้ตั้งงบหรือไม่ทราบราคา (D-52) |
 | `weather_score` | numeric | NOT NULL | `1` |

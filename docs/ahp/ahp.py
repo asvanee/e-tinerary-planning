@@ -1,5 +1,5 @@
 """
-คำนวณน้ำหนัก POI Score ด้วย AHP (D-54)
+คำนวณน้ำหนัก POI Score ด้วย AHP (D-56)
 
 ทุกขั้นตอนอ้างอิงจาก:
 - R.W. Saaty (1987) The analytic hierarchy process—what it is and how it is used.

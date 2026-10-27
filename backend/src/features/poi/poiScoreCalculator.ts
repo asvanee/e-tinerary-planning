@@ -15,7 +15,7 @@ export function calculateCategoryScore(categoryMatch: boolean | null): number | 
 }
 
 /**
- * rating_score (D-55): rating / 5
+ * rating_score (D-57): rating / 5
  * - rating null (ไม่พบใน Google หรือยังไม่มีรีวิว) → null = ตัดรีวิวออกจากสูตร ไม่เดาคะแนน (แบบเดียวกับไม่ทราบราคา)
  */
 export function calculateRatingScore(rating: number | null): number | null {
@@ -103,7 +103,7 @@ const WEIGHTS = {
  *
  * budgetWeight = 0.15 (เต็ม) -> scale = 1 -> ใช้ WEIGHTS ตรงๆ (รู้ราคา)
  * budgetWeight = 0    (ตัดทิ้ง) -> ตัดมิติราคาออก (ไม่ได้ตั้งงบ หรือไม่ทราบราคา)
- * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) / includeRating = false (ไม่มี rating — D-55)
+ * includeCategory = false (ผู้ใช้ไม่ได้เลือกหมวด — D-48) / includeRating = false (ไม่มี rating — D-57)
  * -> ตัดด้านนั้นออก แล้วกระจาย weight ของมันคืนให้ด้านที่เหลือ (ยกเว้น budget) ด้วยวิธีเดียวกัน
  */
 function computeWeights(budgetWeight: number, includeCategory: boolean, includeRating: boolean) {
@@ -124,7 +124,7 @@ function computeWeights(budgetWeight: number, includeCategory: boolean, includeR
 export interface PoiScoreBreakdown {
   // null = ผู้ใช้ไม่ได้เลือกหมวด ไม่ได้คิดในสูตร (D-48)
   categoryScore: number | null;
-  // null = ไม่มี rating ไม่ได้คิดในสูตร (D-55)
+  // null = ไม่มี rating ไม่ได้คิดในสูตร (D-57)
   ratingScore: number | null;
   distanceScore: number;
   // price_score (calculatePriceScore — D-52) เก็บในคอลัมน์ budget_score

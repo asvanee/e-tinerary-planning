@@ -400,7 +400,7 @@
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/utils/placePrice.ts` (เดิม `priceLevel.ts`), `itineraryBuilder.ts` (backend + frontend mirror), `itineraryPlaceQueries.ts` (`getSelectedPlaces`), `placesController.ts`, `poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `ItineraryEditor.tsx`, `TripRecommendations.tsx`, `backend/src/admin/pipeline/import/`, `frontend/src/admin/imports/`, `docs/sql/2026-10-26_places_price_range.sql`, skill `itinerary-mirror-sync`
 
-### D-53 · 2026-10-27 · น้ำหนัก POI ตั้งต้นใช้ Test 1 และให้ผู้ใช้ปรับน้ำหนักต่อทริปได้ (แทนที่ค่าน้ำหนักใน D-17) · **ถูกแทนที่โดย D-54 — ไม่ทำ**
+### D-55 · 2026-10-27 · น้ำหนัก POI ตั้งต้นใช้ Test 1 และให้ผู้ใช้ปรับน้ำหนักต่อทริปได้ (แทนที่ค่าน้ำหนักใน D-17) · **ถูกแทนที่โดย D-56 — ไม่ทำ**
 - บริบท: กิ่งทดลองน้ำหนัก 4 ชุด (Test 1–4) กับ Museum 14 แห่งในเมืองเชียงใหม่ (รายงาน `E-tinerary (4)/(5)/(6).pdf` นอก repo) และสรุปเสนอ Test 1 · งานวิจัยที่อ้าง (Kesorn et al. 2017, R.-Toubes et al. 2020, Xue & Zhang 2020, Lian 2022) สนับสนุนการเลือกปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก · ให้ผู้ใช้ปรับเองได้ ค่าตั้งต้นจึงเป็นแค่จุดเริ่ม
 - ข้อสรุป (ผู้ใช้เลือก):
   - ค่าตั้งต้น = Test 1: category 0.30 / rating 0.20 / distance 0.15 / budget 0.15 / weather 0.20 (เดิม D-17: .35/.25/.15/.15/.10) · การ renormalize เมื่อไม่ใช้งบ/ไม่ทราบราคา/ไม่เลือกหมวด (D-48, D-52) คงเดิม แต่คิดจากน้ำหนักของทริป
@@ -412,24 +412,24 @@
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่จะกระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`, `computeWeights`, test), `poiController.ts`, `poiPlaceQueries.ts` (`getTripInfo`), `features/trip/tripController.ts` (สร้าง/แก้ทริป), `frontend/src/features/trip/create/createTrip.tsx`, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/DATABASE_SCHEMA.md`, SQL ใหม่ใน `docs/sql/`
 
-### D-54 · 2026-10-27 · พักการให้ผู้ใช้ปรับน้ำหนัก POI เอง และหาน้ำหนักของระบบด้วย AHP (แทนที่ D-53) · **ตกลงแล้ว — กำลังเตรียม AHP**
+### D-56 · 2026-10-27 · พักการให้ผู้ใช้ปรับน้ำหนัก POI เอง และหาน้ำหนักของระบบด้วย AHP (แทนที่ D-55) · **ตกลงแล้ว — กำลังเตรียม AHP**
 - บริบท: ผู้ใช้ต้องการให้ทุกตัวเลขในระบบมาจากงานวิจัย ไม่ใช้ตัวเลขที่ทีมคิดเอง (Test 1 มาจากการทดลองของทีม) · ทบทวนงานวิจัยฉบับเต็ม 6 ฉบับ (Lopes et al. 2016, 2020 · Vansteenwegen et al. 2011 · Souffriau et al. 2008 · R.W. Saaty 1987 · Forman & Peniwati 1998) พบว่ารองรับการเลือก 5 ปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก
 - ข้อสรุป (ผู้ใช้เลือก):
-  - พักการให้ผู้ใช้ปรับน้ำหนักเอง (preset + ปรับเองต่อทริปใน D-53) — ไม่ต้องเพิ่มคอลัมน์ใน `trips`
+  - พักการให้ผู้ใช้ปรับน้ำหนักเอง (preset + ปรับเองต่อทริปใน D-55) — ไม่ต้องเพิ่มคอลัมน์ใน `trips`
   - น้ำหนักของระบบ (ชุดเดียว) มาจากแบบสอบถาม AHP แทน Test 1 · ระหว่างรอผล โค้ดยังใช้น้ำหนัก D-17 (.35/.25/.15/.15/.10) ไม่เปลี่ยน
   - วิธี: เปรียบเทียบเป็นคู่ 10 คู่ สเกล 1–9 (R.W. Saaty 1987 น. 163) · น้ำหนักจาก principal eigenvector (น. 170–171) · CR < 0.10 โดย RI ของ n = 5 = 1.12 (น. 171) · รวมผลแบบ AIP ด้วยค่าเฉลี่ยเรขาคณิตแล้ว normalize (Forman & Peniwati 1998 น. 167–168) — แผนเต็มอยู่ที่ `AHP-POI-weights-plan.pdf` (นอก repo)
   - การ renormalize เมื่อไม่ใช้งบ/ไม่ทราบราคา/ไม่เลือกหมวด (D-48, D-52) คงเดิม
 - รออาจารย์ตัดสิน: กลุ่มและจำนวนผู้ตอบ · วิธีจัดการคำตอบที่ CR ไม่ผ่าน (ให้แก้ หรือตัดออก) · ต้องประเมินผลหลังใช้หรือไม่
-- ข้อควรระวัง: ค่าภายในสูตรที่ยังไม่มีแหล่งอ้างอิงและ AHP ไม่ครอบคลุม — `calculateDistanceScore` = `1/(1+km)` (R3), `RAIN_EXPOSURE.MIXED` = 0.5, rating ที่ไม่มีข้อมูล = 0.5 (แก้แล้วใน D-55 · MIXED ผู้ใช้ยอมรับให้คงไว้)
+- ข้อควรระวัง: ค่าภายในสูตรที่ยังไม่มีแหล่งอ้างอิงและ AHP ไม่ครอบคลุม — `calculateDistanceScore` = `1/(1+km)` (R3), `RAIN_EXPOSURE.MIXED` = 0.5, rating ที่ไม่มีข้อมูล = 0.5 (แก้แล้วใน D-57 · MIXED ผู้ใช้ยอมรับให้คงไว้)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่จะกระทบ (เมื่อได้ผล AHP): `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`) + test
 
-### D-55 · 2026-10-27 · สถานที่ไม่มี rating = ตัดรีวิวออกจากสูตร POI (แทนค่า 0.5 คงที่) · **ทำแล้ว — ผู้ใช้รัน SQL แล้ว 2026-10-27**
+### D-57 · 2026-10-27 · สถานที่ไม่มี rating = ตัดรีวิวออกจากสูตร POI (แทนค่า 0.5 คงที่) · **ทำแล้ว — ผู้ใช้รัน SQL แล้ว 2026-10-27**
 - บริบท: `calculateRatingScore` ให้ 0.5 เมื่อไม่มี rating ซึ่งเป็นตัวเลขที่ไม่มีแหล่งอ้างอิง และหน้าแนะนำแสดง "รีวิว 2.5/5" ทั้งที่ไม่มีรีวิวจริง · ข้อมูลจริง 2026-10-27 (น่าน 114 แห่ง): ไม่มี rating 13 แห่ง — ไม่พบใน Google (`csv:`) 7 · พบแต่ยังไม่มีรีวิว 6
 - ข้อสรุป (ผู้ใช้เลือก "ทำแบบราคา"):
   - ไม่มี rating → `rating_score` = null แล้วกระจาย weight 0.25 คืนให้ category/distance/weather ตามสัดส่วน · budget คงที่ 0.15 (วิธีเดียวกับตัด category ใน D-48 — กรณีอื่นคะแนนไม่เปลี่ยน)
   - หน้าแนะนำแสดง "ยังไม่มีรีวิว"
   - `RAIN_EXPOSURE.MIXED` = 0.5 ผู้ใช้ยอมรับให้คงไว้
-- ✅ ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว (2026-10-27) — ยังไม่ได้ตรวจว่าการคำนวณรอบใหม่บันทึก `rating_score` = null ได้จริง (`poi_scores` ที่มีอยู่คำนวณก่อน D-55 ทั้งหมด)
+- ✅ ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว (2026-10-27) — ยังไม่ได้ตรวจว่าการคำนวณรอบใหม่บันทึก `rating_score` = null ได้จริง (`poi_scores` ที่มีอยู่คำนวณก่อน D-57 ทั้งหมด)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`

@@ -1,5 +1,5 @@
 /**
- * สร้าง Google Form แบบสอบถาม AHP (D-54)
+ * สร้าง Google Form แบบสอบถาม AHP (D-56)
  *
  * วิธีใช้: เปิด https://script.google.com → New project → วางไฟล์นี้ทั้งไฟล์ → เลือก createAhpForm → Run
  * (ครั้งแรก Google จะขอสิทธิ์สร้างฟอร์มในบัญชีของผู้รัน) · ลิงก์ฟอร์มและลิงก์แก้ไขจะแสดงใน Execution log

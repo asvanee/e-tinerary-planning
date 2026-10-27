@@ -44,7 +44,7 @@ describe("calculatePoiScore กับ category score (D-48)", () => {
   });
 });
 
-describe("calculatePoiScore เมื่อไม่มี rating (D-55)", () => {
+describe("calculatePoiScore เมื่อไม่มี rating (D-57)", () => {
   const distance = 1 / (1 + 1);
   const weather = 1;
 

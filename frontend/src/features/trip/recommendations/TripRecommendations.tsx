@@ -23,7 +23,7 @@ interface PoiResult {
   categoryName: string;
   // 1 = ตรงหมวดที่เลือก · 0 = หมวดอื่นที่เติมเข้ามา · null = ไม่ได้เลือกหมวด (D-48)
   categoryScore: number | null;
-  ratingScore: number | null; // null = ไม่มี rating (D-55)
+  ratingScore: number | null; // null = ไม่มี rating (D-57)
   distanceScore: number;
   budgetScore: number | null;
   weatherScore: number;
