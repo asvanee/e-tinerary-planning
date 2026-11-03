@@ -7,7 +7,7 @@ import { useAuth } from "../system/auth/useAuth";
 type AdminCheck = "checking" | "ok" | "unauthorized" | "forbidden" | "error";
 
 // ครอบหน้า admin ทุกหน้า — ถาม backend (GET /api/admin/me) ทุกครั้งที่เข้า
-// ไม่ใช้ user.role จาก localStorage ตัดสินสิทธิ์ (Known Issue #22)
+// ไม่ใช้ role ใน localStorage ตัดสินสิทธิ์ เพราะผู้ใช้แก้เองได้
 export default function AdminRoute({ children }: { children: ReactNode }) {
   const { session, isLoading, logout } = useAuth();
   const [check, setCheck] = useState<AdminCheck>("checking");

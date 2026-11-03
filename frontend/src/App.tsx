@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Welcome from "./features/welcome/Welcome";
 import Register from "./features/auth/register/register";
@@ -20,6 +21,27 @@ import ProvinceReview from "./admin/provinces/ProvinceReview";
 import ProvinceImport from "./admin/imports/ProvinceImport";
 import CategoryMapping from "./admin/categories/CategoryMapping";
 
+// หน้าที่ต้อง login ก่อนเข้า
+const USER_PAGES: [string, ReactNode][] = [
+  ["/home", <Home />],
+  ["/trip/create", <CreateTrip />],
+  ["/trip/:tripId/recommendations", <TripRecommendations />],
+  ["/trip/:tripId/editor", <ItineraryEditor />],
+  ["/trip/:tripId/detail", <TripDetail />],
+  ["/trips", <MyTrips />],
+  ["/trip/:tripId/auto", <AutoTrip />],
+  ["/trip/:tripId/edit", <CreateTrip />],
+];
+
+// หน้า admin — backend ตรวจสิทธิ์ผ่าน AdminRoute ทุกครั้ง
+const ADMIN_PAGES: [string, ReactNode][] = [
+  ["/admin", <AdminDashboard />],
+  ["/admin/provinces", <ProvinceList />],
+  ["/admin/provinces/:province", <ProvinceReview />],
+  ["/admin/provinces/:province/import", <ProvinceImport />],
+  ["/admin/categories", <CategoryMapping />],
+];
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -28,129 +50,22 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/confirm-email" element={<ConfirmEmail />} />
         <Route path="/login" element={<Login />} />
+        {USER_PAGES.map(([path, page]) => (
+          <Route key={path} path={path} element={<ProtectedRoute>{page}</ProtectedRoute>} />
+        ))}
 
-        {/* หน้าที่ต้อง login ก่อนเข้าได้ */}
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/trip/create"
-          element={
-            <ProtectedRoute>
-              <CreateTrip />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trip/:tripId/recommendations"
-          element={
-            <ProtectedRoute>
-              <TripRecommendations />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trip/:tripId/editor"
-          element={
-            <ProtectedRoute>
-              <ItineraryEditor />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trip/:tripId/detail"
-          element={
-            <ProtectedRoute>
-              <TripDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips"
-          element={
-            <ProtectedRoute>
-              <MyTrips />
-            </ProtectedRoute>
-          }
-        />
-
-
+        <Route path="/admin/login" element={<AdminLogin />} />
+        {ADMIN_PAGES.map(([path, page]) => (
           <Route
-            path="/trip/:tripId/auto"
+            key={path}
+            path={path}
             element={
-              <ProtectedRoute>
-                <AutoTrip />
-              </ProtectedRoute>
+              <AdminRoute>
+                <AdminLayout>{page}</AdminLayout>
+              </AdminRoute>
             }
           />
-
-        <Route
-          path="/trip/:tripId/edit"
-          element={
-            <ProtectedRoute>
-              <CreateTrip />
-            </ProtectedRoute>
-  }
-/>
-
-        {/* Admin Panel (R5, D-24) — สิทธิ์ตรวจที่ backend ผ่าน AdminRoute */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminDashboard />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/provinces"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <ProvinceList />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/provinces/:province"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <ProvinceReview />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/provinces/:province/import"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <ProvinceImport />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/categories"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <CategoryMapping />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
+        ))}
       </Routes>
     </BrowserRouter>
   );

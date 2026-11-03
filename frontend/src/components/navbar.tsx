@@ -1,29 +1,15 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home, FolderOpen, Plane, LogOut } from "lucide-react";
 import { useAuth } from "../system/auth/useAuth";
+import { useLogout } from "../system/auth/useLogout";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const API_URL = import.meta.env.VITE_API_URL || "";
-  const { logout, session, user } = useAuth();
+  const { user } = useAuth();
+  const handleLogout = useLogout("/");
 
   const username = user?.username || "ผู้ใช้";
-
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-    } catch (error) {
-      // ต่อให้เรียก server ไม่สำเร็จ ก็ต้องออกจากระบบฝั่งเครื่องได้
-      console.error("Logout error:", error);
-    } finally {
-      logout(); // clear context
-      navigate("/");
-    }
-  };
 
   const btnBase =
     "font-prompt text-sm font-medium min-h-10 min-w-10 px-3 md:px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98]";

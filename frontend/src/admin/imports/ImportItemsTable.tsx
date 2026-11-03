@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, TriangleAlert } from "lucide-react";
-import { adminRequest, errorMessage } from "../lib/adminApi";
+import { loadAdmin } from "../lib/adminApi";
 import { ITEM_STATUS_CLASS, ITEM_STATUS_LABELS } from "../lib/importLabels";
 import type { ImportItemsPage, ImportItemStatus } from "../lib/importTypes";
 import MapLink from "./MapLink";
@@ -23,21 +23,16 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let ignore = false;
     const query = new URLSearchParams({ page: String(page), ...(filter ? { status: filter } : {}) });
-    adminRequest<ImportItemsPage>(`/imports/${jobId}/items?${query}`, token)
-      .then((result) => {
-        if (!ignore) {
-          setData(result);
-          setError("");
-        }
-      })
-      .catch((err) => {
-        if (!ignore) setError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
+    return loadAdmin<ImportItemsPage>(
+      `/imports/${jobId}/items?${query}`,
+      token,
+      (result) => {
+        setData(result);
+        setError("");
+      },
+      setError
+    );
   }, [jobId, token, filter, page, refreshKey]);
 
   const pageCount = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;

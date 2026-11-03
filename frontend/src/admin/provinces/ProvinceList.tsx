@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Search, TriangleAlert, ChevronRight, CloudDownload } from "lucide-react";
 import { useAuth } from "../../system/auth/useAuth";
-import { adminRequest, errorMessage } from "../lib/adminApi";
+import { loadAdmin } from "../lib/adminApi";
 import type { ProvinceSummary } from "../lib/reviewTypes";
 
-// รายชื่อจังหวัดจาก attraction.csv พร้อมสถานะ — เลือกเพื่อตรวจข้อมูล (P3) หรือนำเข้า (P4)
+// รายชื่อจังหวัดจาก attraction.csv พร้อมสถานะ — เลือกเพื่อตรวจข้อมูลหรือนำเข้า
 export default function ProvinceList() {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -15,19 +15,10 @@ export default function ProvinceList() {
   const [query, setQuery] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    let ignore = false;
-    adminRequest<{ provinces: ProvinceSummary[] }>("/provinces", token)
-      .then((data) => {
-        if (!ignore) setProvinces(data.provinces);
-      })
-      .catch((err) => {
-        if (!ignore) setError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [token, reloadKey]);
+  useEffect(
+    () => loadAdmin<{ provinces: ProvinceSummary[] }>("/provinces", token, (data) => setProvinces(data.provinces), setError),
+    [token, reloadKey]
+  );
 
   const filtered = useMemo(
     () => (provinces ?? []).filter((p) => p.province.includes(query.trim())),

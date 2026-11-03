@@ -1,4 +1,4 @@
-// ค่าของหมวด (ตาราง categories — D-39) ที่ทั้งหน้าผู้ใช้และหน้า admin ใช้ร่วมกัน
+// ค่าของหมวด (ตาราง categories) ที่หน้าผู้ใช้และหน้า admin ใช้ร่วมกัน
 
 // กลุ่มใหญ่ของ ททท. (categories.parent_group) เรียงตามลำดับที่แสดง
 export const CATEGORY_GROUPS = [

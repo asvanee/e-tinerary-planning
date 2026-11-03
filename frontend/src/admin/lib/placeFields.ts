@@ -12,8 +12,8 @@ export const KEY_FIELDS = [
   "ATT_STATUS",
 ];
 
-// ช่องที่ merge เลือกค่าได้ = ช่องที่ใช้ตอนนำเข้าจริง (D-31)
-// ⚠️ ต้องตรงกับ backend admin/pipeline/import/placeRecord.ts::IMPORT_FIELDS (backend ตรวจซ้ำ)
+// ช่องที่ merge เลือกค่าได้ = ช่องที่ใช้ตอนนำเข้าจริง
+// ⚠️ ต้องแก้คู่กับ backend admin/pipeline/import/placeRecord.ts::IMPORT_FIELDS (backend ตรวจซ้ำ)
 export const MERGE_FIELDS = [
   "ATT_NAME_TH",
   "ATT_NAME_EN",
