@@ -36,8 +36,16 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 | ระยะทางเส้นตรง | `utils/haversine.ts` (mirror ฝั่ง frontend) |
 | format เวลา/ราคา/ระยะในหน้าทริป | `frontend/src/features/trip/lib/format.ts` |
 | ช่วงเวลาเปิด-ปิดเพื่อแสดงผล | `frontend/src/features/trip/lib/openingDays.ts` |
-| เรียก API ของ admin | `admin/lib/adminApi.ts::adminRequest` + `errorMessage` |
+| เรียก API ของ admin | `admin/lib/adminApi.ts::adminRequest` + `errorMessage` · โหลดข้อมูลใน useEffect ใช้ `loadAdmin` |
 | ตรวจเจ้าของทริป | `loadOwnedTrip` (itinerary) / `.eq("user_id", userId)` (trip) |
+| ตรวจ user + tripId ใน controller | `requireTripParams` (trip) / `getTripId` (itinerary) |
+| ตรวจรูปแบบ uuid | `backend/src/utils/uuid.ts::isUuid` |
+| ข้อความจาก error (backend) | `utils/errorMessage.ts` · (frontend) `system/errorText.ts::errorText(err, fallback)` |
+| cache ในหน่วยความจำที่หมดอายุ | `utils/ttlCache.ts::TtlCache` |
+| ยิง ORS Matrix | `utils/orsMatrixRequest.ts::postOrsMatrix` + `coordKey` |
+| แปลงเวลา "HH:MM" ↔ นาที | `utils/timeString.ts` (mirror อยู่ใน frontend itineraryBuilder) |
+| ป้ายปัญหาของสถานที่ในแผน | `frontend/src/features/trip/components/ConflictBadges.tsx` |
+| ออกจากระบบ | `system/auth/useLogout.ts` |
 
 - Controller: validate input → `try { … } catch (err) { console.error("<ชื่อ> error:", err); res.status(500).json({ message: "<ไทย>" }) }`
 - ส่วนที่แตะ DB/บริการภายนอกให้รับเข้ามาเป็น parameter (เช่น `GooglePlacesClient`, `ImportStore`, `fetchFn`) เพื่อให้ logic หลักเป็น pure function และเขียน test ได้โดยไม่เรียกของจริง
@@ -53,6 +61,8 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 - **Pure function**: test เทียบผลเก่า/ใหม่ด้วย input สุ่มจำนวนมาก (เก็บไฟล์เก่าไว้ใน scratchpad ไม่ commit)
 - **Controller/query**: mock `config/db` ด้วย Proxy ที่บันทึกการเรียก แล้วเทียบ status + JSON + ลำดับการเรียก Supabase ของโค้ดเก่า/ใหม่
 - **Mirror**: diff สองฝั่งต้องต่างกันแค่ header/import/ค่าคงที่ที่ frontend ประกาศเอง (ดู `itinerary-mirror-sync`)
+- เก็บไฟล์เก่าไว้ใน scratchpad (`git archive HEAD backend/src frontend/src`) แล้วเทียบเก่า/ใหม่ด้วย input ชุดเดียวกัน · ลองใส่ bug ปลอมในสำเนาเก่าเพื่อยืนยันว่าตัวเทียบจับได้จริง
+- งานใหญ่แบ่งเป็นชุดตามส่วนของโค้ด (utils → features → admin → frontend) แต่ละชุดตรวจครบแล้วค่อย commit แยก
 
 ## Checklist ก่อนรายงานว่าเสร็จ
 - [ ] ทำงานครบตามที่ขอ รวมกรณี error/ว่าง/โหลด (UI มีสถานะ loading, error พร้อมปุ่มลองใหม่, ว่าง)
