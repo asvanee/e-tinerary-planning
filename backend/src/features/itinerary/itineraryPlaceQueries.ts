@@ -3,10 +3,6 @@ import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { minutesToTimeString, timeStringToMinutes } from "../../utils/timeString";
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
-/* =========================================================
- * Types
- * ========================================================= */
-
 export interface TripDay {
   tripDayId: string;
   dayNumber: number;
@@ -115,13 +111,7 @@ interface AutoTripScoreRow {
 const TRIP_DAY_COLUMNS =
   "trip_day_id, day_number, visit_date, start_time, end_time, daily_budget";
 
-/* =========================================================
- * Relation & Utility Helpers
- * ========================================================= */
-
-/**
- * รองรับ Supabase relation ที่เป็นทั้ง Object และ Array
- */
+// embed ของ Supabase อาจเป็น object หรือ array — แปลงเป็น array เสมอ
 function asArray<T>(
   value: T | T[] | null | undefined
 ): T[] {
@@ -129,19 +119,7 @@ function asArray<T>(
   return Array.isArray(value) ? value : [value];
 }
 
-function getCategoryRows(
-  labels: CategoryLabelRow | CategoryLabelRow[] | null | undefined
-): CategoryRow[] {
-  return asArray(labels)
-    .flatMap((label) => asArray(label?.categories))
-    .filter(
-      (category): category is CategoryRow =>
-        category != null &&
-        typeof category.category_id === "string" &&
-        typeof category.category_name === "string"
-    );
-}
-
+// ทุกวันตั้งแต่ startDate ถึง endDate ("YYYY-MM-DD")
 function enumerateDates(
   startDate: string,
   endDate: string
@@ -178,10 +156,6 @@ function mapTripDayRow(
   };
 }
 
-/* =========================================================
- * Trip Queries
- * ========================================================= */
-
 export async function getTripOwnerAndStart(
   tripId: string
 ): Promise<TripOwnerAndStart | null> {
@@ -200,6 +174,7 @@ export async function getTripOwnerAndStart(
   };
 }
 
+// วันของทริป — ยังไม่มีจะสร้างจากข้อมูลทริป (เวลาจบ = เวลาเริ่ม + เวลาว่างต่อวัน)
 export async function getOrCreateTripDays(
   tripId: string
 ): Promise<TripDay[]> {
@@ -285,11 +260,7 @@ export async function getOrCreateTripDays(
     .sort((a, b) => a.dayNumber - b.dayNumber);
 }
 
-/* =========================================================
- * Selected Places
- * ========================================================= */
-
-
+// ข้อมูลสถานที่ที่ใช้คำนวณแผน (พิกัด ราคา เวลาเปิด)
 export async function getSelectedPlaces(
   placeIds: string[]
 ): Promise<SelectedPlace[]> {
@@ -327,7 +298,7 @@ export async function getSelectedPlaces(
       longitude: selectedRow.longitude,
       priceRangeStart: selectedRow.price_range_start,
       priceRangeEnd: selectedRow.price_range_end,
-      // ถ้าไม่มีหมวดและไม่มีราคาจริง ห้ามอนุมานว่าสถานที่เข้าฟรี
+      // ไม่มีหมวด = ถือว่าเสียเงิน (ห้ามเดาว่าฟรี)
       priceNature: category?.price_nature ?? "paid",
       openingHours: selectedRow.opening_hours,
     };
@@ -336,14 +307,7 @@ export async function getSelectedPlaces(
   return places;
 }
 
-/* =========================================================
- * Auto Trip Places
- * ========================================================= */
-
-/**
- * ดึงสถานที่จากคะแนน POI ของทริป
- * หนึ่งสถานที่อาจมีหลาย category_labels
- */
+// สถานที่จาก poi_scores ของทริป สำหรับ Auto Trip (1 แถวต่อสถานที่ต่อหมวด)
 export async function getAutoTripPlaces(
   tripId: string
 ): Promise<AutoTripPlace[]> {
@@ -390,7 +354,6 @@ export async function getAutoTripPlaces(
         asArray(label?.categories)
       );
 
-      // ป้องกันหมวดหมู่ซ้ำ
       const uniqueCategories = Array.from(
         new Map(
           categories.map((category) => [
@@ -421,9 +384,7 @@ export async function getAutoTripPlaces(
   return result;
 }
 
-/**
- * ดึงหมวดที่ผู้ใช้เลือกไว้ในทริปเพื่อสร้างช่องกรอกเวลาใน Frontend
- */
+// หมวดที่ผู้ใช้เลือกไว้ในทริป (ไม่ซ้ำ เรียงตามชื่อ)
 export async function getAutoTripCategories(
   tripId: string
 ): Promise<Array<{ categoryId: string; categoryName: string }>> {

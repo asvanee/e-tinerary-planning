@@ -79,7 +79,7 @@ export function parseGroupDecision(
       return fail("กรุณาเลือกแถวหลักจากสถานที่ที่รวม");
     }
 
-    // เลือกได้เฉพาะคอลัมน์ที่ใช้ตอนนำเข้า (D-31) · คอลัมน์ที่ไม่ส่งมาใช้ค่าของแถวหลัก
+    // เลือกได้เฉพาะคอลัมน์ที่ใช้ตอนนำเข้า · คอลัมน์ที่ไม่ส่งมาใช้ค่าของแถวหลัก
     const fieldSources: Record<string, string> = {};
     if (set.fieldSources !== undefined) {
       if (!isRecord(set.fieldSources)) return fail("รูปแบบการเลือกข้อมูลไม่ถูกต้อง");
@@ -94,7 +94,7 @@ export function parseGroupDecision(
       }
     }
 
-    // ค่าที่พิมพ์เอง (D-32) — ช่องที่นำเข้าเท่านั้น ยกเว้นพิกัด (ใช้ lat/lng) · ค่าว่าง = ล้างช่องนั้น
+    // ค่าที่พิมพ์เอง — ช่องที่นำเข้าเท่านั้น ยกเว้นพิกัด (ใช้ lat/lng) · ค่าว่าง = ล้างช่องนั้น
     const fieldValues: Record<string, string> = {};
     if (set.fieldValues !== undefined) {
       if (!isRecord(set.fieldValues)) return fail("รูปแบบค่าที่พิมพ์เองไม่ถูกต้อง");

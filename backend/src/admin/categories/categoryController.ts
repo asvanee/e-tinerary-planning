@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../../features/auth/authMiddleware";
-import { isUuid, parseCategoryUpdate, parseLabelMove } from "./categoryInput";
+import { isUuid } from "../../utils/uuid";
+import { parseCategoryUpdate, parseLabelMove } from "./categoryInput";
 import {
   categoryExists,
   isCategoryNameTaken,
@@ -24,7 +25,7 @@ export const getAdminCategories = async (_req: AuthRequest, res: Response) => {
   }
 };
 
-// PUT /api/admin/categories/:categoryId — แก้ชื่อ กลุ่มใหญ่ env price (D-40)
+// PUT /api/admin/categories/:categoryId — แก้ชื่อ กลุ่มใหญ่ ในร่ม/กลางแจ้ง และค่าเข้าชม
 export const putCategory = async (req: AuthRequest, res: Response) => {
   const { categoryId } = req.params;
   if (!isUuid(categoryId)) return res.status(400).json({ message: "รหัสหมวดหมู่ไม่ถูกต้อง" });
@@ -46,7 +47,7 @@ export const putCategory = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// PUT /api/admin/categories/labels/:labelId — ย้ายป้าย ททท. ไปหมวดอื่น (D-40)
+// PUT /api/admin/categories/labels/:labelId — ย้ายป้าย ททท. ไปหมวดอื่น
 export const putLabelCategory = async (req: AuthRequest, res: Response) => {
   const { labelId } = req.params;
   if (!isUuid(labelId)) return res.status(400).json({ message: "รหัสป้ายไม่ถูกต้อง" });

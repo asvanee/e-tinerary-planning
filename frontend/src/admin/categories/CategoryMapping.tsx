@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Info, Loader2, Save, Tags, TriangleAlert } from "lucide-react";
 import { useAuth } from "../../system/auth/useAuth";
 import { CATEGORY_GROUPS, ENVIRONMENT_TYPES, PRICE_NATURES } from "../../system/categoryGroups";
-import { adminRequest, errorMessage } from "../lib/adminApi";
+import { adminRequest, errorMessage, loadAdmin } from "../lib/adminApi";
 
-// หน้า Category Mapping (R5 P5e — D-40): ย้ายป้าย ททท. ไปหมวดอื่น + แก้ชื่อ/กลุ่ม/env/price ของหมวด
-// ไม่มีเพิ่ม/ลบ/รวมหมวด
+// หน้าจัดการหมวด: ย้ายป้าย ททท. ไปหมวดอื่น + แก้ชื่อ/กลุ่ม/ในร่ม-กลางแจ้ง/ค่าเข้าชมของหมวด (ไม่มีเพิ่ม/ลบ/รวมหมวด)
 
 interface AdminCategoryLabel {
   category_label_id: string;
@@ -197,19 +196,10 @@ export default function CategoryMapping() {
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    let ignore = false;
-    adminRequest<CategoriesResponse>("/categories", token)
-      .then((data) => {
-        if (!ignore) setCategories(data.categories);
-      })
-      .catch((err) => {
-        if (!ignore) setLoadError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [token, reloadKey]);
+  useEffect(
+    () => loadAdmin<CategoriesResponse>("/categories", token, (data) => setCategories(data.categories), setLoadError),
+    [token, reloadKey]
+  );
 
   // backend คืนรายการล่าสุดทั้งหมดทุกครั้งที่แก้สำเร็จ
   async function run(request: () => Promise<CategoriesResponse>): Promise<boolean> {

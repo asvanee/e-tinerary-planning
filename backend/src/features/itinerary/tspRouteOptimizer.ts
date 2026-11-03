@@ -1,3 +1,5 @@
+import { haversineKm } from "../../utils/haversine";
+
 export interface TspPlace {
   place_id: string;
   place_name: string;
@@ -10,38 +12,12 @@ export interface TspResult {
   totalDistanceKm: number;
 }
 
-/**
- * คำนวณระยะทางระหว่างสถานที่ 2 จุด
- * ใช้สูตร Haversine (ผลลัพธ์เป็นกิโลเมตร)
- */
-export function calculateDistanceKm(
-  from: TspPlace,
-  to: TspPlace
-): number {
-  const R = 6371; // รัศมีของโลก (กม.)
-
-  const lat1 = (from.latitude * Math.PI) / 180;
-  const lat2 = (to.latitude * Math.PI) / 180;
-
-  const dLat = ((to.latitude - from.latitude) * Math.PI) / 180;
-  const dLon = ((to.longitude - from.longitude) * Math.PI) / 180;
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-
-  // ป้องกันปัญหา floating point เกิน 1 ซึ่งทำให้ Math.sqrt(1 - a) ได้ NaN
-  const safeA = Math.min(1, Math.max(0, a));
-
-  const c = 2 * Math.atan2(Math.sqrt(safeA), Math.sqrt(1 - safeA));
-
-  return R * c;
+// ระยะเส้นตรงระหว่าง 2 สถานที่ (กม.)
+export function calculateDistanceKm(from: TspPlace, to: TspPlace): number {
+  return haversineKm(from.latitude, from.longitude, to.latitude, to.longitude);
 }
 
-/**
- * Traveling Salesman Problem
- * วิธีที่ใช้: Nearest Neighbor
- */
+// เรียงเส้นทางแบบ nearest neighbor: เริ่มจาก startPlace แล้วไปที่ใกล้ที่สุดถัดไปเรื่อยๆ
 export function nearestNeighborTsp(
   places: TspPlace[],
   startPlace: TspPlace
@@ -53,7 +29,6 @@ export function nearestNeighborTsp(
     };
   }
 
-  // เอาสถานที่ที่มี ID ตรงกับ startPlace ออกจากรายการที่จะวนลูป
   const remaining = places.filter(
     (place) => place.place_id !== startPlace.place_id
   );

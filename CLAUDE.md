@@ -11,7 +11,7 @@
 | `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` |
 | `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
 
-ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md` · โครงสร้าง DB: `docs/DATABASE_SCHEMA.md`
+ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md` · โครงสร้าง DB: `docs/DATABASE_SCHEMA.md` · น้ำหนัก POI (AHP): `docs/AHP_POI_WEIGHTS.md` · สิ่งที่ต้องแก้ในเล่มรายงาน: `docs/REPORT_REVISION.md`
 **แผนงานหลักของทีมคือ `README.md`** (requirement R1–R5) ส่วน `docs/DEVELOPMENT_PLAN.md` ใช้ติดตามรายละเอียดทางเทคนิค (กลุ่ม 0 โยง R กับโค้ด) ห้ามแก้ README.md ถ้าไม่ได้รับคำสั่ง
 
 ## คำสั่งที่มีอยู่จริง
@@ -24,12 +24,11 @@ cd backend && npm test             # jest — test ของ admin pipeline (ded
 # frontend  (dev proxy /api → http://localhost:5000)
 cd frontend && npm run dev
 cd frontend && npm run build       # tsc -b && vite build
-cd frontend && npm run lint
-cd frontend && npm test            # vitest run — ยังไม่มีไฟล์ test
+cd frontend && npm run lint       # frontend ไม่มี test (ถอด Vitest 2026-11-03)
 ```
 การนำเข้าสถานที่ทำผ่านหน้า admin (`backend/src/admin/`) — `data-pipeline/` เดิมลบแล้วใน R5 P6 (D-37, กู้ได้จาก git history ที่ `d73808f`)
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ✅ 0 problems (2026-10-26) · backend jest ✅ 13 suites / 191 tests (2026-10-26 หลัง D-52 ส่วน admin) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ✅ 0 problems (2026-10-26) · backend jest ✅ 14 suites / 228 tests (2026-11-04 หลัง AHP) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด

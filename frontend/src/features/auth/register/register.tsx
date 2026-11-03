@@ -70,7 +70,6 @@ export default function Register() {
   return (
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-3xl bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-12 py-8">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[color:var(--line)]">
           <MapPinned
             size={40}
@@ -89,7 +88,6 @@ export default function Register() {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
-            {/* Username */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="username" className={labelClass}>ชื่อผู้ใช้</label>
               <input
@@ -104,7 +102,6 @@ export default function Register() {
               />
             </div>
 
-            {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="email" className={labelClass}>อีเมล</label>
               <input
@@ -119,7 +116,6 @@ export default function Register() {
               />
             </div>
 
-            {/* Password */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="password" className={labelClass}>รหัสผ่าน</label>
               <div className="relative">

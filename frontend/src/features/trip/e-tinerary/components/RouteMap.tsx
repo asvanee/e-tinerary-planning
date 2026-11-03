@@ -18,13 +18,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader2, MapPinned, TriangleAlert } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// OpenRouteService config (ตั้งใน .env — Vite ต้องขึ้นต้นด้วย VITE_)
-//   VITE_ORS_API_KEY    : key จาก openrouteservice.org (ถ้าใช้ proxy ฝั่ง backend ไม่ต้องใส่)
-//   VITE_ORS_BASE_URL   : default https://api.heigit.org/openrouteservice (ไม่ต้องมี / ท้ายสุด)
-//                         เปลี่ยนเป็น proxy ของ backend ได้ — โดเมนเก่า api.openrouteservice.org ถูกปิดแล้ว
-//   VITE_ORS_PROFILE    : default driving-car (driving-car | foot-walking | cycling-regular ...)
-// ---------------------------------------------------------------------------
+// แผนที่เส้นทางรายวัน (Leaflet + OSM) — ขอเส้นทางถนนจาก ORS Directions ตรงจาก browser (ขอไม่ได้ใช้เส้นตรงแทน)
+// ค่า env ของ ORS ดู docs/PROJECT_OVERVIEW.md หัวข้อ 9
 const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY as string | undefined;
 const ORS_BASE_URL = (
   (import.meta.env.VITE_ORS_BASE_URL as string | undefined) ??
@@ -71,20 +66,16 @@ export interface RouteMapDay {
 }
 
 interface RouteMapProps {
-  /** จุดเริ่มต้นที่ user ปักหมุดไว้ (trips.start_lat/start_lng) — ใช้วาดเส้นประจากจุดเริ่มต้น
-   * ไปจุดแรกของวันที่ 1 เท่านั้น (วันอื่นไม่มีจุดเริ่มต้นที่ชัดเจนจาก backend) */
+  // จุดเริ่มต้นทริป — วาดเส้นประไปที่แรกของวันที่ 1 เท่านั้น
   startLat?: number | null;
   startLng?: number | null;
   days: RouteMapDay[];
 }
 
-// ---------------------------------------------------------------------------
-// ORS: ขอเส้นทางจริงตามถนน + cache ระดับ module (อยู่ข้าม re-render / ข้ามการ mount ใหม่)
-// ---------------------------------------------------------------------------
+// เส้นทางถนนจาก ORS — cache ระดับ module อยู่ข้าม re-render และการ mount ใหม่
 interface RouteResult {
-  /** geometry ทั้งเส้น [lat, lng][] */
   coords: LatLng[];
-  /** index ใน coords ของแต่ละ waypoint ที่ส่งไป (ใช้แยกช่วง start -> จุดแรก) */
+  // index ใน coords ของแต่ละ waypoint (ใช้แยกช่วงจุดเริ่มต้น -> ที่แรก)
   wayPoints: number[];
 }
 
@@ -130,9 +121,7 @@ async function fetchRoute(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Marker icons (divIcon — ไม่ต้องพึ่งไฟล์รูป default ของ Leaflet ที่มักพังใน Vite)
-// ---------------------------------------------------------------------------
+// หมุดเป็น divIcon — ไม่พึ่งไฟล์รูป default ของ Leaflet ที่มักพังใน Vite
 const iconCache = new Map<string, L.DivIcon>();
 
 function numberIcon(order: number, color: string): L.DivIcon {
@@ -157,10 +146,7 @@ const startIcon = L.divIcon({
   iconAnchor: [9, 9],
 });
 
-// ---------------------------------------------------------------------------
-// fit bounds ให้เห็นทุก marker ที่โชว์อยู่ — ทำงานเฉพาะเมื่อ "ชุดจุด" เปลี่ยนจริง
-// (ไม่ refit ทุก re-render — user ซูม/แพนแล้วไม่เด้งกลับ)
-// ---------------------------------------------------------------------------
+// ซูมให้เห็นทุกหมุด เฉพาะเมื่อชุดจุดเปลี่ยนจริง (ผู้ใช้ซูม/เลื่อนเองแล้วไม่เด้งกลับ)
 function FitBounds({ points }: { points: LatLng[] }) {
   const map = useMap();
   const signature = points.map(([a, b]) => `${a},${b}`).join("|");
@@ -223,7 +209,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     [daysWithItems, visibleDayNumbers]
   );
 
-  // ---- จุดของแต่ละวัน (เรียงตาม visitOrder) + request ที่ต้องยิง ORS ----
+  // จุดของแต่ละวัน (เรียงตาม visitOrder) และ request ที่ต้องยิง ORS
   const dayRoutes = useMemo(() => {
     return visibleDays.map((day) => {
       const dayIndex = daysWithItems.findIndex((d) => d.tripDayId === day.tripDayId);
@@ -246,7 +232,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleDays, daysWithItems, startLat, startLng]);
 
-  // ---- ยิง ORS (debounce + abort) — ลากสถานที่ถี่ ๆ จะไม่ยิงรัว ----
+  // ยิง ORS แบบหน่วงเวลา + ยกเลิกได้ — ลากสถานที่ถี่ๆ จะไม่ยิงรัว
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const failedRef = useRef<Set<string>>(new Set());
   const requestsRef = useRef<{ key: string; points: LatLng[] }[]>([]);
@@ -291,7 +277,6 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     (r) => r.key && !routeCache.has(r.key) && !isRouting
   );
 
-  // ---- จุดทั้งหมดที่ใช้ fit bounds ----
   const boundsPoints = useMemo<LatLng[]>(() => {
     const pts: LatLng[] = [];
     if (startPoint) pts.push(startPoint);

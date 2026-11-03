@@ -4,7 +4,6 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { categoryColor } from "./categoryColors";
 
-// ---------- ชนิดข้อมูล ----------
 export interface MapPlace {
   placeId: string;
   name: string;
@@ -40,7 +39,6 @@ const inThailand = (lat: number, lng: number) =>
   lng >= TH.minLng &&
   lng <= TH.maxLng;
 
-// ---------- หมุด ----------
 // หมุดรูปหยดน้ำ: สี่เหลี่ยมโค้งมน 3 มุมหมุน -45° ปลายแหลมชี้ลง เลขอันดับหมุนกลับ 45°
 // ปลายหมุดอยู่ต่ำกว่ากล่อง ~0.21×ขนาด จึงตั้ง iconAnchor ที่ y ≈ 1.21×ขนาด
 function makePinIcon(color: string, rank: number, selected: boolean, active: boolean) {
@@ -76,7 +74,6 @@ function getPinIcon(color: string, rank: number, selected: boolean, active: bool
   return icon;
 }
 
-// ---------- ตัวช่วยที่ใช้ map instance ----------
 // ปรับมุมมองให้พอดีกับหมุดทั้งหมด + คำนวณขนาดแผนที่ใหม่เมื่อ container เปลี่ยนขนาด
 // (บนมือถือแผนที่ถูกซ่อนด้วย display:none ตอนอยู่แท็บ "รายการ" ทำให้ขนาดเป็น 0 —
 //  ถ้า fit ตอนนั้นจะได้ zoom เพี้ยน จึงจดไว้ว่ารอ fit แล้วค่อยทำเมื่อแผนที่โผล่ขึ้นมา)
@@ -142,7 +139,7 @@ function FocusHandler({
   return null;
 }
 
-// ---------- คอมโพเนนต์หลัก ----------
+// แผนที่หน้าแนะนำ: หมุดสีตามหมวดพร้อมเลขอันดับ กดหมุดดูการ์ดหรือเลือกสถานที่ได้
 export default function RecommendationMap({
   places,
   selectedIds,

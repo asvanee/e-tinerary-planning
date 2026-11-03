@@ -3,6 +3,7 @@
 > **Snapshot 2026-10-18** — ผู้ใช้รัน SQL ท้ายไฟล์นี้ใน Supabase SQL Editor แล้ว export เป็น CSV (เฉพาะโครงสร้าง ไม่มีข้อมูลจริง)
 > ถ้าไม่แน่ใจว่ายังตรงกับของจริง หรือต้องรู้สิ่งที่ไม่มีในไฟล์นี้ ให้ถามผู้ใช้ · **สร้างหรือแก้ตารางเมื่อไร ต้องอัปเดตไฟล์นี้** (รัน SQL ท้ายไฟล์ใหม่)
 > "ใช้ในโค้ด" = ไฟล์ที่เรียก `.from("<table>")` หรือ embed ตารางนั้น (grep 2026-10-18)
+> **`docs/sql/` ลบแล้ว 2026-11-03** — ผู้ใช้ยืนยันว่ารัน SQL ทั้ง 13 ไฟล์ใน Supabase ครบแล้ว · path `docs/sql/...` ที่อ้างในไฟล์นี้, `DECISIONS.md` และ `DEVELOPMENT_PLAN.md` เป็นประวัติ กู้ได้จาก git history ที่ `b9ed64c` (`git show b9ed64c:docs/sql/<ไฟล์>`)
 
 ## สรุปภาพรวม
 - **PK ทุกตารางเป็น uuid** (`gen_random_uuid()`) ตั้งแต่ 2026-10-18 (T23, D-28 — SQL: `docs/sql/2026-10-19_uuid_primary_keys.sql`, ตรวจแล้วว่า id เป็น uuid และจำนวนแถวเท่า backup) · ตาราง backup ที่สร้างตอนแก้ (`backup_20261019_*` 11 ตาราง + `place_types_backup_20261018`) ผู้ใช้สั่งลบแล้ว 2026-10-18 — SQL: `docs/sql/2026-10-18_drop_backup_tables.sql` · ห้ามใช้ลำดับของ id หาค่าล่าสุด ให้ใช้คอลัมน์เวลา
@@ -107,7 +108,8 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `trip_id` | uuid | NOT NULL | FK → `trips` CASCADE · UNIQUE (`trip_id`, `place_id`) |
 | `place_id` | uuid | NOT NULL | FK → `places` CASCADE |
 | `category_score` | numeric | | (D-48: null = ผู้ใช้ไม่ได้เลือกหมวด · 1 = ตรงหมวด · 0 = หมวดอื่นที่เติมเข้ามา — ✅ ผู้ใช้รัน `docs/sql/2026-10-25_poi_category_score_nullable.sql` แล้ว 2026-10-25 — Claude ตรวจ: ทริปทดสอบที่ไม่เลือกหมวดบันทึก null ได้ 50 แถว) |
-| `rating_score` / `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
+| `rating_score` | numeric | | null = สถานที่ไม่มี rating ไม่ได้คิดในสูตร (D-57) — ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว 2026-10-27 (ก่อนรัน: NOT NULL default `0`) |
+| `distance_score` / `poi_score` | numeric | NOT NULL | `0` |
 | `budget_score` | numeric | | price score `1 − ราคา ÷ งบต่อคนต่อวัน` · null = ไม่ได้ตั้งงบหรือไม่ทราบราคา (D-52) |
 | `weather_score` | numeric | NOT NULL | `1` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
@@ -123,7 +125,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `price_level` | int4 | | CHECK 0..4 · โค้ดของเราเลิกใช้แล้ว (D-52) เหลือแค่ Auto Trip — รอลบหลังกิ่งย้ายไปใช้ priceRange |
 | `price_range_start` / `price_range_end` | numeric | | CHECK >= 0 · ราคาต่อคน (บาท, THB เท่านั้น) จาก Places API (New) `priceRange` (น่าน 6 แห่งเติมด้วย SQL · จังหวัดใหม่เติมตอนนำเข้าใน admin) · end ว่าง = ช่วงแบบ "มากกว่า X" (D-52 — `docs/sql/2026-10-26_places_price_range.sql`) |
 | `user_ratings_total` | int4 | | |
-| `opening_hours` | jsonb | | (รูปแบบ Google `periods`/`weekday_text`) |
+| `opening_hours` | jsonb | | รูปแบบ Google `{ periods, open_now, weekday_text }` · `periods[].open/close` = `{ day: 0=อาทิตย์..6=เสาร์, time: "HHMM" }` · เปิด 24 ชม. = มี period เดียวที่ไม่มี `close` · วันที่ปิด = ไม่มี period ของวันนั้น · เปิดข้ามเที่ยงคืน = `close.day` เป็นวันถัดไป · วันเดียวมีได้หลายช่วง · ไม่มี `periods` = ไม่ทราบเวลา (D-10) · อ่านโดย `utils/openingHoursChecker.ts` (+ mirror frontend) |
 | `formatted_address`, `province`, `district`, `phone_number`, `website` | text | | |
 | `att_id`, `att_type_label`, `att_category_label`, `att_detail_th` | text | | มาจาก `attraction.csv` · `att_type_label` FK → `category_labels.att_type_label` + index `idx_places_att_type_label` (P5b 2026-10-22) |
 | `att_facebook`, `att_instagram`, `att_tiktok`, `att_youtube`, `att_line` | text | | มาจาก `attraction.csv` |

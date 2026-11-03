@@ -7,10 +7,10 @@ interface AdminTool {
   title: string;
   description: string;
   icon: LucideIcon;
-  to?: string; // ไม่มี = ยังไม่เปิดใช้
+  to: string;
 }
 
-// เครื่องมือตาม D-24/D-26 — ตรวจสถานที่ซ้ำและนำเข้าทำทีละจังหวัด (เลือกจากหน้ารายชื่อจังหวัด)
+// ตรวจสถานที่ซ้ำและนำเข้าทำทีละจังหวัด (เลือกจากหน้ารายชื่อจังหวัด)
 const TOOLS: AdminTool[] = [
   {
     title: "ตรวจสอบสถานที่และนำเข้าข้อมูล",
@@ -45,15 +45,9 @@ export default function AdminDashboard() {
           <button
             key={title}
             type="button"
-            disabled={!to}
-            onClick={() => to && navigate(to)}
+            onClick={() => navigate(to)}
             className="relative text-left flex flex-col gap-3 p-5 rounded-2xl bg-white border border-[color:var(--line)] [box-shadow:var(--shadow)] transition-colors enabled:hover:bg-[color:var(--sky-soft)] enabled:cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {!to && (
-              <span className="absolute top-4 right-4 font-prompt text-xs font-medium px-2 py-1 rounded-full bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
-                เร็วๆ นี้
-              </span>
-            )}
             <span className="w-11 h-11 rounded-xl flex items-center justify-center bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
               <Icon size={22} strokeWidth={1.75} />
             </span>

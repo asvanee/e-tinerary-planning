@@ -42,3 +42,24 @@ export function errorMessage(err: unknown): string {
   if (err instanceof AdminApiError) return err.message;
   return "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้";
 }
+
+// โหลดข้อมูลใน useEffect: useEffect(() => loadAdmin(path, token, onData, onError), [...])
+// คืนฟังก์ชัน cleanup — ผลที่กลับมาหลัง deps เปลี่ยนหรือออกจากหน้าแล้วจะถูกทิ้ง
+export function loadAdmin<T>(
+  path: string,
+  token: string | undefined,
+  onData: (data: T) => void,
+  onError: (message: string) => void
+): () => void {
+  let ignore = false;
+  adminRequest<T>(path, token)
+    .then((data) => {
+      if (!ignore) onData(data);
+    })
+    .catch((err) => {
+      if (!ignore) onError(errorMessage(err));
+    });
+  return () => {
+    ignore = true;
+  };
+}

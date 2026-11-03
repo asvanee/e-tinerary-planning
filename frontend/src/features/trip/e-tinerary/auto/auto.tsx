@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
+import { errorText } from "../../../../system/errorText";
 import AutoTripDurationForm from "../../recommendations/AutoTripDurationForm";
 import type {
   AutoTripResponse,
@@ -26,8 +27,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
-// ---------- Style constants (ใช้ token จาก global.css ชุดเดียวกับหน้า TripDetail) ----------
-
 const cardClass = "bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)]";
 
 const primaryBtn =
@@ -39,8 +38,37 @@ const secondaryBtn =
 const ghostBtn =
   "font-prompt font-medium min-h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200 whitespace-nowrap";
 
-// ---------- Main page ----------
+// "2026-11-10" -> "10 พฤศจิกายน 2569" (อ่านไม่ได้คืนค่าเดิม)
+function formatDate(date?: string) {
+  if (!date) return "";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+}
 
+// นาที -> "45 นาที" / "1 ชม. 30 นาที"
+function formatDuration(minutes?: number | null) {
+  if (minutes == null) return "-";
+  if (minutes < 60) return `${minutes} นาที`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins === 0 ? `${hours} ชม.` : `${hours} ชม. ${mins} นาที`;
+}
+
+function formatDistance(distance?: number | null) {
+  if (distance == null) return "-";
+  return `${Number(distance).toFixed(1)} กม.`;
+}
+
+function openGoogleMaps(latitude: number, longitude: number) {
+  window.open(
+    `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
+
+// หน้า Auto Trip: กรอกเวลาเที่ยวต่อหมวด → ระบบจัดแผน → ยืนยันบันทึก หรือส่งต่อไปแก้ในหน้า editor
 export default function AutoTrip() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -93,7 +121,6 @@ export default function AutoTrip() {
     return visibleDays.flatMap((day) => day.stops);
   }, [visibleDays]);
 
-  // ---- สรุปทั้งทริป ----
   const totalPlaces = allStops.length;
   const totalDays = visibleDays.length;
   const totalDistance = visibleDays.reduce(
@@ -120,65 +147,11 @@ export default function AutoTrip() {
     [visibleDays]
   );
 
-  // ---- format ----
-  const formatDate = (date?: string) => {
-    if (!date) {
-      return "";
-    }
-
-    const parsed = new Date(date);
-
-    if (Number.isNaN(parsed.getTime())) {
-      return date;
-    }
-
-    return parsed.toLocaleDateString("th-TH", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
-  const formatDuration = (minutes?: number | null) => {
-    if (minutes == null) {
-      return "-";
-    }
-
-    if (minutes < 60) {
-      return `${minutes} นาที`;
-    }
-
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-
-    if (mins === 0) {
-      return `${hours} ชม.`;
-    }
-
-    return `${hours} ชม. ${mins} นาที`;
-  };
-
-  const formatDistance = (distance?: number | null) => {
-    if (distance == null) {
-      return "-";
-    }
-
-    return `${Number(distance).toFixed(1)} กม.`;
-  };
-
-  // ---- actions ----
-  const openGoogleMaps = (latitude: number, longitude: number) => {
-    window.open(
-      `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
-
   const handleBack = () => {
     navigate(`/trip/${tripId}/recommendations`);
   };
 
+  // ส่งแผนนี้ไปแก้ต่อในหน้า editor (ต้องสร้าง draft ก่อนเพื่อได้ trip_day_id และ travel matrix)
   const handleEditTrip = async () => {
     if (!tripId || !session) return;
 
@@ -278,15 +251,14 @@ export default function AutoTrip() {
     } catch (err) {
       console.error("Prepare Auto Trip editor error:", err);
       setEditError(
-        (err as { message?: string } | null)?.message ||
-          "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ"
+        errorText(err, "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ")
       );
     } finally {
       setEditing(false);
     }
   };
 
-  // บันทึกผ่าน PUT /api/itinerary/trips/:tripId (backend re-validate ซ้ำก่อนบันทึก)
+  // บันทึกแผน — backend คำนวณและตรวจซ้ำก่อนบันทึก
   const handleConfirmTrip = async () => {
     if (!data || !tripId || !session) {
       return;
@@ -296,7 +268,7 @@ export default function AutoTrip() {
     setSaveMessage(null);
 
     try {
-      // 1. trip_days ของทริป (GET /api/itinerary/trips/:tripId คืน tripDays เรียงตาม dayNumber)
+      // trip_days ของทริป (เรียงตาม dayNumber)
       const itineraryResponse = await fetch(`/api/itinerary/trips/${tripId}`, {
         method: "GET",
         headers: {
@@ -326,7 +298,7 @@ export default function AutoTrip() {
         throw new Error("ไม่พบข้อมูลวันเดินทางของทริปนี้ใน Supabase");
       }
 
-      // 2. payload: วันใน Auto Trip ใช้เลขวันจริง ซึ่งอาจข้ามวันที่ไม่มีสถานที่
+      // วันใน Auto Trip ใช้เลขวันจริง ซึ่งอาจข้ามวันที่ไม่มีสถานที่
       const days =
         visibleDays.map((day) => {
           const tripDayId = tripDays[day.day - 1]?.tripDayId;
@@ -339,7 +311,7 @@ export default function AutoTrip() {
             trip_day_id: tripDayId,
             place_ids: day.stops.map((stop) => stop.place_id),
           };
-        }) ?? [];
+        });
 
       if (days.length === 0) {
         throw new Error("ไม่มีข้อมูลวันที่ต้องการบันทึก");
@@ -349,7 +321,6 @@ export default function AutoTrip() {
         allStops.map((stop) => [stop.place_id, stop.duration_min])
       );
 
-      // 3. บันทึก
       const response = await fetch(`/api/itinerary/trips/${tripId}`, {
         method: "PUT",
         headers: {
@@ -377,7 +348,7 @@ export default function AutoTrip() {
       console.error("❌ SAVE AUTO TRIP ERROR:", err);
 
       setSaveMessage(
-        (err as { message?: string } | null)?.message || "บันทึกแผนเดินทางไม่สำเร็จ"
+        errorText(err, "บันทึกแผนเดินทางไม่สำเร็จ")
       );
     } finally {
       setSaving(false);
@@ -450,7 +421,6 @@ export default function AutoTrip() {
           กลับสถานที่แนะนำ
         </button>
 
-        {/* ---- Header ---- */}
         <section className={`${cardClass} px-6 sm:px-8 py-6 mb-6`}>
           <span className="inline-flex items-center gap-1.5 text-xs font-prompt font-medium px-2.5 py-1 rounded-full border bg-white mb-3 text-[color:var(--navy)] border-[color:var(--sky)]">
             <Sparkles size={14} strokeWidth={1.75} />
@@ -463,7 +433,6 @@ export default function AutoTrip() {
             ระบบจัดลำดับสถานที่ให้โดยอัตโนมัติ โดยคำนึงถึงระยะทาง เวลา และข้อจำกัดของทริป
           </p>
 
-          {/* Actions */}
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
             <button
               onClick={handleConfirmTrip}
@@ -500,7 +469,7 @@ export default function AutoTrip() {
             </button>
           </div>
 
-          {/* ⚠️ "ไม่สำเร็จ" ก็มีคำว่า "สำเร็จ" จึงเป็นสีเขียวด้วย (Known Issue #32) */}
+          {/* ⚠️ ข้อความ "ไม่สำเร็จ" ก็มีคำว่า "สำเร็จ" จึงขึ้นสีเขียวด้วย (bug ที่ยังไม่แก้) */}
           {saveMessage && (
             <p
               role="status"
@@ -524,7 +493,6 @@ export default function AutoTrip() {
           )}
         </section>
 
-        {/* ---- สรุปตัวเลข ---- */}
         <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {stats.map(({ icon: Icon, value, label }) => (
             <li key={label} className={`${cardClass} px-3 py-4 text-center`}>
@@ -535,7 +503,6 @@ export default function AutoTrip() {
           ))}
         </ul>
 
-        {/* ---- เลือกวัน ---- */}
         <div role="tablist" aria-label="เลือกวัน" className="flex flex-wrap gap-2 mb-4">
           {visibleDays.map((day, index) => {
             const stops = getDayStops(index);
@@ -564,7 +531,6 @@ export default function AutoTrip() {
           })}
         </div>
 
-        {/* ---- แผนที่ทุกวัน ใช้ Leaflet + OSM + ORS Directions ร่วมกับหน้า editor ---- */}
         <div className="mb-6">
           <RouteMap
             startLat={data.start_lat}
@@ -573,7 +539,6 @@ export default function AutoTrip() {
           />
         </div>
 
-        {/* ---- กำหนดการของวันที่เลือก ---- */}
         <section className={`${cardClass} px-5 sm:px-6 py-5`}>
           <div className="mb-4 flex items-baseline justify-between flex-wrap gap-2">
             <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
@@ -607,7 +572,6 @@ export default function AutoTrip() {
               const isLast = index === currentStops.length - 1;
               return (
                 <div key={`${stop.place_id}-${index}`} className="relative pl-11">
-                  {/* จุดกลม + เส้นแนวตั้งของ timeline */}
                   <div className="absolute left-0 top-0 flex flex-col items-center h-full">
                     <span className="w-8 h-8 rounded-full bg-[color:var(--navy)] text-white text-sm font-prompt font-semibold flex items-center justify-center shrink-0">
                       {index + 1}
@@ -615,7 +579,6 @@ export default function AutoTrip() {
                     {!isLast && <span className="w-px flex-1 bg-[color:var(--line)] mt-1" />}
                   </div>
 
-                  {/* การเดินทางจากจุดก่อนหน้ามาถึงที่นี่ */}
                   <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 w-fit max-w-full rounded-full bg-[color:var(--sky-soft)] px-3.5 py-1.5 text-sm">
                     <Car size={16} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
                     <span className="text-[color:var(--navy)]">เดินทางจาก: {stop.previous_place_name}</span>

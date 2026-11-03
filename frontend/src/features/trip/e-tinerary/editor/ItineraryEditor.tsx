@@ -26,7 +26,9 @@ import {
 } from "lucide-react";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
+import { errorText } from "../../../../system/errorText";
 import RouteMap from "../components/RouteMap";
+import ConflictBadges from "../../components/ConflictBadges";
 import {
   buildDayItems,
   type DayAssignment,
@@ -47,8 +49,6 @@ import {
 } from "../../lib/format";
 import { openIntervalsForDay } from "../../lib/openingDays";
 
-// ---------- Types ----------
-
 interface PlaceInfo {
   place_id: string;
   place_name: string;
@@ -57,10 +57,9 @@ interface PlaceInfo {
   latitude: number;
   longitude: number;
   rating: number | null;
-  // priceRange ต่อคน (บาท) จาก Google — D-52 · optional เผื่อ state เก่าที่ยังไม่มี field นี้
+  // ช่วงราคาต่อคน (บาท) — optional เผื่อ state เก่าที่ยังไม่มี field นี้
   price_range_start?: number | null;
   price_range_end?: number | null;
-  // ใช้ตัดสิน cost ใน itineraryBuilder.ts::getPlaceCost — null ได้เผื่อ category ไม่ครบ (ไม่ควรเกิดจริง)
   price_nature: PriceNature | null;
   formatted_address: string | null;
   phone_number?: string | null;
@@ -84,7 +83,6 @@ interface DraftTripDay {
   startTime: string | null;
   endTime: string | null;
   dailyBudget: number | null;
-  // ส่งต่อเข้า DayAssignment ตอน recompute ให้ isBudgetConflict ตรงกับ backend
   useBudget: boolean;
 }
 
@@ -94,8 +92,7 @@ interface DraftResponse {
   tripStartLng: number;
   tripDays: DraftTripDay[];
   items: ItineraryItemResult[];
-  // ระยะทาง/เวลาเดินทางตามถนน (ORS + fallback รายคู่) จาก backend — buildDayItems lookup จากนี้ตอนลาก
-  // ไม่ยิง ORS เอง (มี key __trip_start__ สำหรับ leg แรกของ Day 1)
+  // ระยะทาง/เวลาเดินทางทุกคู่จาก backend — ตอนลากคำนวณจากนี้ ไม่ยิง ORS เอง
   travelMatrix: TravelMatrix;
 }
 
@@ -103,26 +100,30 @@ interface LocationState {
   tripId: string;
   draft: DraftResponse;
   places: MergedPlace[];
-  // เวลาที่เคยกรอกไว้ (มาจาก TripDetail ตอนแก้แผนเดิม) — { [placeId]: นาที }
+  // เวลาที่เคยกรอกไว้ตอนแก้แผนเดิม — { [placeId]: นาที }
   visitDurations?: Record<string, number>;
 }
 
 const UNASSIGNED_KEY = "unassigned";
 
-// ref คงที่ กัน useMemo recompute โดยไม่จำเป็นเมื่อ router state ไม่มีค่า (เช่น state เก่า หรือรอ redirect)
+// ค่าว่างแบบ ref คงที่ กัน useMemo คำนวณใหม่โดยไม่จำเป็นตอนไม่มี router state
 const EMPTY_TRAVEL_MATRIX: TravelMatrix = {};
 const EMPTY_TRIP_DAYS: DraftTripDay[] = [];
 const EMPTY_PLACES: MergedPlace[] = [];
+
+// จุดที่ทำให้ยืนยันแผนไม่ได้ (กฎเดียวกับ backend) — "ไม่ทราบเวลา/ราคา" ไม่นับ
+const isProblem = (i: ItineraryItemResult) =>
+  i.isClosedConflict || i.isTimeConflict || i.isBudgetConflict;
 
 function dayKey(tripDayId: string) {
   return `day-${tripDayId}`;
 }
 
-// เวลาที่จะอยู่ต้องเป็นจำนวนเต็ม 1–1440 นาที — ช่วงเดียวกับ backend/src/features/itinerary/visitDurations.ts
+// เวลาที่จะอยู่ต้องเป็นจำนวนเต็ม 1–1440 นาที (ช่วงเดียวกับ backend visitDurations.ts)
 const MIN_VISIT_DURATION_MIN = 1;
 const MAX_VISIT_DURATION_MIN = 1440;
 
-/** ข้อความในช่องกรอก -> นาที · ว่างหรือไม่ถูกต้อง = null (ถือว่ายังไม่กรอก) */
+// ข้อความในช่องกรอก -> นาที · ว่างหรือไม่ถูกต้อง = null (ถือว่ายังไม่กรอก)
 function parseVisitDuration(text: string | undefined): number | null {
   if (!text || !/^\d+$/.test(text.trim())) return null;
   const minutes = Number(text.trim());
@@ -135,9 +136,8 @@ const cardClass =
 const primaryBtn =
   "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 whitespace-nowrap";
 
-// ---------- แยกเหตุผลที่ "ไม่อยู่ในเวลาเปิด" ----------
-// ใช้ periods ชุดเดียวกับ openingHoursChecker.ts แต่บอกเหตุผลละเอียดขึ้น:
-// ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่ — คำนวณเพื่อแสดงผลเท่านั้น ไม่กระทบ flag
+// เหตุผลที่ "ไม่อยู่ในเวลาเปิด" แบบละเอียด: ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่
+// ใช้แสดงผลเท่านั้น ไม่กระทบ conflict flag
 
 function fmtMin(m: number): string {
   const x = ((m % 1440) + 1440) % 1440;
@@ -186,55 +186,8 @@ function describeClosure(
   };
 }
 
-// ---------- Conflict badges ----------
-// ปัญหาที่ต้องระวัง (ปิด/เวลาไม่พอ/งบเกิน) ใช้สีแดง ส่วน "ไม่ทราบข้อมูล" ใช้สีกลาง
-
-function ConflictBadges({
-  item,
-  closedLabel,
-}: {
-  item: ItineraryItemResult;
-  closedLabel?: string;
-}) {
-  const badges: { label: string; warn: boolean }[] = [];
-
-  if (item.isClosedConflict) badges.push({ label: closedLabel ?? "ไม่อยู่ในเวลาเปิด", warn: true });
-  if (item.isTimeConflict) badges.push({ label: "เวลาไม่พอ", warn: true });
-  if (item.isBudgetConflict) badges.push({ label: "งบเกิน", warn: true });
-  if (item.isHoursUnknown) badges.push({ label: "ไม่ทราบเวลาเปิด-ปิด", warn: false });
-  // "ไม่ทราบราคา" ≠ "เกินงบ" — แยกให้ผู้ใช้เห็นความต่าง
-  if (item.isCostUnknown) badges.push({ label: "ไม่ทราบราคา", warn: false });
-
-  if (badges.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
-      {badges.map((b) => (
-        <span
-          key={b.label}
-          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-white ${
-            b.warn
-              ? "text-[color:var(--danger)] border-[color:var(--danger)]"
-              : "text-[color:var(--muted)] border-[color:var(--line)]"
-          }`}
-        >
-          {b.warn ? (
-            <TriangleAlert size={12} strokeWidth={1.75} />
-          ) : (
-            <Info size={12} strokeWidth={1.75} />
-          )}
-          {b.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ---------- Sortable card ----------
-// ลากได้ที่ไอคอนจับด้านซ้ายเท่านั้น (ส่วนอื่นของการ์ดเลื่อนหน้าจอบนมือถือได้ตามปกติ)
-// เดสก์ท็อป (lg ขึ้นไป): ลากอย่างเดียว (รองรับคีย์บอร์ดที่ไอคอนจับ)
-// จอเล็ก/มือถือ: มีปุ่มจัดลำดับ/ย้ายวัน/เอาออก ซ่อนอยู่หลังปุ่มลูกศรสลับ (กดเพื่อเปิด/ปิด)
-
+// การ์ดสถานที่ — ลากได้ที่ไอคอนจับด้านซ้ายเท่านั้น (ส่วนอื่นเลื่อนหน้าจอบนมือถือได้ตามปกติ)
+// จอเล็กมีปุ่มจัดลำดับ/ย้ายวัน/เอาออก ซ่อนหลังปุ่มลูกศรสลับ
 function PlaceCard({
   placeId,
   placeInfo,
@@ -359,7 +312,6 @@ function PlaceCard({
             </span>
           )}
 
-          {/* placeCost เป็น null ได้ — ไม่ทราบราคาต้องบอกตรงๆ ไม่ใช่ "0 ฿" */}
           <span className="flex items-center gap-1">
             <Wallet size={13} strokeWidth={1.75} className="shrink-0" />
             {item.isCostUnknown ? (
@@ -398,7 +350,9 @@ function PlaceCard({
         </label>
       )}
 
-      {item && <ConflictBadges item={item} closedLabel={closure?.label} />}
+      {item && (
+        <ConflictBadges item={item} closedLabel={closure?.label ?? "ไม่อยู่ในเวลาเปิด"} className="mt-2" />
+      )}
 
       {item?.isClosedConflict && (
         <p className="mt-2 text-xs text-[color:var(--danger)]">
@@ -475,8 +429,6 @@ function PlaceCard({
   );
 }
 
-// ---------- Droppable column wrapper ----------
-
 function DroppableColumn({
   id,
   grid,
@@ -502,13 +454,12 @@ function DroppableColumn({
   );
 }
 
-// ---------- Main page ----------
-
+// หน้าจัดแผน: ลากสถานที่ลงวัน กรอกเวลาที่อยู่ คำนวณเวลา/งบ/conflict ทันที แล้วยืนยันบันทึก
 export default function ItineraryEditor() {
   const { tripId: tripIdParam } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
+  const { session } = useAuth();
 
   const state = location.state as LocationState | null;
 
@@ -516,7 +467,7 @@ export default function ItineraryEditor() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  // ข้อความในช่อง "เวลาที่อยู่" ต่อสถานที่ (D-36 — ไม่มีค่าเริ่มต้น) · แผนเดิมใส่ค่าที่เคยกรอกไว้ให้
+  // ข้อความในช่อง "เวลาที่อยู่" ต่อสถานที่ (ไม่มีค่าเริ่มต้น) · แผนเดิมใส่ค่าที่เคยกรอกไว้ให้
   const [durationInputs, setDurationInputs] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       Object.entries(state?.visitDurations ?? {}).map(([placeId, minutes]) => [placeId, String(minutes)])
@@ -533,7 +484,7 @@ export default function ItineraryEditor() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // ---- init containers จาก draft (ครั้งเดียวตอน mount) ----
+  // จัดสถานที่ลงวันตาม draft ครั้งเดียวตอนเปิดหน้า
   useEffect(() => {
     if (!state?.draft) return;
 
@@ -567,7 +518,6 @@ export default function ItineraryEditor() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
     if (!session) {
       navigate("/login");
       return;
@@ -577,7 +527,7 @@ export default function ItineraryEditor() {
       navigate(`/trip/${tripIdParam ?? ""}/recommendations`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, session]);
+  }, [session]);
 
   const placesById = useMemo(() => {
     const map = new Map<string, PlaceInput>();
@@ -587,12 +537,9 @@ export default function ItineraryEditor() {
         placeId: p.placeId,
         latitude: p.place.latitude,
         longitude: p.place.longitude,
-        // ราคาดิบ ไม่เดา — getPlaceCost() ใน itineraryBuilder.ts ตัดสินราคาเอง
         priceRangeStart: p.place.price_range_start ?? null,
         priceRangeEnd: p.place.price_range_end ?? null,
-        // priceNature ไม่ควรเป็น null จริงในทางปฏิบัติ (categories!inner บังคับมีเสมอฝั่ง backend)
-        // แต่ fallback เป็น "paid" กันไว้เผื่อข้อมูลผิดปกติ — เลือกฝั่งนี้เพราะ
-        // "ไม่รู้ว่าฟรีไหม" ควรถือว่าไม่ฟรีไว้ก่อน (ปลอดภัยกับ isBudgetConflict มากกว่าเดาว่าฟรี)
+        // ไม่รู้หมวด = ถือว่าเสียเงิน (ห้ามเดาว่าฟรี)
         priceNature: p.place.price_nature ?? "paid",
         openingHours: p.place.opening_hours ?? null,
         visitDurationMin: parseVisitDuration(durationInputs[p.placeId]),
@@ -609,7 +556,7 @@ export default function ItineraryEditor() {
     return map;
   }, [places]);
 
-  // ---- recompute ทุกวันทุกครั้งที่ containers เปลี่ยน (client-side, ไม่รอ network) ----
+  // คำนวณทุกวันใหม่ทุกครั้งที่จัดเปลี่ยน (ในเครื่อง ไม่รอ network)
   const computedByDay = useMemo(() => {
     const result: Record<string, ItineraryItemResult[]> = {};
     for (const day of tripDaysMeta) {
@@ -639,13 +586,12 @@ export default function ItineraryEditor() {
     return map;
   }, [computedByDay]);
 
-  // สถานที่ที่จัดลงวันแล้ว (ส่งไปบันทึก) และตัวที่ยังไม่กรอกเวลาที่อยู่ — ยืนยันแผนไม่ได้จนกว่าจะครบ (D-36)
+  // สถานที่ที่จัดลงวันแล้ว และตัวที่ยังไม่กรอกเวลาที่อยู่ — ยืนยันแผนไม่ได้จนกว่าจะครบ
   const placedIds = tripDaysMeta.flatMap((day) => containers[dayKey(day.tripDayId)] ?? []);
   const missingDurationIds = placedIds.filter(
     (placeId) => parseVisitDuration(durationInputs[placeId]) === null
   );
 
-  // ---- ข้อมูลสำหรับ RouteMap: รวม lat/lng + ชื่อสถานที่เข้ากับผลคำนวณแล้ว (visitOrder) ----
   const mapDays = useMemo(() => {
     return tripDaysMeta.map((day) => {
       const key = dayKey(day.tripDayId);
@@ -713,17 +659,7 @@ export default function ItineraryEditor() {
     });
   }
 
-  function handleRemoveFromDay(placeId: string, fromKey: string) {
-    if (fromKey === UNASSIGNED_KEY) return;
-    setContainers((prev) => {
-      const next = { ...prev };
-      next[fromKey] = prev[fromKey].filter((id) => id !== placeId);
-      next[UNASSIGNED_KEY] = [...prev[UNASSIGNED_KEY], placeId];
-      return next;
-    });
-  }
-
-  // ย้ายสถานที่ไปอีกวัน/คลัง โดยไม่ต้องลาก (ต่อท้ายลิสต์ปลายทาง) — state shape เดิม ไม่กระทบ payload
+  // ย้ายสถานที่ไปอีกวัน/คลังโดยไม่ต้องลาก (ต่อท้ายลิสต์ปลายทาง)
   function movePlace(placeId: string, toKey: string) {
     setContainers((prev) => {
       const fromKey = Object.keys(prev).find((k) => prev[k].includes(placeId));
@@ -751,10 +687,8 @@ export default function ItineraryEditor() {
   async function handleConfirm() {
     if (!session || !tripId) return;
 
-    // กันซ้ำกับปุ่มที่ disable ไว้ — ห้ามบันทึกแผนที่ยังมีจุดขัดแย้ง (ปิด / เวลาไม่พอ / งบเกิน)
-    const hasConflict = Object.values(computedByDay)
-      .flat()
-      .some((i) => i.isClosedConflict || i.isTimeConflict || i.isBudgetConflict);
+    // กันซ้ำกับปุ่มที่ disable ไว้
+    const hasConflict = Object.values(computedByDay).flat().some(isProblem);
     if (hasConflict || missingDurationIds.length > 0) return;
 
     setSaving(true);
@@ -788,7 +722,7 @@ export default function ItineraryEditor() {
       navigate(`/trip/${tripId}/detail`);
     } catch (err) {
       console.error(err);
-      setSaveError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการบันทึกแผนเดินทาง");
+      setSaveError(errorText(err, "เกิดข้อผิดพลาดในการบันทึกแผนเดินทาง"));
     } finally {
       setSaving(false);
     }
@@ -814,8 +748,6 @@ export default function ItineraryEditor() {
   ];
 
   const placedCount = placedIds.length;
-  const isProblem = (i: ItineraryItemResult) =>
-    i.isClosedConflict || i.isTimeConflict || i.isBudgetConflict;
   const conflictCount = Object.values(computedByDay).flat().filter(isProblem).length;
 
   return (
@@ -866,7 +798,6 @@ export default function ItineraryEditor() {
             onDragEnd={handleDragEnd}
           >
             <div className="lg:col-span-3 flex flex-col gap-3">
-              {/* ---- คลังสถานที่ที่ยังไม่จัดวัน ---- */}
               <section className={`bg-white/60 border-2 border-dashed border-[color:var(--line)] rounded-2xl ${
                 unassignedIds.length === 0 ? "p-2.5" : "p-3"
               }`}>
@@ -899,7 +830,6 @@ export default function ItineraryEditor() {
                 </SortableContext>
               </section>
 
-              {/* ---- วันต่างๆ ---- */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                 {tripDaysMeta.map((day) => {
                   const key = dayKey(day.tripDayId);
@@ -962,7 +892,7 @@ export default function ItineraryEditor() {
                                 canDown={idx < items.length - 1}
                                 onShift={(delta) => shiftPlace(item.placeId, key, delta)}
                                 onMoveTo={(toKey) => movePlace(item.placeId, toKey)}
-                                onRemove={() => handleRemoveFromDay(item.placeId, key)}
+                                onRemove={() => movePlace(item.placeId, UNASSIGNED_KEY)}
                                 durationInput={durationInputs[item.placeId]}
                                 onDurationChange={(value) =>
                                   setDurationInputs((prev) => ({ ...prev, [item.placeId]: value }))
@@ -1000,7 +930,6 @@ export default function ItineraryEditor() {
         </div>
       </main>
 
-      {/* ---- แถบยืนยันแผน ---- */}
       <div className="fixed bottom-0 left-0 right-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-4">
           <div className={`${cardClass} px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>

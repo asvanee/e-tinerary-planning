@@ -1,4 +1,4 @@
-/** ข้อความของ error ที่ catch ได้ (รับ object ที่มี message) — undefined ถ้าไม่มี */
+// ดึงข้อความจาก error ที่ catch ได้ (ไม่มีคืน undefined)
 export function errorMessage(err: unknown): string | undefined {
   return (err as { message?: string } | null)?.message;
 }

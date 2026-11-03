@@ -1,9 +1,9 @@
 import type { OpeningHours } from "../../../utils/openingHoursChecker";
 
 /**
- * Google Places API (Legacy) — Find Place + Place Details (R5 P4, D-27/D-30)
- * ใช้ Legacy เพราะ key เดิมใช้ได้ และรูปแบบ opening_hours (periods/weekday_text) ตรงกับ openingHoursChecker.ts
- * + Places API (New) ขอแค่ priceRange (Legacy ไม่มี — D-52 · SKU Enterprise) ใน getDetails
+ * Google Places API (Legacy) — Find Place + Place Details
+ * ใช้ Legacy เพราะรูปแบบ opening_hours (periods/weekday_text) ตรงกับ openingHoursChecker.ts
+ * + Places API (New) ขอแค่ priceRange (Legacy ไม่มี) ใน getDetails
  * ⚠️ ทุก request มีค่าใช้จ่าย — test ต้องส่ง fetchFn ปลอมเข้ามาเสมอ ห้ามเรียกของจริง
  */
 
@@ -107,7 +107,7 @@ export function createGooglePlacesClient(apiKey: string, fetchFn: FetchFn = fetc
 
   /**
    * priceRange จาก Places API (New) — key ไม่มีสิทธิ์ (403) / โควต้าหมด (429) หยุดทั้ง job (แถวอื่นจะเจอเหมือนกัน)
-   * error อื่นนำเข้าต่อโดยไม่มีราคา (D-52)
+   * error อื่นนำเข้าต่อโดยไม่มีราคา
    */
   async function getPriceRange(placeId: string): Promise<{ start: number | null; end: number | null }> {
     const none = { start: null, end: null };

@@ -4,7 +4,7 @@ import { PlaceDecision } from "./reviewTypes";
 export const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
 /**
- * แปลงการตัดสินใจของ admin เป็นกฎ dedupe (แทน dedupeRules.ts ที่ hard code — D-26)
+ * แปลงการตัดสินใจของ admin เป็นกฎ dedupe
  * - merge       → forceMergeGroups (+ พิกัดที่กรอกเองตอน merge → locationOverrides ของแถวหลัก)
  * - separate    → blockedPairs ทุกคู่ในกลุ่ม ยกเว้นคู่ที่อยู่ใน merge เดียวกัน
  *                 (กลุ่ม 5 แถวที่ merge 2 แถว แล้วที่เหลือแยกกัน = merge 1 + separate 1)

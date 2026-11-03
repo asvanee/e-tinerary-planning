@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
+import { errorText } from "../../../system/errorText";
 import RouteMap from "../e-tinerary/components/RouteMap";
+import ConflictBadges from "../components/ConflictBadges";
 import {
   formatBaht,
   formatDistance,
@@ -30,22 +32,7 @@ import {
   CircleCheck,
 } from "lucide-react";
 
-/**
- * TripDetail.tsx — แผนการเดินทางที่ยืนยันแล้ว
- *
- * หน้าที่ user มาถึงหลังกด "ยืนยันแผน" ใน ItineraryEditor.tsx
- * Route: `/trip/:tripId/detail`
- *
- * ยิง 2 endpoint พร้อมกัน:
- * - GET /api/trips/:tripId              (tripController.ts::getTripById)      -> ข้อมูลสรุปทริป
- * - GET /api/itinerary/trips/:tripId    (itineraryController.ts::getSavedItinerary)
- *   -> trip_days + itinerary items ที่ "ยืนยันแล้ว" เท่านั้น (join places มาให้แล้วในคำตอบเดียว)
- * ทั้งสอง endpoint ต้อง requireAuth เหมือนกัน — ใช้ session.access_token จาก useAuth()
- * ไม่ได้อ่าน state จาก router (ต่างจาก ItineraryEditor.tsx) เพราะหน้านี้ต้องเข้าตรงๆ ได้
- * (refresh / มาจาก MyTrips) โดยไม่มี state ติดมาด้วย
- */
-
-// ---------- Types (ให้ตรงกับ ItineraryItemResult / PlaceInfo ที่ใช้จริงในโปรเจกต์) ----------
+// หน้ารายละเอียดทริป: สรุปทริป + แผนที่ยืนยันแล้ว (โหลดเองจาก tripId จึงเข้าตรงหรือ refresh ได้)
 
 interface ScheduleItem {
   placeId: string;
@@ -59,14 +46,13 @@ interface ScheduleItem {
   endTime: string | null;
   travelTimeFromPrev: number | null;
   distanceFromPrev: number | null;
-  placeCost: number | null; // null = ไม่ทราบราคา (paid ที่ไม่มี price_level จริง)
-  visitDurationMin: number | null; // เวลาที่ผู้ใช้กรอก (D-36) · null = แผนที่บันทึกก่อน P5f
+  placeCost: number | null; // null = ไม่ทราบราคา
+  visitDurationMin: number | null; // null = แผนที่บันทึกก่อนมีช่องกรอกเวลา
   isTimeConflict: boolean;
   isClosedConflict: boolean;
   isBudgetConflict: boolean;
   isHoursUnknown: boolean;
-  // getSavedItinerary() คิดจาก place_cost === null — แยก "ไม่ทราบราคา" ออกจาก "ฟรี/0 บาท"
-  isCostUnknown: boolean;
+  isCostUnknown: boolean; // แยก "ไม่ทราบราคา" ออกจาก "ฟรี"
 }
 
 interface TripDay {
@@ -78,91 +64,46 @@ interface TripDay {
 }
 
 interface TripSummary {
-  tripId: string;
-
   province: string;
-  city: string |null;
-
+  city: string | null;
   startDate: string;
   endDate: string;
-
   startTime: string;
-
   numberOfPeople: number;
-
   useBudget: boolean;
   totalBudget: number;
-
   budgetScope: string | null;
   budgetPeriod: string | null;
-
-  availableTimePerDay: number | null;
-
-  categories?: {
-      category_id: string;
-      category_name:string;
-  }[];
-
-  tripStartLat:number;
-  tripStartLng:number;
+  categories?: { category_id: string; category_name: string }[];
+  tripStartLat: number;
+  tripStartLng: number;
 }
 
-// ---------- Raw response types จาก backend (snake_case ตรงกับ DB) ----------
-
+// response ของ GET /api/trips/:tripId (ชื่อคอลัมน์ตาม DB)
 interface TripRow {
-  trip_id: string;
   province: string;
   district: string | null;
-
   start_date: string;
   end_date: string;
   start_time: string;
-
   number_of_people: number;
-
   use_budget: boolean;
   total_budget: number | null;
-
   budget_scope: string | null;
   budget_period: string | null;
-
-  available_time_per_day: number | null;
-
   start_lat: number;
   start_lng: number;
-
-  categories?: {
-      category_id: string;
-      category_name: string;
-  }[];
+  categories?: { category_id: string; category_name: string }[];
 }
 
-interface SavedItineraryItemRow {
-  placeId: string;
+// response ของ GET /api/itinerary/trips/:tripId — ข้อมูลสถานที่อาจเป็น null
+type SavedItineraryItemRow = Omit<ScheduleItem, "placeName" | "latitude" | "longitude"> & {
   placeName: string | null;
-  province: string | null;
-  district: string | null;
   latitude: number | null;
   longitude: number | null;
-  visitOrder: number;
-  startTime: string | null;
-  endTime: string | null;
-  travelTimeFromPrev: number | null;
-  distanceFromPrev: number | null;
-  placeCost: number | null; // place_cost เป็น nullable
-  visitDurationMin: number | null;
-  isTimeConflict: boolean;
-  isClosedConflict: boolean;
-  isBudgetConflict: boolean;
-  isHoursUnknown: boolean;
-  isCostUnknown: boolean;
-}
+};
 
-interface SavedItineraryDayRow {
-  tripDayId: string;
-  dayNumber: number;
-  visitDate: string;
-  dailyBudget: number | null;
+interface SavedItineraryDayRow extends Omit<TripDay, "items"> {
   items: SavedItineraryItemRow[];
 }
 
@@ -172,38 +113,24 @@ interface SavedItineraryResponse {
   tripDays: SavedItineraryDayRow[];
 }
 
-// mapper: TripRow (snake_case จาก GET /api/trips/:tripId) -> TripSummary ที่ component ใช้แสดงผล
 function mapTripRow(row: TripRow): TripSummary {
   return {
-    tripId: row.trip_id,
-
     province: row.province,
     city: row.district,
-
     startDate: row.start_date,
     endDate: row.end_date,
     startTime: row.start_time,
-
     numberOfPeople: row.number_of_people,
-
     useBudget: row.use_budget,
     totalBudget: row.total_budget ?? 0,
-
     budgetScope: row.budget_scope,
     budgetPeriod: row.budget_period,
-
-    availableTimePerDay: row.available_time_per_day,
-
     categories: row.categories ?? [],
-
     tripStartLat: row.start_lat,
     tripStartLng: row.start_lng,
-};
+  };
 }
 
-// mapper: SavedItineraryDayRow (จาก GET /api/itinerary/trips/:tripId) -> TripDay ที่ component ใช้
-// (แทบเหมือนกันอยู่แล้วเพราะ backend คืน camelCase มาให้ตรงกับ ItineraryItemResult เป๊ะ แค่ items
-// ต้องแปลงเป็น ScheduleItem — จริงๆ shape ตรงกันหมดเลย แยกไว้เผื่ออนาคต backend เปลี่ยน field)
 function mapSavedDay(row: SavedItineraryDayRow): TripDay {
   return {
     tripDayId: row.tripDayId,
@@ -232,8 +159,6 @@ function mapSavedDay(row: SavedItineraryDayRow): TripDay {
     })),
   };
 }
-
-// ---------- Helpers (formatter ที่ใช้ร่วมกับหน้าอื่นอยู่ใน ../lib/format) ----------
 
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
@@ -264,8 +189,6 @@ function budgetSuffix(scope: string | null, period: string | null): string {
   return parts.length ? ` (${parts.join(" · ")})` : "";
 }
 
-// ---------- Style constants (ใช้ token จาก global.css) ----------
-
 const cardClass =
   "bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)]";
 
@@ -278,48 +201,7 @@ const secondaryBtn =
 const ghostBtn =
   "font-prompt font-medium min-h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200 whitespace-nowrap";
 
-// ---------- Conflict badges ----------
-// ปัญหาที่ต้องระวัง (ปิด/เวลาไม่พอ/งบเกิน) ใช้สีแดง ส่วน "ไม่ทราบข้อมูล" ใช้สีกลาง
-
-function ConflictBadges({ item }: { item: ScheduleItem }) {
-  const badges: { label: string; warn: boolean }[] = [];
-
-  if (item.isClosedConflict) badges.push({ label: "ปิดแล้วช่วงนี้", warn: true });
-  if (item.isTimeConflict) badges.push({ label: "เวลาไม่พอ", warn: true });
-  if (item.isBudgetConflict) badges.push({ label: "งบเกิน", warn: true });
-  if (item.isHoursUnknown) badges.push({ label: "ไม่ทราบเวลาเปิด-ปิด", warn: false });
-  // "ไม่ทราบราคา" ≠ "เกินงบ" — แยกให้ผู้ใช้เห็นความต่าง
-  if (item.isCostUnknown) badges.push({ label: "ไม่ทราบราคา", warn: false });
-
-  if (badges.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap gap-1.5 mt-3">
-      {badges.map((b) => (
-        <span
-          key={b.label}
-          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-white ${
-            b.warn
-              ? "text-[color:var(--danger)] border-[color:var(--danger)]"
-              : "text-[color:var(--muted)] border-[color:var(--line)]"
-          }`}
-        >
-          {b.warn ? (
-            <TriangleAlert size={12} strokeWidth={1.75} />
-          ) : (
-            <Info size={12} strokeWidth={1.75} />
-          )}
-          {b.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ---------- Timeline card ----------
-
-// next = สถานที่ถัดไปในวันเดียวกัน — travelTimeFromPrev/distanceFromPrev ของ "next" คือช่วงเดินทาง
-// จากสถานที่นี้ไปหา next (ค่าของ item เองคือช่วงจากสถานที่ก่อนหน้ามาหา item จึงใช้แสดงตรงนี้ไม่ได้)
+// next = ที่ถัดไปในวันเดียวกัน — ช่วงเดินทางที่แสดงใต้การ์ดเป็นของ next (จากที่นี่ไปที่ถัดไป)
 function TimelineStop({
   item,
   next,
@@ -331,7 +213,6 @@ function TimelineStop({
 }) {
   return (
     <div className="relative pl-11">
-      {/* จุดกลม + เส้นแนวตั้งของ timeline */}
       <div className="absolute left-0 top-0 flex flex-col items-center h-full">
         <span className="w-8 h-8 rounded-full bg-[color:var(--navy)] text-white text-sm font-prompt font-semibold flex items-center justify-center shrink-0">
           {item.visitOrder}
@@ -356,8 +237,7 @@ function TimelineStop({
           {item.province ?? ""}
         </p>
 
-        {/* ต้องเช็ก isCostUnknown ก่อนเรียก formatBaht เพราะ placeCost เป็น null ได้
-            (ถ้า null แล้วเรียก toLocaleString จะ throw และทั้งหน้าจะว่างเปล่า) */}
+        {/* placeCost เป็น null ได้ ต้องเช็ค isCostUnknown ก่อน formatBaht ไม่งั้นหน้าพัง */}
         <p className="flex items-center gap-1.5 text-sm mt-1">
           <Wallet size={14} strokeWidth={1.75} className="shrink-0 text-[color:var(--muted)]" />
           {item.isCostUnknown ? (
@@ -374,7 +254,7 @@ function TimelineStop({
           )}
         </p>
 
-        <ConflictBadges item={item} />
+        <ConflictBadges item={item} closedLabel="ปิดแล้วช่วงนี้" className="mt-3" />
       </div>
 
       {next && (next.travelTimeFromPrev !== null || next.distanceFromPrev !== null) && (
@@ -396,25 +276,21 @@ function TimelineStop({
   );
 }
 
-// ---------- Main page ----------
-
 export default function TripDetail() {
   const { tripId: tripIdParam } = useParams();
   const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
+  const { session } = useAuth();
 
   const [trip, setTrip] = useState<TripSummary | null>(null);
   const [days, setDays] = useState<TripDay[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // state เฉพาะปุ่ม "แก้ไขเส้นทาง" — แยกจาก loadError หลัก เพราะเป็นคนละ error
-  // (โหลดหน้าไม่สำเร็จ vs กดปุ่มแล้วเตรียมข้อมูลไปหน้า editor ไม่สำเร็จ)
+  // error ของปุ่ม "แก้ไขเส้นทาง" แยกจาก error ตอนโหลดหน้า
   const [preparingEdit, setPreparingEdit] = useState(false);
   const [editActionError, setEditActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
     if (!session) {
       navigate("/login");
       return;
@@ -458,7 +334,7 @@ export default function TripDetail() {
       } catch (err) {
         if (!cancelled) {
           console.error(err);
-          setLoadError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการโหลดแผนการเดินทาง");
+          setLoadError(errorText(err, "เกิดข้อผิดพลาดในการโหลดแผนการเดินทาง"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -471,7 +347,7 @@ export default function TripDetail() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, session, tripIdParam]);
+  }, [session, tripIdParam]);
 
   const mapDays = useMemo(() => {
     if (!days) return [];
@@ -494,7 +370,7 @@ export default function TripDetail() {
     let places = 0;
     for (const day of days) {
       for (const item of day.items) {
-        // ไม่นับที่ "ไม่ทราบราคา" เข้ายอดรวม (เกณฑ์เดียวกับ itineraryBuilder.ts::cumulativeCost)
+        // ไม่ทราบราคาไม่นับเข้ายอดรวม (แบบเดียวกับ itineraryBuilder)
         cost += item.placeCost ?? 0;
         places += 1;
       }
@@ -502,23 +378,8 @@ export default function TripDetail() {
     return { cost, places };
   }, [days]);
 
-  /**
-   * กด "แก้ไขเส้นทาง"
-   *
-   * ItineraryEditor.tsx ต้องการ location.state.draft + .places เสมอ (ไม่มี fallback ดึงเองจาก
-   * tripId) จึงต้อง:
-   * 1) ดึง place_ids ทั้งหมดจาก itinerary ที่บันทึกไว้แล้ว (ทุกวันรวมกัน, unique)
-   * 2) ยิง GET /api/places?ids=... ใหม่ (เอาข้อมูลสถานที่ล่าสุด ไม่ใช้ของเก่าที่ cache ไว้ในหน้านี้
-   *    เพราะ field ที่ TripDetail ดึงมาจาก itinerary ไม่ครบเท่า PlaceInfo ที่ Editor ต้องใช้ เช่น
-   *    price_range_start/end, opening_hours)
-   * 3) ยิง POST /draft ซ้ำด้วยชุด place_ids เดิม (Editor คาดหวัง shape แบบ draft เสมอ)
-   *    draft ไม่จัดสถานที่ลงวัน (items = []) จึงแทน items ด้วยแผนที่บันทึกไว้ — Editor วางลงวันตาม
-   *    tripDayId + visitOrder (Known Issue #35)
-   * 4) navigate ไป editor พร้อม state ชุดเดียวกับที่ TripRecommendations.tsx ส่งให้
-   *    + visitDurations (เวลาที่เคยกรอกไว้ — D-36) ให้ editor ใส่ค่าเดิมให้
-   *
-   * ถ้ายังไม่มีสถานที่เลย (totals.places === 0) ไม่มีอะไรให้ "แก้" — พาไปหน้าเลือกสถานที่แทน
-   */
+  // "แก้ไขเส้นทาง": editor ต้องได้ state.draft + places เสมอ จึงโหลดข้อมูลสถานที่ล่าสุด + สร้าง draft ใหม่
+  // แล้วใส่แผนที่บันทึกไว้เป็น items (draft ไม่จัดลงวันให้) พร้อมเวลาที่เคยกรอก · ยังไม่มีสถานที่ = ไปหน้าเลือกสถานที่
   async function handleEditRoute() {
     if (!session || !tripIdParam || !days) return;
 
@@ -540,7 +401,6 @@ export default function TripDetail() {
         "Content-Type": "application/json",
       };
 
-      // GET /api/places?ids=... คืน { places: PlaceInfo[] } (snake_case ตรงกับ PlaceInfo ใน ItineraryEditor.tsx)
       const placesRes = await fetch(`/api/places?ids=${placeIds.join(",")}`, {
         headers: authHeader,
       });
@@ -589,7 +449,7 @@ export default function TripDetail() {
     } catch (err) {
       console.error(err);
       setEditActionError(
-        (err as { message?: string } | null)?.message || "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ"
+        errorText(err, "เตรียมข้อมูลไปหน้าแก้ไขเส้นทางไม่สำเร็จ")
       );
     } finally {
       setPreparingEdit(false);
@@ -646,7 +506,6 @@ export default function TripDetail() {
           กลับหน้าหลัก
         </button>
 
-        {/* ---- Header สรุปทริป ---- */}
         <section className={`${cardClass} px-6 sm:px-8 py-6 mb-6`}>
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-prompt font-medium px-2.5 py-1 rounded-full border bg-white mb-3 ${
@@ -711,7 +570,6 @@ export default function TripDetail() {
             </div>
           )}
 
-          {/* Actions */}
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
             <button
               onClick={handleEditRoute}
@@ -759,7 +617,6 @@ export default function TripDetail() {
           )}
         </section>
 
-        {/* ---- แผนที่รวมทุกวัน ---- */}
         <div className="mb-6">
           <RouteMap
             startLat={trip.tripStartLat}
@@ -768,7 +625,6 @@ export default function TripDetail() {
           />
         </div>
 
-        {/* ---- สรุปตัวเลข ---- */}
         <ul className="grid grid-cols-3 gap-3 mb-6">
           {stats.map(({ icon: Icon, value, label }) => (
             <li key={label} className={`${cardClass} px-3 py-4 text-center`}>
@@ -785,7 +641,6 @@ export default function TripDetail() {
           ))}
         </ul>
 
-        {/* ---- ตารางเวลารายวัน (timeline) ---- */}
         {totals.places === 0 ? (
           <div className="bg-white rounded-2xl border-2 border-dashed border-[color:var(--line)] px-6 py-12 flex flex-col items-center gap-3 text-center">
             <Compass

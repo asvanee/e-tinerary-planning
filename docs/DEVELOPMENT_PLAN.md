@@ -13,9 +13,10 @@
 ### R1. ตรวจสอบและแก้ไข POI Score — เร่งด่วน (README 1.1, ลำดับ 1)
 - **สถานะใน README:** ยังไม่เริ่มยืนยัน
 - **ไฟล์:** `backend/src/features/poi/poiScoreCalculator.ts` (`calculatePoiScore`, `WEIGHTS`, `computeWeights`), `backend/src/features/poi/poiController.ts` (เรียงคะแนนแล้วตัด `POI_RESULT_LIMIT = 50` = Top 50 — ประกาศใน `poiPlaceQueries.ts`), `backend/src/features/poi/poiPlaceQueries.ts` (`getFilteredPlaces`, `queryPlacesWithCategoryInfo` — ข้อมูลที่ป้อนเข้าสูตร)
-- **ข้อเท็จจริง:** weight ฐาน category 0.35 / rating 0.25 / distance 0.15 / budget 0.15 / weather 0.1 (renormalize เมื่อ `useBudget=false`)
+- **ข้อเท็จจริง (2026-11-04):** weight ฐาน category 0.1421 / rating 0.0869 / distance 0.1637 / budget 0.3926 / weather 0.2147 จาก AHP (renormalize มิติที่ไม่คิดในสูตร) · เดิม 0.35 / 0.25 / 0.15 / 0.15 / 0.1 (D-17)
 - **งาน T ที่ซ้อน:** T13 (unit test `poiScoreCalculator.ts`) · T5 (ความหมายของงบ มีผลกับ budget filter/score) · T7 (ถ้าโดน limit 1000 แถว สถานที่จะหายไปก่อนจัดอันดับ) · T8 (`explainWeatherScore`/debug log ใช้ช่วยตรวจได้ก่อนจะเก็บกวาด) · กลุ่ม 6 (sensitivity ของค่า MIXED)
 - ⚠️ เปลี่ยนสูตรคะแนนเป็นงานเสี่ยงตาม CLAUDE.md กฎข้อ 4 ต้องเสนอแนวทางก่อน
+- **✅ ทำแล้ว 2026-11-03 (D-56 — แทนที่ D-55 · `0ce75c1`):** `WEIGHTS` ใช้น้ำหนัก AHP จากผู้ตอบ 42 คน (eigenvector · รวมแบบ AIJ · ใช้ทุกคนแม้ CR ไม่ผ่านตาม Battistoni et al. 2013 และตรวจความคงที่ด้วย Compatibility Index) · สคริปต์ `backend/scripts/ahp/` + test เทียบตัวอย่างในเปเปอร์ · รายละเอียด `docs/AHP_POI_WEIGHTS.md` · งานต่อ: แก้เล่มรายงานตาม `docs/REPORT_REVISION.md`
 - **✅ ทำแล้ว 2026-10-25 (D-48 — category score ตรง 1 / ไม่ตรง 0 · เติมหมวดอื่นเมื่อไม่ถึง 50 · ไม่เลือกหมวด = ตัดออกจากสูตร) · แนวคิดเดิมจากผู้ใช้ (2026-10-22):** ตอนนี้กรองหมวดเป็น hard filter และ `category_score` = 1.0 ทุกที่ (P5c) ถ้าหมวดที่เลือกมีสถานที่ไม่ถึง Top 50 (เช่น ทริปน่านเลือก "จุดชมวิว" ได้ 11 แห่ง) ผลจะมีแค่นั้น · แนวคิด: ให้ `category_score` ทำงานตรงนี้ — สถานที่ตรงหมวดได้คะแนนหมวดเต็ม แล้วเติมสถานที่หมวดอื่นที่คะแนนหมวดต่ำกว่าจนครบ 50 (แทน hard filter / fallback แบบทั้งหมดหรือไม่มีเลย) · กระทบลำดับ filter ใน CLAUDE.md และ `categoryFallbackUsed` ต้องตัดสินพร้อม R1
 
 ### R2. แก้ไขพิกัดผิดและข้อมูลผิดจังหวัด — เร่งด่วน (README 1.2, ลำดับ 2)
@@ -201,8 +202,8 @@
 
 ## กลุ่ม 6 — งานเพิ่มเติมที่ไม่เร่งด่วน
 > ✂️ **ตัดออก 2026-10-22 (D-42) ทั้งกลุ่ม — เผื่ออนาคต**
-- Weather มิติอื่น (ความร้อน/UV/PM2.5) ตามที่ comment ใน `poiScoreCalculator.ts` ระบุว่าเป็นแนวทางพัฒนาต่อ
-- Sensitivity analysis ของค่า MIXED (0.3/0.5/0.7) ตามที่ comment ใน `poiScoreCalculator.ts` แนะนำ
+- Weather มิติอื่น (ความร้อน/UV/ลม/PM2.5) — แนวทางพัฒนาต่อ (`calculateWeatherScore` ดูแค่โอกาสฝน)
+- Sensitivity analysis ของค่า `RAIN_EXPOSURE.MIXED` (0.3/0.5/0.7) ใน `poiScoreCalculator.ts` — ค่า OUTDOOR 1 / MIXED 0.5 / INDOOR 0 ทีมกำหนดเอง ไม่มีมาตรฐานกลาง (เกณฑ์: ระหว่างทำกิจกรรมหลักส่วนใหญ่อยู่ในที่ที่ฝนตกใส่ได้ไหม)
 - ~~เขียน README จริง~~ — README.md เป็นแผนงานของทีมแล้ว (ดูกลุ่ม 0)
 
 ## ลำดับที่แนะนำ
@@ -216,6 +217,8 @@
 ✅ เสร็จแล้ว: B3 (`any` = 0 — grep `backend/src`, `frontend/src` 2026-10-22) · T8 · ✂️ ตัดออก: T3, T6, T9, T10, T11, T13, T14, T16 (ยกเว้นข้อ 2), T19, T20, T21, "T23" (#24/#25), กลุ่ม 6 · Known Issue #7, #8, #14, #22–27 · ⚠️ ถ้าจะ deploy จริง ต้องกลับมาดู #27 (RLS ปิด) ก่อนอย่างอื่น
 
 ✅ 2026-10-26 (push `c56517c`): T5 → D-51 งบต่อคนต่อวัน (`16c7ac4`) · D-52 ราคาจาก priceRange + price score เทียบงบต่อคน (`4fc8a3c`, SQL `docs/sql/2026-10-26_places_price_range.sql` รันแล้ว) · cleanup (`5dbf801`, `05513ab`, `57c2dc1`, `f5edd52`) · lint 0 (#18, `c56517c`) · ผู้ใช้ทดสอบหน้าเว็บผ่าน · ปัญหา Auto Trip #38–#43 ส่งกิ่งแล้ว
+
+✅ 2026-11-03: ลบ `docs/sql/` (13 ไฟล์) — ผู้ใช้ยืนยันว่ารันครบทุกไฟล์แล้ว · กู้ได้จาก git history ที่ `b9ed64c`
 
 ประวัติ:
 **อัปเดต 2026-10-17:** ผู้ใช้สั่งพักงานสูตร POI และส่วนที่เกี่ยวข้อง (R1, R3, T13 ส่วน POI, T5, กลุ่ม 6) จนกว่ากิ่งจะ research เสร็จ และเลือกเริ่ม R5 ก่อน · B4 (T13 ส่วนที่ไม่ใช่ POI + T14) และ B3 (`no-explicit-any`) พักไว้ ไม่ขวาง R

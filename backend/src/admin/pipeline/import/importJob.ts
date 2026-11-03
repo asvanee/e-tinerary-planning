@@ -10,7 +10,7 @@ export type ImportItemStatus =
   | "needs_review_not_found"
   | "needs_review_duplicate"
   | "error"
-  | "resolved"; // admin ตัดสินแถว needs_review แล้ว (P4c — resolveItem.ts)
+  | "resolved"; // admin ตัดสินแถว needs_review แล้ว (resolveItem.ts)
 
 // 1 แถวของ pipeline_job_items (item_id / created_at ให้ DB สร้าง)
 export interface ImportItem {
@@ -58,7 +58,7 @@ export const GOOGLE_DELAY_MS = 200;
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-// "ชื่อไทย อำเภอ จังหวัด" (ไม่มีชื่อไทยใช้ชื่ออังกฤษ) — D-30
+// คำค้นของ Find Place: "ชื่อไทย อำเภอ จังหวัด" (ไม่มีชื่อไทยใช้ชื่ออังกฤษ)
 export function buildSearchQuery(row: ImportRow["row"]): string {
   return [clean(row.ATT_NAME_TH) ?? clean(row.ATT_NAME_EN), clean(row.DISTRICT_NAME_TH), clean(row.PROVINCE_NAME_TH)]
     .filter(Boolean)
@@ -70,10 +70,10 @@ function errorText(err: unknown): string {
 }
 
 /**
- * รัน job นำเข้าทีละแถว (R5 P4):
+ * รัน job นำเข้าทีละแถว:
  * พิกัด CSV ใช้ไม่ได้ → error (ไม่เรียก Google) · Find Place → ไม่เจอ → needs_review_not_found
- * → เกณฑ์ D-33 (≤ 1 km + ชื่อคล้าย) ไม่ผ่าน → needs_review_mismatch · google_place_id ซ้ำ (ใน job นี้หรือใน places) → needs_review_duplicate
- * → ผ่าน → Details → insert places → imported (type จาก Google อยู่ใน places.gmaps_types — ไม่เขียน place_types แล้ว D-38)
+ * → เกณฑ์ (≤ 1 km + ชื่อคล้าย) ไม่ผ่าน → needs_review_mismatch · google_place_id ซ้ำ (ใน job นี้หรือใน places) → needs_review_duplicate
+ * → ผ่าน → Details → insert places → imported (type จาก Google เก็บใน places.gmaps_types)
  * แถวที่ error ไม่หยุด job ยกเว้น Google ตอบว่า key/โควต้าใช้ไม่ได้ (หยุดเป็น failed)
  * เช็ค cancel_requested ก่อนทุกแถว · ไม่ throw (ผลสุดท้ายบันทึกผ่าน store.finishJob)
  */

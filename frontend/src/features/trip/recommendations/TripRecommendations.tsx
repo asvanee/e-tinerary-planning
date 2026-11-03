@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
+import { errorText } from "../../../system/errorText";
 import RecommendationMap from "./RecommendationMap";
 import { categoryColor } from "./categoryColors";
 import type { MapFocus, MapPlace } from "./RecommendationMap";
@@ -15,23 +16,23 @@ import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
 import { DAY_NAMES_TH, formatVisitDate } from "../lib/format";
 import { closedTripDates, tripDates } from "../lib/openingDays";
 
-// ตรงกับ DistanceSource ฝั่ง backend (orsDistance.ts) — ors = ระยะทางถนนจริงทั้งหมด
+// ตรงกับ DistanceSource ของ backend (orsDistance.ts)
 type DistanceSource = "ors" | "haversine" | "mixed";
 
 interface PoiResult {
   placeId: string;
   categoryName: string;
-  // 1 = ตรงหมวดที่เลือก · 0 = หมวดอื่นที่เติมเข้ามา · null = ไม่ได้เลือกหมวด (D-48)
+  // 1 = ตรงหมวดที่เลือก · 0 = หมวดอื่นที่เติมเข้ามา · null = ไม่ได้เลือกหมวด
   categoryScore: number | null;
-  ratingScore: number;
+  ratingScore: number | null; // null = ไม่มี rating
   distanceScore: number;
   budgetScore: number | null;
   weatherScore: number;
   poiScore: number;
   placeCost: number | null;
   perPersonDailyBudget: number | null;
-  priceNature: "free" | "paid"; // ใช้บอกว่าหมวดนี้มักไม่มีค่าใช้จ่ายเมื่อไม่ทราบราคา
-  // แหล่งของระยะทางรายสถานที่ — ไม่มี = ใช้ distanceSource ระดับหน้าแทน
+  priceNature: "free" | "paid";
+  // ไม่มี = ใช้ distanceSource ของทั้งหน้าแทน
   distanceMethod?: "ors" | "haversine";
 }
 
@@ -56,11 +57,7 @@ interface MergedPlace extends PoiResult {
   place?: PlaceInfo;
 }
 
-// ---------- เวลาเปิด-ปิด (places.opening_hours) ----------
-// โครงสร้างจริงตาม openingHoursChecker.ts: periods[{ open:{day,time:"HHMM"}, close?:{day,time} }]
-// day: 0 = อาทิตย์ ... 6 = เสาร์ · เปิด 24 ชม. = มี period เดียวและไม่มี close
-// · วันที่ปิดจะไม่มี period ของวันนั้นเลย · ไม่มี periods (หรือว่าง) = ไม่มีข้อมูล
-// ใช้กติกาเดียวกับ openingHoursChecker.ts เพื่อให้ตัวเลขที่เห็นตรงกับป้ายเวลาเปิด-ปิดในหน้าจัดแผน
+// ---------- เวลาเปิด-ปิด (places.opening_hours รูปแบบเดียวกับ openingHoursChecker.ts) ----------
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // แสดงจันทร์ -> อาทิตย์
 
@@ -75,6 +72,7 @@ function toHHMM(p: { time?: unknown } | undefined): string | null {
   return typeof t === "string" && /^\d{4}$/.test(t) ? `${t.slice(0, 2)}:${t.slice(2)}` : null;
 }
 
+// ตารางเวลาเปิดรายวันสำหรับแสดงบนการ์ด — null = ไม่มีข้อมูล
 function parseOpeningHours(oh: OpeningHours | null | undefined): HoursView | null {
   const periods = oh?.periods;
   if (!Array.isArray(periods) || periods.length === 0) return null;
@@ -173,15 +171,14 @@ const outlineBtn =
 export default function TripRecommendations() {
   const { tripId } = useParams();
   const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
+  const { session } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // จำนวนที่ตรงหมวดที่เลือก — มีค่าเมื่อหมวดที่เลือกมีไม่ถึง 50 แห่ง และระบบเติมหมวดอื่น (D-48)
+  // จำนวนที่ตรงหมวดที่เลือก — มีค่าเมื่อหมวดที่เลือกมีไม่ถึง 50 แห่งและระบบเติมหมวดอื่น
   const [filledMatchCount, setFilledMatchCount] = useState<number | null>(null);
   const [distanceSource, setDistanceSource] = useState<DistanceSource | null>(null);
 
-  // State สำหรับเก็บรายการสถานที่ทั้งหมด
   const [places, setPlaces] = useState<MergedPlace[]>([]);
 
   const [isCustomMode, setIsCustomMode] = useState(false);
@@ -200,7 +197,7 @@ export default function TripRecommendations() {
   const [view, setView] = useState<"list" | "map">("list");
   const [focus, setFocus] = useState<MapFocus | null>(null);
 
-  // ช่วงวันเดินทาง — ใช้เตือนบนการ์ดว่าสถานที่ปิดทั้งวันในวันไหนของทริป (คะแนน POI ไม่ได้ดูเวลาเปิด-ปิด)
+  // ช่วงวันเดินทาง ใช้เตือนบนการ์ดว่าสถานที่ปิดทั้งวันวันไหนของทริป (คะแนน POI ไม่ได้ดูเวลาเปิด-ปิด)
   const [tripRange, setTripRange] = useState<{ start: string; end: string } | null>(null);
 
   useEffect(() => {
@@ -228,8 +225,6 @@ export default function TripRecommendations() {
   const fetchedForTripRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
-
     if (!session) {
       navigate("/login");
       return;
@@ -309,14 +304,14 @@ export default function TripRecommendations() {
         setPlaces(merged);
       } catch (err) {
         console.error(err);
-        setError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        setError(errorText(err, "เกิดข้อผิดพลาดในการโหลดข้อมูล"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [tripId, session, authLoading, navigate]);
+  }, [tripId, session, navigate]);
 
   const togglePlace = (placeId: string) => {
     setSelectedPlaceIds((prev) =>
@@ -372,13 +367,13 @@ export default function TripRecommendations() {
       });
     } catch (err) {
       console.error(err);
-      setCreateRouteError((err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการสร้างเส้นทาง");
+      setCreateRouteError(errorText(err, "เกิดข้อผิดพลาดในการสร้างเส้นทาง"));
     } finally {
       setCreatingRoute(false);
     }
   };
 
-  // เช็คว่ามีสถานที่สำหรับ Auto Trip (auto-places) ก่อนเปิดหน้า Auto Trip ซึ่งจัดทริปเอง
+  // เช็คว่ามีสถานที่สำหรับ Auto Trip ก่อนเปิดหน้า Auto Trip
   const handleAutoTrip = async () => {
     if (!tripId || !session) return;
 
@@ -409,7 +404,7 @@ export default function TripRecommendations() {
       console.error("Auto Trip error:", err);
 
       setAutoTripError(
-        (err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ"
+        errorText(err, "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ")
       );
     } finally {
       setAutoCreatingRoute(false);
@@ -431,9 +426,11 @@ export default function TripRecommendations() {
     return places.filter((p) => p.categoryName === selectedCategory);
   }, [places, selectedCategory]);
 
-  // หมุดบนแผนที่ — ใช้ชุดเดียวกับการ์ดที่แสดงอยู่ (หลังกรองหมวดหมู่) เลขอันดับตรงกับบนการ์ด
+  // อันดับอิงจาก places เต็มชุดเสมอ (ไม่เปลี่ยนตามตัวกรองหมวด)
+  const rankOf = useMemo(() => new Map(places.map((p, i) => [p.placeId, i + 1])), [places]);
+
+  // หมุดบนแผนที่ใช้ชุดเดียวกับการ์ดที่แสดงอยู่ เลขอันดับตรงกับบนการ์ด
   const mapPlaces = useMemo<MapPlace[]>(() => {
-    const rank = new Map(places.map((p, i) => [p.placeId, i + 1]));
     return displayedPlaces.flatMap((item) => {
       const p = item.place;
       if (!p) return [];
@@ -444,12 +441,12 @@ export default function TripRecommendations() {
           lat: Number(p.latitude),
           lng: Number(p.longitude),
           categoryName: item.categoryName,
-          rank: rank.get(item.placeId) ?? 0,
+          rank: rankOf.get(item.placeId) ?? 0,
           score: Math.round(item.poiScore * 100),
         },
       ];
     });
-  }, [places, displayedPlaces]);
+  }, [rankOf, displayedPlaces]);
 
   const handleShowOnMap = (placeId: string) => {
     setFocus({ id: placeId, nonce: Date.now() });
@@ -466,9 +463,6 @@ export default function TripRecommendations() {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 50);
   };
-
-  const rankOf = new Map(places.map((p, i) => [p.placeId, i + 1]));
-
 
   const chipClass = (active: boolean) =>
     `shrink-0 whitespace-nowrap min-h-10 px-4 rounded-full border text-sm active:scale-[0.98] transition-all duration-200 ${
@@ -606,7 +600,9 @@ export default function TripRecommendations() {
                 {item.categoryScore === 1 ? "ตรงหมวดหมู่ที่เลือก" : "นอกหมวดหมู่ที่เลือก"}
               </Metric>
             )}
-            <Metric icon={Star}>รีวิว {(item.ratingScore * 5).toFixed(1)}/5</Metric>
+            <Metric icon={Star}>
+              {item.ratingScore === null ? "ยังไม่มีรีวิว" : `รีวิว ${(item.ratingScore * 5).toFixed(1)}/5`}
+            </Metric>
             <Metric
               icon={Navigation}
               tone={approx ? "warn" : undefined}
@@ -763,7 +759,6 @@ export default function TripRecommendations() {
 
         {!loading && !error && places.length > 0 && (
           <>
-            {/* Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               {!isCustomMode ? (
                 <>
@@ -806,7 +801,6 @@ export default function TripRecommendations() {
               )}
             </div>
 
-            {/* Category filter */}
             {availableCategories.length > 0 && (
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-1 px-1">
                 <button

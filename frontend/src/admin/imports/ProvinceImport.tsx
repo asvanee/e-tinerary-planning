@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CloudDownload, Loader2, TriangleAlert, X } from "lucide-react";
 import { useAuth } from "../../system/auth/useAuth";
-import { adminRequest, errorMessage } from "../lib/adminApi";
+import { adminRequest, errorMessage, loadAdmin } from "../lib/adminApi";
 import type { ImportJob, ImportJobStatus, ImportPreview } from "../lib/importTypes";
 import ImportItemsTable from "./ImportItemsTable";
 import PendingReview from "./PendingReview";
@@ -40,8 +40,8 @@ function SectionTitle({ children }: { children: string }) {
   return <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)] mb-3">{children}</h2>;
 }
 
-// นำเข้าสถานที่ของจังหวัดจาก CSV + Google (R5 P4b): ดูตัวอย่าง → เริ่ม → ความคืบหน้า → ผล
-// + ตัดสินแถวที่รอตรวจหลังนำเข้า (P4c)
+// นำเข้าสถานที่ของจังหวัดจาก CSV + Google: ดูตัวอย่าง → เริ่ม → ความคืบหน้า → ผล
+// + ตัดสินแถวที่รอตรวจหลังนำเข้า
 export default function ProvinceImport() {
   const navigate = useNavigate();
   const { province = "" } = useParams();
@@ -62,37 +62,23 @@ export default function ProvinceImport() {
 
   // ---- ดูตัวอย่าง (ไม่เรียก Google) ----
   useEffect(() => {
-    let ignore = false;
     const query = appliedLimit ? `?limit=${appliedLimit}` : "";
-    adminRequest<ImportPreview>(`${base}/import/preview${query}`, token)
-      .then((data) => {
-        if (!ignore) {
-          setPreview(data);
-          setPreviewError("");
-        }
-      })
-      .catch((err) => {
-        if (!ignore) setPreviewError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
+    return loadAdmin<ImportPreview>(
+      `${base}/import/preview${query}`,
+      token,
+      (data) => {
+        setPreview(data);
+        setPreviewError("");
+      },
+      setPreviewError
+    );
   }, [base, token, appliedLimit, reloadKey]);
 
   // ---- ประวัติ job ของจังหวัด (ล่าสุดก่อน) ----
-  useEffect(() => {
-    let ignore = false;
-    adminRequest<{ jobs: ImportJob[] }>(`${base}/imports`, token)
-      .then((data) => {
-        if (!ignore) setJobs(data.jobs);
-      })
-      .catch((err) => {
-        if (!ignore) setActionError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [base, token, reloadKey]);
+  useEffect(
+    () => loadAdmin<{ jobs: ImportJob[] }>(`${base}/imports`, token, (data) => setJobs(data.jobs), setActionError),
+    [base, token, reloadKey]
+  );
 
   // job ที่กำลังดู: ที่เลือกไว้ ไม่งั้นล่าสุด
   const viewedJob = jobs?.find((j) => j.job_id === selectedJobId) ?? jobs?.[0] ?? null;

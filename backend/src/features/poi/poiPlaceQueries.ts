@@ -4,20 +4,19 @@ import { getPlaceCost } from "../../utils/placePrice";
 // ค่าของ categories.price_nature
 export type PriceNature = "free" | "paid";
 
-// ค่าของ categories.environment_type — poiScoreCalculator.ts แปลงเป็นสัดส่วนที่โดนฝน
+// ค่าของ categories.environment_type
 export type EnvironmentType = "INDOOR" | "OUTDOOR" | "MIXED";
 
 export interface TripInfo {
   userId: string;
-  // tripController.ts บังคับกรอก province · district ไม่บังคับ (null = ไม่กรองอำเภอ)
+  // district null = ไม่กรองอำเภอ
   province: string | null;
   district: string | null;
   startLat: number;
   startLng: number;
-  dailyBudget: number | null; // งบต่อคนต่อวัน (D-51)
-  availableTimePerDay: number | null; // ชั่วโมง ตาม schema ของ trips
+  dailyBudget: number | null; // งบต่อคนต่อวัน
   useBudget: boolean;
-  // ช่วงวันเดินทาง "YYYY-MM-DD" — ใช้ดึงโอกาสฝนเฉลี่ย (utils/weatherForecast.ts)
+  // "YYYY-MM-DD" ใช้ดึงพยากรณ์ฝน
   startDate: string;
   endDate: string;
 }
@@ -27,39 +26,33 @@ export interface PlaceWithScore {
   latitude: number;
   longitude: number;
   rating: number | null;
-
-  // priceRange ต่อคน (บาท) จาก Places API (New) — D-52 · ใช้คิดราคาผ่าน utils/placePrice.ts
-  priceRangeStart: number | null;
+  priceRangeStart: number | null; // ช่วงราคาต่อคน (บาท)
   priceRangeEnd: number | null;
-
-  // ค่าของหมวดที่ได้จากป้าย ททท. ของสถานที่ (1 สถานที่ = 1 หมวด — D-35)
   priceNature: PriceNature;
   categoryId: string;
-  // true = อยู่ในหมวดที่ผู้ใช้เลือก · false = หมวดอื่นที่เติมเข้ามา · null = ผู้ใช้ไม่ได้เลือกหมวด (D-48)
+  // true = อยู่ในหมวดที่ผู้ใช้เลือก · false = หมวดอื่นที่เติมเข้ามา · null = ผู้ใช้ไม่ได้เลือกหมวด
   categoryMatch: boolean | null;
   categoryName: string;
-  environmentType: EnvironmentType; // ใช้คำนวณ weather_score
+  environmentType: EnvironmentType;
 }
 
-// จำนวนสถานที่แนะนำที่แสดง และเกณฑ์ว่าหมวดที่เลือกมี "พอ" หรือไม่ (D-48)
+// จำนวนสถานที่แนะนำที่แสดง และเกณฑ์ว่าหมวดที่เลือกมี "พอ" หรือไม่
 export const POI_RESULT_LIMIT = 50;
 
 interface FilteredPlacesResult {
   places: PlaceWithScore[];
-  // จำนวนสถานที่ที่ตรงหมวดที่เลือก (หลังกรองงบ) · null = ผู้ใช้ไม่ได้เลือกหมวด
+  // จำนวนที่ตรงหมวด (หลังกรองงบ) · null = ไม่ได้เลือกหมวด
   categoryMatchCount: number | null;
-  // true = ตรงหมวดไม่ถึง POI_RESULT_LIMIT จึงเติมสถานที่หมวดอื่นในพื้นที่เข้ามาคิดคะแนนด้วย
+  // true = ตรงหมวดไม่ถึง 50 จึงเติมหมวดอื่นในพื้นที่เข้ามาด้วย
   categoryFilled: boolean;
 }
 
-/**
- * ข้อมูลทริปที่ใช้คำนวณ POI score และ hard filter งบ/เวลา
- */
+// ข้อมูลทริปที่ใช้คิดคะแนน POI
 export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "user_id, province, district, start_lat, start_lng, daily_budget, available_time_per_day, use_budget, start_date, end_date"
+      "user_id, province, district, start_lat, start_lng, daily_budget, use_budget, start_date, end_date"
     )
     .eq("trip_id", tripId)
     .single();
@@ -75,36 +68,27 @@ export async function getTripInfo(tripId: string): Promise<TripInfo | null> {
     startLat: data.start_lat,
     startLng: data.start_lng,
     dailyBudget: data.daily_budget,
-    availableTimePerDay: data.available_time_per_day,
     useBudget: data.use_budget ?? false,
     startDate: data.start_date,
     endDate: data.end_date,
   };
 }
 
-/**
- * Pipeline กรองสถานที่ ทำตามลำดับ ห้ามสลับ:
- * 1. province (บังคับเสมอ) + AND district ถ้า user ระบุมา
- * 2. งบ (hard filter): ตัดสถานที่ที่ place_cost > daily_budget
- *    (ข้ามถ้าไม่ได้ใช้งบ หรือเป็น paid ที่ไม่มีราคาจริง — ไม่เดาราคาแทน user)
- * 3. category (ถ้า user เลือกไว้ — D-48): นับสถานที่ที่ตรงหมวด (หลังกรองงบ)
- *    - ตรง ≥ POI_RESULT_LIMIT → เหลือเฉพาะที่ตรงหมวด
- *    - ตรง < POI_RESULT_LIMIT (รวม 0) → เก็บทุกที่ในพื้นที่ ที่ไม่ตรงหมวดได้ category_score 0
- * (ขั้นกรองเวลาเดิมตัดออกแล้ว — D-38: เวลาที่อยู่ผู้ใช้กรอกเอง ตรวจใน ItineraryEditor)
- * ผลลัพธ์เหมือนกรองหมวดก่อนงบ เพราะงบตัดรายสถานที่ไม่ขึ้นกับหมวด — แต่ต้องนับหมวดหลังงบ
- */
+// กรองสถานที่ตามลำดับ (ห้ามสลับ): จังหวัด/อำเภอ → งบ → หมวด
+// - งบ: ตัดที่ราคาต่อคนเกินงบต่อคนต่อวัน (ไม่ทราบราคาปล่อยผ่าน)
+// - หมวด: นับหลังกรองงบ ตรงหมวด ≥ 50 เหลือเฉพาะที่ตรง · น้อยกว่านั้นเก็บทุกที่ (หมวดอื่นได้คะแนนหมวด 0)
 export async function getFilteredPlaces(
   tripId: string,
   trip: TripInfo
 ): Promise<FilteredPlacesResult> {
-  // กันข้อมูลเก่าที่ไม่มี province (ปัจจุบันบังคับกรอกเสมอ)
+  // ข้อมูลเก่าที่ไม่มีจังหวัด
   if (!trip.province) {
     return { places: [], categoryMatchCount: null, categoryFilled: false };
   }
 
   const locationFilter: LocationFilter = {
     province: trip.province,
-    district: trip.district, // null = กรองแค่ province
+    district: trip.district,
   };
 
   const { data: tripCategories, error: tripCategoriesError } = await supabase
@@ -122,13 +106,9 @@ export async function getFilteredPlaces(
     (tripCategories ?? []).map((row) => row.category_id as string)
   );
 
-  // ---- ขั้น 1: province (+district ถ้ามี) ----
   let places = await queryPlacesWithCategoryInfo(locationFilter);
 
-  // ---- ขั้น 2: กรองงบ (hard filter) ----
-  // trips.daily_budget เป็นงบต่อคนต่อวันที่ frontend คำนวณตาม budget_scope/budget_period มาแล้ว (D-01, D-51)
-  // เทียบกับราคาต่อคนตรงๆ ให้ตรงกับ itineraryBuilder.ts (เทียบ cumulativeCost กับ day.dailyBudget)
-  // ไม่งั้นผลตอนเลือก POI กับตอนจัดแผนจะขัดกัน
+  // daily_budget เป็นงบต่อคนต่อวันแล้ว เทียบกับราคาต่อคนตรงๆ แบบเดียวกับตอนจัดแผน
   if (trip.useBudget && trip.dailyBudget !== null) {
     const dailyBudget = trip.dailyBudget;
 
@@ -138,13 +118,10 @@ export async function getFilteredPlaces(
         place.priceRangeEnd,
         place.priceNature
       );
-      if (placeCost === null) return true; // paid + ไม่รู้ราคาจริง — ปล่อยผ่าน ไม่เดา
-
-      return placeCost <= dailyBudget;
+      return placeCost === null || placeCost <= dailyBudget;
     });
   }
 
-  // ---- ขั้น 3: หมวด (D-48) ----
   if (categoryIds.size === 0) {
     return { places, categoryMatchCount: null, categoryFilled: false };
   }
@@ -185,11 +162,8 @@ interface PlaceCategoryRow {
   };
 }
 
-/**
- * หมวดของสถานที่มาจากป้าย ททท.: places.att_type_label -> category_labels -> categories (D-35, D-39)
- * `!inner` ตัดสถานที่ที่ไม่มีป้าย/หมวดออก · 1 สถานที่ได้ 1 แถวเสมอ
- * กรองแค่ location (province + district ถ้ามี) — การจับคู่หมวดทำใน getFilteredPlaces (D-48)
- */
+// สถานที่ในพื้นที่พร้อมหมวดจากป้าย ททท. (places → category_labels → categories)
+// `!inner` ตัดสถานที่ที่ไม่มีหมวดออก · 1 สถานที่ = 1 แถว
 async function queryPlacesWithCategoryInfo(
   locationFilter: LocationFilter
 ): Promise<PlaceWithScore[]> {
@@ -210,7 +184,7 @@ async function queryPlacesWithCategoryInfo(
     throw new Error(`ดึงสถานที่ตามหมวดไม่สำเร็จ: ${error.message}`);
   }
 
-  // Supabase infer embed เป็น array แต่ relation นี้คืน object เดี่ยวจริง
+  // Supabase เดา type ของ embed เป็น array แต่ relation นี้คืน object เดียว
   const rows = (data ?? []) as unknown as PlaceCategoryRow[];
 
   return rows.map((row) => {
@@ -220,16 +194,12 @@ async function queryPlacesWithCategoryInfo(
       latitude: row.latitude,
       longitude: row.longitude,
       rating: row.rating,
-
       priceRangeStart: row.price_range_start,
       priceRangeEnd: row.price_range_end,
       priceNature: category.price_nature,
-
       categoryId: row.category_labels.category_id,
       categoryMatch: null, // getFilteredPlaces ใส่ค่าจริงเมื่อผู้ใช้เลือกหมวด
-
       categoryName: category.category_name,
-
       environmentType: category.environment_type,
     };
   });

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { supabase } from "../../config/db";
 
-// หมวดจากป้าย ททท. (D-39) พร้อมกลุ่มใหญ่ (HISTORY_CULTURE | NATURE | RECREATION) ให้หน้าสร้างทริปจัด chip ตามกลุ่ม
+// หมวดทั้งหมดพร้อมกลุ่มใหญ่ (HISTORY_CULTURE | NATURE | RECREATION) ให้หน้าสร้างทริปจัดกลุ่ม chip
 export const getCategories = async (_req: Request, res: Response) => {
   const { data, error } = await supabase
     .from("categories")

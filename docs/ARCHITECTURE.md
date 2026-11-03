@@ -59,18 +59,18 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 | มิติ | สูตร | weight |
 |---|---|---|
-| category | 1.0 ทุกที่ตั้งแต่ P5c (1 สถานที่ = 1 หมวด ไม่มี confidence — D-38 · สูตรรอทีม D-23) | 0.35 |
-| rating | `rating/5` (ถ้าเป็น null ให้ 0.5) | 0.25 |
-| distance | `1/(1+km)` | 0.15 |
-| budget(=price) | `1 − placeCost ÷ daily_budget` (cap 0–1 · งบต่อคนต่อวัน D-51) · placeCost จาก `getPlaceCost` (priceRange → free = 0) · ไม่ได้ตั้งงบหรือไม่ทราบราคา: weight 0 (D-52) | 0.15 |
-| weather | `exposure*(1-rain)+(1-exposure)` ใช้ OUTDOOR=1, MIXED=0.5, INDOOR=0 · ไม่มีพยากรณ์ให้ 1.0 | 0.10 |
+| category | ตรงหมวด 1 · หมวดที่เติมเข้ามา 0 · ไม่ได้เลือกหมวด: weight 0 (D-48) | 0.1421 |
+| rating | `rating/5` · ไม่มี rating: weight 0 (D-57) | 0.0869 |
+| distance | `1/(1+km)` | 0.1637 |
+| budget(=price) | `1 − placeCost ÷ daily_budget` (cap 0–1 · งบต่อคนต่อวัน D-51) · placeCost จาก `getPlaceCost` (priceRange → free = 0) · ไม่ได้ตั้งงบหรือไม่ทราบราคา: weight 0 (D-52) | 0.3926 |
+| weather | `exposure*(1-rain)+(1-exposure)` ใช้ OUTDOOR=1, MIXED=0.5, INDOOR=0 · ไม่มีพยากรณ์ให้ 1.0 | 0.2147 |
 
-ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
+weight มาจากแบบสอบถาม AHP 42 คน (D-56 · `0ce75c1` · ที่มาและการตรวจ: `docs/AHP_POI_WEIGHTS.md`) · มิติที่ได้ weight 0 จะถูก renormalize ให้มิติที่เหลือรวมเป็น 1 ตามสัดส่วน (`computeWeights`) เช่น ไม่ใช้งบ → category .234 / rating .143 / distance .270 / weather .353 · จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
 
 **หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · POI และ Auto Trip ใช้ relation นี้จับคู่สถานที่ · `getSelectedPlaces` ใช้ embed แบบไม่บังคับ inner join เพื่อไม่ให้ความสัมพันธ์หมวดตัดแถวสถานที่ออกจากผลค้นหา · Auto Trip โหลดหมวดที่ผู้ใช้เลือกจาก `trip_categories` → `categories` (D-45) · ไม่อ่านตาราง `place_categories` หรือคอลัมน์ `default_duration_min` ที่ถูกลบใน P5g
 
 ### 2.4 Itinerary (manual) — `features/itinerary/` + frontend mirror
-1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), `buildInitialDraft()` จะคืน `[]` เสมอ (final design คือไม่จัดลงวันอัตโนมัติ) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 25 km/h)
+1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), ตอบ `items: []` เสมอ (ไม่จัดลงวันอัตโนมัติ — D-03, D-58) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 25 km/h)
 2. Frontend `ItineraryEditor.tsx` (dnd-kit) จะ recompute ทุกครั้งที่มีการลาก ด้วย `frontend/.../lib/itineraryBuilder.ts` ซึ่ง **mirror** มาจาก `backend/.../itineraryBuilder.ts` (ตรวจด้วย diff แล้วว่า `buildDayItems` ตรงกันทุกบรรทัด) และ `lib/openingHoursChecker.ts` ซึ่ง mirror จาก `backend/src/utils/openingHoursChecker.ts`
 3. `PUT /itinerary/trips/:id` `{days:[{trip_day_id, place_ids}], visit_durations:{[place_id]: นาที}}`: ตรวจเวลาที่อยู่ก่อน (`visitDurations.ts::parseVisitDurations` — ทุกสถานที่ในแผนต้องเป็นจำนวนเต็ม 1–1440 ไม่งั้น 400 ก่อนลบแผนเดิม · D-36) แล้ว backend สร้าง matrix ใหม่และ `buildItinerary()` ใหม่ ถ้ามี `isClosedConflict|isTimeConflict|isBudgetConflict` จะปฏิเสธ (400) **ก่อน**ลบ ถ้าผ่านจะลบ itineraries เดิมของทุกวันแล้ว insert ใหม่ (ไม่ใช่ transaction)
 4. กฎใน `buildDayItems`: Day 1 มี leg จาก `TRIP_START_ID` ส่วน Day 2+ ที่แรกไม่มี leg · เวลาที่อยู่ = `PlaceInput.visitDurationMin` ที่ผู้ใช้กรอกใน Editor (D-36, R5 P5f — แทน `categories.default_duration_min`) ถ้ายังไม่กรอก (null) ไม่มีเวลาจบ เช็คเวลาเปิดแค่ตอนไปถึง (duration 0) และสถานที่ถัดไปในวันนั้นไม่มีเวลา · บันทึกที่ `itineraries.visit_duration_min` · time conflict เกิดเมื่อ `end > trip_days.end_time` · closed conflict ตรวจจาก `periods` (รองรับร้านที่เปิดข้ามเที่ยงคืน) · ถ้าไม่มีข้อมูลเวลาเปิดจะได้ `isHoursUnknown` (ไม่ใช่ conflict) · `placeCost` ถ้าเป็น paid ที่ไม่มีราคาจะเป็น null และไม่นับเข้ายอดสะสม · budget conflict เกิดเมื่อ `useBudget && cumulativeCost > dailyBudget`

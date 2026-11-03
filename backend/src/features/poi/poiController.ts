@@ -5,11 +5,10 @@ import { getTripInfo, getFilteredPlaces, POI_RESULT_LIMIT } from "./poiPlaceQuer
 import { calculatePoiScore } from "./poiScoreCalculator";
 import { getRoadDistancesKm } from "../../utils/orsDistance";
 import { getAverageRainProbability, gridKey } from "../../utils/weatherForecast";
+import { errorMessage } from "../../utils/errorMessage";
 
-/**
- * ลบแถว poi_scores ของทริปที่ไม่อยู่ในผลรอบล่าสุด (keepPlaceIds ว่าง = ลบทั้งทริป)
- * เรียกหลัง upsert ผลใหม่สำเร็จเท่านั้น — ถ้า upsert พังผลเดิมยังอยู่ครบ
- */
+// ลบ poi_scores ของทริปที่ไม่อยู่ในผลรอบล่าสุด (keepPlaceIds ว่าง = ลบทั้งทริป)
+// เรียกหลังบันทึกผลใหม่สำเร็จเท่านั้น ถ้าบันทึกพังผลเดิมยังอยู่ครบ
 async function deleteStalePoiScores(tripId: string, keepPlaceIds: string[]) {
   let query = supabase.from("poi_scores").delete().eq("trip_id", tripId);
 
@@ -20,11 +19,8 @@ async function deleteStalePoiScores(tripId: string, keepPlaceIds: string[]) {
   return query;
 }
 
-/**
- * POST /api/poi/trips/:tripId/calculate-poi
- * คำนวณสดทุกครั้งที่เรียก ไม่ cache แล้ว upsert ทับผลเดิมของทริปใน poi_scores
- * (unique (trip_id, place_id)) แล้วลบแถวที่หลุดจากผลรอบนี้ ให้ตารางเหลือเฉพาะผลล่าสุด
- */
+// คำนวณคะแนน POI ของทริปใหม่ทุกครั้ง: กรองสถานที่ → หาระยะทาง + พยากรณ์ฝน → คิดคะแนน
+// → เก็บ 50 อันดับแรกลง poi_scores แล้วลบผลเก่าที่หลุดอันดับ
 export const calculatePoi = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
 
@@ -33,7 +29,6 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    // 1. ดึงข้อมูลทริป + เช็คเจ้าของ
     const trip = await getTripInfo(tripId);
 
     if (!trip) {
@@ -50,7 +45,6 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // 2. กรองสถานที่ตามลำดับ province -> budget -> category (เติมหมวดอื่นถ้าไม่ถึง 50 — D-48)
     const { places, categoryMatchCount, categoryFilled } = await getFilteredPlaces(
       tripId,
       trip
@@ -71,8 +65,6 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // 2.5 ระยะทางถนนจากจุดเริ่มต้นไปทุก place (ORS Matrix ยิงครั้งเดียวต่อ chunk + cache)
-    // ไม่ throw — ถ้า ORS พลาดจะ fallback เป็น haversine ให้เอง แล้วบอกผ่าน distanceSource
     const {
       distancesKm,
       source: distanceSource,
@@ -83,18 +75,14 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       places
     );
 
-    // 2.6 โอกาสฝนเฉลี่ยของช่วงวันเดินทาง (Open-Meteo, ยิง batch ครั้งเดียวต่อคำขอ + cache)
-    // ไม่ throw — ถ้า API ล่ม/วันเดินทางเกินช่วงพยากรณ์ จะได้ Map ว่าง → rainProbability = null
-    // → weather_score = 1.0 ทุก place (ค่าเท่ากันหมด อันดับไม่เปลี่ยน)
     const rainByGrid = await getAverageRainProbability(
       places.map((p) => ({ lat: Number(p.latitude), lng: Number(p.longitude) })),
       trip.startDate,
       trip.endDate
     );
 
-    // 3. คำนวณคะแนนทุก place
     const scoredPlaces = places.map((place) => {
-      // ทุก placeId ใน places มีค่าใน distancesKm เสมอ (รับประกันโดย getRoadDistancesKm)
+      // getRoadDistancesKm คืนค่าให้ทุกสถานที่เสมอ
       const distanceKm = distancesKm.get(place.placeId) as number;
 
       const breakdown = calculatePoiScore(
@@ -112,21 +100,18 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
 
       return {
         placeId: place.placeId,
-        // ใช้แสดง badge หมวดหมู่ในหน้า Recommendation (ไม่อยู่ในสูตรคะแนน)
+        // categoryName / priceNature ใช้แสดงผลในหน้าแนะนำ
         categoryName: place.categoryName,
-        // ใช้บอกว่า "หมวดนี้มักไม่มีค่าใช้จ่าย" เมื่อไม่ทราบราคา (ไม่อยู่ในสูตรคะแนน)
         priceNature: place.priceNature,
-        // "ors" = ระยะทางถนนจริง, "haversine" = เส้นตรงประมาณ (ORS หาเส้นทางไปสถานที่นี้ไม่ได้)
+        // "ors" = ระยะทางถนน, "haversine" = เส้นตรงโดยประมาณ
         distanceMethod: perPlaceSource.get(place.placeId) ?? "haversine",
         ...breakdown,
       };
     });
 
-    // 4. เรียงคะแนนมากไปน้อย ตัดเหลือ 50 อันดับแรก
     scoredPlaces.sort((a, b) => b.poiScore - a.poiScore);
     const topResults = scoredPlaces.slice(0, POI_RESULT_LIMIT);
 
-    // 5. Upsert ลง poi_scores
     const upsertRows = topResults.map((result) => ({
       trip_id: tripId,
       place_id: result.placeId,
@@ -150,7 +135,7 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // 6. ลบผลเก่าที่หลุด 50 อันดับรอบนี้ (Auto Trip อ่าน poi_scores ทุกแถวของทริป)
+    // Auto Trip อ่าน poi_scores ทุกแถวของทริป จึงต้องลบผลที่หลุดอันดับ
     const { error: staleError } = await deleteStalePoiScores(
       tripId,
       topResults.map((result) => result.placeId)
@@ -165,17 +150,17 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json({
       message: "คำนวณคะแนนสถานที่สำเร็จ",
-      categoryMatchCount, // null = ไม่ได้เลือกหมวด
-      categoryFilled, // true = หมวดที่เลือกมีไม่ถึง 50 ที่ เติมหมวดอื่นแล้ว
-      distanceSource, // "ors" | "haversine" | "mixed"
-      // true = มีพยากรณ์ฝนอย่างน้อยหนึ่งพื้นที่ (false = ใช้ fallback weather_score 1.0 ทุก place)
+      categoryMatchCount,
+      categoryFilled,
+      distanceSource,
+      // false = ไม่มีพยากรณ์ฝนเลย คะแนนสภาพอากาศเป็น 1.0 ทุกที่
       weatherAvailable: rainByGrid.size > 0,
       results: topResults,
     });
   } catch (err) {
     console.error("Calculate POI exception:", err);
     return res.status(500).json({
-      message: (err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
     });
   }
 };

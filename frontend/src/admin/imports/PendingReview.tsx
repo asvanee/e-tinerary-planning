@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, FileText, Loader2, Trash2, TriangleAlert } from "lucide-react";
-import { adminRequest, errorMessage } from "../lib/adminApi";
+import { adminRequest, errorMessage, loadAdmin } from "../lib/adminApi";
 import { ITEM_STATUS_CLASS, ITEM_STATUS_LABELS } from "../lib/importLabels";
 import type { ImportItem } from "../lib/importTypes";
 import MapLink from "./MapLink";
@@ -17,7 +17,7 @@ interface PendingReviewProps {
   onResolved: () => void;
 }
 
-// แถวที่รอ admin ตัดสินหลังนำเข้า (R5 P4c): ยอมรับผล Google / นำเข้าจาก CSV อย่างเดียว / ตัดทิ้ง
+// แถวที่รอ admin ตัดสินหลังนำเข้า: ยอมรับผล Google / นำเข้าจาก CSV อย่างเดียว / ตัดทิ้ง
 export default function PendingReview({ base, token, reloadKey, onResolved }: PendingReviewProps) {
   const [items, setItems] = useState<ImportItem[] | null>(null);
   const [error, setError] = useState("");
@@ -25,22 +25,19 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
   const [actionError, setActionError] = useState<{ itemId: string; message: string } | null>(null);
   const [refresh, setRefresh] = useState(0);
 
-  useEffect(() => {
-    let ignore = false;
-    adminRequest<{ items: ImportItem[] }>(`${base}/import/pending`, token)
-      .then((data) => {
-        if (!ignore) {
+  useEffect(
+    () =>
+      loadAdmin<{ items: ImportItem[] }>(
+        `${base}/import/pending`,
+        token,
+        (data) => {
           setItems(data.items);
           setError("");
-        }
-      })
-      .catch((err) => {
-        if (!ignore) setError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [base, token, reloadKey, refresh]);
+        },
+        setError
+      ),
+    [base, token, reloadKey, refresh]
+  );
 
   const resolve = async (item: ImportItem, action: ResolveAction) => {
     if (action === "accept_google" && !window.confirm("ยอมรับผล Google จะเรียก Place Details และราคา (Places API New) อย่างละ 1 ครั้ง (มีค่าใช้จ่าย) ต้องการต่อไหม")) {

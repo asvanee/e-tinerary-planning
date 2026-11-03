@@ -8,7 +8,7 @@ import categoryRoutes from "./categories/categoryRoutes";
 
 const router = Router();
 
-// ทุก route ของ admin ต้องผ่านทั้งสองตัว (D-24)
+// ทุก route ของ admin ต้อง login และเป็น admin
 router.use(requireAuth, requireAdmin);
 
 router.get("/me", getAdminMe);

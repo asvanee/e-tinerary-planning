@@ -121,7 +121,7 @@ export async function getItem(itemId: string): Promise<StoredImportItem | null> 
   return (data as StoredImportItem | null) ?? null;
 }
 
-// แถวที่รอ admin ตัดสินหลังนำเข้า ของทุก job ในจังหวัด (P4c)
+// แถวที่รอ admin ตัดสินหลังนำเข้า ของทุก job ในจังหวัด
 export async function listPendingItems(province: string): Promise<StoredImportItem[]> {
   const jobIds = await jobIdsOfProvince(province);
   if (jobIds.length === 0) return [];
@@ -158,11 +158,9 @@ async function itemsOfProvince(province: string): Promise<{ att_id: string; stat
   );
 }
 
-/**
- * สถานะการนำเข้าของจังหวัด (ใช้ตัดสินว่าเริ่ม/รันต่อได้ไหม — D-30)
- * - doneAttIds: ATT_ID ที่มีผลแล้ว (ทุกสถานะยกเว้น error) → job ถัดไปข้าม · แถว error ลองใหม่ได้
- * - foreignPlaces: แถวของจังหวัดนี้ใน places ที่ไม่ได้มาจาก job ของระบบนี้ (ข้อมูลเดิม) → ต้องลบก่อน
- */
+// สถานะการนำเข้าของจังหวัด (ใช้ตัดสินว่าเริ่ม/รันต่อได้ไหม)
+// - doneAttIds: ATT_ID ที่มีผลแล้ว (ยกเว้น error) → job ถัดไปข้าม · แถว error ลองใหม่ได้
+// - foreignPlaces: สถานที่ของจังหวัดนี้ที่ไม่ได้มาจากการนำเข้าระบบนี้ (ข้อมูลเดิม) → ต้องลบก่อน
 export async function provinceImportState(
   province: string
 ): Promise<{ doneAttIds: Set<string>; placesInProvince: number; foreignPlaces: number }> {
@@ -216,7 +214,7 @@ export const supabaseImportStore: ImportStore = {
     return data?.place_id ?? null;
   },
 
-  // insert เท่านั้น (ไม่ upsert) — google_place_id ซ้ำจะ error แทนการเขียนทับ (D-30)
+  // insert เท่านั้น (ไม่ upsert) — google_place_id ซ้ำจะ error แทนการเขียนทับข้อมูลเดิม
   async insertPlace(record: PlaceRecord) {
     const { data, error } = await supabase.from("places").insert(record).select("place_id").single();
     if (error) throw new Error(`บันทึก places ไม่สำเร็จ: ${error.message}`);

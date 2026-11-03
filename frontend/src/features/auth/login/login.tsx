@@ -9,10 +9,8 @@ export default function Login() {
   const location = useLocation();
   const { login } = useAuth();
 
-  // Supabase พาผู้ใช้กลับมาหน้านี้หลังยืนยันอีเมล พร้อม session ใน URL hash
-  // (#access_token=...&refresh_token=...&type=signup หรือ #error=... เมื่อลิงก์หมดอายุ)
-  // frontend login ผ่าน backend ไม่ได้ใช้ token นี้ จึงล้าง hash ทิ้งทันที
-  // กัน token ค้างบนแถบ URL และในปุ่ม Back (#26)
+  // หลังยืนยันอีเมล Supabase ส่งกลับมาพร้อม token ใน URL hash ซึ่งเราไม่ได้ใช้ (login ผ่าน backend)
+  // จึงล้างทิ้งทันที กัน token ค้างบนแถบ URL และในปุ่ม Back
   useEffect(() => {
     if (/access_token=|refresh_token=|error=/.test(location.hash)) {
       navigate(location.pathname + location.search, { replace: true });
@@ -36,7 +34,6 @@ export default function Login() {
       onSuccess={handleSuccess}
       footer={
         <>
-          {/* Register */}
           <p className="text-center text-sm text-[color:var(--muted)] mt-6">
             ยังไม่มีบัญชี?{" "}
             <button
@@ -48,7 +45,6 @@ export default function Login() {
             </button>
           </p>
 
-          {/* Admin login */}
           <p className="text-center text-sm mt-3">
             <button
               type="button"

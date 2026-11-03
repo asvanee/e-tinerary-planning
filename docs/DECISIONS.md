@@ -8,7 +8,7 @@
 | D-01 | Business logic ของงบคำนวณที่ **frontend จุดเดียว** (`daily_budget` เป็นค่าสำเร็จรูป — งบต่อคนต่อวันตาม D-51) backend ห้ามหารจำนวนคนซ้ำ | กันการคำนวณซ้ำซ้อน/ไม่ตรงกัน | `poiPlaceQueries.ts` ขั้น 3, `itineraryPlaceQueries.ts` |
 | D-02 | Backend `itineraryBuilder.ts` คือ **source of truth** ส่วน frontend เก็บ copy แบบ mirror ไว้ recompute ทันที และ backend ต้อง re-validate ซ้ำก่อน save เสมอ | ลากวางแล้วเห็นผลทันทีโดยไม่ต้องรอ network | หัวไฟล์ `backend/.../itineraryBuilder.ts` |
 | D-03 | Itinerary editor เป็นแบบ **manual drag เท่านั้น** draft แรกไม่จัดลงวันให้ (`buildInitialDraft` คืน `[]`) และไม่มีปุ่ม "จัดลำดับอัตโนมัติ" ในหน้านี้ | final design | `itineraryBuilder.ts` |
-| D-04 | เก็บ `buildNearestNeighborOrder` ไว้ แม้ตอนนี้ไม่มีที่เรียกใช้ | อาจนำไปใช้กับ Auto Trip | `itineraryBuilder.ts` |
+| D-04 | เก็บ `buildNearestNeighborOrder` ไว้ แม้ตอนนี้ไม่มีที่เรียกใช้ · **ถูกแทนที่โดย D-58 (ลบแล้ว 2026-11-03)** | อาจนำไปใช้กับ Auto Trip | `itineraryBuilder.ts` |
 | D-05 | ราคา v2 (ตั้งแต่ D-52 ใช้ priceRange แทน price_level — หลักไม่เดาราคาเหมือนเดิม): **ไม่เดาราคา** เมื่อไม่มี `price_level` จริง ยกเว้น category `free` (ให้ประมาณเป็น 0) ถ้าเป็น paid ที่ไม่มีราคา ให้ `placeCost=null`, ปล่อยผ่าน hard filter, ไม่นับเข้ายอดสะสม และให้ price weight = 0 | การเดาราคาซ่อนความไม่รู้ไว้และลงโทษผิด | `poiScoreCalculator.ts`, `poiPlaceQueries.ts`, `itineraryBuilder.ts` |
 | D-06 | `price_nature` เหลือแค่ `free` / `paid` (ยุบ food + paid_other) และ DB migrate แล้ว | logic ของสองหมวดเหมือนกันทุกกรณี | `poiPlaceQueries.ts` |
 | D-07 | เลิกใช้ `categories.default_price_level` ("column กำลังจะ drop") | ดู D-05 | หลายไฟล์ |
@@ -421,3 +421,51 @@
   - ใช้กับสถานที่หลักและสถานที่แนะนำเพิ่มเติม โดยไม่เปลี่ยนข้อมูลราคาที่ส่งในผล `selected_places`
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `itineraryController.ts`, `autoTripBuilder.ts`, `__tests__/autoTripBuilder.test.ts`
+
+### D-55 · 2026-10-27 · น้ำหนัก POI ตั้งต้นใช้ Test 1 และให้ผู้ใช้ปรับน้ำหนักต่อทริปได้ (แทนที่ค่าน้ำหนักใน D-17) · **ถูกแทนที่โดย D-56 — ไม่ทำ**
+- บริบท: กิ่งทดลองน้ำหนัก 4 ชุด (Test 1–4) กับ Museum 14 แห่งในเมืองเชียงใหม่ (รายงาน `E-tinerary (4)/(5)/(6).pdf` นอก repo) และสรุปเสนอ Test 1 · งานวิจัยที่อ้าง (Kesorn et al. 2017, R.-Toubes et al. 2020, Xue & Zhang 2020, Lian 2022) สนับสนุนการเลือกปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก · ให้ผู้ใช้ปรับเองได้ ค่าตั้งต้นจึงเป็นแค่จุดเริ่ม
+- ข้อสรุป (ผู้ใช้เลือก):
+  - ค่าตั้งต้น = Test 1: category 0.30 / rating 0.20 / distance 0.15 / budget 0.15 / weather 0.20 (เดิม D-17: .35/.25/.15/.15/.10) · การ renormalize เมื่อไม่ใช้งบ/ไม่ทราบราคา/ไม่เลือกหมวด (D-48, D-52) คงเดิม แต่คิดจากน้ำหนักของทริป
+  - UI = มีชุดสำเร็จรูป (preset) + ปรับเองได้
+  - เก็บน้ำหนัก**ต่อทริป** (ต้องเพิ่มคอลัมน์ใน `trips` — ผู้ใช้รัน SQL เอง)
+  - ปรับได้ทั้งตอนสร้างทริปและในหน้าแนะนำสถานที่ (ปรับแล้วคำนวณ POI ใหม่)
+- ยังไม่ได้ตัดสิน: รายการ preset (ข้อเสนอ: Test 1–4 = สมดุล / เน้นหมวด / เน้นอากาศ / เน้นหมวดและรีวิว) · รูปแบบคอลัมน์ (5 คอลัมน์ numeric หรือ jsonb) · ปรับเองแล้วบังคับผลรวม = 100% หรือ normalize ให้
+- ข้อควรระวังจากการตรวจรายงาน (Claude, 2026-10-27): ทดลองบนโค้ดก่อน D-48/D-52 (category 0.4 จาก `confidence_score`, price 0.8 จากตารางเดิม) · ภาพผล "Test 1" ใน `E-tinerary (4).pdf` คำนวณด้วยน้ำหนัก D-17 ไม่ใช่ Test 1 · Museum เป็น INDOOR จึงได้ weather 1 เสมอ → ควรรัน Test 1 ใหม่บนโค้ดปัจจุบันด้วยหลายหมวดก่อนใช้ในรายงาน · Lian 2022 (Wireless Communications and Mobile Computing, Hindawi) ต้องตรวจสถานะ retraction ก่อนอ้าง
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่จะกระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`, `computeWeights`, test), `poiController.ts`, `poiPlaceQueries.ts` (`getTripInfo`), `features/trip/tripController.ts` (สร้าง/แก้ทริป), `frontend/src/features/trip/create/createTrip.tsx`, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/DATABASE_SCHEMA.md`, SQL ใหม่ใน `docs/sql/`
+
+### D-56 · 2026-10-27 · พักการให้ผู้ใช้ปรับน้ำหนัก POI เอง และหาน้ำหนักของระบบด้วย AHP (แทนที่ D-55) · **ทำแล้ว 2026-11-03 — ใช้น้ำหนัก AHP ในระบบ**
+- บริบท: ผู้ใช้ต้องการให้ทุกตัวเลขในระบบมาจากงานวิจัย ไม่ใช้ตัวเลขที่ทีมคิดเอง (Test 1 มาจากการทดลองของทีม) · ทบทวนงานวิจัยฉบับเต็ม 6 ฉบับ (Lopes et al. 2016, 2020 · Vansteenwegen et al. 2011 · Souffriau et al. 2008 · R.W. Saaty 1987 · Forman & Peniwati 1998) พบว่ารองรับการเลือก 5 ปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก
+- ข้อสรุป (ผู้ใช้เลือก):
+  - พักการให้ผู้ใช้ปรับน้ำหนักเอง (preset + ปรับเองต่อทริปใน D-55) — ไม่ต้องเพิ่มคอลัมน์ใน `trips`
+  - น้ำหนักของระบบ (ชุดเดียว) มาจากแบบสอบถาม AHP แทน Test 1 · ระหว่างรอผล โค้ดยังใช้น้ำหนัก D-17 (.35/.25/.15/.15/.10) ไม่เปลี่ยน
+  - วิธี: เปรียบเทียบเป็นคู่ 10 คู่ สเกล 1–9 (R.W. Saaty 1987 น. 163) · น้ำหนักจาก principal eigenvector (น. 170–171) · CR < 0.10 โดย RI ของ n = 5 = 1.12 (น. 171) · รวมผลแบบ AIP ด้วยค่าเฉลี่ยเรขาคณิตแล้ว normalize (Forman & Peniwati 1998 น. 167–168) — แผนเต็มอยู่ที่ `AHP-POI-weights-plan.pdf` (นอก repo)
+  - การ renormalize เมื่อไม่ใช้งบ/ไม่ทราบราคา/ไม่เลือกหมวด (D-48, D-52) คงเดิม
+- รออาจารย์ตัดสิน: กลุ่มและจำนวนผู้ตอบ · วิธีจัดการคำตอบที่ CR ไม่ผ่าน (ให้แก้ หรือตัดออก) · ต้องประเมินผลหลังใช้หรือไม่
+- ข้อควรระวัง: ค่าภายในสูตรที่ยังไม่มีแหล่งอ้างอิงและ AHP ไม่ครอบคลุม — `calculateDistanceScore` = `1/(1+km)` (R3), `RAIN_EXPOSURE.MIXED` = 0.5, rating ที่ไม่มีข้อมูล = 0.5 (แก้แล้วใน D-57 · MIXED ผู้ใช้ยอมรับให้คงไว้)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่จะกระทบ (เมื่อได้ผล AHP): `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`) + test
+- ✅ ผล (2026-11-03, ผู้ใช้เลือก — รายละเอียดเต็มที่ `docs/AHP_POI_WEIGHTS.md`):
+  - ผู้ตอบ 42 คน · CR รายคนผ่าน 0.10 ไม่มีเลย (มัธยฐาน 0.345) → ใช้ผู้ตอบทุกคนตาม Battistoni et al. 2013 (ไม่ตัดออก แทนข้อเสนอเดิม)
+  - รวมผลแบบ AIJ (ค่าเฉลี่ยเรขาคณิตของคำตอบ) ตาม Battistoni et al. 2013 แทน AIP · ตรวจด้วยการแบ่งกลุ่ม CR ≤ 0.1/0.2/0.5/1.0 + Compatibility Index ≤ 1.1 (Saaty 1994): 0.5 และ 1.0 ผ่าน · 0.2 (6 คน) ได้ 1.112 ไม่ผ่าน · 0.1 ไม่มีผู้ตอบ → รายงานเป็นข้อจำกัด
+  - `WEIGHTS` = category .1421 / rating .0869 / distance .1637 / budget .3926 / weather .2147 · สคริปต์ `backend/scripts/ahp/`
+  - อ้างที่มาของ 5 ปัจจัยด้วย Lopes et al. 2020 เท่านั้น · ไม่ประเมินผลหลังใช้
+
+### D-57 · 2026-10-27 · สถานที่ไม่มี rating = ตัดรีวิวออกจากสูตร POI (แทนค่า 0.5 คงที่) · **ทำแล้ว — ผู้ใช้รัน SQL แล้ว 2026-10-27**
+- บริบท: `calculateRatingScore` ให้ 0.5 เมื่อไม่มี rating ซึ่งเป็นตัวเลขที่ไม่มีแหล่งอ้างอิง และหน้าแนะนำแสดง "รีวิว 2.5/5" ทั้งที่ไม่มีรีวิวจริง · ข้อมูลจริง 2026-10-27 (น่าน 114 แห่ง): ไม่มี rating 13 แห่ง — ไม่พบใน Google (`csv:`) 7 · พบแต่ยังไม่มีรีวิว 6
+- ข้อสรุป (ผู้ใช้เลือก "ทำแบบราคา"):
+  - ไม่มี rating → `rating_score` = null แล้วกระจาย weight 0.25 คืนให้ category/distance/weather ตามสัดส่วน · budget คงที่ 0.15 (วิธีเดียวกับตัด category ใน D-48 — กรณีอื่นคะแนนไม่เปลี่ยน)
+  - หน้าแนะนำแสดง "ยังไม่มีรีวิว"
+  - `RAIN_EXPOSURE.MIXED` = 0.5 ผู้ใช้ยอมรับให้คงไว้
+- ✅ ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว (2026-10-27) — ยังไม่ได้ตรวจว่าการคำนวณรอบใหม่บันทึก `rating_score` = null ได้จริง (`poi_scores` ที่มีอยู่คำนวณก่อน D-57 ทั้งหมด)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`
+
+### D-58 · 2026-11-03 · ลบฟังก์ชันที่ไม่มีใครใช้ใน itineraryBuilder (แทนที่ D-04) · **ทำแล้ว**
+- บริบท: ระหว่างเคลียร์โค้ดทั้ง repo พบว่า `buildNearestNeighborOrder` ไม่มีที่เรียกใช้ และ Auto Trip ใช้ `nearestNeighborTsp` ใน `tspRouteOptimizer.ts` ของตัวเองแล้ว (เหตุผลของ D-04 จึงไม่มีแล้ว) · `buildInitialDraft` คืน `[]` เสมอโดยไม่ใช้พารามิเตอร์ · frontend mirror มี `buildItinerary` ที่หน้าเว็บไม่ได้เรียก (หน้าเว็บใช้แค่ `buildDayItems`)
+- ข้อสรุป (ผู้ใช้เลือก):
+  - ลบ `buildNearestNeighborOrder` และ `buildInitialDraft` ทั้งสองฝั่ง — `buildDraft` ส่ง `items: []` ตรงๆ (response เหมือนเดิม ร่างแรกยังไม่จัดลงวันตาม D-03)
+  - ลบ `buildItinerary` เฉพาะฝั่ง frontend (backend ยังใช้ตอนยืนยันแผน)
+  - mirror ตอนนี้ = `buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type ต้องตรงกันทุกบรรทัด
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryBuilder.ts`, `itineraryController.ts`, `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts`, skill `itinerary-mirror-sync`, skill `clean-code` · กู้คืนได้จาก git ก่อน commit นี้

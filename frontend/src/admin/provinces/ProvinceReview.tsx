@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CloudDownload, Loader2, TriangleAlert } from "lucide-react";
 import { useAuth } from "../../system/auth/useAuth";
-import { adminRequest, errorMessage } from "../lib/adminApi";
+import { adminRequest, errorMessage, loadAdmin } from "../lib/adminApi";
 import type { GroupDecisionInput, ProvinceReview as Review, RowDecisionInput } from "../lib/reviewTypes";
 import GroupCard from "./components/GroupCard";
 import ProblemRowCard from "./components/ProblemRowCard";
@@ -11,7 +11,7 @@ type Tab = "likely" | "review" | "problems" | "decided";
 
 const groupKey = (g: Review["groups"][number]) => `${g.reasons[0]?.type}:${g.attIds.join(",")}`;
 
-// หน้าตรวจข้อมูลของจังหวัด — ทุกการตัดสินใจบันทึกลง DB ทันที (R5 P3, D-26)
+// หน้าตรวจข้อมูลของจังหวัด — ทุกการตัดสินใจบันทึกลง DB ทันที
 export default function ProvinceReview() {
   const navigate = useNavigate();
   const { province = "" } = useParams();
@@ -26,19 +26,7 @@ export default function ProvinceReview() {
 
   const base = `/provinces/${encodeURIComponent(province)}`;
 
-  useEffect(() => {
-    let ignore = false;
-    adminRequest<Review>(`${base}/review`, token)
-      .then((data) => {
-        if (!ignore) setReview(data);
-      })
-      .catch((err) => {
-        if (!ignore) setLoadError(errorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [base, token, reloadKey]);
+  useEffect(() => loadAdmin<Review>(`${base}/review`, token, setReview, setLoadError), [base, token, reloadKey]);
 
   // ทุก action ตอบผลรีวิวใหม่กลับมา จึงแทนที่ทั้งก้อน
   const run = async (request: Promise<Review>) => {

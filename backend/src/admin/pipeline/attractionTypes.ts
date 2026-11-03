@@ -1,6 +1,6 @@
 // แถวหนึ่งของ data/attraction.csv (ข้อมูลสถานที่ท่องเที่ยวจาก ททท.)
 // csv-parse คืนทุกคอลัมน์เป็น string — ระบุชื่อเฉพาะคอลัมน์ที่โค้ดอ่านตรงๆ
-// คอลัมน์อื่น (ATT_DETAIL_TH, ATT_FACEBOOK ฯลฯ) เข้าถึงผ่าน index signature (merge เลือกค่าได้ทุกช่อง — D-26)
+// คอลัมน์อื่น (ATT_DETAIL_TH, ATT_FACEBOOK ฯลฯ) เข้าถึงผ่าน index signature
 export interface AttractionRow {
   [column: string]: string;
   ATT_ID: string;
