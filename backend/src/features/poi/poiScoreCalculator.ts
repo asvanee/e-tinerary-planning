@@ -49,16 +49,18 @@ export function calculatePriceScore(
   return Math.min(1, Math.max(0, 1 - placeCost / dailyBudget));
 }
 
-const WEIGHTS = {
-  category: 0.35,
-  rating: 0.25,
-  distance: 0.15,
-  budget: 0.15,
-  weather: 0.1,
+// น้ำหนักจากแบบสอบถาม AHP 42 คน (รวมผลแบบค่าเฉลี่ยเรขาคณิตของคำตอบ) — ที่มาดู docs/AHP_POI_WEIGHTS.md
+// คำนวณซ้ำได้ด้วย scripts/ahp/runAhp.ts
+export const WEIGHTS = {
+  category: 0.1421,
+  rating: 0.0869,
+  distance: 0.1637,
+  budget: 0.3926,
+  weather: 0.2147,
 };
 
 // น้ำหนักของแต่ละด้าน — ด้านที่ไม่คิดในสูตร (ราคา/หมวด/รีวิว) ได้ 0 แล้วแบ่งน้ำหนักคืนให้ด้านที่เหลือ
-// ตามสัดส่วนเดิม ให้รวมเป็น 1 เสมอ (ราคาคงที่ 0.15 เมื่อคิด)
+// ตามสัดส่วนเดิม ให้รวมเป็น 1 เสมอ (ราคาคงที่ตาม WEIGHTS.budget เมื่อคิด)
 function computeWeights(budgetWeight: number, includeCategory: boolean, includeRating: boolean) {
   const category = includeCategory ? WEIGHTS.category : 0;
   const rating = includeRating ? WEIGHTS.rating : 0;
