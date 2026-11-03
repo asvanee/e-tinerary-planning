@@ -1,10 +1,12 @@
 const AUTO_TRIP_DURATION_OPTIONS = new Set([30, 60, 90, 120, 150, 180]);
 const AUTO_TRIP_DURATION_LABEL = "30, 60, 90, 120, 150 หรือ 180 นาที";
 
+// เวลาเที่ยวต่อหมวดของ Auto Trip ต้องเลือกจากตัวเลือกที่กำหนดเท่านั้น
 export type ParsedAutoTripDurations =
   | { durations: Map<string, number> }
   | { error: string };
 
+// value = { [categoryId]: นาที } — ต้องครบทุกหมวดที่เลือก และห้ามมีหมวดอื่น
 export function parseAutoTripDurations(
   value: unknown,
   categoryIds: string[]

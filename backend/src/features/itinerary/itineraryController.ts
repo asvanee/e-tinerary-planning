@@ -13,25 +13,16 @@ import {
   TripOwnerAndStart,
 } from "./itineraryPlaceQueries";
 
-import {
-  buildInitialDraft,
-  buildItinerary,
-  DayAssignment,
-  PlaceInput,
-} from "./itineraryBuilder";
-
+import { buildItinerary, DayAssignment, PlaceInput } from "./itineraryBuilder";
 import { parseVisitDurations } from "./visitDurations";
 import { parseAutoTripDurations } from "./autoTripDurations";
-
-import {
-  buildAutoTrip,
-  AutoPlace,
-  TripInfo,
-} from "./autoTripBuilder";
+import { buildAutoTrip, AutoPlace, TripInfo } from "./autoTripBuilder";
 
 import { buildTravelMatrix, TRIP_START_ID } from "../../utils/orsTravelMatrix";
 import type { TravelPoint } from "../../utils/orsTravelMatrix";
 import { errorMessage } from "../../utils/errorMessage";
+
+const INTERNAL_ERROR = "เกิดข้อผิดพลาดภายในระบบ";
 
 function toTravelPoint(place: {
   placeId: string;
@@ -64,10 +55,17 @@ function findMissingPlaceIds(
     .filter((id) => !foundIds.has(id));
 }
 
-/**
- * ตรวจว่าทริปมีอยู่และเป็นของ user ที่ login อยู่
- * ไม่ผ่าน -> ตอบ 404/403 ไปแล้วและคืน null (ผู้เรียก return ต่อได้เลย)
- */
+// tripId จาก path หรือตอบ 400 แล้วคืน null
+function getTripId(req: AuthRequest, res: Response, message = "ไม่พบรหัสทริป"): string | null {
+  const { tripId } = req.params;
+  if (!tripId || Array.isArray(tripId)) {
+    res.status(400).json({ message });
+    return null;
+  }
+  return tripId;
+}
+
+// ทริปต้องมีอยู่และเป็นของผู้ใช้ที่ login — ไม่ผ่านจะตอบ 404/403 แล้วคืน null
 async function loadOwnedTrip(
   tripId: string,
   req: AuthRequest,
@@ -88,18 +86,11 @@ async function loadOwnedTrip(
   return tripOwner;
 }
 
-/**
- * POST /api/itinerary/trips/:tripId/draft
- * body: { place_ids: string[] }
- *
- * สร้าง trip_days (ถ้ายังไม่มี) แล้วจัดร่างแผน (ยังไม่บันทึก) พร้อม travel matrix ให้ editor
- */
+// ร่างแผน (ยังไม่บันทึก): สร้าง trip_days ถ้ายังไม่มี แล้วส่งวัน + travel matrix ให้ editor
+// ร่างแรกยังไม่จัดสถานที่ลงวัน ผู้ใช้ลากจัดเองทั้งหมด
 export const buildDraft = async (req: AuthRequest, res: Response) => {
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const tripId = getTripId(req, res);
+  if (!tripId) return;
 
   const { place_ids } = req.body;
 
@@ -133,21 +124,7 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // ร่างแผนยังไม่มีเวลาที่ผู้ใช้กรอก (D-36) — editor ให้กรอกเอง
-    const placesById = new Map<string, PlaceInput>(
-      places.map((place) => [place.placeId, { ...place, visitDurationMin: null }])
-    );
-
-    const draftItems = buildInitialDraft(
-      tripDays.map((day) => toDayAssignment(day, [])),
-      place_ids,
-      placesById,
-      tripOwner.startLat,
-      tripOwner.startLng
-    );
-
-    // ORS Matrix many-to-many: trip start + สถานที่ที่เลือกทั้งหมด — frontend ใช้ recompute ตอนลาก
-    // (ไม่ throw: ORS พลาดจะ fallback รายคู่เป็น haversine ให้เอง)
+    // matrix ของจุดเริ่มต้น + ทุกสถานที่ ให้หน้าเว็บคำนวณใหม่ตอนลาก
     const travelMatrix = await buildTravelMatrix([
       {
         id: TRIP_START_ID,
@@ -162,14 +139,12 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
       tripStartLat: tripOwner.startLat,
       tripStartLng: tripOwner.startLng,
       tripDays,
-      items: draftItems,
+      items: [],
       travelMatrix,
     });
   } catch (err) {
     console.error("Build draft itinerary exception:", err);
-    return res.status(500).json({
-      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
-    });
+    return res.status(500).json({ message: errorMessage(err) || INTERNAL_ERROR });
   }
 };
 
@@ -178,20 +153,11 @@ interface ConfirmDayInput {
   place_ids: string[];
 }
 
-/**
- * PUT /api/itinerary/trips/:tripId
- * body: { days: { trip_day_id: string; place_ids: string[] }[]; visit_durations: { [place_id]: นาที } }
- *
- * ยืนยันแผน — backend คำนวณซ้ำทั้งหมดด้วย buildItinerary() (ไม่เชื่อระยะ/เวลา/ราคาจาก frontend)
- * เวลาที่อยู่เป็น input ของผู้ใช้ (D-36) รับจาก body แต่ต้องกรอกครบและอยู่ในช่วง
- * แล้ว delete-then-insert ทับแผนเดิมทั้งทริป
- */
+// ยืนยันแผน: body = { days: [{ trip_day_id, place_ids }], visit_durations: { [place_id]: นาที } }
+// backend คำนวณระยะ/เวลา/ราคาซ้ำเองทั้งหมด (ไม่เชื่อค่าจากหน้าเว็บ) แล้วลบแผนเดิมของทริปก่อนบันทึกใหม่
 export const confirmItinerary = async (req: AuthRequest, res: Response) => {
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const tripId = getTripId(req, res);
+  if (!tripId) return;
 
   const { days, visit_durations } = req.body as {
     days: ConfirmDayInput[];
@@ -222,45 +188,31 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
       }
     }
 
-const allPlaceIds = Array.from(
-  new Set(
-    days.flatMap((day) =>
-      day.place_ids.map((id) => String(id).trim())
-    )
-  )
-);
+    const allPlaceIds = Array.from(
+      new Set(days.flatMap((day) => day.place_ids.map((id) => String(id).trim())))
+    );
 
-// ตรวจสอบรหัสสถานที่เบื้องต้น
-if (allPlaceIds.some((id) => !id)) {
-  return res.status(400).json({
-    message: "พบรหัสสถานที่ว่าง กรุณาตรวจสอบข้อมูลที่ส่งมา",
-  });
-}
+    if (allPlaceIds.some((id) => !id)) {
+      return res.status(400).json({
+        message: "พบรหัสสถานที่ว่าง กรุณาตรวจสอบข้อมูลที่ส่งมา",
+      });
+    }
 
-const parsedDurations = parseVisitDurations(
-  visit_durations,
-  allPlaceIds
-);
+    const parsedDurations = parseVisitDurations(visit_durations, allPlaceIds);
+    if ("error" in parsedDurations) {
+      return res.status(400).json({ message: parsedDurations.error });
+    }
+    const { durations } = parsedDurations;
 
-if ("error" in parsedDurations) {
-  return res.status(400).json({
-    message: parsedDurations.error,
-  });
-}
+    const places = await getSelectedPlaces(allPlaceIds);
+    const missingPlaceIds = findMissingPlaceIds(allPlaceIds, places);
 
-const { durations } = parsedDurations;
-
-const places = await getSelectedPlaces(allPlaceIds);
-const missingPlaceIds = findMissingPlaceIds(allPlaceIds, places);
-
-if (missingPlaceIds.length > 0) {
-  return res.status(400).json({
-    message: "พบสถานที่บางแห่งไม่มีอยู่ในระบบ",
-    missing_place_ids: missingPlaceIds,
-  });
-}
-
-
+    if (missingPlaceIds.length > 0) {
+      return res.status(400).json({
+        message: "พบสถานที่บางแห่งไม่มีอยู่ในระบบ",
+        missing_place_ids: missingPlaceIds,
+      });
+    }
 
     const placesById = new Map<string, PlaceInput>(
       places.map((place) => [
@@ -273,8 +225,7 @@ if (missingPlaceIds.length > 0) {
       toDayAssignment(tripDaysById.get(dayInput.trip_day_id)!, dayInput.place_ids)
     );
 
-    // สร้าง travel matrix ใหม่ฝั่ง backend เสมอ — ถ้าไม่มีพิกัดจุดเริ่มต้น จะไม่ใส่ TRIP_START_ID
-    // วันแรกจึงเริ่มตามเวลาเดิมโดยไม่มี leg แรก
+    // ไม่มีพิกัดจุดเริ่มต้น -> ไม่ใส่ TRIP_START_ID วันแรกจึงไม่มีช่วงเดินทางแรก
     const hasStart =
       Number.isFinite(tripOwner.startLat) && Number.isFinite(tripOwner.startLng);
     const travelMatrix = await buildTravelMatrix([
@@ -292,9 +243,8 @@ if (missingPlaceIds.length > 0) {
 
     const finalItems = buildItinerary(dayAssignments, placesById, travelMatrix);
 
-    // ---- กันแผนที่ยังมีจุดขัดแย้ง (ปิด / เวลาไม่พอ / งบเกิน) ----
-    // ต้องเช็คก่อนลบแผนเดิมด้านล่าง ไม่งั้นถ้าปฏิเสธหลังลบ แผนเก่าของผู้ใช้จะหายไป
-    // ตรงกับกฎที่หน้า ItineraryEditor ปิดปุ่มยืนยันไว้ ("ไม่ทราบเวลา/ราคา" ไม่นับเป็นปัญหา)
+    // ต้องเช็ค conflict ก่อนลบแผนเดิม ไม่งั้นถ้าปฏิเสธหลังลบ แผนเก่าของผู้ใช้จะหาย
+    // กฎเดียวกับปุ่มยืนยันในหน้า editor ("ไม่ทราบเวลา/ราคา" ไม่นับเป็นปัญหา)
     const conflicts = finalItems.filter(
       (item) => item.isClosedConflict || item.isTimeConflict || item.isBudgetConflict
     );
@@ -312,7 +262,6 @@ if (missingPlaceIds.length > 0) {
       });
     }
 
-    // ---- delete-then-insert ทับของเดิมทั้งทริป ----
     const allTripDayIds = tripDays.map((day) => day.tripDayId);
 
     const { error: deleteError } = await supabase
@@ -366,9 +315,7 @@ if (missingPlaceIds.length > 0) {
     });
   } catch (err) {
     console.error("Confirm itinerary exception:", err);
-    return res.status(500).json({
-      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
-    });
+    return res.status(500).json({ message: errorMessage(err) || INTERNAL_ERROR });
   }
 };
 
@@ -389,7 +336,7 @@ interface SavedItineraryRow {
   travel_time_from_prev: number | null;
   distance_from_prev: number | null;
   place_cost: number | null;
-  visit_duration_min: number | null; // null = แผนที่บันทึกก่อน P5f (D-36)
+  visit_duration_min: number | null; // null = แผนที่บันทึกก่อนมีช่องกรอกเวลา
   is_time_conflict: boolean;
   is_closed_conflict: boolean;
   is_budget_conflict: boolean;
@@ -397,17 +344,10 @@ interface SavedItineraryRow {
   places: SavedPlaceSummary | SavedPlaceSummary[] | null;
 }
 
-/**
- * GET /api/itinerary/trips/:tripId
- *
- * แผนเดินทางที่ "ยืนยันแล้ว" พร้อมข้อมูลสถานที่จากตาราง places (หน้า TripDetail)
- */
+// แผนที่ยืนยันแล้วพร้อมข้อมูลสถานที่ (หน้ารายละเอียดทริป)
 export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const tripId = getTripId(req, res);
+  if (!tripId) return;
 
   try {
     const tripOwner = await loadOwnedTrip(tripId, req, res);
@@ -458,7 +398,7 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
       dailyBudget: day.dailyBudget,
       useBudget: day.useBudget,
       items: (itemsByDay.get(day.tripDayId) ?? []).map((row) => {
-        // embed ได้ทั้ง object และ array ตามที่ Supabase คืนมา
+        // embed ได้ทั้ง object และ array
         const place = Array.isArray(row.places) ? row.places[0] : row.places;
         return {
           placeId: row.place_id,
@@ -490,23 +430,15 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     console.error("Get saved itinerary exception:", err);
-    return res.status(500).json({
-      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
-    });
+    return res.status(500).json({ message: errorMessage(err) || INTERNAL_ERROR });
   }
 };
 
-/**
- * GET /api/itinerary/trips/:tripId/auto-places
- * สถานที่ที่ Auto Trip จะใช้ — หน้า TripRecommendations เรียกเช็คก่อนเปิดหน้า Auto Trip
- */
+// สถานที่ที่ Auto Trip จะใช้ — หน้าแนะนำเรียกเช็คก่อนเปิดหน้า Auto Trip
 export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
   try {
-    const { tripId } = req.params;
-
-    if (!tripId || Array.isArray(tripId)) {
-      return res.status(400).json({ message: "tripId is required" });
-    }
+    const tripId = getTripId(req, res, "tripId is required");
+    if (!tripId) return;
 
     const tripOwner = await loadOwnedTrip(tripId, req, res);
     if (!tripOwner) return;
@@ -522,7 +454,7 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
     console.error("getAutoTripPlacesTest error:", error);
     return res.status(500).json({
       success: false,
-      message: errorMessage(error) || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(error) || INTERNAL_ERROR,
     });
   }
 }
@@ -549,16 +481,14 @@ function toAutoPlace(
   };
 }
 
+// หมวดที่ผู้ใช้เลือกไว้ ให้หน้า Auto Trip สร้างช่องกรอกเวลา
 export async function getAutoTripCategoriesController(
   req: AuthRequest,
   res: Response
 ) {
   try {
-    const { tripId } = req.params;
-
-    if (!tripId || Array.isArray(tripId)) {
-      return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-    }
+    const tripId = getTripId(req, res);
+    if (!tripId) return;
 
     const tripOwner = await loadOwnedTrip(tripId, req, res);
     if (!tripOwner) return;
@@ -578,18 +508,12 @@ export async function getAutoTripCategoriesController(
   }
 }
 
-/**
- * POST /api/itinerary/trips/:tripId/auto
- * body: { visitDurationByCategory: { [categoryId]: เวลาเที่ยวต่อสถานที่เป็นนาที } }
- * จัดทริปอัตโนมัติจาก POI ของหมวดที่ผู้ใช้เลือก
- */
+// จัดแผนอัตโนมัติ: body = { visitDurationByCategory: { [categoryId]: นาที } }
+// ใช้สถานที่จาก POI ของหมวดที่เลือกก่อน ที่เหลือเป็นสถานที่แนะนำเพิ่ม (ใช้เวลาเที่ยวที่สั้นที่สุด)
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
   try {
-    const { tripId } = req.params;
-
-    if (!tripId || Array.isArray(tripId)) {
-      return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-    }
+    const tripId = getTripId(req, res);
+    if (!tripId) return;
 
     const tripOwner = await loadOwnedTrip(tripId, req, res);
     if (!tripOwner) return;
@@ -644,9 +568,7 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       });
     }
 
-    const requestBody = req.body as
-      | { visitDurationByCategory?: unknown }
-      | undefined;
+    const requestBody = req.body as { visitDurationByCategory?: unknown } | undefined;
     const parsedDurations = parseAutoTripDurations(
       requestBody?.visitDurationByCategory,
       categoryIds
@@ -656,24 +578,18 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: parsedDurations.error });
     }
 
-    const selectedPlaces = rawPlaces.filter((place) =>
-      selectedCategoryIds.has(place.categoryId)
-    );
-    const placesWithDurations = selectedPlaces.map((place) => {
-      const requestedVisitDurationMin = parsedDurations.durations.get(place.categoryId);
+    const placesWithDurations = rawPlaces
+      .filter((place) => selectedCategoryIds.has(place.categoryId))
+      .map((place) => {
+        const requestedVisitDurationMin = parsedDurations.durations.get(place.categoryId);
+        if (requestedVisitDurationMin === undefined) {
+          throw new Error("ไม่พบเวลาเที่ยวของประเภทสถานที่");
+        }
+        return toAutoPlace(place, requestedVisitDurationMin);
+      });
 
-      if (requestedVisitDurationMin === undefined) {
-        throw new Error("ไม่พบเวลาเที่ยวของประเภทสถานที่");
-      }
-
-      return toAutoPlace(place, requestedVisitDurationMin);
-    });
-    const selectedPlaceIds = new Set(
-      placesWithDurations.map((place) => place.place_id)
-    );
-    const fallbackDurationMin = Math.min(
-      ...parsedDurations.durations.values()
-    );
+    const selectedPlaceIds = new Set(placesWithDurations.map((place) => place.place_id));
+    const fallbackDurationMin = Math.min(...parsedDurations.durations.values());
     const recommendationPlacesById = new Map<string, AutoPlace>();
 
     for (const place of rawPlaces) {
@@ -684,15 +600,9 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       ) {
         continue;
       }
-
-      recommendationPlacesById.set(
-        place.placeId,
-        toAutoPlace(place, fallbackDurationMin, true)
-      );
+      recommendationPlacesById.set(place.placeId, toAutoPlace(place, fallbackDurationMin, true));
     }
-    const recommendationPlaces = Array.from(
-      recommendationPlacesById.values()
-    );
+    const recommendationPlaces = Array.from(recommendationPlacesById.values());
 
     const tripInfo: TripInfo = {
       trip_id: String(trip.trip_id),
@@ -703,19 +613,15 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       start_lat: Number(trip.start_lat),
       start_lng: Number(trip.start_lng),
       available_time_per_day:
-        trip.available_time_per_day != null
-          ? Number(trip.available_time_per_day)
-          : null,
+        trip.available_time_per_day != null ? Number(trip.available_time_per_day) : null,
       use_budget: trip.use_budget,
-      daily_budget:
-        trip.daily_budget != null ? Number(trip.daily_budget) : null,
+      daily_budget: trip.daily_budget != null ? Number(trip.daily_budget) : null,
       trip_days: tripDays.map((day) => ({
         dayNumber: day.dayNumber,
         visitDate: day.visitDate,
         startTime: day.startTime,
         endTime: day.endTime,
-        dailyBudget:
-          day.dailyBudget != null ? Number(day.dailyBudget) : null,
+        dailyBudget: day.dailyBudget != null ? Number(day.dailyBudget) : null,
         useBudget: day.useBudget,
       })),
     };
@@ -726,24 +632,14 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
         latitude: tripInfo.start_lat,
         longitude: tripInfo.start_lng,
       },
-      ...placesWithDurations.map((place) => ({
-        id: place.place_id,
-        latitude: place.latitude,
-        longitude: place.longitude,
-      })),
-      ...recommendationPlaces.map((place) => ({
+      ...[...placesWithDurations, ...recommendationPlaces].map((place) => ({
         id: place.place_id,
         latitude: place.latitude,
         longitude: place.longitude,
       })),
     ]);
 
-    const result = buildAutoTrip(
-      tripInfo,
-      placesWithDurations,
-      travelMatrix,
-      recommendationPlaces
-    );
+    const result = buildAutoTrip(tripInfo, placesWithDurations, travelMatrix, recommendationPlaces);
 
     if (result.selected_places.length === 0) {
       return res.status(400).json({

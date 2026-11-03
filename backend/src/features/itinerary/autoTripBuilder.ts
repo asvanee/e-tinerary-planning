@@ -1,6 +1,7 @@
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import { TRIP_START_ID, type TravelMatrix } from "../../utils/orsTravelMatrix";
+import { timeStringToMinutes } from "../../utils/timeString";
 import {
   calculateDistanceKm,
   nearestNeighborTsp,
@@ -9,11 +10,10 @@ import {
 import { getPlaceCost } from "./itineraryBuilder";
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
-/* =========================================================
- * Types
- * ========================================================= */
+// จัดแผนอัตโนมัติ: เลือกสถานที่ทีละที่ตามคะแนน POI แล้วแทรกลงวัน/ตำแหน่งที่เวลาเดินทางรวมน้อยที่สุด
+// โดยต้องเปิดตอนไปถึง ไม่เกินเวลาจบวัน และไม่เกินงบต่อวัน · จากนั้นเติมสถานที่แนะนำเพิ่มถ้ายังมีเวลา
 
-// ชื่อ field เป็นรูปแบบเดียวกับ selected_places ที่ส่งกลับ frontend
+// ชื่อ field เป็นรูปแบบเดียวกับ selected_places ที่ส่งกลับหน้าเว็บ
 export interface AutoPlace {
   place_id: string;
   place_name: string;
@@ -42,21 +42,13 @@ interface ScheduledAutoPlace extends Omit<
 
 export interface TripInfo {
   trip_id: string;
-
   start_date: string;
   end_date: string;
-
   start_time: string;
-
   number_of_people?: number;
-
-  // จุดเริ่มต้นจาก LocationPinPicker
   start_lat: number;
   start_lng: number;
-
-  // จำนวนชั่วโมงที่เที่ยวได้ต่อวัน
-  available_time_per_day?: number | null;
-
+  available_time_per_day?: number | null; // ชั่วโมงที่เที่ยวได้ต่อวัน
   use_budget?: boolean;
   daily_budget?: number | null;
   trip_days?: AutoTripDaySchedule[];
@@ -74,22 +66,15 @@ export interface AutoTripDaySchedule {
 interface AutoTripStop {
   place_id: string;
   place_name: string;
-
   categoryName: string;
-
   poiScore: number;
-
   latitude: number;
   longitude: number;
-
   start_time: string;
   end_time: string;
-
   duration_min: number;
-
   travel_distance_km: number;
   travel_time_min: number;
-
   previous_place_name: string;
   is_recommendation: boolean;
 }
@@ -97,9 +82,7 @@ interface AutoTripStop {
 interface AutoTripDay {
   day: number;
   date: string;
-
   stops: AutoTripStop[];
-
   total_distance_km: number;
   total_travel_time_min: number;
   total_visit_time_min: number;
@@ -107,17 +90,10 @@ interface AutoTripDay {
 
 interface AutoTripResult {
   trip_id: string;
-
   selected_places: ScheduledAutoPlace[];
-
   days: AutoTripDay[];
-
   total_distance_km: number;
 }
-
-/* =========================================================
- * Constants
- * ========================================================= */
 
 const LAST_DAY_MINUTE = 24 * 60 - 1;
 const DEFAULT_DAY_END = "18:00";
@@ -125,15 +101,7 @@ const DEFAULT_TRAVEL_SPEED_KMH = 30;
 const TRIP_START_NAME = "จุดเริ่มต้นทริป";
 const DAY_START_NAME = "เริ่มต้นวัน";
 
-/* =========================================================
- * Time Utilities
- * ========================================================= */
-
-function timeToMinutes(time: string): number {
-  const [hour, minute] = time.split(":").map(Number);
-  return hour * 60 + minute;
-}
-
+// นาที -> "HH:MM"
 function minutesToTime(minutes: number): string {
   const normalized = Math.max(0, minutes);
   const hour = Math.floor(normalized / 60);
@@ -142,10 +110,7 @@ function minutesToTime(minutes: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-/* =========================================================
- * Distance / Travel Time
- * ========================================================= */
-
+// ไม่มีใน matrix ใช้ความเร็วเฉลี่ย 30 กม./ชม. (ปัดขึ้น)
 function calculateTravelTimeMin(distanceKm: number): number {
   return Math.ceil((distanceKm / DEFAULT_TRAVEL_SPEED_KMH) * 60);
 }
@@ -193,28 +158,18 @@ function getTripDates(startDate: string, endDate: string): Date[] {
   return dates;
 }
 
+// ช่วงเดินทางของแต่ละที่ในเส้นทาง เริ่มจากจุดเริ่มต้นทริป (ใช้ matrix ก่อน ไม่มีค่อยคิดเส้นตรง)
 function getRouteLegs(
   route: AutoPlace[],
   startLat: number,
   startLng: number,
-  travelMatrix: TravelMatrix | undefined,
-  includeTripStartLeg: boolean
+  travelMatrix: TravelMatrix | undefined
 ): RouteLeg[] {
   let previousPoint = tripStartPoint(startLat, startLng);
   let previousPlaceName = TRIP_START_NAME;
 
-  return route.map((place, index) => {
+  return route.map((place) => {
     const point = toTspPlace(place);
-    if (index === 0 && !includeTripStartLeg) {
-      previousPoint = point;
-      previousPlaceName = DAY_START_NAME;
-      return {
-        distanceKm: 0,
-        travelTimeMin: 0,
-        previousPlaceName,
-      };
-    }
-
     const prevId = previousPoint.place_id === "TRIP_START" ? TRIP_START_ID : previousPoint.place_id;
     const hit = travelMatrix?.[prevId]?.[place.place_id];
 
@@ -235,6 +190,7 @@ function getRouteLegs(
   });
 }
 
+// เรียงสถานที่ของวันใหม่แบบ nearest neighbor จากจุดเริ่มต้นทริป
 function getNearestNeighborRoute(
   route: AutoPlace[],
   startLat: number,
@@ -252,6 +208,8 @@ function getNearestNeighborRoute(
   });
 }
 
+// เวลาเที่ยวที่อยู่ได้จริง (ไม่เกินที่ขอ ไม่เกินเวลาจบวัน และสถานที่ยังเปิด) — 0 = อยู่ไม่ได้
+// ไม่มีข้อมูลเวลาเปิดให้อยู่ได้เต็มที่ · มีข้อมูลใช้ binary search หาเวลานานสุดที่ยังเปิด
 function getFeasibleVisitDuration(
   place: AutoPlace,
   dayOfWeek: number,
@@ -294,6 +252,8 @@ function getFeasibleVisitDuration(
   return maxFeasibleDuration;
 }
 
+// คิดตารางเวลาของทุกวันจากเส้นทาง — ที่ไหนอยู่ไม่ได้หรือเกินงบคืน null
+// วันที่ 2 ขึ้นไปที่แรกไม่นับเวลาเดินทาง แต่ยังนับในเวลาเดินทางรวมที่ใช้เลือกเส้นทาง
 function evaluateSchedule(
   trip: TripInfo,
   routes: AutoPlace[][],
@@ -301,13 +261,7 @@ function evaluateSchedule(
   travelMatrix?: TravelMatrix
 ): EvaluatedSchedule | null {
   const selectionRouteLegs = routes.map((route) =>
-    getRouteLegs(
-      route,
-      trip.start_lat,
-      trip.start_lng,
-      travelMatrix,
-      true
-    )
+    getRouteLegs(route, trip.start_lat, trip.start_lng, travelMatrix)
   );
   const routeLegs = selectionRouteLegs.map((legs, dayIndex) =>
     dayIndex === 0
@@ -342,12 +296,12 @@ function evaluateSchedule(
     const dayStartTime = tripDay?.startTime ?? trip.start_time;
     const dayEnd = tripDay
       ? tripDay.endTime
-        ? timeToMinutes(tripDay.endTime)
+        ? timeStringToMinutes(tripDay.endTime)
         : LAST_DAY_MINUTE
       : trip.available_time_per_day != null
-        ? timeToMinutes(trip.start_time) + trip.available_time_per_day * 60
-        : timeToMinutes(DEFAULT_DAY_END);
-    let currentTime = timeToMinutes(dayStartTime);
+        ? timeStringToMinutes(trip.start_time) + trip.available_time_per_day * 60
+        : timeStringToMinutes(DEFAULT_DAY_END);
+    let currentTime = timeStringToMinutes(dayStartTime);
     let totalDistanceKm = 0;
     let totalVisitTimeMin = 0;
     let dailyCost = 0;
@@ -441,6 +395,7 @@ interface PlaceInsertion {
   schedule: EvaluatedSchedule;
 }
 
+// ลองแทรกสถานที่ลงวันนั้นทุกตำแหน่ง (รวมเรียงใหม่แบบ nearest neighbor) เลือกที่เวลาเดินทางรวมน้อยสุด
 function findBestPlaceInsertion(
   trip: TripInfo,
   routes: AutoPlace[][],
@@ -485,6 +440,8 @@ function findBestPlaceInsertion(
   return bestInsertion;
 }
 
+// เลือกสถานที่ตามคะแนนสูงสุดก่อน ทีละที่จนใส่เพิ่มไม่ได้ แล้วเติมสถานที่แนะนำวันละ 1 ที่
+// (สถานที่แนะนำต้องได้เวลาเที่ยวเต็มและไม่ทำให้เวลาของที่เดิมลดลง)
 function schedulePlaces(
   trip: TripInfo,
   places: AutoPlace[],
@@ -603,10 +560,6 @@ function schedulePlaces(
 
   return currentSchedule;
 }
-
-/* =========================================================
- * MAIN AUTO TRIP FUNCTION
- * ========================================================= */
 
 export function buildAutoTrip(
   trip: TripInfo,

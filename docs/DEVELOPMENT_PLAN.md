@@ -202,8 +202,8 @@
 
 ## กลุ่ม 6 — งานเพิ่มเติมที่ไม่เร่งด่วน
 > ✂️ **ตัดออก 2026-10-22 (D-42) ทั้งกลุ่ม — เผื่ออนาคต**
-- Weather มิติอื่น (ความร้อน/UV/PM2.5) ตามที่ comment ใน `poiScoreCalculator.ts` ระบุว่าเป็นแนวทางพัฒนาต่อ
-- Sensitivity analysis ของค่า MIXED (0.3/0.5/0.7) ตามที่ comment ใน `poiScoreCalculator.ts` แนะนำ
+- Weather มิติอื่น (ความร้อน/UV/ลม/PM2.5) — แนวทางพัฒนาต่อ (`calculateWeatherScore` ดูแค่โอกาสฝน)
+- Sensitivity analysis ของค่า `RAIN_EXPOSURE.MIXED` (0.3/0.5/0.7) ใน `poiScoreCalculator.ts` — ค่า OUTDOOR 1 / MIXED 0.5 / INDOOR 0 ทีมกำหนดเอง ไม่มีมาตรฐานกลาง (เกณฑ์: ระหว่างทำกิจกรรมหลักส่วนใหญ่อยู่ในที่ที่ฝนตกใส่ได้ไหม)
 - ~~เขียน README จริง~~ — README.md เป็นแผนงานของทีมแล้ว (ดูกลุ่ม 0)
 
 ## ลำดับที่แนะนำ

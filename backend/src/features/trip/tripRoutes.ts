@@ -11,7 +11,7 @@ import { requireAuth } from "../auth/authMiddleware";
 
 const router = Router();
 
-// ทุก route ต้อง login · controller ตรวจความเป็นเจ้าของด้วย eq("user_id") เอง
+// ทุก route ต้อง login · controller กรอง user_id เองเพื่อตรวจเจ้าของ
 router.post("/", requireAuth, createTrip);
 router.get("/", requireAuth, getMyTrips);
 router.get("/:tripId", requireAuth, getTripById);

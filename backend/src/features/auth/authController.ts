@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import { supabase, createAuthClient } from "../../config/db";
+import { errorMessage } from "../../utils/errorMessage";
 
-// Register
+// สมัครสมาชิก: สร้างบัญชีใน Supabase Auth ก่อน แล้วค่อยบันทึกโปรไฟล์ลงตาราง users
 export const register = async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
 
   try {
-    // 1️⃣ สร้าง user ใน Supabase Auth ก่อน
     const { data, error } = await createAuthClient().auth.signUp({
       email,
       password,
@@ -23,12 +23,11 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: error.message });
     }
 
-    // Supabase บางครั้งไม่ return error แต่ส่ง identities: [] แทน
+    // อีเมลซ้ำบางครั้ง Supabase ไม่คืน error แต่ส่ง identities ว่างมาแทน
     if (data.user && data.user.identities && data.user.identities.length === 0) {
       return res.status(409).json({ message: "อีเมลนี้มีบัญชีอยู่แล้ว" });
     }
 
-    // 2️⃣ บันทึก profile ลง users table หลังจาก Auth สำเร็จแล้วเท่านั้น
     const { error: insertError } = await supabase.from("users").insert([
       {
         user_id: data.user?.id,
@@ -56,24 +55,21 @@ export const register = async (req: Request, res: Response) => {
       message: "สมัครสมาชิกสำเร็จ! กรุณายืนยัน email ของคุณก่อนเข้าสู่ระบบ.",
     });
   } catch (err) {
-    res.status(500).json({ message: (err as { message?: string } | null)?.message });
+    res.status(500).json({ message: errorMessage(err) });
   }
 };
 
-
-// Login
+// เข้าสู่ระบบ: ต้องยืนยันอีเมลแล้ว · คืนโปรไฟล์จากตาราง users และบันทึกเวลา login ล่าสุด
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
-    // Supabase Auth login
     const { data, error } = await createAuthClient().auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      // แปล Supabase error เป็นภาษาไทย
       if (error.message.toLowerCase().includes("invalid login credentials")) {
         return res.status(400).json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
       }
@@ -87,14 +83,12 @@ export const login = async (req: Request, res: Response) => {
     }
     const user = data.user;
 
-    // ตรวจสอบ email_verified
     if (!user?.email_confirmed_at) {
       return res.status(403).json({
         message: "กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ",
       });
     }
 
-    // ดึง profile จากตาราง users มาส่งกลับ (ไม่ upsert)
     const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("*")
@@ -114,13 +108,14 @@ export const login = async (req: Request, res: Response) => {
       session: data.session,
     });
   } catch (err) {
-    res.status(500).json({ message: (err as { message?: string } | null)?.message });
+    res.status(500).json({ message: errorMessage(err) });
   }
 };
+
 export const logout = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (token) {
-    await supabase.auth.admin.signOut(token); // บอก Supabase ว่า signOut
+    await supabase.auth.admin.signOut(token);
   }
   res.json({ message: "Logout สำเร็จ" });
 };

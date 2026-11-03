@@ -8,7 +8,7 @@
 | D-01 | Business logic ของงบคำนวณที่ **frontend จุดเดียว** (`daily_budget` เป็นค่าสำเร็จรูป — งบต่อคนต่อวันตาม D-51) backend ห้ามหารจำนวนคนซ้ำ | กันการคำนวณซ้ำซ้อน/ไม่ตรงกัน | `poiPlaceQueries.ts` ขั้น 3, `itineraryPlaceQueries.ts` |
 | D-02 | Backend `itineraryBuilder.ts` คือ **source of truth** ส่วน frontend เก็บ copy แบบ mirror ไว้ recompute ทันที และ backend ต้อง re-validate ซ้ำก่อน save เสมอ | ลากวางแล้วเห็นผลทันทีโดยไม่ต้องรอ network | หัวไฟล์ `backend/.../itineraryBuilder.ts` |
 | D-03 | Itinerary editor เป็นแบบ **manual drag เท่านั้น** draft แรกไม่จัดลงวันให้ (`buildInitialDraft` คืน `[]`) และไม่มีปุ่ม "จัดลำดับอัตโนมัติ" ในหน้านี้ | final design | `itineraryBuilder.ts` |
-| D-04 | เก็บ `buildNearestNeighborOrder` ไว้ แม้ตอนนี้ไม่มีที่เรียกใช้ | อาจนำไปใช้กับ Auto Trip | `itineraryBuilder.ts` |
+| D-04 | เก็บ `buildNearestNeighborOrder` ไว้ แม้ตอนนี้ไม่มีที่เรียกใช้ · **ถูกแทนที่โดย D-58 (ลบแล้ว 2026-11-03)** | อาจนำไปใช้กับ Auto Trip | `itineraryBuilder.ts` |
 | D-05 | ราคา v2 (ตั้งแต่ D-52 ใช้ priceRange แทน price_level — หลักไม่เดาราคาเหมือนเดิม): **ไม่เดาราคา** เมื่อไม่มี `price_level` จริง ยกเว้น category `free` (ให้ประมาณเป็น 0) ถ้าเป็น paid ที่ไม่มีราคา ให้ `placeCost=null`, ปล่อยผ่าน hard filter, ไม่นับเข้ายอดสะสม และให้ price weight = 0 | การเดาราคาซ่อนความไม่รู้ไว้และลงโทษผิด | `poiScoreCalculator.ts`, `poiPlaceQueries.ts`, `itineraryBuilder.ts` |
 | D-06 | `price_nature` เหลือแค่ `free` / `paid` (ยุบ food + paid_other) และ DB migrate แล้ว | logic ของสองหมวดเหมือนกันทุกกรณี | `poiPlaceQueries.ts` |
 | D-07 | เลิกใช้ `categories.default_price_level` ("column กำลังจะ drop") | ดู D-05 | หลายไฟล์ |
@@ -455,3 +455,12 @@
 - ✅ ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว (2026-10-27) — ยังไม่ได้ตรวจว่าการคำนวณรอบใหม่บันทึก `rating_score` = null ได้จริง (`poi_scores` ที่มีอยู่คำนวณก่อน D-57 ทั้งหมด)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`
+
+### D-58 · 2026-11-03 · ลบฟังก์ชันที่ไม่มีใครใช้ใน itineraryBuilder (แทนที่ D-04) · **ทำแล้ว**
+- บริบท: ระหว่างเคลียร์โค้ดทั้ง repo พบว่า `buildNearestNeighborOrder` ไม่มีที่เรียกใช้ และ Auto Trip ใช้ `nearestNeighborTsp` ใน `tspRouteOptimizer.ts` ของตัวเองแล้ว (เหตุผลของ D-04 จึงไม่มีแล้ว) · `buildInitialDraft` คืน `[]` เสมอโดยไม่ใช้พารามิเตอร์ · frontend mirror มี `buildItinerary` ที่หน้าเว็บไม่ได้เรียก (หน้าเว็บใช้แค่ `buildDayItems`)
+- ข้อสรุป (ผู้ใช้เลือก):
+  - ลบ `buildNearestNeighborOrder` และ `buildInitialDraft` ทั้งสองฝั่ง — `buildDraft` ส่ง `items: []` ตรงๆ (response เหมือนเดิม ร่างแรกยังไม่จัดลงวันตาม D-03)
+  - ลบ `buildItinerary` เฉพาะฝั่ง frontend (backend ยังใช้ตอนยืนยันแผน)
+  - mirror ตอนนี้ = `buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type ต้องตรงกันทุกบรรทัด
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryBuilder.ts`, `itineraryController.ts`, `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts`, skill `itinerary-mirror-sync`, skill `clean-code` · กู้คืนได้จาก git ก่อน commit นี้

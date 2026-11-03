@@ -7,8 +7,9 @@ import { diffTripCategories, parseCategoryIds, TripCategoryLink } from "./tripCa
 
 const VALID_SCOPES = ["GROUP", "PER_PERSON"];
 const VALID_PERIODS = ["TOTAL_TRIP", "PER_DAY"];
+const INTERNAL_ERROR = "เกิดข้อผิดพลาดภายในระบบ";
 
-/** field ของทริปที่ createTrip / updateTrip รับจาก body (ชุดเดียวกัน) */
+// field ที่ createTrip / updateTrip รับจาก body
 interface TripBody {
   province?: string;
   district?: string;
@@ -28,21 +29,35 @@ interface TripBody {
   start_address?: string;
 }
 
-/**
- * กันไม่ให้ end_time (= start_time + available_time_per_day) ข้ามเที่ยงคืน
- * เพราะ Postgres `time` เก็บแค่เวลานาฬิกา (เริ่ม 20:00 + 8 ชม. จะกลายเป็น 04:00)
- * ทำให้ trip_days.end_time และการเทียบเวลาใน itineraryBuilder.ts ผิด — ไม่รองรับทริปข้ามวัน
- *
- * คืนค่า null = ผ่าน, string = ข้อความ error ที่จะส่งกลับ user
- */
+// คืน user id หรือตอบ 401 แล้วคืน null
+function requireUserId(req: AuthRequest, res: Response): string | null {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
+    return null;
+  }
+  return userId;
+}
+
+// คืน user id + trip id จาก path หรือตอบ 401/400 แล้วคืน null
+function requireTripParams(req: AuthRequest, res: Response): { userId: string; tripId: string } | null {
+  const userId = requireUserId(req, res);
+  if (!userId) return null;
+
+  const { tripId } = req.params;
+  if (!tripId || Array.isArray(tripId)) {
+    res.status(400).json({ message: "ไม่พบรหัสทริป" });
+    return null;
+  }
+  return { userId, tripId };
+}
+
+// เวลาเริ่ม + เวลาว่างต่อวันต้องไม่ข้ามเที่ยงคืน เพราะคอลัมน์ time เก็บข้ามวันไม่ได้ — null = ผ่าน
 function validateNoMidnightCrossing(
   startTime: string,
   availableTimePerDay: number | null
 ): string | null {
-  // ไม่ได้กรอกเวลาว่างต่อวัน -> ยังไม่มี end_time ให้เช็ค
-  if (availableTimePerDay === null || availableTimePerDay === undefined) {
-    return null;
-  }
+  if (availableTimePerDay === null || availableTimePerDay === undefined) return null;
 
   if (
     typeof availableTimePerDay !== "number" ||
@@ -52,35 +67,22 @@ function validateNoMidnightCrossing(
     return "เวลาว่างต่อวันต้องเป็นตัวเลขมากกว่า 0";
   }
 
-  // รองรับ format "HH:MM" หรือ "HH:MM:SS" จาก <input type="time"> / DB
+  // "HH:MM" หรือ "HH:MM:SS"
   const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(startTime);
-  if (!match) {
-    return "รูปแบบเวลาเริ่มต้นไม่ถูกต้อง";
-  }
+  if (!match) return "รูปแบบเวลาเริ่มต้นไม่ถูกต้อง";
 
   const startHour = Number(match[1]);
   const startMinute = Number(match[2]);
+  if (startHour > 23 || startMinute > 59) return "รูปแบบเวลาเริ่มต้นไม่ถูกต้อง";
 
-  if (startHour > 23 || startMinute > 59) {
-    return "รูปแบบเวลาเริ่มต้นไม่ถูกต้อง";
-  }
-
-  const startMinutes = startHour * 60 + startMinute;
-  const endMinutes = startMinutes + availableTimePerDay * 60;
-
-  // > 24:00 (1440 นาที) = end_time ข้ามไปวันถัดไป
+  const endMinutes = startHour * 60 + startMinute + availableTimePerDay * 60;
   if (endMinutes > 24 * 60) {
     return "เวลาเริ่มต้นรวมกับเวลาว่างต่อวันข้ามเที่ยงคืน กรุณาปรับเวลาเริ่มต้นให้เร็วขึ้น หรือลดเวลาว่างต่อวันลง";
   }
-
   return null;
 }
 
-/**
- * ตรวจ body ของ createTrip / updateTrip ด้วยกฎชุดเดียวกัน
- * คืนค่า null = ผ่าน, string = ข้อความ error (ตอบ 400)
- * missingStartMessage: ข้อความเมื่อยังไม่ปักหมุดจุดเริ่มต้น (ต่างกันระหว่างสร้าง/แก้ไข)
- */
+// ตรวจ body ของ createTrip / updateTrip — null = ผ่าน, string = ข้อความ error (400)
 function validateTripBody(body: TripBody, missingStartMessage: string): string | null {
   const {
     province,
@@ -96,24 +98,13 @@ function validateTripBody(body: TripBody, missingStartMessage: string): string |
     start_lng,
   } = body;
 
-  if (budget_scope && !VALID_SCOPES.includes(budget_scope)) {
-    return "ขอบเขตงบประมาณไม่ถูกต้อง";
-  }
-
-  if (budget_period && !VALID_PERIODS.includes(budget_period)) {
-    return "ช่วงเวลาของงบประมาณไม่ถูกต้อง";
-  }
-
-  // มี total_budget ต้องเลือก scope + period ให้ครบทั้งคู่
+  if (budget_scope && !VALID_SCOPES.includes(budget_scope)) return "ขอบเขตงบประมาณไม่ถูกต้อง";
+  if (budget_period && !VALID_PERIODS.includes(budget_period)) return "ช่วงเวลาของงบประมาณไม่ถูกต้อง";
   if (total_budget && (!budget_scope || !budget_period)) {
     return "กรุณาเลือกขอบเขตและช่วงเวลาของงบประมาณให้ครบ";
   }
+  if (!start_date || !end_date || !start_time || !number_of_people) return "ข้อมูลไม่ครบถ้วน";
 
-  if (!start_date || !end_date || !start_time || !number_of_people) {
-    return "ข้อมูลไม่ครบถ้วน";
-  }
-
-  // กันค่าติดลบ/0/ทศนิยม (ใช้หารงบต่อคนตอนคำนวณ POI score)
   if (
     typeof number_of_people !== "number" ||
     !Number.isInteger(number_of_people) ||
@@ -122,34 +113,20 @@ function validateTripBody(body: TripBody, missingStartMessage: string): string |
     return "จำนวนผู้เดินทางต้องเป็นจำนวนเต็มตั้งแต่ 1 คนขึ้นไป";
   }
 
-  // province บังคับเสมอ (poiPlaceQueries.ts กรองด้วย province) ส่วน district ไม่บังคับ
-  if (!province) {
-    return "กรุณาเลือกจังหวัด";
-  }
+  // POI กรองสถานที่ด้วยจังหวัด จึงต้องมีเสมอ (อำเภอไม่บังคับ)
+  if (!province) return "กรุณาเลือกจังหวัด";
 
-  // ต้องมีพิกัดจาก LocationPinPicker
-  if (
-    start_lat === null ||
-    start_lng === null ||
-    start_lat === undefined ||
-    start_lng === undefined
-  ) {
+  if (start_lat === null || start_lng === null || start_lat === undefined || start_lng === undefined) {
     return missingStartMessage;
   }
-
-  if (
-    start_lat < -90 ||
-    start_lat > 90 ||
-    start_lng < -180 ||
-    start_lng > 180
-  ) {
+  if (start_lat < -90 || start_lat > 90 || start_lng < -180 || start_lng > 180) {
     return "พิกัดจุดเริ่มต้นไม่ถูกต้อง";
   }
 
   return validateNoMidnightCrossing(start_time, available_time_per_day ?? null);
 }
 
-/** คอลัมน์ของ trips ที่ insert/update จาก body (user_id ใส่แยกจาก req.user.id เสมอ) */
+// คอลัมน์ของ trips ที่บันทึกจาก body (user_id ใส่จาก req.user เท่านั้น)
 function toTripColumns(body: TripBody) {
   return {
     province: body.province,
@@ -158,16 +135,12 @@ function toTripColumns(body: TripBody) {
     end_date: body.end_date,
     start_time: body.start_time,
     number_of_people: body.number_of_people,
-
     use_budget: !!body.use_budget,
-
     total_budget: body.total_budget,
     budget_scope: body.budget_scope || null,
     budget_period: body.budget_period || null,
     daily_budget: body.daily_budget,
-
     available_time_per_day: body.available_time_per_day,
-
     start_lat: body.start_lat,
     start_lng: body.start_lng,
     start_address: body.start_address || null,
@@ -175,27 +148,16 @@ function toTripColumns(body: TripBody) {
 }
 
 function toTripCategoryRows(tripId: string, categoryIds: string[]) {
-  return categoryIds.map((categoryId) => ({
-    trip_id: tripId,
-    category_id: categoryId,
-  }));
+  return categoryIds.map((categoryId) => ({ trip_id: tripId, category_id: categoryId }));
 }
 
 export const createTrip = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
-  }
+  const userId = requireUserId(req, res);
+  if (!userId) return;
 
   const body = req.body as TripBody;
-
   const validationError = validateTripBody(body, "กรุณาปักหมุดจุดเริ่มต้นก่อนสร้างทริป");
-  if (validationError) {
-    return res.status(400).json({ message: validationError });
-  }
+  if (validationError) return res.status(400).json({ message: validationError });
 
   try {
     const { data, error } = await supabase
@@ -206,13 +168,10 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
 
     if (error) {
       console.error("Create trip error:", error);
-
-      return res.status(500).json({
-        message: error.message,
-      });
+      return res.status(500).json({ message: error.message });
     }
 
-    // trip_categories เป็น best-effort — insert ไม่สำเร็จจะไม่ rollback ทริป แค่แจ้งเตือน user
+    // บันทึกหมวดไม่สำเร็จไม่ยกเลิกทริป แค่แจ้งผู้ใช้
     let categoryWarning = false;
     const { category_ids } = body;
 
@@ -222,10 +181,7 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
         .insert(toTripCategoryRows(data.trip_id, category_ids));
 
       if (categoryError) {
-        console.error(
-          "Insert trip_categories error:",
-          categoryError.message
-        );
+        console.error("Insert trip_categories error:", categoryError.message);
         categoryWarning = true;
       }
     }
@@ -239,24 +195,13 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     console.error("Create trip exception:", err);
-
-    return res.status(500).json({
-      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
-    });
+    return res.status(500).json({ message: errorMessage(err) || INTERNAL_ERROR });
   }
 };
 
-export const getMyTrips = async (
-  req: AuthRequest,
-  res: Response
-) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
-  }
+export const getMyTrips = async (req: AuthRequest, res: Response) => {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
 
   const { data, error } = await supabase
     .from("trips")
@@ -264,12 +209,7 @@ export const getMyTrips = async (
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-
+  if (error) return res.status(500).json({ message: error.message });
   res.json({ trips: data });
 };
 
@@ -277,26 +217,11 @@ interface TripCategoryRow {
   category: { category_id: string; category_name: string };
 }
 
-/**
- * GET /api/trips/:tripId
- *
- * ทริปเดี่ยว + category_ids / categories ที่เลือกไว้ (หน้า TripDetail และหน้าแก้ทริปใช้ prefill)
- * ตรวจสิทธิ์ด้วย eq("trip_id") คู่กับ eq("user_id") เสมอ
- */
+// ทริปเดียวพร้อมหมวดที่เลือกไว้ (หน้ารายละเอียดและหน้าแก้ทริป)
 export const getTripById = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
-  }
-
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const params = requireTripParams(req, res);
+  if (!params) return;
+  const { userId, tripId } = params;
 
   const { data, error } = await supabase
     .from("trips")
@@ -309,14 +234,9 @@ export const getTripById = async (req: AuthRequest, res: Response) => {
     console.error("Get trip by id error:", error.message);
     return res.status(500).json({ message: error.message });
   }
+  if (!data) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์เข้าถึง" });
 
-  if (!data) {
-    return res
-      .status(404)
-      .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์เข้าถึง" });
-  }
-
-  // ดึงหมวดหมู่ไม่สำเร็จ -> ส่ง array ว่าง ไม่ทำให้ทั้ง endpoint ล่ม
+  // ดึงหมวดไม่สำเร็จ -> ส่ง array ว่าง ไม่ให้ทั้ง endpoint ล้ม
   const { data: categoryData, error: categoryFetchError } = await supabase
     .from("trip_categories")
     .select(`
@@ -342,39 +262,17 @@ export const getTripById = async (req: AuthRequest, res: Response) => {
   });
 };
 
-/**
- * PUT /api/trips/:tripId
- *
- * แก้ไขทริป — รับ field และ validate ชุดเดียวกับ createTrip
- * ตรวจสิทธิ์ด้วย eq("trip_id") คู่กับ eq("user_id") เสมอ
- *
- * category_ids: ลบของเดิมทั้งหมดแล้ว insert ใหม่ (best-effort เหมือน createTrip)
- * วัน/เวลา/งบต่อวันเปลี่ยน -> ล้าง trip_days ซึ่ง CASCADE ลบแผนเดิมด้วย (D-29)
- */
+// แก้ทริป — หมวดเดิมลบแล้วบันทึกใหม่ · ถ้าวัน/เวลา/งบต่อวันเปลี่ยน ล้าง trip_days (แผนเดิมถูกลบตาม)
 export const updateTrip = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
-  }
-
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const params = requireTripParams(req, res);
+  if (!params) return;
+  const { userId, tripId } = params;
 
   const body = req.body as TripBody;
-
   const validationError = validateTripBody(body, "กรุณาปักหมุดจุดเริ่มต้นก่อนบันทึกทริป");
-  if (validationError) {
-    return res.status(400).json({ message: validationError });
-  }
+  if (validationError) return res.status(400).json({ message: validationError });
 
   try {
-    // ค่าเดิมของช่องที่กำหนดโครงสร้างวัน — ใช้ตัดสินว่าต้องล้างแผนเดิมไหม
     const { data: before, error: beforeError } = await supabase
       .from("trips")
       .select(DAY_STRUCTURE_FIELDS.join(", "))
@@ -386,12 +284,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       console.error("Load trip before update error:", beforeError);
       return res.status(500).json({ message: "ไม่สามารถบันทึกการแก้ไขทริปได้" });
     }
-
-    if (!before) {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
-    }
+    if (!before) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
 
     const { data, error } = await supabase
       .from("trips")
@@ -405,12 +298,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       console.error("Update trip error:", error);
       return res.status(500).json({ message: error.message });
     }
-
-    if (!data) {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
-    }
+    if (!data) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
 
     let categoryWarning = false;
     const { category_ids } = body;
@@ -421,10 +309,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       .eq("trip_id", tripId);
 
     if (deleteCategoryError) {
-      console.error(
-        "Delete old trip_categories error:",
-        deleteCategoryError.message
-      );
+      console.error("Delete old trip_categories error:", deleteCategoryError.message);
       categoryWarning = true;
     } else if (Array.isArray(category_ids) && category_ids.length > 0) {
       const { error: insertCategoryError } = await supabase
@@ -432,16 +317,12 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
         .insert(toTripCategoryRows(tripId, category_ids));
 
       if (insertCategoryError) {
-        console.error(
-          "Insert trip_categories error:",
-          insertCategoryError.message
-        );
+        console.error("Insert trip_categories error:", insertCategoryError.message);
         categoryWarning = true;
       }
     }
 
-    // trip_days สร้างครั้งเดียวแล้วไม่ sync ตามทริป จึงล้างทิ้งเมื่อวัน/เวลา/งบต่อวันเปลี่ยน (D-29)
-    // ครั้งหน้าที่จัดแผน getOrCreateTripDays จะสร้างวันใหม่จากข้อมูลล่าสุด
+    // trip_days ไม่ sync ตามทริป จึงล้างทิ้ง แล้วรอบหน้าที่จัดแผนจะสร้างวันใหม่จากข้อมูลล่าสุด
     let planReset = false;
     let planResetWarning = false;
 
@@ -472,36 +353,19 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     console.error("Update trip exception:", err);
-    return res.status(500).json({
-      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
-    });
+    return res.status(500).json({ message: errorMessage(err) || INTERNAL_ERROR });
   }
 };
 
-/**
- * PUT /api/trips/:tripId/addcategories (D-38 — popup ของ Auto Trip)
- * บันทึกหมวดของทริปเป็นชุดที่ส่งมา (แทนชุดเดิม ต้องมีอย่างน้อย 1) · ไม่คำนวณ POI ให้
- * insert หมวดที่ขาดก่อนแล้วค่อยลบที่เกิน — ถ้าล้มกลางทาง หมวดเดิมไม่หาย
- */
+// บันทึกหมวดของทริปเป็นชุดที่ส่งมา (popup ของ Auto Trip) — เพิ่มที่ขาดก่อนแล้วค่อยลบที่เกิน
+// ถ้าล้มกลางทางหมวดเดิมจะไม่หาย
 export const updateTripCategories = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
-  }
-
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const params = requireTripParams(req, res);
+  if (!params) return;
+  const { userId, tripId } = params;
 
   const parsed = parseCategoryIds((req.body as { category_ids?: unknown } | undefined)?.category_ids);
-  if ("error" in parsed) {
-    return res.status(400).json({ message: parsed.error });
-  }
+  if ("error" in parsed) return res.status(400).json({ message: parsed.error });
   const { ids } = parsed;
   const failMessage = "บันทึกหมวดหมู่ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
 
@@ -517,12 +381,7 @@ export const updateTripCategories = async (req: AuthRequest, res: Response) => {
       console.error("Load trip for categories error:", tripError);
       return res.status(500).json({ message: failMessage });
     }
-
-    if (!trip) {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
-    }
+    if (!trip) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
 
     const { data: found, error: categoriesError } = await supabase
       .from("categories")
@@ -533,7 +392,6 @@ export const updateTripCategories = async (req: AuthRequest, res: Response) => {
       console.error("Load categories error:", categoriesError);
       return res.status(500).json({ message: failMessage });
     }
-
     if ((found ?? []).length !== ids.length) {
       return res.status(400).json({ message: "มีหมวดหมู่ที่ไม่มีอยู่ในระบบ" });
     }
@@ -548,10 +406,7 @@ export const updateTripCategories = async (req: AuthRequest, res: Response) => {
       return res.status(500).json({ message: failMessage });
     }
 
-    const { toAdd, toRemoveRowIds } = diffTripCategories(
-      (existing ?? []) as TripCategoryLink[],
-      ids
-    );
+    const { toAdd, toRemoveRowIds } = diffTripCategories((existing ?? []) as TripCategoryLink[], ids);
 
     if (toAdd.length > 0) {
       const { error: insertError } = await supabase
@@ -584,24 +439,11 @@ export const updateTripCategories = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * DELETE /api/trips/:tripId
- * ลบทริปของ user เอง (eq("user_id") เสมอ) — trip_days / trip_categories / poi_scores ลบตามด้วย FK CASCADE
- */
+// ลบทริปของผู้ใช้เอง — trip_days / trip_categories / poi_scores ลบตามด้วย FK CASCADE
 export const deleteTrip = async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ message: "ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่" });
-  }
-
-  const { tripId } = req.params;
-
-  if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
-  }
+  const params = requireTripParams(req, res);
+  if (!params) return;
+  const { userId, tripId } = params;
 
   const { error, count } = await supabase
     .from("trips")
@@ -613,12 +455,7 @@ export const deleteTrip = async (req: AuthRequest, res: Response) => {
     console.error("Delete trip error:", error.message);
     return res.status(500).json({ message: error.message });
   }
-
-  if (!count) {
-    return res
-      .status(404)
-      .json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์ลบ" });
-  }
+  if (!count) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์ลบ" });
 
   res.json({ message: "ลบทริปสำเร็จ" });
 };

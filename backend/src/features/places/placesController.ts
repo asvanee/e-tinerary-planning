@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { supabase } from "../../config/db";
+import { errorMessage } from "../../utils/errorMessage";
 
 type PlaceDetailRow = {
   category_labels: {
@@ -7,15 +8,8 @@ type PlaceDetailRow = {
   };
 } & Record<string, unknown>;
 
-/**
- * GET /api/places?ids=uuid1,uuid2,uuid3
- * ข้อมูลสถานที่ตาม place_id — frontend ใช้ join กับผลของ /calculate-poi (ซึ่งมีแค่ placeId + คะแนน)
- * และหน้า itinerary editor ใช้ recompute เอง (ต้องใช้ price_range_*, price_nature, opening_hours — เวลาที่อยู่ผู้ใช้กรอกเอง D-36)
- *
- * หมวดมาจากป้าย ททท. (places -> category_labels -> categories) แบบเดียวกับ itineraryPlaceQueries.ts::getSelectedPlaces
- * เพื่อให้ค่าที่ editor เห็นตรงกับตอน backend re-validate ก่อน save
- * price_range_* เป็นราคาต่อคนจริงจาก Google (null ได้ — D-52) · price_nature เป็น "free" | "paid"
- */
+// GET /api/places?ids=a,b,c — ข้อมูลสถานที่ตาม id ให้หน้าแนะนำและหน้าจัดแผนใช้คำนวณเอง
+// อ่านหมวดแบบเดียวกับ getSelectedPlaces เพื่อให้ตัวเลขที่หน้าเว็บเห็นตรงกับตอน backend ตรวจซ้ำ
 export const getPlacesByIds = async (req: Request, res: Response) => {
   const { ids } = req.query;
 
@@ -74,7 +68,7 @@ export const getPlacesByIds = async (req: Request, res: Response) => {
   } catch (err) {
     console.error("getPlacesByIds exception:", err);
     return res.status(500).json({
-      message: (err as { message?: string } | null)?.message || "เกิดข้อผิดพลาดภายในระบบ",
+      message: errorMessage(err) || "เกิดข้อผิดพลาดภายในระบบ",
     });
   }
 };

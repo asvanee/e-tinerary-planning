@@ -11,26 +11,26 @@ import { requireAuth } from "../auth/authMiddleware";
 
 const router = Router();
 
-// 1. สร้างร่างเส้นทาง (ยังไม่บันทึก)
+// ร่างแผน (ยังไม่บันทึก)
 router.post("/trips/:tripId/draft", requireAuth, buildDraft);
 
-// 2. ดึงแผนที่ยืนยันแล้ว (อ่านอย่างเดียว) — ใช้กับหน้า TripDetail
+// แผนที่ยืนยันแล้ว (หน้ารายละเอียดทริป)
 router.get("/trips/:tripId", requireAuth, getSavedItinerary);
 
-// 3. ยืนยันแผน (re-validate ซ้ำฝั่ง backend แล้ว insert ลง itineraries)
+// ยืนยันแผน — คำนวณซ้ำฝั่ง backend แล้วบันทึก
 router.put("/trips/:tripId", requireAuth, confirmItinerary);
 
-// 4. สถานที่ที่ Auto Trip จะใช้ (หน้า TripRecommendations เช็คก่อนเปิดหน้า Auto Trip)
+// สถานที่ที่ Auto Trip จะใช้ (เช็คก่อนเปิดหน้า Auto Trip)
 router.get("/trips/:tripId/auto-places", requireAuth, getAutoTripPlacesTest);
 
-// 5. ดึงประเภทสถานที่สำหรับ Auto Trip (ใช้สร้างช่องกรอกเวลาที่ Frontend)
+// หมวดของ Auto Trip (ใช้สร้างช่องกรอกเวลา)
 router.get(
   "/trips/:tripId/auto/categories",
   requireAuth,
   getAutoTripCategoriesController
 );
 
-// 6. จัดทริปอัตโนมัติ (Auto Trip)
+// จัดแผนอัตโนมัติ
 router.post("/trips/:tripId/auto", requireAuth, buildAutoTripController);
 
 export default router;

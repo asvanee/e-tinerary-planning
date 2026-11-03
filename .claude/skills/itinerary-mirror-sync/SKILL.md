@@ -11,7 +11,7 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 ## คู่ไฟล์ที่ต้องตรงกัน
 | Backend (source of truth) | Frontend mirror |
 |---|---|
-| `backend/src/features/itinerary/itineraryBuilder.ts` (`buildDayItems`, `buildItinerary`, `resolveTravelMetric`, `buildInitialDraft`, `buildNearestNeighborOrder`) | `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` |
+| `backend/src/features/itinerary/itineraryBuilder.ts` (`buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type — `buildItinerary` มีแค่ฝั่ง backend · D-58) | `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` |
 | `backend/src/utils/openingHoursChecker.ts` | `frontend/src/features/trip/e-tinerary/lib/openingHoursChecker.ts` |
 | `backend/src/utils/haversine.ts` | `frontend/src/features/trip/e-tinerary/lib/haversine.ts` |
 | ค่าคงที่ `TRIP_START_ID`, `FALLBACK_AVG_SPEED_KMH`, type `TravelMatrix`/`TravelMetric` ใน `backend/src/utils/orsTravelMatrix.ts` | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
