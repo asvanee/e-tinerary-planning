@@ -1,7 +1,6 @@
 import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
 
-// ช่วงเวลาเปิดรายวันจาก places.opening_hours — ใช้แสดงผลเท่านั้น (ไม่กระทบ conflict flag)
-// ใช้ periods ชุดเดียวกับ openingHoursChecker.ts (รองรับเปิดข้ามเที่ยงคืน)
+// ช่วงเวลาเปิดรายวันจาก places.opening_hours — ใช้แสดงผลเท่านั้น (ไม่กระทบ conflict)
 
 function hhmmToMin(t: string): number {
   return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2, 4), 10);
@@ -46,8 +45,7 @@ export function tripDates(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-// วันของทริปที่สถานที่นี้ "ปิดทั้งวัน" (กติกาเดียวกับป้าย "ปิดทั้งวัน" ในหน้า editor)
-// ไม่มีข้อมูลเวลาเปิด-ปิด = [] (ไม่ถือว่าปิด ตาม D-10)
+// วันของทริปที่สถานที่นี้ปิดทั้งวัน · ไม่มีข้อมูลเวลาเปิด = [] (ไม่ถือว่าปิด)
 export function closedTripDates(
   oh: OpeningHours | null | undefined,
   startDate: string,

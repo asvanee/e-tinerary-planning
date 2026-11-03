@@ -9,7 +9,7 @@ type AdminCheck = "checking" | "ok" | "unauthorized" | "forbidden" | "error";
 // ครอบหน้า admin ทุกหน้า — ถาม backend (GET /api/admin/me) ทุกครั้งที่เข้า
 // ไม่ใช้ role ใน localStorage ตัดสินสิทธิ์ เพราะผู้ใช้แก้เองได้
 export default function AdminRoute({ children }: { children: ReactNode }) {
-  const { session, isLoading, logout } = useAuth();
+  const { session, logout } = useAuth();
   const [check, setCheck] = useState<AdminCheck>("checking");
   const [retryKey, setRetryKey] = useState(0);
   const API_URL = import.meta.env.VITE_API_URL || "";
@@ -44,7 +44,6 @@ export default function AdminRoute({ children }: { children: ReactNode }) {
     if (check === "unauthorized") logout();
   }, [check, logout]);
 
-  if (isLoading) return null;
   if (!token || check === "unauthorized") return <Navigate to="/admin/login" replace />;
   if (check === "forbidden") return <Navigate to="/home" replace />;
 

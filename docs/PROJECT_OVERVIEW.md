@@ -164,7 +164,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
 | frontend | `VITE_ORS_API_KEY` | ORS directions จาก browser | ✓ | ✓ |
-| frontend | `VITE_ORS_BASE_URL`, `VITE_ORS_PROFILE` | optional | ✗ | ✓ |
+| frontend | `VITE_ORS_BASE_URL`, `VITE_ORS_PROFILE` | optional — default `https://api.heigit.org/openrouteservice` และ `driving-car` · เปลี่ยน base เป็น proxy ของ backend ได้ (ถ้าใช้ proxy ไม่ต้องมี `VITE_ORS_API_KEY`) | ✗ | ✓ (`RouteMap.tsx`) |
 
 ตัวแปรที่ขึ้นต้นด้วย `VITE_` จะถูกฝังลงใน JS bundle ที่ส่งให้ browser ทุกครั้ง
 

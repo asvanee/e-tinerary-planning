@@ -69,7 +69,6 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
   return (
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-md bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-8 sm:px-12 py-8">
-        {/* Header */}
         <div className="text-center mb-6">
           <img
             src="/images/logo.png"
@@ -84,9 +83,7 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
           </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="email" className={labelClass}>อีเมล</label>
             <input
@@ -102,7 +99,6 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
             />
           </div>
 
-          {/* Password */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="password" className={labelClass}>รหัสผ่าน</label>
             <div className="relative">
@@ -131,7 +127,6 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
             </div>
           </div>
 
-          {/* Error message */}
           {message && (
             <p
               key={shakeKey}
@@ -143,7 +138,6 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
             </p>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={isSubmitting}

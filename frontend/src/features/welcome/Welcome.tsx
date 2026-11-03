@@ -18,14 +18,12 @@ export default function Welcome() {
   return (
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 bg-[color:var(--cream,#fcedd3)]">
       <div className="fade-in w-full max-w-sm text-center bg-white rounded-2xl border border-[color:var(--line,rgba(89,144,192,0.25))] [box-shadow:var(--shadow,0_2px_12px_rgba(16,42,107,0.08))] px-8 py-10">
-        {/* Logo */}
         <img
           src="/images/logo.png"
           alt="E-tinerary Logo"
           className="w-24 h-24 object-contain mx-auto mb-5"
         />
 
-        {/* Title */}
         <h1 className="font-prompt font-semibold text-3xl text-[color:var(--navy,#102a6b)] mb-2">
           ยินดีต้อนรับ
         </h1>
@@ -33,7 +31,6 @@ export default function Welcome() {
           เริ่มต้นการเดินทางของคุณกับเรา
         </p>
 
-        {/* Features */}
         <ul className="flex justify-center gap-6 mb-8 pb-8 border-b border-[color:var(--line,rgba(89,144,192,0.25))]">
           {features.map(({ icon: Icon, label }) => (
             <li key={label} className="flex flex-col items-center gap-2">
@@ -43,7 +40,6 @@ export default function Welcome() {
           ))}
         </ul>
 
-        {/* Buttons */}
         <div className="flex flex-col gap-3">
           <button
             onClick={() => navigate("/register")}

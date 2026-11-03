@@ -141,7 +141,6 @@ export default function MyTrips() {
           กลับ
         </button>
 
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="font-prompt font-semibold text-3xl text-[color:var(--navy)]">
@@ -171,7 +170,6 @@ export default function MyTrips() {
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div
             className={`${cardClass} px-8 py-16 flex items-center justify-center gap-3 text-[color:var(--muted)]`}
@@ -185,7 +183,6 @@ export default function MyTrips() {
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div
             role="alert"
@@ -196,7 +193,6 @@ export default function MyTrips() {
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && trips.length === 0 && (
           <div
             className={`${cardClass} px-8 py-16 flex flex-col items-center gap-3 text-center`}
@@ -222,7 +218,6 @@ export default function MyTrips() {
           </div>
         )}
 
-        {/* Trip list */}
         {!loading && !error && trips.length > 0 && (
           <ul className="flex flex-col gap-3">
             {trips.map((trip) => (

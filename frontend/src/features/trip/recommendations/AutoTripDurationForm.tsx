@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import type { AutoTripResponse } from "../e-tinerary/auto/autoTripTypes";
 
@@ -28,6 +27,18 @@ function getMessage(payload: unknown): string | undefined {
   return undefined;
 }
 
+// อ่าน JSON ของ response — ไม่ใช่ JSON หรือ status ไม่สำเร็จจะ throw พร้อมข้อความ
+async function readPayload(response: Response, failMessage: string): Promise<unknown> {
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(`API ไม่ได้ส่ง JSON กลับมา (status ${response.status})`);
+  }
+  if (!response.ok) throw new Error(getMessage(payload) ?? failMessage);
+  return payload;
+}
+
 function isAutoTripCategory(value: unknown): value is AutoTripCategory {
   if (typeof value !== "object" || value === null) return false;
 
@@ -50,6 +61,7 @@ function isAutoTripResponse(value: unknown): value is AutoTripResponse {
   );
 }
 
+// ฟอร์มเลือกเวลาเที่ยวต่อหมวด แล้วเรียก backend จัดแผนอัตโนมัติ
 export default function AutoTripDurationForm({
   tripId,
   accessToken,
@@ -80,21 +92,7 @@ export default function AutoTripDurationForm({
           }
         );
 
-        let payload: unknown;
-
-        try {
-          payload = await response.json();
-        } catch {
-          throw new Error(
-            `API ไม่ได้ส่ง JSON กลับมา (status ${response.status})`
-          );
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            getMessage(payload) ?? "ไม่สามารถโหลดประเภทสถานที่ได้"
-          );
-        }
+        const payload = await readPayload(response, "ไม่สามารถโหลดประเภทสถานที่ได้");
 
         if (
           typeof payload !== "object" ||
@@ -189,21 +187,7 @@ export default function AutoTripDurationForm({
         }
       );
 
-      let payload: unknown;
-
-      try {
-        payload = await response.json();
-      } catch {
-        throw new Error(
-          `API ไม่ได้ส่ง JSON กลับมา (status ${response.status})`
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          getMessage(payload) ?? "ไม่สามารถจัดทริปอัตโนมัติได้"
-        );
-      }
+      const payload = await readPayload(response, "ไม่สามารถจัดทริปอัตโนมัติได้");
 
       if (!isAutoTripResponse(payload)) {
         throw new Error("รูปแบบผลการจัดทริปไม่ถูกต้อง");
