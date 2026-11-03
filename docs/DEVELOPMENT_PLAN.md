@@ -13,10 +13,10 @@
 ### R1. ตรวจสอบและแก้ไข POI Score — เร่งด่วน (README 1.1, ลำดับ 1)
 - **สถานะใน README:** ยังไม่เริ่มยืนยัน
 - **ไฟล์:** `backend/src/features/poi/poiScoreCalculator.ts` (`calculatePoiScore`, `WEIGHTS`, `computeWeights`), `backend/src/features/poi/poiController.ts` (เรียงคะแนนแล้วตัด `POI_RESULT_LIMIT = 50` = Top 50 — ประกาศใน `poiPlaceQueries.ts`), `backend/src/features/poi/poiPlaceQueries.ts` (`getFilteredPlaces`, `queryPlacesWithCategoryInfo` — ข้อมูลที่ป้อนเข้าสูตร)
-- **ข้อเท็จจริง:** weight ฐาน category 0.35 / rating 0.25 / distance 0.15 / budget 0.15 / weather 0.1 (renormalize เมื่อ `useBudget=false`)
+- **ข้อเท็จจริง (2026-11-04):** weight ฐาน category 0.1421 / rating 0.0869 / distance 0.1637 / budget 0.3926 / weather 0.2147 จาก AHP (renormalize มิติที่ไม่คิดในสูตร) · เดิม 0.35 / 0.25 / 0.15 / 0.15 / 0.1 (D-17)
 - **งาน T ที่ซ้อน:** T13 (unit test `poiScoreCalculator.ts`) · T5 (ความหมายของงบ มีผลกับ budget filter/score) · T7 (ถ้าโดน limit 1000 แถว สถานที่จะหายไปก่อนจัดอันดับ) · T8 (`explainWeatherScore`/debug log ใช้ช่วยตรวจได้ก่อนจะเก็บกวาด) · กลุ่ม 6 (sensitivity ของค่า MIXED)
 - ⚠️ เปลี่ยนสูตรคะแนนเป็นงานเสี่ยงตาม CLAUDE.md กฎข้อ 4 ต้องเสนอแนวทางก่อน
-- **⏳ กำลังเตรียม (D-56 — แทนที่ D-55, 2026-10-27):** พักการให้ผู้ใช้ปรับน้ำหนักเอง · น้ำหนักของระบบจะมาจากแบบสอบถาม AHP (eigenvector · CR < 0.10 · รวมแบบ AIP) · ระหว่างรอ `WEIGHTS` ยังเป็นค่า D-17 · ขั้นถัดไป: สคริปต์คำนวณ (ตรวจกับตัวอย่างใน R.W. Saaty 1987) → ร่างแบบสอบถาม → ทดลองกับทีม → ส่งอาจารย์ตัดสินกลุ่มผู้ตอบ/การจัดการ CR
+- **✅ ทำแล้ว 2026-11-03 (D-56 — แทนที่ D-55 · `0ce75c1`):** `WEIGHTS` ใช้น้ำหนัก AHP จากผู้ตอบ 42 คน (eigenvector · รวมแบบ AIJ · ใช้ทุกคนแม้ CR ไม่ผ่านตาม Battistoni et al. 2013 และตรวจความคงที่ด้วย Compatibility Index) · สคริปต์ `backend/scripts/ahp/` + test เทียบตัวอย่างในเปเปอร์ · รายละเอียด `docs/AHP_POI_WEIGHTS.md` · งานต่อ: แก้เล่มรายงานตาม `docs/REPORT_REVISION.md`
 - **✅ ทำแล้ว 2026-10-25 (D-48 — category score ตรง 1 / ไม่ตรง 0 · เติมหมวดอื่นเมื่อไม่ถึง 50 · ไม่เลือกหมวด = ตัดออกจากสูตร) · แนวคิดเดิมจากผู้ใช้ (2026-10-22):** ตอนนี้กรองหมวดเป็น hard filter และ `category_score` = 1.0 ทุกที่ (P5c) ถ้าหมวดที่เลือกมีสถานที่ไม่ถึง Top 50 (เช่น ทริปน่านเลือก "จุดชมวิว" ได้ 11 แห่ง) ผลจะมีแค่นั้น · แนวคิด: ให้ `category_score` ทำงานตรงนี้ — สถานที่ตรงหมวดได้คะแนนหมวดเต็ม แล้วเติมสถานที่หมวดอื่นที่คะแนนหมวดต่ำกว่าจนครบ 50 (แทน hard filter / fallback แบบทั้งหมดหรือไม่มีเลย) · กระทบลำดับ filter ใน CLAUDE.md และ `categoryFallbackUsed` ต้องตัดสินพร้อม R1
 
 ### R2. แก้ไขพิกัดผิดและข้อมูลผิดจังหวัด — เร่งด่วน (README 1.2, ลำดับ 2)

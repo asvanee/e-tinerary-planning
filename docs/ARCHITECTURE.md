@@ -59,13 +59,13 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 
 | มิติ | สูตร | weight |
 |---|---|---|
-| category | 1.0 ทุกที่ตั้งแต่ P5c (1 สถานที่ = 1 หมวด ไม่มี confidence — D-38 · สูตรรอทีม D-23) | 0.35 |
-| rating | `rating/5` · ไม่มี rating: weight 0 แล้วกระจายให้ category/distance/weather (D-57) | 0.25 |
-| distance | `1/(1+km)` | 0.15 |
-| budget(=price) | `1 − placeCost ÷ daily_budget` (cap 0–1 · งบต่อคนต่อวัน D-51) · placeCost จาก `getPlaceCost` (priceRange → free = 0) · ไม่ได้ตั้งงบหรือไม่ทราบราคา: weight 0 (D-52) | 0.15 |
-| weather | `exposure*(1-rain)+(1-exposure)` ใช้ OUTDOOR=1, MIXED=0.5, INDOOR=0 · ไม่มีพยากรณ์ให้ 1.0 | 0.10 |
+| category | ตรงหมวด 1 · หมวดที่เติมเข้ามา 0 · ไม่ได้เลือกหมวด: weight 0 (D-48) | 0.1421 |
+| rating | `rating/5` · ไม่มี rating: weight 0 (D-57) | 0.0869 |
+| distance | `1/(1+km)` | 0.1637 |
+| budget(=price) | `1 − placeCost ÷ daily_budget` (cap 0–1 · งบต่อคนต่อวัน D-51) · placeCost จาก `getPlaceCost` (priceRange → free = 0) · ไม่ได้ตั้งงบหรือไม่ทราบราคา: weight 0 (D-52) | 0.3926 |
+| weather | `exposure*(1-rain)+(1-exposure)` ใช้ OUTDOOR=1, MIXED=0.5, INDOOR=0 · ไม่มีพยากรณ์ให้ 1.0 | 0.2147 |
 
-ถ้า `useBudget=false` หรือ budget weight=0 จะ renormalize 4 มิติที่เหลือให้ผลรวมเป็น 1 (`computeWeights`) จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
+weight มาจากแบบสอบถาม AHP 42 คน (D-56 · `0ce75c1` · ที่มาและการตรวจ: `docs/AHP_POI_WEIGHTS.md`) · มิติที่ได้ weight 0 จะถูก renormalize ให้มิติที่เหลือรวมเป็น 1 ตามสัดส่วน (`computeWeights`) เช่น ไม่ใช้งบ → category .234 / rating .143 / distance .270 / weather .353 · จากนั้นเรียงลำดับ ตัดเหลือ top 50 แล้ว upsert ลง `poi_scores`
 
 **หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · POI และ Auto Trip ใช้ relation นี้จับคู่สถานที่ · `getSelectedPlaces` ใช้ embed แบบไม่บังคับ inner join เพื่อไม่ให้ความสัมพันธ์หมวดตัดแถวสถานที่ออกจากผลค้นหา · Auto Trip โหลดหมวดที่ผู้ใช้เลือกจาก `trip_categories` → `categories` (D-45) · ไม่อ่านตาราง `place_categories` หรือคอลัมน์ `default_duration_min` ที่ถูกลบใน P5g
 
