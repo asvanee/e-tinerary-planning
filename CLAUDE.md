@@ -24,8 +24,7 @@ cd backend && npm test             # jest — test ของ admin pipeline (ded
 # frontend  (dev proxy /api → http://localhost:5000)
 cd frontend && npm run dev
 cd frontend && npm run build       # tsc -b && vite build
-cd frontend && npm run lint
-cd frontend && npm test            # vitest run — ยังไม่มีไฟล์ test
+cd frontend && npm run lint       # frontend ไม่มี test (ถอด Vitest 2026-11-03)
 ```
 การนำเข้าสถานที่ทำผ่านหน้า admin (`backend/src/admin/`) — `data-pipeline/` เดิมลบแล้วใน R5 P6 (D-37, กู้ได้จาก git history ที่ `d73808f`)
 

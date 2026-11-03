@@ -44,7 +44,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
     │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
     ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
     ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
-    ├── vite.config.ts         proxy /api → http://localhost:5000, ตั้งค่า vitest
+    ├── vite.config.ts         proxy /api → http://localhost:5000
     ├── eslint.config.js
     └── dist/                  ผลของ npm run build — ถูก gitignore
 ```
@@ -62,7 +62,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | Frontend | React `^19.2.0`, react-router-dom `^7.13.0`, Vite `^7.3.1`, Tailwind `^4.2.0` | `frontend/package.json` |
 | Frontend map | Leaflet + react-leaflet (แผนที่หลัก, OSM tiles), `@react-google-maps/api` (ใช้เฉพาะ `LocationPinPicker.tsx`) | imports |
 | Frontend DnD | `@dnd-kit/core`, `@dnd-kit/sortable` | `ItineraryEditor.tsx` |
-| Frontend test | Vitest `^4.1.10` (ไม่มีไฟล์ test) | `frontend/package.json` |
+| Frontend test | ไม่มี — ถอด Vitest ออก 2026-11-03 เพราะไม่มีไฟล์ test (กู้ได้จาก `cf77e58`) | `frontend/package.json` |
 | Lint | ESLint 9 flat config + typescript-eslint + react-hooks + react-refresh (frontend เท่านั้น) | `frontend/eslint.config.js` |
 | Package manager | npm (มี `package-lock.json` แยกแต่ละ package ไม่มี workspace รวม) | |
 | Node ที่ต้องใช้ | ยังไม่ทราบ — ไม่มี `engines`/`.nvmrc`; โค้ดใช้ global `fetch` และ `AbortSignal.timeout` จึงต้องใช้ Node ≥ 18 | `utils/orsTravelMatrix.ts`, `weatherForecast.ts` |
@@ -74,7 +74,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | backend | `npm run dev` → `ts-node-dev --respawn --transpile-only src/server.ts` | port จาก `PORT` (default 5000); ถ้าเชื่อม Supabase ไม่ได้จะ `process.exit(1)` |
 | backend | `npm test` → `jest` | test ของ admin pipeline, trip และ itinerary |
 | backend | — | **ไม่มี** script `build` / `start` / `lint` (ตรวจ type ได้ด้วย `npx tsc --noEmit`) |
-| frontend | `npm run dev` (vite), `npm run build` (`tsc -b && vite build`), `npm run lint`, `npm run preview`, `npm test` (`vitest run`) | dev proxy `/api` → `localhost:5000` |
+| frontend | `npm run dev` (vite), `npm run build` (`tsc -b && vite build`), `npm run lint`, `npm run preview` (ไม่มี `npm test` — ถอด Vitest 2026-11-03) | dev proxy `/api` → `localhost:5000` |
 
 ## 5. Frontend Routes (`frontend/src/App.tsx`)
 
