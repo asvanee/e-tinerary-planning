@@ -143,9 +143,9 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | บริการ | ใช้ที่ไหน | หมายเหตุ |
 |---|---|---|
 | Supabase (Auth + Postgres) | backend `config/db.ts` (service role) · frontend ไม่ได้เรียก Supabase ตรง (ทุกอย่างผ่าน backend) | |
-| OpenRouteService (HeiGIT) Matrix | backend `utils/orsDistance.ts`, `utils/orsTravelMatrix.ts` | default base `https://api.heigit.org/openrouteservice`; ถ้าไม่มี key จะใช้ haversine แทน |
+| OpenRouteService (HeiGIT) Matrix | backend `utils/orsDistance.ts` (POI: 1 ต้นทาง × N), `utils/orsTravelMatrix.ts` (itinerary: ทุกคู่) · request ร่วมกันใน `utils/orsMatrixRequest.ts` | default base `https://api.heigit.org/openrouteservice` (โดเมนเก่า `api.openrouteservice.org` ปิดแล้ว 28 ก.ย. 2026) · key ขอที่ account.heigit.org · โควต้า Matrix นับเป็น **request** ไม่ใช่จำนวนคู่ (`x-ratelimit-limit` = 500/วัน — ตรวจจริงแล้ว) จึงยิงเป็นก้อน · ลิมิต 3,500 คู่ต่อ request (แผน standard) · cache ในหน่วยความจำ (`utils/ttlCache.ts`, TTL ตาม `ORS_CACHE_TTL_MS`) · ถ้าไม่มี key หรือ ORS พลาดจะใช้ haversine แทน (itinerary ใช้ความเร็วเฉลี่ย 25 กม./ชม.) |
 | ORS Directions | frontend `e-tinerary/components/RouteMap.tsx` | **เรียกจาก browser ด้วย `VITE_ORS_API_KEY`** |
-| Open-Meteo | backend `utils/weatherForecast.ts` | ไม่ต้องใช้ key |
+| Open-Meteo | backend `utils/weatherForecast.ts` | ไม่ต้องใช้ key · ฟรีสำหรับงานไม่เชิงพาณิชย์ — ถ้าใช้จริงต้องตรวจเงื่อนไขอีกครั้ง · พยากรณ์ได้ 16 วันรวมวันนี้ · cache 2 ชม. ต่อกริด 0.1° |
 | Google Maps JS | frontend `LocationPinPicker.tsx` | `VITE_GOOGLE_MAPS_API_KEY` |
 | Google Places (Find/Details, Legacy API) + Places API (New) เฉพาะ `priceRange` (D-52 · SKU Enterprise) | backend `admin/pipeline/import/googlePlaces.ts` (R5 P4 — เรียกเมื่อ admin กดนำเข้า/ยอมรับผล Google เท่านั้น มีค่าใช้จ่าย) | `GOOGLE_PLACES_API_KEY` |
 | OSM tiles | Leaflet ใน frontend | |
@@ -160,7 +160,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `FRONTEND_URL` | — | ✓ | **✗ ไม่ถูกใช้** (CORS เปิดทุก origin, redirect ใน register hardcode `http://localhost:5173/login`) |
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
 | backend | `GOOGLE_PLACES_API_KEY` | Google Places (Find Place + Details) + Places API (New) `priceRange` สำหรับนำเข้าใน admin (R5 P4, D-52 — key ต้องเปิด Places API (New) ทั้งใน Library และ API restrictions) — ผู้ใช้ย้ายค่ามาจาก `data-pipeline/.env` แล้ว 2026-10-18 | ✓ | ✓ `admin/imports/importController.ts` (R5 P4a/P4c) |
-| backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (มี default) | ✗ | ✓ (`config/ors.ts`) |
+| backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (default: `driving-car`, timeout 8000 ms, chunk 500 ปลายทางต่อ request, cache 24 ชม.) | ✗ | ✓ (`config/ors.ts`) |
 | frontend | `VITE_API_URL` | base URL ของ API (ใช้แค่ในไฟล์ auth/navbar; ไฟล์อื่นใช้ path `/api` ตรงๆ) | ✓ | ✓ |
 | frontend | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JS | ✓ | ✓ |
 | frontend | `VITE_ORS_API_KEY` | ORS directions จาก browser | ✓ | ✓ |

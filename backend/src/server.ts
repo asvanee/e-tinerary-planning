@@ -22,8 +22,8 @@ app.use("/api/trips", tripRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/poi", poiRoutes);
 app.use("/api/itinerary", itineraryRoutes);
-app.use("/api/place-dropdown", placeDropdownRoutes); // แยกจาก /api/places โดยตั้งใจ — กัน path ชน
-app.use("/api/admin", adminRoutes); // Admin Panel (R5, D-24) — ทุก route ผ่าน requireAuth + requireAdmin
+app.use("/api/place-dropdown", placeDropdownRoutes); // แยกจาก /api/places กัน path ชน
+app.use("/api/admin", adminRoutes);
 
 async function startServer() {
   const isConnected = await checkDbConnection();
@@ -32,7 +32,7 @@ async function startServer() {
     process.exit(1);
   }
 
-  // job นำเข้าที่ค้าง running จาก process ก่อนหน้าไม่มีใครรันต่อแล้ว → failed (R5 P4)
+  // งานนำเข้าที่ค้างจากรอบก่อนไม่มีใครรันต่อแล้ว ตั้งเป็น failed
   try {
     const stale = await failStaleJobs();
     if (stale > 0) console.log(`ตั้งงานนำเข้าที่ค้างอยู่ ${stale} งานเป็น failed`);

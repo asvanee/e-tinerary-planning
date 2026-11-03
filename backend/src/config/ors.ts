@@ -1,17 +1,4 @@
-/**
- * OpenRouteService config (ฝั่ง backend เท่านั้น — key ห้ามส่งไป frontend)
- *
- * ใช้ฟังก์ชัน getter แทนการอ่าน process.env ตอน import เพื่อไม่ให้พังถ้า dotenv.config()
- * ถูกเรียกหลังไฟล์นี้ถูก import (อ่านค่าตอนเรียกใช้จริงเสมอ)
- *
- *   ORS_API_KEY           (บังคับ) Basic Key จาก account.heigit.org/manage/key
- *   ORS_BASE_URL          default https://api.heigit.org/openrouteservice (ไม่ต้องมี / ท้าย)
- *                         ⚠️ โดเมนเก่า api.openrouteservice.org ถูกปิดแล้ว (28 ก.ย. 2026)
- *   ORS_PROFILE           default driving-car
- *   ORS_TIMEOUT_MS        default 8000
- *   ORS_MATRIX_CHUNK_SIZE default 500 (จำนวนสถานที่ปลายทางต่อ 1 request)
- *   ORS_CACHE_TTL_MS      default 86400000 (24 ชม.)
- */
+// ค่าตั้งของ OpenRouteService จาก env (มีค่า default) — อ่านตอนเรียกใช้ เผื่อ dotenv โหลดทีหลัง
 export interface OrsConfig {
   apiKey: string;
   baseUrl: string;
@@ -41,7 +28,7 @@ export function getOrsConfig(): OrsConfig {
   };
 }
 
-/** false = ไม่มี key -> ผู้เรียกควรข้าม ORS แล้วใช้ haversine ทันที ไม่ต้องยิง request */
+// ไม่มี key = ไม่ยิง ORS ใช้ haversine แทน
 export function isOrsConfigured(): boolean {
   return getOrsConfig().apiKey.length > 0;
 }
