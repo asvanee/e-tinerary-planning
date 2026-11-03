@@ -1,5 +1,104 @@
-import { AutoPlace, buildAutoTrip, TripInfo } from "../autoTripBuilder";
-import { TRIP_START_ID } from "../../../utils/orsTravelMatrix";
+import {
+  AutoPlace,
+  AutoTripDaySchedule,
+  buildAutoTrip,
+  TripInfo,
+} from "../autoTripBuilder";
+import {
+  buildItinerary,
+  DayAssignment,
+  ItineraryItemResult,
+  PlaceInput,
+} from "../itineraryBuilder";
+import { TRIP_START_ID, TravelMatrix } from "../../../utils/orsTravelMatrix";
+
+function createTravelMatrix(placeIds: string[]): TravelMatrix {
+  const pointIds = [TRIP_START_ID, ...placeIds];
+  return Object.fromEntries(
+    pointIds.map((fromId) => [
+      fromId,
+      Object.fromEntries(
+        placeIds
+          .filter((toId) => toId !== fromId)
+          .map((toId) => [
+            toId,
+            { distanceKm: 0, durationMin: 1, source: "ors" as const },
+          ])
+      ),
+    ])
+  );
+}
+
+function expectAutoTripCanBeConfirmed(
+  tripDays: AutoTripDaySchedule[],
+  autoTrip: ReturnType<typeof buildAutoTrip>,
+  places: AutoPlace[],
+  travelMatrix: TravelMatrix
+): ItineraryItemResult[] {
+  const tripDaysByNumber = new Map(
+    tripDays.map((day) => [day.dayNumber, day])
+  );
+  const dayAssignments: DayAssignment[] = autoTrip.days.map((day) => {
+    const tripDay = tripDaysByNumber.get(day.day);
+    if (!tripDay) {
+      throw new Error(`Missing trip day ${day.day}`);
+    }
+    return {
+      tripDayId: `trip-day-${tripDay.dayNumber}`,
+      dayNumber: tripDay.dayNumber,
+      visitDate: tripDay.visitDate,
+      startTime: tripDay.startTime,
+      endTime: tripDay.endTime,
+      dailyBudget: tripDay.dailyBudget,
+      useBudget: tripDay.useBudget,
+      orderedPlaceIds: day.stops.map((stop) => stop.place_id),
+    };
+  });
+  const durations = new Map(
+    autoTrip.days.flatMap((day) =>
+      day.stops.map((stop) => [stop.place_id, stop.duration_min] as const)
+    )
+  );
+  const placesById = new Map<string, PlaceInput>(
+    places.map((place) => [
+      place.place_id,
+      {
+        placeId: place.place_id,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        priceRangeStart: place.priceRangeStart ?? null,
+        priceRangeEnd: place.priceRangeEnd ?? null,
+        priceNature: place.priceNature ?? "paid",
+        openingHours: place.opening_hours,
+        visitDurationMin: durations.get(place.place_id) ?? null,
+      },
+    ])
+  );
+  const items = buildItinerary(dayAssignments, placesById, travelMatrix);
+
+  expect(
+    items.filter(
+      (item) =>
+        item.isClosedConflict || item.isTimeConflict || item.isBudgetConflict
+    )
+  ).toHaveLength(0);
+
+  for (const day of autoTrip.days) {
+    const tripDayId = `trip-day-${day.day}`;
+    for (const stop of day.stops) {
+      const item = items.find(
+        (scheduled) =>
+          scheduled.tripDayId === tripDayId &&
+          scheduled.placeId === stop.place_id
+      );
+      expect(item).toBeDefined();
+      expect(item?.startTime).toBe(`${stop.start_time}:00`);
+      expect(item?.endTime).toBe(`${stop.end_time}:00`);
+    }
+  }
+
+  return items;
+}
 
 describe("buildAutoTrip per-place visit durations", () => {
   const trip: TripInfo = {
@@ -14,6 +113,155 @@ describe("buildAutoTrip per-place visit durations", () => {
 
   const fridayHours = (open: string, close: string) => ({
     periods: [{ open: { day: 5, time: open }, close: { day: 5, time: close } }],
+  });
+
+  test("produces a confirmable two-day itinerary when trip total exceeds the daily budget", () => {
+    const tripDays: AutoTripDaySchedule[] = [
+      {
+        dayNumber: 1,
+        visitDate: "2026-10-23",
+        startTime: "09:00",
+        endTime: "12:00",
+        dailyBudget: 100,
+        useBudget: true,
+      },
+      {
+        dayNumber: 2,
+        visitDate: "2026-10-24",
+        startTime: "09:00",
+        endTime: "12:00",
+        dailyBudget: 100,
+        useBudget: true,
+      },
+    ];
+    const places: AutoPlace[] = [1, 2, 3, 4].map((index) => ({
+      place_id: `budget-place-${index}`,
+      place_name: `Budget Place ${index}`,
+      categoryId: "category-1",
+      categoryName: "พิพิธภัณฑ์",
+      poiScore: 1 - index / 10,
+      latitude: 18.8,
+      longitude: 98.98,
+      opening_hours: null,
+      requestedVisitDurationMin: 30,
+      priceRangeStart: 80,
+      priceNature: "paid",
+    }));
+    const travelMatrix = createTravelMatrix(
+      places.map((place) => place.place_id)
+    );
+    const autoTrip = buildAutoTrip(
+      {
+        ...trip,
+        trip_days: tripDays,
+        available_time_per_day: 3,
+        use_budget: true,
+        daily_budget: 100,
+      },
+      places,
+      travelMatrix
+    );
+
+    const items = expectAutoTripCanBeConfirmed(
+      tripDays,
+      autoTrip,
+      places,
+      travelMatrix
+    );
+
+    expect(autoTrip.days.map((day) => day.stops.length)).toEqual([1, 1]);
+    expect(items.reduce((total, item) => total + (item.placeCost ?? 0), 0)).toBe(
+      160
+    );
+    expect(
+      autoTrip.days.every(
+        (day) =>
+          day.stops.reduce(
+            (total, stop) =>
+              total +
+              (places.find((place) => place.place_id === stop.place_id)
+                ?.priceRangeStart ?? 0),
+            0
+          ) <= 100
+      )
+    ).toBe(true);
+  });
+
+  test("produces a confirmable two-day itinerary for free and paid places without price ranges", () => {
+    const tripDays: AutoTripDaySchedule[] = [
+      {
+        dayNumber: 1,
+        visitDate: "2026-10-23",
+        startTime: "09:00",
+        endTime: "09:31",
+        dailyBudget: 0,
+        useBudget: true,
+      },
+      {
+        dayNumber: 2,
+        visitDate: "2026-10-24",
+        startTime: "10:00",
+        endTime: "10:31",
+        dailyBudget: 0,
+        useBudget: true,
+      },
+    ];
+    const places: AutoPlace[] = [
+      {
+        place_id: "free-without-price",
+        place_name: "Free without price",
+        categoryId: "free-category",
+        categoryName: "สวนสาธารณะ",
+        poiScore: 0.9,
+        latitude: 18.8,
+        longitude: 98.98,
+        opening_hours: null,
+        requestedVisitDurationMin: 30,
+        priceNature: "free",
+      },
+      {
+        place_id: "paid-without-price",
+        place_name: "Paid without price",
+        categoryId: "paid-category",
+        categoryName: "พิพิธภัณฑ์",
+        poiScore: 0.8,
+        latitude: 18.8,
+        longitude: 98.98,
+        opening_hours: null,
+        requestedVisitDurationMin: 30,
+        priceNature: "paid",
+      },
+    ];
+    const travelMatrix = createTravelMatrix(
+      places.map((place) => place.place_id)
+    );
+    const autoTrip = buildAutoTrip(
+      {
+        ...trip,
+        trip_days: tripDays,
+        use_budget: true,
+        daily_budget: 0,
+      },
+      places,
+      travelMatrix
+    );
+
+    const items = expectAutoTripCanBeConfirmed(
+      tripDays,
+      autoTrip,
+      places,
+      travelMatrix
+    );
+
+    expect(autoTrip.days.map((day) => day.stops.length)).toEqual([1, 1]);
+    expect(items.find((item) => item.placeId === "free-without-price")).toMatchObject({
+      placeCost: 0,
+      isCostUnknown: false,
+    });
+    expect(items.find((item) => item.placeId === "paid-without-price")).toMatchObject({
+      placeCost: null,
+      isCostUnknown: true,
+    });
   });
 
   test("uses the requested visit duration for a place when there is no travel", () => {
