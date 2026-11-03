@@ -18,9 +18,9 @@ export type ResolveResult = { ok: true; placeId: string | null } | { ok: false; 
 const fail = (message: string): ResolveResult => ({ ok: false, message });
 
 /**
- * admin ตัดสินแถว needs_review หลังนำเข้า (R5 P4c):
+ * admin ตัดสินแถว needs_review หลังนำเข้า:
  * - accept_google: ใช้สถานที่ที่ Google เสนอ (เรียก Details 1 ครั้ง) · พิกัดยังใช้จาก CSV
- * - csv_only: สร้างจาก CSV อย่างเดียว google_place_id = "csv:<ATT_ID>" (D-26)
+ * - csv_only: สร้างจาก CSV อย่างเดียว google_place_id = "csv:<ATT_ID>"
  * - skip: ไม่นำเข้า
  * row = ค่าหลังตัดสินใจในหน้ารีวิวแล้ว (prepareImportRows) · item ต้องยังเป็น needs_review_*
  */

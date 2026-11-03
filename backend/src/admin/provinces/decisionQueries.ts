@@ -3,7 +3,7 @@ import { NewDecision } from "../pipeline/review/decisionInput";
 import { PlaceDecision } from "../pipeline/review/reviewTypes";
 
 const TABLE = "admin_place_decisions";
-const PAGE_SIZE = 1000; // Supabase จำกัดแถวต่อ request (T7) — ต้อง paginate ทุก query ที่อาจเกิน
+const PAGE_SIZE = 1000; // Supabase คืนได้ไม่เกิน 1000 แถวต่อ request — query ที่อาจเกินต้องใช้ selectAll
 
 export async function selectAll<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
   const rows: T[] = [];

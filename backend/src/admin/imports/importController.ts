@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../../features/auth/authMiddleware";
+import { isUuid } from "../../utils/uuid";
 import { getProvinceRows } from "../pipeline/attractionCsv";
 import { AttractionRow } from "../pipeline/attractionTypes";
 import { parseCoords } from "../pipeline/dedupe/normalize";
@@ -26,7 +27,6 @@ import {
 } from "./importQueries";
 
 const MAX_LIMIT_ROWS = 10_000;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM_STATUSES = new Set<ImportItemStatus>([
   "imported",
   "needs_review_mismatch",
@@ -36,7 +36,7 @@ const ITEM_STATUSES = new Set<ImportItemStatus>([
   "resolved",
 ]);
 
-// รันได้ครั้งละ 1 job ต่อ process (D-24) — เช็คคู่กับสถานะใน DB
+// รันได้ครั้งละ 1 job ต่อ process — เช็คคู่กับสถานะใน DB
 let jobRunningInProcess = false;
 
 interface ImportPlan {
@@ -131,7 +131,7 @@ function provinceParam(value: unknown): string | null {
 }
 
 function jobIdParam(value: unknown): string | null {
-  return typeof value === "string" && UUID_PATTERN.test(value) ? value : null;
+  return isUuid(value) ? value : null;
 }
 
 // GET /api/admin/provinces/:province/import/preview?limit=N — ไม่เรียก Google
@@ -275,7 +275,7 @@ export const getPendingImports = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// POST /api/admin/imports/items/:itemId/resolve — body: { action: accept_google | csv_only | skip } (P4c)
+// POST /api/admin/imports/items/:itemId/resolve — body: { action: accept_google | csv_only | skip }
 export const resolveImportItem = async (req: AuthRequest, res: Response) => {
   try {
     const itemId = jobIdParam(req.params.itemId);

@@ -9,7 +9,7 @@ import {
 } from "./provincesController";
 import { getImportPreview, getPendingImports, getProvinceImports, startImport } from "../imports/importController";
 
-// mount ใต้ adminRoutes (/api/admin/provinces) — ผ่าน requireAuth + requireAdmin แล้ว
+// /api/admin/provinces
 const router = Router();
 
 router.get("/", getProvinces);
@@ -19,7 +19,7 @@ router.delete("/:province/groups", deleteGroupDecision);
 router.put("/:province/rows/:attId", putRowDecision);
 router.delete("/:province/rows/:attId", deleteRowDecision);
 
-// นำเข้า (R5 P4)
+// นำเข้าสถานที่
 router.get("/:province/import/preview", getImportPreview);
 router.post("/:province/import", startImport);
 router.get("/:province/imports", getProvinceImports);

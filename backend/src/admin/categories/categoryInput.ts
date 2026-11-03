@@ -1,6 +1,6 @@
-// ตรวจ body ของหน้า Category Mapping (R5 P5e — D-40)
+import { isUuid } from "../../utils/uuid";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// ตรวจ body ของหน้าจัดการหมวด (Category Mapping)
 
 // ค่าที่ CHECK ของตาราง categories ยอมรับ
 export const PARENT_GROUPS = ["HISTORY_CULTURE", "NATURE", "RECREATION"] as const;
@@ -18,15 +18,11 @@ export interface CategoryUpdate {
 
 export type Parsed<T> = { value: T } | { error: string };
 
-export function isUuid(value: unknown): value is string {
-  return typeof value === "string" && UUID_PATTERN.test(value);
-}
-
 function isOneOf<T extends string>(options: readonly T[], value: unknown): value is T {
   return typeof value === "string" && (options as readonly string[]).includes(value);
 }
 
-/** body ของ PUT /api/admin/categories/:categoryId — ต้องส่งครบทุกช่อง · ตัดช่องว่างหัวท้ายชื่อ */
+// body ของการแก้หมวด — ต้องส่งครบทุกช่อง · ตัดช่องว่างหัวท้ายชื่อ
 export function parseCategoryUpdate(body: unknown): Parsed<CategoryUpdate> {
   const input = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
 
@@ -49,7 +45,7 @@ export function parseCategoryUpdate(body: unknown): Parsed<CategoryUpdate> {
   };
 }
 
-/** body ของ PUT /api/admin/categories/labels/:labelId — { category_id } ของหมวดปลายทาง */
+// body ของการย้ายป้าย — { category_id } ของหมวดปลายทาง
 export function parseLabelMove(body: unknown): Parsed<string> {
   const input = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
   return isUuid(input.category_id) ? { value: input.category_id } : { error: "กรุณาเลือกหมวดปลายทาง" };

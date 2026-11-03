@@ -3,7 +3,7 @@ import { DedupeRules } from "../dedupe/dedupeTypes";
 /**
  * กฎ dedupe ชุดเดิมของ data-pipeline (manualOverrides.ts ณ 2026-10-18) — ใช้กับ characterization test เท่านั้น
  * fixture ใน __tests__/fixtures สร้างด้วยกฎชุดนี้ ถ้าแก้ test จะไม่ตรง
- * runtime ใช้การตัดสินใจของ admin ที่เก็บใน admin_place_decisions แทน (D-26) · ไม่กู้รายการที่หายใน 44d26dd (#20)
+ * ตอนรันจริงใช้การตัดสินใจของ admin ใน admin_place_decisions แทน
  */
 export const legacyDedupeRules: DedupeRules = {
   locationOverrides: {},

@@ -1,16 +1,16 @@
-// ตรวจ category_ids และคำนวณว่าต้องเพิ่ม/ลบแถวไหนใน trip_categories (PUT /api/trips/:tripId/addcategories — D-38)
+// ตรวจ category_ids และหาว่าต้องเพิ่ม/ลบแถวไหนใน trip_categories
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isUuid } from "../../utils/uuid";
 
 export type ParsedCategoryIds = { ids: string[] } | { error: string };
 
-/** ต้องเป็น array ของ uuid อย่างน้อย 1 ตัว · ตัด id ซ้ำออก */
+// ต้องเป็น array ของ uuid อย่างน้อย 1 ตัว · ตัด id ซ้ำออก
 export function parseCategoryIds(value: unknown): ParsedCategoryIds {
   if (!Array.isArray(value) || value.length === 0) {
     return { error: "กรุณาเลือกหมวดหมู่อย่างน้อย 1 หมวด" };
   }
 
-  if (!value.every((id): id is string => typeof id === "string" && UUID_PATTERN.test(id))) {
+  if (!value.every(isUuid)) {
     return { error: "รหัสหมวดหมู่ไม่ถูกต้อง" };
   }
 
@@ -22,10 +22,7 @@ export interface TripCategoryLink {
   category_id: string;
 }
 
-/**
- * เทียบหมวดเดิมกับชุดใหม่ · แถวที่หมวดไม่อยู่ในชุดใหม่หรือซ้ำกับแถวก่อนหน้าให้ลบ
- * (DB ไม่มี UNIQUE (trip_id, category_id) จึงอาจมีแถวซ้ำอยู่แล้ว)
- */
+// เทียบหมวดเดิมกับชุดใหม่ — ลบแถวที่ไม่อยู่ในชุดใหม่หรือซ้ำ (ตารางไม่มี UNIQUE จึงอาจมีแถวซ้ำ)
 export function diffTripCategories(
   existing: TripCategoryLink[],
   wanted: string[]

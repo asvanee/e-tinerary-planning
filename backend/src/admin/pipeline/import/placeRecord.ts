@@ -32,7 +32,7 @@ export interface PlaceRecord {
 }
 
 /**
- * คอลัมน์ CSV ที่การนำเข้าอ่านจริง (ชื่อ/ค้นหา, พิกัด, ติดต่อ, ที่อยู่ fallback, att_*) — D-31
+ * คอลัมน์ CSV ที่การนำเข้าอ่านจริง (ชื่อ/ค้นหา, พิกัด, ติดต่อ, ที่อยู่สำรอง, att_*)
  * merge เลือกค่าได้เฉพาะคอลัมน์เหล่านี้ · ⚠️ frontend admin/lib/placeFields.ts::MERGE_FIELDS ต้องตรงกัน
  */
 export const IMPORT_FIELDS: readonly string[] = [
@@ -80,7 +80,7 @@ function buildAddress(row: AttractionRow): string | null {
 }
 
 /**
- * record ของ places จากแถว CSV + ผล Google ที่จับคู่ผ่านแล้ว (D-26/D-27)
+ * record ของ places จากแถว CSV + ผล Google ที่จับคู่ผ่านแล้ว
  * - พิกัดจาก CSV เสมอ (หลัง admin แก้แล้ว)
  * - ชื่อ/เบอร์/เว็บ: Google ก่อน แล้วค่อย CSV
  * - rating, user_ratings_total, price_level, price_range_*, opening_hours, ที่อยู่, gmaps_types: Google

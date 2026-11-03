@@ -20,7 +20,7 @@ function latestRowDecisions(decisions: PlaceDecision[]): Map<string, PlaceDecisi
 }
 
 /**
- * การตัดสินใจที่ใช้อยู่จริง — ใช้ร่วมกันระหว่างหน้า review และการนำเข้า (P4) ให้เห็นข้อมูลชุดเดียวกัน
+ * การตัดสินใจที่ใช้อยู่จริง — ใช้ร่วมกันระหว่างหน้า review และการนำเข้า ให้เห็นข้อมูลชุดเดียวกัน
  * - rowDecisions: exclude/ok/fix_location ล่าสุดของแต่ละ ATT_ID
  * - activeDecisions: merge/separate ทั้งหมด + การตัดสินใจรายแถวล่าสุดเท่านั้น (fix_location รุ่นเก่าไม่ถูกใช้)
  * - excluded: ATT_ID ที่ admin สั่งตัดทิ้ง
@@ -41,7 +41,7 @@ export function resolveDecisions(decisions: PlaceDecision[]): {
 }
 
 /**
- * วิเคราะห์สถานที่ของจังหวัดหนึ่งสำหรับหน้า review ของ admin (D-26)
+ * วิเคราะห์สถานที่ของจังหวัดหนึ่งสำหรับหน้า review ของ admin
  * - ตัดแถวที่ admin สั่ง exclude และใช้พิกัดที่ admin แก้ ก่อนตรวจ
  * - กลุ่มมาจาก 4 ตัวตรวจ (contact ยืนยันได้/ไม่ได้, ชื่อคล้าย, พิกัดใกล้แต่ชื่อต่าง) — 1 กลุ่มต่อ 1 ผลของตัวตรวจ
  * - กลุ่มถือว่า "ตัดสินแล้ว" เมื่อทุกคู่ที่ตัวตรวจจับได้อยู่ใน merge หรือ separate เดียวกัน
