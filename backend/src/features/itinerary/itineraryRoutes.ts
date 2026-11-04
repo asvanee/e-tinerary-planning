@@ -5,7 +5,6 @@ import {
   getSavedItinerary,
   getAutoTripPlacesTest,
   buildAutoTripController,
-  getAutoTripCategoriesController,
 } from "./itineraryController";
 import { requireAuth } from "../auth/authMiddleware";
 
@@ -22,13 +21,6 @@ router.put("/trips/:tripId", requireAuth, confirmItinerary);
 
 // สถานที่ที่ Auto Trip จะใช้ (เช็คก่อนเปิดหน้า Auto Trip)
 router.get("/trips/:tripId/auto-places", requireAuth, getAutoTripPlacesTest);
-
-// หมวดของ Auto Trip (ใช้สร้างช่องกรอกเวลา)
-router.get(
-  "/trips/:tripId/auto/categories",
-  requireAuth,
-  getAutoTripCategoriesController
-);
 
 // จัดแผนอัตโนมัติ
 router.post("/trips/:tripId/auto", requireAuth, buildAutoTripController);

@@ -15,7 +15,6 @@ import {
 
 import { buildItinerary, DayAssignment, PlaceInput } from "./itineraryBuilder";
 import { parseVisitDurations } from "./visitDurations";
-import { parseAutoTripDurations } from "./autoTripDurations";
 import { buildAutoTrip, AutoPlace, TripInfo } from "./autoTripBuilder";
 
 import { buildTravelMatrix, TRIP_START_ID } from "../../utils/orsTravelMatrix";
@@ -461,7 +460,6 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
 
 function toAutoPlace(
   p: AutoTripPlace,
-  requestedVisitDurationMin: number,
   isRecommendation = false
 ): AutoPlace {
   return {
@@ -473,7 +471,6 @@ function toAutoPlace(
     latitude: Number(p.latitude),
     longitude: Number(p.longitude),
     opening_hours: p.openingHours,
-    requestedVisitDurationMin,
     priceRangeStart: p.priceRangeStart,
     priceRangeEnd: p.priceRangeEnd,
     priceNature: p.priceNature,
@@ -481,35 +478,7 @@ function toAutoPlace(
   };
 }
 
-// หมวดที่ผู้ใช้เลือกไว้ ให้หน้า Auto Trip สร้างช่องกรอกเวลา
-export async function getAutoTripCategoriesController(
-  req: AuthRequest,
-  res: Response
-) {
-  try {
-    const tripId = getTripId(req, res);
-    if (!tripId) return;
-
-    const tripOwner = await loadOwnedTrip(tripId, req, res);
-    if (!tripOwner) return;
-
-    const categories = await getAutoTripCategories(tripId);
-
-    return res.status(200).json({
-      success: true,
-      categories,
-    });
-  } catch (error) {
-    console.error("getAutoTripCategoriesController error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "ไม่สามารถดึงประเภทสถานที่ได้",
-    });
-  }
-}
-
-// จัดแผนอัตโนมัติ: body = { visitDurationByCategory: { [categoryId]: นาที } }
-// ใช้สถานที่จาก POI ของหมวดที่เลือกก่อน ที่เหลือเป็นสถานที่แนะนำเพิ่ม (ใช้เวลาเที่ยวที่สั้นที่สุด)
+// จัดแผนอัตโนมัติ โดยใช้เวลาเที่ยว 1 ชั่วโมงต่อสถานที่
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
   try {
     const tripId = getTripId(req, res);
@@ -568,28 +537,11 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       });
     }
 
-    const requestBody = req.body as { visitDurationByCategory?: unknown } | undefined;
-    const parsedDurations = parseAutoTripDurations(
-      requestBody?.visitDurationByCategory,
-      categoryIds
-    );
-
-    if ("error" in parsedDurations) {
-      return res.status(400).json({ message: parsedDurations.error });
-    }
-
-    const placesWithDurations = rawPlaces
+    const selectedPlaces = rawPlaces
       .filter((place) => selectedCategoryIds.has(place.categoryId))
-      .map((place) => {
-        const requestedVisitDurationMin = parsedDurations.durations.get(place.categoryId);
-        if (requestedVisitDurationMin === undefined) {
-          throw new Error("ไม่พบเวลาเที่ยวของประเภทสถานที่");
-        }
-        return toAutoPlace(place, requestedVisitDurationMin);
-      });
+      .map((place) => toAutoPlace(place));
 
-    const selectedPlaceIds = new Set(placesWithDurations.map((place) => place.place_id));
-    const fallbackDurationMin = Math.min(...parsedDurations.durations.values());
+    const selectedPlaceIds = new Set(selectedPlaces.map((place) => place.place_id));
     const recommendationPlacesById = new Map<string, AutoPlace>();
 
     for (const place of rawPlaces) {
@@ -600,7 +552,7 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       ) {
         continue;
       }
-      recommendationPlacesById.set(place.placeId, toAutoPlace(place, fallbackDurationMin, true));
+      recommendationPlacesById.set(place.placeId, toAutoPlace(place, true));
     }
     const recommendationPlaces = Array.from(recommendationPlacesById.values());
 
@@ -632,14 +584,14 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
         latitude: tripInfo.start_lat,
         longitude: tripInfo.start_lng,
       },
-      ...[...placesWithDurations, ...recommendationPlaces].map((place) => ({
+      ...[...selectedPlaces, ...recommendationPlaces].map((place) => ({
         id: place.place_id,
         latitude: place.latitude,
         longitude: place.longitude,
       })),
     ]);
 
-    const result = buildAutoTrip(tripInfo, placesWithDurations, travelMatrix, recommendationPlaces);
+    const result = buildAutoTrip(tripInfo, selectedPlaces, travelMatrix, recommendationPlaces);
 
     if (result.selected_places.length === 0) {
       return res.status(400).json({

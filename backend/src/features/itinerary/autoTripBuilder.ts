@@ -23,7 +23,6 @@ export interface AutoPlace {
   latitude: number;
   longitude: number;
   opening_hours: OpeningHours | null;
-  requestedVisitDurationMin: number;
   priceRangeStart?: number | null;
   priceRangeEnd?: number | null;
   priceNature?: PriceNature;
@@ -32,7 +31,6 @@ export interface AutoPlace {
 
 interface ScheduledAutoPlace extends Omit<
   AutoPlace,
-  | "requestedVisitDurationMin"
   | "priceRangeStart"
   | "priceRangeEnd"
   | "priceNature"
@@ -94,10 +92,11 @@ interface AutoTripResult {
   days: AutoTripDay[];
   total_distance_km: number;
 }
-
+//ตัวแปรที่กำหนด
 const LAST_DAY_MINUTE = 24 * 60 - 1;
 const DEFAULT_DAY_END = "18:00";
 const DEFAULT_TRAVEL_SPEED_KMH = 30;
+const AUTO_TRIP_VISIT_DURATION_MIN = 60;
 const TRIP_START_NAME = "จุดเริ่มต้นทริป";
 const DAY_START_NAME = "เริ่มต้นวัน";
 
@@ -208,48 +207,24 @@ function getNearestNeighborRoute(
   });
 }
 
-// เวลาเที่ยวที่อยู่ได้จริง (ไม่เกินที่ขอ ไม่เกินเวลาจบวัน และสถานที่ยังเปิด) — 0 = อยู่ไม่ได้
-// ไม่มีข้อมูลเวลาเปิดให้อยู่ได้เต็มที่ · มีข้อมูลใช้ binary search หาเวลานานสุดที่ยังเปิด
+// จัดสถานที่ได้เมื่อมีเวลาเที่ยวครบ 1 ชั่วโมงและเปิดตลอดช่วงนั้น
 function getFeasibleVisitDuration(
   place: AutoPlace,
   dayOfWeek: number,
   arrivalTime: number,
-  requestedDuration: number,
   dayEnd: number
 ): number {
-  const maxDuration = Math.min(requestedDuration, dayEnd - arrivalTime);
-  if (maxDuration < 1) return 0;
+  if (dayEnd - arrivalTime < AUTO_TRIP_VISIT_DURATION_MIN) return 0;
 
-  const initialStatus = checkOpeningStatus(
+  const status = checkOpeningStatus(
     place.opening_hours,
     dayOfWeek,
     arrivalTime,
-    0
+    AUTO_TRIP_VISIT_DURATION_MIN
   );
-  if (!initialStatus.hasData) return maxDuration;
-
-  let minDuration = 1;
-  let maxFeasibleDuration = 0;
-  let upperBound = maxDuration;
-
-  while (minDuration <= upperBound) {
-    const duration = Math.floor((minDuration + upperBound) / 2);
-    const status = checkOpeningStatus(
-      place.opening_hours,
-      dayOfWeek,
-      arrivalTime,
-      duration
-    );
-
-    if (status.isOpen) {
-      maxFeasibleDuration = duration;
-      minDuration = duration + 1;
-    } else {
-      upperBound = duration - 1;
-    }
-  }
-
-  return maxFeasibleDuration;
+  return !status.hasData || status.isOpen
+    ? AUTO_TRIP_VISIT_DURATION_MIN
+    : 0;
 }
 
 // คิดตารางเวลาของทุกวันจากเส้นทาง — ที่ไหนอยู่ไม่ได้หรือเกินงบคืน null
@@ -318,7 +293,6 @@ function evaluateSchedule(
         place,
         date.getUTCDay(),
         arrivalTime,
-        place.requestedVisitDurationMin,
         dayEnd
       );
       if (durationMin < 1) return null;
@@ -546,7 +520,7 @@ function schedulePlaces(
       );
       if (
         !preservesExistingDurations ||
-        insertedRecommendation?.visitDurationMin !== place.requestedVisitDurationMin
+        insertedRecommendation?.visitDurationMin !== AUTO_TRIP_VISIT_DURATION_MIN
       ) {
         continue;
       }

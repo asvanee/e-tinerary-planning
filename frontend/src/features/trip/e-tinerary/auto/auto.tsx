@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
 import { errorText } from "../../../../system/errorText";
-import AutoTripDurationForm from "../../recommendations/AutoTripDurationForm";
 import type {
   AutoTripResponse,
   AutoTripStop,
@@ -68,7 +67,31 @@ function openGoogleMaps(latitude: number, longitude: number) {
   );
 }
 
-// หน้า Auto Trip: กรอกเวลาเที่ยวต่อหมวด → ระบบจัดแผน → ยืนยันบันทึก หรือส่งต่อไปแก้ในหน้า editor
+function getResponseMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "message" in payload &&
+    typeof payload.message === "string"
+  ) {
+    return payload.message;
+  }
+
+  return undefined;
+}
+
+function isAutoTripResponse(value: unknown): value is AutoTripResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "trip_id" in value &&
+    typeof value.trip_id === "string" &&
+    "days" in value &&
+    Array.isArray(value.days)
+  );
+}
+
+// หน้า Auto Trip: จัดแผนอัตโนมัติ → ยืนยันบันทึกหรือส่งต่อไปแก้ในหน้า editor
 export default function AutoTrip() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -83,6 +106,8 @@ export default function AutoTrip() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const visibleDays = useMemo(
     () =>
@@ -149,6 +174,49 @@ export default function AutoTrip() {
 
   const handleBack = () => {
     navigate(`/trip/${tripId}/recommendations`);
+  };
+
+  const handleGenerateTrip = async () => {
+    if (!tripId || !session) return;
+
+    setGenerating(true);
+    setGenerateError(null);
+
+    try {
+      const response = await fetch(
+        `/api/itinerary/trips/${encodeURIComponent(tripId)}/auto`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error(`API ไม่ได้ส่ง JSON กลับมา (status ${response.status})`);
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          getResponseMessage(payload) ?? "ไม่สามารถจัดทริปอัตโนมัติได้"
+        );
+      }
+      if (!isAutoTripResponse(payload)) {
+        throw new Error("รูปแบบผลการจัดทริปไม่ถูกต้อง");
+      }
+
+      setData(payload);
+      setRemovedRecommendationIds(new Set());
+      setSelectedDay(0);
+    } catch (err) {
+      setGenerateError(errorText(err, "เกิดข้อผิดพลาดในการจัดทริป"));
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // ส่งแผนนี้ไปแก้ต่อในหน้า editor (ต้องสร้าง draft ก่อนเพื่อได้ trip_day_id และ travel matrix)
@@ -373,17 +441,33 @@ export default function AutoTrip() {
         <div className="fade-in max-w-xl mx-auto px-4 py-16">
           <div className={`${cardClass} px-6 py-10 flex flex-col items-center gap-3 text-center`}>
             <h1 className="font-prompt font-semibold text-2xl text-[color:var(--navy)]">
-              กำหนดเวลาเที่ยว
+              จัดทริปอัตโนมัติ
             </h1>
-            <AutoTripDurationForm
-              tripId={tripId}
-              accessToken={session.access_token}
-              onGenerated={(result) => {
-                setData(result);
-                setRemovedRecommendationIds(new Set());
-                setSelectedDay(0);
-              }}
-            />
+            <p className="text-sm text-[color:var(--muted)]">
+              ระบบกำหนดเวลาเที่ยวสถานที่ละ 1 ชั่วโมง และคำนวณเวลาเดินทางกับเวลาเปิด-ปิดให้
+            </p>
+            <button
+              onClick={handleGenerateTrip}
+              disabled={generating}
+              className={primaryBtn}
+            >
+              {generating ? (
+                <>
+                  <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+                  กำลังจัดทริป...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} strokeWidth={1.75} />
+                  จัดทริปอัตโนมัติ
+                </>
+              )}
+            </button>
+            {generateError && (
+              <p role="alert" className="text-sm text-[color:var(--danger)]">
+                {generateError}
+              </p>
+            )}
             <button onClick={handleBack} className={secondaryBtn}>
               <ArrowLeft size={18} strokeWidth={1.75} />
               กลับ

@@ -469,3 +469,12 @@
   - mirror ตอนนี้ = `buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type ต้องตรงกันทุกบรรทัด
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryBuilder.ts`, `itineraryController.ts`, `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts`, skill `itinerary-mirror-sync`, skill `clean-code` · กู้คืนได้จาก git ก่อน commit นี้
+
+### D-59 · 2026-11-04 · Auto Trip ใช้เวลาเที่ยวคงที่ 1 ชั่วโมงต่อสถานที่ (แทนที่ D-50 และส่วนกำหนดเวลาใน D-53)
+- บริบท: ผู้ใช้ยกเลิกการกรอกเวลาเที่ยวแยกตามหมวด และกำหนดให้แต่ละสถานที่ใช้เวลาเที่ยว 1 ชั่วโมง
+- ข้อสรุป:
+  - หน้า Auto Trip มีปุ่มเริ่มจัดทริป ไม่แสดงแบบฟอร์มเวลาเที่ยวต่อหมวด; request ไม่ส่งเวลาเที่ยวจาก client และ response shape คงเดิม
+  - Backend กำหนดเวลาเที่ยว 60 นาทีเต็มต่อสถานที่ ทั้งสถานที่ในหมวดที่เลือกและสถานที่แนะนำ; ไม่ลดเวลาเมื่อเวลาเปิดหรือเวลาที่เหลือของวันไม่พอ แต่ข้ามสถานที่นั้น
+  - เวลาเดินทางยังคำนวณแยกจากเวลาเที่ยว และยังตรวจเวลาเปิด/ปิดกับเวลาของแต่ละวันตามเดิม
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `itineraryRoutes.ts`, `autoTripDurations.ts` (ลบ), `__tests__/autoTripBuilder.test.ts`, `__tests__/autoTripDurations.test.ts` (ลบ), `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx` (ลบ), `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/REPORT_REVISION.md`
