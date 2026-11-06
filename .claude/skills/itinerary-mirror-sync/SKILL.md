@@ -19,7 +19,7 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 | `timeStringToMinutes`, `minutesToTimeString` ใน `backend/src/utils/timeString.ts` (`itineraryPlaceQueries.ts` ใช้ตัวเดียวกัน) | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
 | type `PriceNature` ใน `backend/src/features/poi/poiPlaceQueries.ts` | type ใน frontend lib |
 
-ค่าที่ต้องตรงกัน (ณ `0c980bd`): `TRIP_START_ID="__trip_start__"`, `FALLBACK_AVG_SPEED_KMH=25`, เวลาเดินทางขั้นต่ำ 1 นาที, เวลาที่เกิน 23:59 ให้ cap ไว้ที่ 23:59
+ค่าที่ต้องตรงกัน (ณ `0c980bd`): `TRIP_START_ID="__trip_start__"`, `FALLBACK_AVG_SPEED_KMH=30`, เวลาเดินทางขั้นต่ำ 1 นาที, เวลาที่เกิน 23:59 ให้ cap ไว้ที่ 23:59
 
 นอกจากนี้ยังมีโค้ดที่ไม่ได้ mirror แต่ต้องสอดคล้องกัน: `toMinutes()` ใน `orsTravelMatrix.ts` และ logic ของ `autoTripBuilder.ts` (ซึ่งตอนนี้ **ไม่**ใช้ builder ตัวนี้ ดู Known Issue #9)
 
