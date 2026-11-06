@@ -504,6 +504,7 @@ export default function AutoTrip() {
       label: "POI Score เฉลี่ย",
     },
   ];
+  const saveSucceeded = saveMessage === "บันทึกแผนเดินทางลงฐานข้อมูลสำเร็จ";
 
   return (
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-16">
@@ -566,15 +567,14 @@ export default function AutoTrip() {
             </button>
           </div>
 
-          {/* ⚠️ ข้อความ "ไม่สำเร็จ" ก็มีคำว่า "สำเร็จ" จึงขึ้นสีเขียวด้วย (bug ที่ยังไม่แก้) */}
           {saveMessage && (
             <p
               role="status"
               className={`mt-3 flex items-center gap-2 text-sm ${
-                saveMessage.includes("สำเร็จ") ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
+                saveSucceeded ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
               }`}
             >
-              {saveMessage.includes("สำเร็จ") ? (
+              {saveSucceeded ? (
                 <CircleCheck size={16} strokeWidth={1.75} className="shrink-0" />
               ) : (
                 <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0" />
