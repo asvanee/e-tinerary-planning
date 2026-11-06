@@ -1,33 +1,35 @@
-import "./confirmEmail.css";
+import { useNavigate } from "react-router-dom";
+import { MailCheck } from "lucide-react";
 
 export default function ConfirmEmail() {
+  const navigate = useNavigate();
 
   return (
-    <div className="font-sarabun relative min-h-screen flex items-center justify-center overflow-hidden bg-[#fae3d9]">
+    <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
+      <div className="fade-in w-full max-w-md bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-12 py-8 text-center">
+        <MailCheck
+          size={48}
+          strokeWidth={1.5}
+          className="mx-auto mb-4 text-[color:var(--sky)]"
+        />
 
-      <div className="blob-1 absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[#ffb6b9] opacity-50 blur-[70px] pointer-events-none" />
-      <div className="blob-2 absolute -bottom-16 -right-16 w-72 h-72 rounded-full bg-[#61c0bf] opacity-40 blur-[70px] pointer-events-none" />
-      <div className="blob-3 absolute top-16 right-24 w-52 h-52 rounded-full bg-[#bbded6] opacity-40 blur-[60px] pointer-events-none" />
-
-      <div className="animate-slide-up-1 relative z-10 w-[90%] max-w-md px-12 py-14 rounded-[36px] border border-white/80 shadow-2xl bg-white/70 backdrop-blur-2xl text-center">
-
-        <div className="animate-slide-up-2 text-6xl mb-6">📬</div>
-
-        <h2 className="animate-slide-up-3 font-prompt font-extrabold text-3xl text-[#6b3a2a] mb-4">
+        <h2 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)] mb-2">
           ตรวจสอบอีเมลของคุณ
         </h2>
 
-        <p className="animate-slide-up-4 text-[#9c6b55] text-base leading-relaxed mb-8">
+        <p className="text-[color:var(--deep)] text-sm leading-relaxed mb-6 pb-6 border-b border-[color:var(--line)]">
           ระบบได้ส่งอีเมลยืนยันไปยังบัญชีของคุณแล้ว
           <br />
           กรุณากดลิงก์ในอีเมลเพื่อเข้าสู่ระบบ
         </p>
-        <div className="animate-slide-up-6 flex justify-center gap-2 mt-8">
-          <div className="w-2 h-2 rounded-full bg-[#ffb6b9]" />
-          <div className="w-2 h-2 rounded-full bg-[#fae3d9]" />
-          <div className="w-2 h-2 rounded-full bg-[#bbded6]" />
-          <div className="w-2 h-2 rounded-full bg-[#61c0bf]" />
-        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="font-prompt font-medium w-full min-h-12 flex items-center justify-center rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200"
+        >
+          กลับไปหน้าหลัก
+        </button>
       </div>
     </div>
   );

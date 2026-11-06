@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Welcome from "./features/welcome/Welcome";
 import Register from "./features/auth/register/register";
 import ConfirmEmail from "./features/auth/confirmEmail/confirmEmail";
+import EmailConfirmed from "./features/auth/emailConfirmed/emailConfirmed";
 import Login from "./features/auth/login/login";
 import Home from "./features/home/home";
 import ProtectedRoute from "./system/auth/ProtectedRoute";
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/" element={<Welcome />} />
         <Route path="/register" element={<Register />} />
         <Route path="/confirm-email" element={<ConfirmEmail />} />
+        <Route path="/email-confirmed" element={<EmailConfirmed />} />
         <Route path="/login" element={<Login />} />
         {USER_PAGES.map(([path, page]) => (
           <Route key={path} path={path} element={<ProtectedRoute>{page}</ProtectedRoute>} />

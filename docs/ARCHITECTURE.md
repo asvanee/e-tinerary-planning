@@ -36,7 +36,7 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 ```
 
 ### 2.1 Auth
-- `POST /api/auth/register`: `supabase.auth.signUp` แล้ว insert `users` (role `user`), redirect ใน email ถูก **hardcode** เป็น `http://localhost:5173/login` · Supabase แนบ session มาใน URL hash ซึ่ง `login.tsx` ล้างทิ้งทันทีด้วย `navigate(..., { replace: true })` เพราะ frontend ไม่ได้ใช้ token นี้ (#26)
+- `POST /api/auth/register`: `supabase.auth.signUp` แล้ว insert `users` (role `user`), redirect ใน email ถูก **hardcode** เป็น `http://localhost:5173/email-confirmed` (ต้องเพิ่ม URL นี้ใน Redirect URLs ของ Supabase เอง) · หน้า `/email-confirmed` (`features/auth/emailConfirmed/emailConfirmed.tsx`) แสดงติ๊กถูก "ยืนยันอีเมลสำเร็จ" + ปุ่มเข้าสู่ระบบ/หน้าหลัก หรือข้อความ "ลิงก์ไม่ถูกต้องหรือหมดอายุ" เมื่อ hash มี `error=` · Supabase แนบ session มาใน URL hash ซึ่งหน้านี้ล้างทิ้งทันทีด้วย `navigate(..., { replace: true })` เพราะ frontend ไม่ได้ใช้ token นี้ (#26 — `login.tsx` ยังคง logic ล้าง hash เดิมไว้) · หลังสมัครเสร็จ frontend พาไป `/confirm-email` (หน้า "ตรวจสอบอีเมล" ให้ไปเปิดอีเมล) — ผู้ใช้ยืนยันว่าทดสอบ manual ผ่าน (2026-11-06)
 - `POST /api/auth/login`: `signInWithPassword` → บังคับว่าต้อง `email_confirmed_at` → อ่าน profile จาก `users` → อัปเดต `last_login` → คืน `{ user, session }` · `signUp`/`signInWithPassword` เรียกผ่าน `createAuthClient()` (client ใหม่ต่อ request ใน `config/db.ts`) เพื่อไม่ให้ session ไปติดกับ client หลักที่ใช้ query (T22, แก้ Known Issue #21 เมื่อ 2026-10-17)
 - Frontend `AuthContext` เก็บ `user`/`session` ใน `localStorage` และไม่มีโค้ด refresh token (ตรวจด้วย grep แล้วไม่พบ) — **พฤติกรรมเมื่อ token หมดอายุ: ต้องตรวจสอบเพิ่มเติม**
 - `logout` เรียก `supabase.auth.admin.signOut(token)`

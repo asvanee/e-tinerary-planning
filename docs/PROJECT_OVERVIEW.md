@@ -81,7 +81,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | Path | Component | Protected |
 |---|---|---|
 | `/` | `features/welcome/Welcome.tsx` | – |
-| `/register`, `/login`, `/confirm-email` | `features/auth/...` | – |
+| `/register`, `/login`, `/confirm-email`, `/email-confirmed` | `features/auth/...` | – |
 | `/home` | `features/home/home.tsx` | ✓ |
 | `/trip/create`, `/trip/:tripId/edit` | `features/trip/create/createTrip.tsx` (ใช้ซ้ำสำหรับแก้ไข) | ✓ |
 | `/trip/:tripId/recommendations` | `TripRecommendations.tsx` + `RecommendationMap.tsx` — คำนวณและแสดงสถานที่แนะนำพร้อม POI Score | ✓ |
@@ -156,7 +156,7 @@ Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorizat
 | backend | `SUPABASE_URL` | URL ของโปรเจกต์ Supabase | ✓ | ✓ |
 | backend | `SUPABASE_SERVICE_ROLE_KEY` | key สิทธิ์สูงสุด (ข้าม RLS) | ✓ | ✓ |
 | backend | `PORT` | port ของ API | ✓ | ✓ |
-| backend | `FRONTEND_URL` | — | ✓ | **✗ ไม่ถูกใช้** (CORS เปิดทุก origin, redirect ใน register hardcode `http://localhost:5173/login`) |
+| backend | `FRONTEND_URL` | — | ✓ | **✗ ไม่ถูกใช้** (CORS เปิดทุก origin, redirect ใน register hardcode `http://localhost:5173/email-confirmed`) |
 | backend | `ORS_API_KEY` | key ของ ORS | ✓ | ✓ |
 | backend | `GOOGLE_PLACES_API_KEY` | Google Places (Find Place + Details) + Places API (New) `priceRange` สำหรับนำเข้าใน admin (R5 P4, D-52 — key ต้องเปิด Places API (New) ทั้งใน Library และ API restrictions) — ผู้ใช้ย้ายค่ามาจาก `data-pipeline/.env` แล้ว 2026-10-18 | ✓ | ✓ `admin/imports/importController.ts` (R5 P4a/P4c) |
 | backend | `ORS_BASE_URL`, `ORS_PROFILE`, `ORS_TIMEOUT_MS`, `ORS_MATRIX_CHUNK_SIZE`, `ORS_CACHE_TTL_MS` | ค่า optional ของ ORS (default: `driving-car`, timeout 8000 ms, chunk 500 ปลายทางต่อ request, cache 24 ชม.) | ✗ | ✓ (`config/ors.ts`) |
