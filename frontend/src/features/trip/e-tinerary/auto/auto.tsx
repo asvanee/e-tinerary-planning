@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
 import { errorText } from "../../../../system/errorText";
@@ -94,10 +94,23 @@ function isAutoTripResponse(value: unknown): value is AutoTripResponse {
 // หน้า Auto Trip: จัดแผนอัตโนมัติ → ยืนยันบันทึกหรือส่งต่อไปแก้ในหน้า editor
 export default function AutoTrip() {
   const { tripId } = useParams();
+  const { state } = useLocation();
   const navigate = useNavigate();
   const { session } = useAuth();
 
-  const [data, setData] = useState<AutoTripResponse | null>(null);
+  const [data, setData] = useState<AutoTripResponse | null>(() => {
+    if (
+      typeof state === "object" &&
+      state !== null &&
+      "autoTripResult" in state &&
+      isAutoTripResponse(state.autoTripResult) &&
+      state.autoTripResult.trip_id === tripId
+    ) {
+      return state.autoTripResult;
+    }
+
+    return null;
+  });
   const [selectedDay, setSelectedDay] = useState(0);
   const [removedRecommendationIds, setRemovedRecommendationIds] = useState<Set<string>>(
     () => new Set()

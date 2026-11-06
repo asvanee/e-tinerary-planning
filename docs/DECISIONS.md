@@ -478,3 +478,28 @@
   - เวลาเดินทางยังคำนวณแยกจากเวลาเที่ยว และยังตรวจเวลาเปิด/ปิดกับเวลาของแต่ละวันตามเดิม
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `itineraryRoutes.ts`, `autoTripDurations.ts` (ลบ), `__tests__/autoTripBuilder.test.ts`, `__tests__/autoTripDurations.test.ts` (ลบ), `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx` (ลบ), `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/REPORT_REVISION.md`
+
+### D-60 · 2026-11-06 · เลือกหมวดก่อนจัด Auto Trip เมื่อทริปยังไม่มีหมวด
+- บริบท: หน้าสร้างทริปยังอนุญาตให้ไม่เลือกหมวด แต่ Auto Trip ต้องมีหมวดเพื่อจัดสถานที่
+- ข้อสรุป:
+  - เมื่อกดจัดทริปอัตโนมัติและทริปยังไม่มีหมวด ให้แสดง popup เลือกประเภทสถานที่บนหน้าแนะนำ
+  - บันทึกหมวดด้วย endpoint เดิม แล้วคำนวณ POI ใหม่ก่อนตรวจสถานที่และเปิดหน้า Auto Trip
+  - ไม่เปลี่ยน schema และหน้าสร้างทริปยังไม่บังคับเลือกหมวด
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/DEVELOPMENT_STATUS.md`
+
+### D-61 · 2026-11-06 · แสดงผล Auto Trip ทันทีหลังเลือกและบันทึกหมวด
+- บริบท: หลังเลือกและบันทึกหมวด ผู้ใช้ต้องกดปุ่มจัดทริปอัตโนมัติซ้ำในหน้า Auto Trip อีกครั้ง
+- ข้อสรุป:
+  - หลังบันทึกหมวดและคำนวณ POI แล้ว ให้เรียกจัด Auto Trip ทันทีและส่งผลไปหน้าแสดงแผน
+  - คงปุ่มเริ่มจัดทริปไว้สำหรับกรณีที่เข้าหน้า Auto Trip ตาม flow ปกติ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`
+
+### D-62 · 2026-11-06 · จัด Auto Trip ทันทีเมื่อทริปมีหมวดอยู่แล้ว
+- บริบท: เมื่อมีหมวดในทริปอยู่ก่อนแล้ว ปุ่มจากหน้าแนะนำยังเปิดหน้า Auto Trip ที่ต้องกดเริ่มคำนวณอีกครั้ง
+- ข้อสรุป:
+  - เมื่อกดจัดทริปอัตโนมัติและทริปมีหมวดแล้ว ให้เรียกจัดทริปทันที และส่งผลไปหน้าแสดงแผน
+  - รวมการเรียกคำนวณและส่งผลเข้าหน้าแสดงแผนไว้ใน flow เดียวกันทั้งกรณีมีหมวดเดิมและกรณีเพิ่งเลือกหมวด
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`

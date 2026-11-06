@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
+import { CATEGORY_GROUPS } from "../../../system/categoryGroups";
 import { errorText } from "../../../system/errorText";
 import RecommendationMap from "./RecommendationMap";
 import { categoryColor } from "./categoryColors";
@@ -55,6 +56,75 @@ interface PlaceInfo {
 
 interface MergedPlace extends PoiResult {
   place?: PlaceInfo;
+}
+
+interface CategoryOption {
+  category_id: string;
+  category_name: string;
+  parent_group: string;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function getApiMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "message" in payload &&
+    typeof payload.message === "string"
+  ) {
+    return payload.message;
+  }
+
+  return undefined;
+}
+
+function getTripCategoryIds(payload: unknown): string[] {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("trip" in payload) ||
+    typeof payload.trip !== "object" ||
+    payload.trip === null ||
+    !("category_ids" in payload.trip) ||
+    !isStringArray(payload.trip.category_ids)
+  ) {
+    throw new Error("รูปแบบข้อมูลหมวดหมู่ทริปไม่ถูกต้อง");
+  }
+
+  return payload.trip.category_ids;
+}
+
+function isCategoryOption(value: unknown): value is CategoryOption {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "category_id" in value &&
+    typeof value.category_id === "string" &&
+    "category_name" in value &&
+    typeof value.category_name === "string" &&
+    "parent_group" in value &&
+    typeof value.parent_group === "string"
+  );
+}
+
+function isCategoryOptionArray(value: unknown): value is CategoryOption[] {
+  return Array.isArray(value) && value.every(isCategoryOption);
+}
+
+function getCategoryOptions(payload: unknown): CategoryOption[] {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("categories" in payload) ||
+    !isCategoryOptionArray(payload.categories)
+  ) {
+    throw new Error("รูปแบบรายการหมวดหมู่ไม่ถูกต้อง");
+  }
+
+  return payload.categories;
 }
 
 // ---------- เวลาเปิด-ปิด (places.opening_hours รูปแบบเดียวกับ openingHoursChecker.ts) ----------
@@ -189,6 +259,13 @@ export default function TripRecommendations() {
 
   const [autoCreatingRoute, setAutoCreatingRoute] = useState(false);
   const [autoTripError, setAutoTripError] = useState<string | null>(null);
+
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [savingCategories, setSavingCategories] = useState(false);
+  const [categoryDialogError, setCategoryDialogError] = useState<string | null>(null);
 
   // ตัวกรองหมวดหมู่ที่เลือกไว้ — null = แสดงทุกหมวดหมู่
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -373,7 +450,50 @@ export default function TripRecommendations() {
     }
   };
 
-  // เช็คว่ามีสถานที่สำหรับ Auto Trip ก่อนเปิดหน้า Auto Trip
+  const loadCategoryOptions = async () => {
+    setCategoryDialogOpen(true);
+    setCategoriesLoading(true);
+    setCategoryDialogError(null);
+
+    try {
+      const response = await fetch("/api/categories");
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(getApiMessage(payload) ?? "โหลดหมวดหมู่ไม่สำเร็จ");
+      }
+      setCategoryOptions(getCategoryOptions(payload));
+    } catch (err) {
+      setCategoryDialogError(errorText(err, "โหลดหมวดหมู่ไม่สำเร็จ"));
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const generateAndOpenAutoTrip = async (
+    id: string,
+    accessToken: string
+  ) => {
+    const response = await fetch(
+      `/api/itinerary/trips/${encodeURIComponent(id)}/auto`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    const payload: unknown = await response.json();
+    if (!response.ok) {
+      throw new Error(getApiMessage(payload) ?? "จัดทริปอัตโนมัติไม่สำเร็จ");
+    }
+
+    setCategoryDialogOpen(false);
+    navigate(`/trip/${id}/auto`, {
+      state: { autoTripResult: payload },
+    });
+  };
+
+  // ถ้าไม่มีหมวดให้เลือกก่อน แล้วคำนวณ Auto Trip ทันที
   const handleAutoTrip = async () => {
     if (!tripId || !session) return;
 
@@ -381,25 +501,23 @@ export default function TripRecommendations() {
     setAutoTripError(null);
 
     try {
-      const res = await fetch(
-        `/api/itinerary/trips/${tripId}/auto-places`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.message || "จัดทริปอัตโนมัติไม่สำเร็จ"
-        );
+      const tripResponse = await fetch(`/api/trips/${encodeURIComponent(tripId)}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const tripPayload: unknown = await tripResponse.json();
+      if (!tripResponse.ok) {
+        throw new Error(getApiMessage(tripPayload) ?? "โหลดข้อมูลทริปไม่สำเร็จ");
       }
 
-      navigate(`/trip/${tripId}/auto`);
+      if (getTripCategoryIds(tripPayload).length === 0) {
+        setSelectedCategoryIds([]);
+        await loadCategoryOptions();
+        return;
+      }
+
+      await generateAndOpenAutoTrip(tripId, session.access_token);
     } catch (err) {
       console.error("Auto Trip error:", err);
 
@@ -408,6 +526,65 @@ export default function TripRecommendations() {
       );
     } finally {
       setAutoCreatingRoute(false);
+    }
+  };
+
+  const toggleTripCategory = (categoryId: string) => {
+    setSelectedCategoryIds((previous) =>
+      previous.includes(categoryId)
+        ? previous.filter((id) => id !== categoryId)
+        : [...previous, categoryId]
+    );
+  };
+
+  const handleSaveCategories = async () => {
+    if (!tripId || !session) return;
+    if (selectedCategoryIds.length === 0) {
+      setCategoryDialogError("กรุณาเลือกประเภทสถานที่อย่างน้อย 1 หมวด");
+      return;
+    }
+
+    setSavingCategories(true);
+    setCategoryDialogError(null);
+
+    try {
+      const saveResponse = await fetch(
+        `/api/trips/${encodeURIComponent(tripId)}/addcategories`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ category_ids: selectedCategoryIds }),
+        }
+      );
+      const savePayload: unknown = await saveResponse.json();
+      if (!saveResponse.ok) {
+        throw new Error(getApiMessage(savePayload) ?? "บันทึกหมวดหมู่ไม่สำเร็จ");
+      }
+
+      const poiResponse = await fetch(
+        `/api/poi/trips/${encodeURIComponent(tripId)}/calculate-poi`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      const poiPayload: unknown = await poiResponse.json();
+      if (!poiResponse.ok) {
+        throw new Error(getApiMessage(poiPayload) ?? "คำนวณคะแนนสถานที่ไม่สำเร็จ");
+      }
+
+      await generateAndOpenAutoTrip(tripId, session.access_token);
+    } catch (err) {
+      setCategoryDialogError(
+        errorText(err, "บันทึกหมวดหมู่หรือคำนวณคะแนนไม่สำเร็จ")
+      );
+    } finally {
+      setSavingCategories(false);
     }
   };
 
@@ -912,6 +1089,138 @@ export default function TripRecommendations() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {categoryDialogOpen && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4 py-6">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auto-trip-category-title"
+            className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-7"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="auto-trip-category-title"
+                  className="font-prompt text-xl font-semibold text-[color:var(--navy)]"
+                >
+                  เลือกประเภทสถานที่
+                </h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  เลือกความสนใจอย่างน้อย 1 หมวดเพื่อจัดทริปอัตโนมัติ
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="ปิดหน้าต่างเลือกประเภทสถานที่"
+                disabled={savingCategories}
+                onClick={() => setCategoryDialogOpen(false)}
+                className="rounded-lg p-2 text-[color:var(--muted)] hover:bg-[color:var(--sky-soft)] disabled:opacity-60"
+              >
+                <X size={20} strokeWidth={1.75} />
+              </button>
+            </div>
+
+            {categoriesLoading ? (
+              <p className="flex items-center gap-2 py-8 text-sm text-[color:var(--muted)]">
+                <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+                กำลังโหลดประเภทสถานที่...
+              </p>
+            ) : categoryOptions.length === 0 ? (
+              <p className="py-8 text-sm text-[color:var(--muted)]">
+                ยังไม่มีประเภทสถานที่ให้เลือก
+              </p>
+            ) : (
+              <div className="flex flex-col gap-5">
+                {CATEGORY_GROUPS.map((group) => {
+                  const groupCategories = categoryOptions.filter(
+                    (category) => category.parent_group === group.value
+                  );
+                  if (groupCategories.length === 0) return null;
+
+                  return (
+                    <div key={group.value} className="flex flex-col gap-2">
+                      <p className="font-prompt text-sm font-medium text-[color:var(--navy)]">
+                        {group.label}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {groupCategories.map((category) => {
+                          const selected = selectedCategoryIds.includes(
+                            category.category_id
+                          );
+                          return (
+                            <button
+                              key={category.category_id}
+                              type="button"
+                              aria-pressed={selected}
+                              disabled={savingCategories}
+                              onClick={() =>
+                                toggleTripCategory(category.category_id)
+                              }
+                              className={`flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm transition-all duration-200 disabled:opacity-60 ${
+                                selected
+                                  ? "border-[color:var(--navy)] bg-[color:var(--navy)] text-white"
+                                  : "border-[color:var(--line)] bg-white text-[color:var(--muted)] hover:border-[color:var(--sky)] hover:text-[color:var(--navy)]"
+                              }`}
+                            >
+                              {selected && <Check size={16} strokeWidth={2} />}
+                              {category.category_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {categoryOptions.length > 0 && (
+              <p className="mt-4 text-xs text-[color:var(--muted)]">
+                เลือกแล้ว {selectedCategoryIds.length} จาก {categoryOptions.length} หมวด
+              </p>
+            )}
+            {categoryDialogError && (
+              <p role="alert" className="mt-4 text-sm text-[color:var(--danger)]">
+                {categoryDialogError}
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                disabled={savingCategories}
+                onClick={() => setCategoryDialogOpen(false)}
+                className={outlineBtn}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={
+                  categoriesLoading ||
+                  savingCategories ||
+                  categoryOptions.length === 0
+                }
+                onClick={handleSaveCategories}
+                className={primaryBtn}
+              >
+                {savingCategories ? (
+                  <>
+                    <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
+                    กำลังจัดทริปอัตโนมัติ...
+                  </>
+                ) : (
+                  <>
+                    <Check size={20} strokeWidth={1.75} />
+                    จัดทริปอัตโนมัติ
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>
