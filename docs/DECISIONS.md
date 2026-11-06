@@ -396,7 +396,7 @@
   - price score (แทนตาราง v2 เดิมที่ไม่เทียบงบ) = 1 − ราคาต่อคน ÷ งบต่อคนต่อวัน (cap 0–1) weight 0.15 ตาม D-17 · ไม่ได้ตั้งงบหรือไม่ทราบราคา → ตัดมิติราคาแล้ว renormalize · `budget_score` เป็น null ในกรณีนั้น · เลิก `priceConfidence` (หน้าแนะนำใช้ `priceNature` บอก "หมวดนี้มักไม่มีค่าใช้จ่าย" แทน)
   - น่าน: เติมราคา 6 แห่งจากผลทดสอบด้วย SQL ไม่เรียก Google ซ้ำ
   - จังหวัดใหม่: การนำเข้าใน admin ขอ priceRange จาก Places API (New) ทุกสถานที่ (เพิ่ม 1 request Enterprise ต่อแห่ง) · key ไม่มีสิทธิ์/โควต้าหมด (403/429) หยุดทั้ง job · error อื่นนำเข้าต่อโดยไม่มีราคา
-  - คอลัมน์ `price_level` ยังเก็บและนำเข้าต่อ เพราะ Auto Trip (กิ่ง) ยัง select อยู่ — กิ่งต้องย้ายไปคิดราคาผ่าน `getPlaceCost` (export จาก `itineraryBuilder.ts`) แล้วจึงลบคอลัมน์และเลิกนำเข้า
+  - คอลัมน์ `price_level` ยังเก็บและนำเข้าต่อ เพราะ Auto Trip (กิ่ง) ยัง select อยู่ — กิ่งต้องย้ายไปคิดราคาผ่าน `getPlaceCost` (export จาก `itineraryBuilder.ts`) แล้วจึงลบคอลัมน์และเลิกนำเข้า · **ทำแล้ว 2026-11-06:** ไม่พบการใช้ `price_level` ในโค้ดแล้ว (Auto Trip ย้ายไป priceRange ตามสถานะข้อ 40) จึงเลิกนำเข้าและลบคอลัมน์ใน Supabase
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/utils/placePrice.ts` (เดิม `priceLevel.ts`), `itineraryBuilder.ts` (backend + frontend mirror), `itineraryPlaceQueries.ts` (`getSelectedPlaces`), `placesController.ts`, `poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `ItineraryEditor.tsx`, `TripRecommendations.tsx`, `backend/src/admin/pipeline/import/`, `frontend/src/admin/imports/`, `docs/sql/2026-10-26_places_price_range.sql`, skill `itinerary-mirror-sync`
 

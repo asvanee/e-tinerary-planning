@@ -122,7 +122,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `place_name` | text | NOT NULL | |
 | `latitude` / `longitude` | float8 | NOT NULL | ไม่มี CHECK ช่วงพิกัด (R2) |
 | `rating` | numeric | | CHECK 0..5 |
-| `price_level` | int4 | | CHECK 0..4 · โค้ดของเราเลิกใช้แล้ว (D-52) เหลือแค่ Auto Trip — รอลบหลังกิ่งย้ายไปใช้ priceRange |
+| ~~`price_level`~~ | — | | **ลบคอลัมน์แล้ว 2026-11-06** — ผู้ใช้รัน `ALTER TABLE public.places DROP COLUMN price_level` · Claude ตรวจจาก OpenAPI ของ Supabase: ไม่มีคอลัมน์นี้แล้ว · ใช้ `price_range_*` แทน (D-52) · โค้ดนำเข้าเลิกขอ/เขียนค่านี้แล้ว |
 | `price_range_start` / `price_range_end` | numeric | | CHECK >= 0 · ราคาต่อคน (บาท, THB เท่านั้น) จาก Places API (New) `priceRange` (น่าน 6 แห่งเติมด้วย SQL · จังหวัดใหม่เติมตอนนำเข้าใน admin) · end ว่าง = ช่วงแบบ "มากกว่า X" (D-52 — `docs/sql/2026-10-26_places_price_range.sql`) |
 | `user_ratings_total` | int4 | | |
 | `opening_hours` | jsonb | | รูปแบบ Google `{ periods, open_now, weekday_text }` · `periods[].open/close` = `{ day: 0=อาทิตย์..6=เสาร์, time: "HHMM" }` · เปิด 24 ชม. = มี period เดียวที่ไม่มี `close` · วันที่ปิด = ไม่มี period ของวันนั้น · เปิดข้ามเที่ยงคืน = `close.day` เป็นวันถัดไป · วันเดียวมีได้หลายช่วง · ไม่มี `periods` = ไม่ทราบเวลา (D-10) · อ่านโดย `utils/openingHoursChecker.ts` (+ mirror frontend) |

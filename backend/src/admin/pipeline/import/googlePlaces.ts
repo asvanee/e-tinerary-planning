@@ -15,7 +15,7 @@ const PLACE_NEW_URL = "https://places.googleapis.com/v1/places/";
 const FIND_PLACE_FIELDS = "place_id,name,geometry,formatted_address";
 // field เดิมของ data-pipeline + type (ขอชื่อ "type" แต่ Google คืนเป็น "types")
 const DETAILS_FIELDS =
-  "place_id,name,formatted_address,formatted_phone_number,website,opening_hours,rating,price_level,user_ratings_total,geometry,type";
+  "place_id,name,formatted_address,formatted_phone_number,website,opening_hours,rating,user_ratings_total,geometry,type";
 
 export const BIAS_RADIUS_METERS = 1000;
 
@@ -42,7 +42,6 @@ export interface GoogleDetails {
   website?: string;
   opening_hours?: OpeningHours;
   rating?: number;
-  price_level?: number;
   user_ratings_total?: number;
   geometry?: { location?: LatLng };
   types?: string[];

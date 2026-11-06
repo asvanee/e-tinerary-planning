@@ -98,7 +98,7 @@ describe("Google Places client (fetch ปลอม)", () => {
 });
 
 describe("getDetails ขอ priceRange จาก Places API (New) (D-52 — fetch ปลอม)", () => {
-  const DETAILS_OK = { status: "OK", result: { place_id: "g1", price_level: 1 } };
+  const DETAILS_OK = { status: "OK", result: { place_id: "g1" } };
 
   // legacy Details ตอบ DETAILS_OK เสมอ · Places API (New) ตอบตาม newStatus/newBody
   function routedFetch(newBody: unknown, newStatus = 200) {
@@ -117,7 +117,7 @@ describe("getDetails ขอ priceRange จาก Places API (New) (D-52 — fetc
   test("มี priceRange THB → เติม price_range_start/end · ส่ง key และ FieldMask ทาง header", async () => {
     const { fn, calls } = routedFetch({ priceRange: { startPrice: thb("1"), endPrice: thb("200") } });
     const details = await createGooglePlacesClient("KEY", fn).getDetails("g1");
-    expect(details).toMatchObject({ price_level: 1, price_range_start: 1, price_range_end: 200 });
+    expect(details).toMatchObject({ price_range_start: 1, price_range_end: 200 });
     const newCall = calls.find((c) => c.url.startsWith("https://places.googleapis.com/"));
     expect(newCall?.url).toBe("https://places.googleapis.com/v1/places/g1");
     expect(newCall?.headers).toEqual({ "X-Goog-Api-Key": "KEY", "X-Goog-FieldMask": "priceRange" });
@@ -324,7 +324,6 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
       website: "https://g.com",
       phone_number: "053111111",
       rating: 4.5,
-      price_level: null,
       price_range_start: 1,
       price_range_end: 200,
       opening_hours: null,
