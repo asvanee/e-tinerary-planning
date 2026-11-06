@@ -4,12 +4,12 @@ import { coordKey, postOrsMatrix } from "./orsMatrixRequest";
 import { TtlCache } from "./ttlCache";
 
 // ระยะทาง + เวลาเดินทางของทุกคู่สถานที่ (ใช้จัดลำดับการเดินทาง)
-// cache รายคู่ ตอนยืนยันแผนจะได้ตัวเลขเดียวกับตอนจัด · คู่ที่ ORS ไม่มีค่าใช้ haversine ที่ 25 กม./ชม. (ไม่ throw)
+// cache รายคู่ ตอนยืนยันแผนจะได้ตัวเลขเดียวกับตอนจัด · คู่ที่ ORS ไม่มีค่าใช้ haversine ที่ 30 กม./ชม. (ไม่ throw)
 
 // id ของจุดเริ่มต้นทริปใน matrix (ต้องตรงกับฝั่ง frontend)
 export const TRIP_START_ID = "__trip_start__";
 
-export const FALLBACK_AVG_SPEED_KMH = 25;
+export const FALLBACK_AVG_SPEED_KMH = 30;
 
 export interface TravelMetric {
   distanceKm: number;

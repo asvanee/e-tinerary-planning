@@ -53,7 +53,7 @@ export interface ItineraryItemResult {
 // id ของจุดเริ่มต้นทริปใน matrix (utils/orsTravelMatrix.ts)
 export const TRIP_START_ID = "__trip_start__";
 
-const FALLBACK_AVG_SPEED_KMH = 25;
+const FALLBACK_AVG_SPEED_KMH = 30;
 
 export interface TravelMetric {
   distanceKm: number;

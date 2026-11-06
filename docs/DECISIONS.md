@@ -18,7 +18,7 @@
 | D-11 | ห้าม confirm แผนที่ยังมี closed/time/budget conflict (unknown hours/cost ไม่นับ) และต้องเช็คก่อนลบแผนเดิม | กันแผนเก่าหาย | `confirmItinerary` |
 | D-12 | `province` บังคับกรอก ส่วน `district` ไม่บังคับ ถ้ามีให้กรองแบบ AND | แก้ bug ที่ district ไม่ถูกกรอง | `tripController`, `poiPlaceQueries` |
 | D-13 | Dropdown จังหวัด/อำเภอดึงจากข้อมูลจริงใน `places` ไม่ hardcode | กันการเลือกจังหวัดที่ไม่มีข้อมูลแล้วได้ผลลัพธ์ 0 แบบเงียบๆ | `placeDropdownController.ts` |
-| D-14 | ใช้ ORS แทน Google Distance Matrix และ fallback เป็น haversine **ต่อคู่** (ห้าม throw) · fallback speed 25 km/h · เวลาเดินทางขั้นต่ำ 1 นาที | เกิน free tier ของ Google และระบบต้องไม่ล่มเมื่อ ORS ล่ม | `utils/orsTravelMatrix.ts`, `orsDistance.ts` |
+| D-14 | ใช้ ORS แทน Google Distance Matrix และ fallback เป็น haversine **ต่อคู่** (ห้าม throw) · fallback speed 30 km/h (เดิม 25 · เปลี่ยน 2026-11-06 ให้เท่ากับ Auto Trip) · เวลาเดินทางขั้นต่ำ 1 นาที | เกิน free tier ของ Google และระบบต้องไม่ล่มเมื่อ ORS ล่ม | `utils/orsTravelMatrix.ts`, `orsDistance.ts` |
 | D-15 | ORS base URL = `https://api.heigit.org/openrouteservice` (โดเมนเก่าปิดแล้วตาม comment) | | `config/ors.ts` |
 | D-16 | Weather v1 ใช้แค่โอกาสฝน เฉลี่ยทั้งช่วงทริป ใช้ grid 0.1° ถ้าไม่มีพยากรณ์ให้ score 1.0 ทุกที่ และค่า exposure INDOOR/MIXED/OUTDOOR = 0/0.5/1 | POI คำนวณก่อนจะรู้ว่าแต่ละที่ลงวันไหน | `weatherForecast.ts`, `poiScoreCalculator.ts` |
 | D-17 | POI weights: category .35, rating .25, distance .15, budget .15, weather .10 และ renormalize เมื่อ budget weight < .15 (D-52: budget = price score จาก priceRange เทียบงบต่อคน · ตัดออกเมื่อไม่ได้ตั้งงบหรือไม่ทราบราคา) | | `poiScoreCalculator.ts` |
