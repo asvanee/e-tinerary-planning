@@ -502,3 +502,9 @@
   - Auto Trip ทำตามสวิตช์: สวิตช์ปิดอยู่ หน้าแนะนำเปิด `/trip/:id/auto?others=0` → หน้า Auto ส่ง `include_recommendations: false` → `buildAutoTripController` ไม่เพิ่มสถานที่แนะนำเพิ่มเติม (หมวดอื่นตาม D-53) · ไม่ส่งค่า = เพิ่มตามปกติ · ไม่มีที่ตรงหมวดเลยหรือไม่มีการเติม = ไม่ส่ง `others=0`
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ส่วน Auto Trip เป็นโค้ดของกิ่ง ต้องแจ้งกิ่ง)
 - ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `backend/src/features/itinerary/itineraryController.ts`
+
+### D-62 · 2026-11-13 · เวลาว่างต่อวันต้องกรอกเสมอ
+- บริบท: คอลัมน์ `trips.available_time_per_day` เป็น `integer not null` (ผู้ใช้ส่ง DDL จาก Supabase 2026-11-13) แต่หน้าสร้างทริปไม่บังคับกรอกและ backend ไม่ตรวจ ถ้าเว้นว่างจะส่ง null แล้วบันทึกล้มด้วย error ของ Supabase
+- ข้อสรุป: บังคับกรอก (ไม่แก้ DB) — ช่องในหน้าสร้าง/แก้ไขทริปมี `required` · `validateTripBody` ตอบ 400 "กรุณากรอกเวลาว่างต่อวัน" และต้องเป็นจำนวนเต็มตั้งแต่ 1 ชั่วโมง · โค้ด Itinerary/Auto Trip ที่รองรับ `end_time` ว่างยังคงไว้ (ไม่แตะ)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/features/trip/tripController.ts`, `frontend/src/features/trip/create/createTrip.tsx`

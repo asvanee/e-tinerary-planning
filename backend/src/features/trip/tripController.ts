@@ -53,19 +53,18 @@ function requireTripParams(req: AuthRequest, res: Response): { userId: string; t
   return { userId, tripId };
 }
 
-// เวลาเริ่ม + เวลาว่างต่อวันต้องไม่ข้ามเที่ยงคืน เพราะคอลัมน์ time เก็บข้ามวันไม่ได้ — null = ผ่าน
+// เวลาว่างต่อวัน (ชั่วโมง) ต้องเป็นจำนวนเต็ม > 0 ตามคอลัมน์ integer
+// และเวลาเริ่ม + เวลาว่างต้องไม่ข้ามเที่ยงคืน เพราะคอลัมน์ time เก็บข้ามวันไม่ได้
 function validateNoMidnightCrossing(
   startTime: string,
-  availableTimePerDay: number | null
+  availableTimePerDay: number
 ): string | null {
-  if (availableTimePerDay === null || availableTimePerDay === undefined) return null;
-
   if (
     typeof availableTimePerDay !== "number" ||
-    Number.isNaN(availableTimePerDay) ||
+    !Number.isInteger(availableTimePerDay) ||
     availableTimePerDay <= 0
   ) {
-    return "เวลาว่างต่อวันต้องเป็นตัวเลขมากกว่า 0";
+    return "เวลาว่างต่อวันต้องเป็นจำนวนเต็มตั้งแต่ 1 ชั่วโมงขึ้นไป";
   }
 
   // "HH:MM" หรือ "HH:MM:SS"
@@ -127,7 +126,12 @@ function validateTripBody(body: TripBody, missingStartMessage: string): string |
     return "พิกัดจุดเริ่มต้นไม่ถูกต้อง";
   }
 
-  return validateNoMidnightCrossing(start_time, available_time_per_day ?? null);
+  // คอลัมน์ available_time_per_day เป็น NOT NULL จึงต้องกรอกเสมอ
+  if (available_time_per_day === null || available_time_per_day === undefined) {
+    return "กรุณากรอกเวลาว่างต่อวัน";
+  }
+
+  return validateNoMidnightCrossing(start_time, available_time_per_day);
 }
 
 // คอลัมน์ของ trips ที่บันทึกจาก body (user_id ใส่จาก req.user เท่านั้น)

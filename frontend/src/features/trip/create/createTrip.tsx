@@ -821,6 +821,7 @@ export default function CreateTrip() {
                                                 <input
                                                     id="availableTimePerDay"
                                                     type="number"
+                                                    required
                                                     inputMode="numeric"
                                                     min={1}
                                                     max={24}
