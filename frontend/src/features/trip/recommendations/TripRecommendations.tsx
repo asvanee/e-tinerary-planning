@@ -225,6 +225,8 @@ export default function TripRecommendations() {
 
   // ตัวกรองหมวดหมู่ที่เลือกไว้ — null = แสดงทุกหมวดหมู่
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // true = แสดงสถานที่หมวดอื่นที่ระบบเติมให้ (การ์ดสีเหลือง) · ค่าเริ่มต้นไม่แสดง
+  const [showFilled, setShowFilled] = useState(false);
 
   // แผนที่: view ใช้สลับแท็บรายการ/แผนที่บนมือถือ · focus ใช้สั่งให้แผนที่เลื่อนไปที่หมุด + ไฮไลต์การ์ด
   const [view, setView] = useState<"list" | "map">("list");
@@ -444,20 +446,75 @@ export default function TripRecommendations() {
     }
   };
 
+  // สวิตช์เติมหมวดอื่นใช้ได้เมื่อมีทั้งที่ตรงหมวดและที่เติมมา
+  // (ไม่มีที่ตรงหมวดเลย = แสดงหมวดอื่นเสมอ ไม่งั้นหน้าว่าง)
+  const canToggleFilled = filledMatchCount !== null && filledMatchCount > 0;
+  const filledCount = useMemo(() => places.filter((p) => p.categoryScore === 0).length, [places]);
+
+  const toggleShowFilled = () => {
+    const next = !showFilled;
+    setShowFilled(next);
+    setSelectedCategory(null);
+    // ซ่อนแล้วไม่ให้ค้างเป็นสถานที่ที่เลือกไว้แต่มองไม่เห็น
+    if (!next) {
+      const filledIds = new Set(places.filter((p) => p.categoryScore === 0).map((p) => p.placeId));
+      setSelectedPlaceIds((prev) => prev.filter((id) => !filledIds.has(id)));
+    }
+  };
+
+  // สถานที่ที่แสดงได้ (ตัดหมวดที่ระบบเติมให้ออก ถ้ายังไม่กดเติม)
+  const visiblePlaces = useMemo(
+    () => (canToggleFilled && !showFilled ? places.filter((p) => p.categoryScore !== 0) : places),
+    [places, canToggleFilled, showFilled]
+  );
+
+  // ระยะทางของสถานที่นี้มาจากถนนหรือเส้นตรง (ไม่มี distanceMethod = ใช้ของทั้งหน้า)
+  const distanceMethodOf = (item: PoiResult): "ors" | "haversine" | null =>
+    item.distanceMethod ??
+    (distanceSource === "ors" ? "ors" : distanceSource ? "haversine" : null);
+
+  // มีการ์ดที่ระยะทางเป็นเส้นตรง (ตัวเลขสีแดง) อยู่ในรายการที่แสดงหรือไม่
+  const hasApproxDistance = visiblePlaces.some((p) => distanceMethodOf(p) === "haversine");
+
+  // สวิตช์เติมสถานที่หมวดอื่น วางแถวเดียวกับปุ่มจัดทริป
+  const fillSwitch = canToggleFilled && (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={showFilled}
+      onClick={toggleShowFilled}
+      title={`หมวดหมู่ที่เลือกมีสถานที่ ${filledMatchCount} แห่ง กดเพื่อเติมสถานที่หมวดอื่น (การ์ดพื้นสีเหลือง)`}
+      className="inline-flex items-center gap-2 min-h-12 text-sm font-medium text-[color:var(--navy)]"
+    >
+      <span
+        className={`relative w-10 h-6 shrink-0 rounded-full transition-colors duration-200 ${
+          showFilled ? "bg-[color:var(--navy)]" : "bg-[color:var(--line)]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+            showFilled ? "translate-x-4" : ""
+          }`}
+        />
+      </span>
+      เติมสถานที่หมวดอื่น ({filledCount})
+    </button>
+  );
+
   // รายการหมวดหมู่ unique จากผลลัพธ์จริง ใช้ทำแถบกรองแนวนอน
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
-    places.forEach((p) => {
+    visiblePlaces.forEach((p) => {
       if (p.categoryName) set.add(p.categoryName);
     });
     return Array.from(set);
-  }, [places]);
+  }, [visiblePlaces]);
 
   // การ์ดที่จะแสดงจริงหลังกรองหมวดหมู่ (rank ยังอิงจาก places เต็มชุดเสมอ)
   const displayedPlaces = useMemo(() => {
-    if (!selectedCategory) return places;
-    return places.filter((p) => p.categoryName === selectedCategory);
-  }, [places, selectedCategory]);
+    if (!selectedCategory) return visiblePlaces;
+    return visiblePlaces.filter((p) => p.categoryName === selectedCategory);
+  }, [visiblePlaces, selectedCategory]);
 
   // อันดับอิงจาก places เต็มชุดเสมอ (ไม่เปลี่ยนตามตัวกรองหมวด)
   const rankOf = useMemo(() => new Map(places.map((p, i) => [p.placeId, i + 1])), [places]);
@@ -507,9 +564,7 @@ export default function TripRecommendations() {
   const renderCard = (item: MergedPlace) => {
     const selected = selectedPlaceIds.includes(item.placeId);
     const p = item.place;
-    const method =
-      item.distanceMethod ??
-      (distanceSource === "ors" ? "ors" : distanceSource ? "haversine" : null);
+    const method = distanceMethodOf(item);
     const approx = method === "haversine";
     const hours = parseOpeningHours(p?.opening_hours);
     // วันของทริปที่สถานที่นี้ปิดทั้งวัน (ไม่มีข้อมูลเวลาเปิด-ปิด = ไม่เตือน)
@@ -741,18 +796,14 @@ export default function TripRecommendations() {
           </p>
         </div>
 
-        {filledMatchCount !== null && (
+        {filledMatchCount === 0 && (
           <p className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-4 bg-white border border-[color:var(--sky)] text-[color:var(--deep)]">
             <Info size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
-            <span>
-              {filledMatchCount === 0
-                ? "ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในพื้นที่นี้ ระบบจึงแนะนำสถานที่หมวดอื่นแทน"
-                : `หมวดหมู่ที่เลือกมีสถานที่ ${filledMatchCount} แห่งในพื้นที่นี้ ระบบจึงเพิ่มสถานที่หมวดอื่นมาแนะนำด้วย (การ์ดพื้นสีเหลือง)`}
-            </span>
+            <span>ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในพื้นที่นี้ ระบบจึงแนะนำสถานที่หมวดอื่นแทน</span>
           </p>
         )}
 
-        {(distanceSource === "haversine" || distanceSource === "mixed") && (
+        {hasApproxDistance && (
           <p className="flex items-start gap-2 text-sm rounded-xl px-4 py-3 mb-4 bg-white border border-[color:var(--sky)] text-[color:var(--deep)]">
             <Info size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
             <span>
@@ -811,8 +862,9 @@ export default function TripRecommendations() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               {!isCustomMode ? (
                 <>
-                  <p className="text-sm text-[color:var(--muted)]">พบ {places.length} สถานที่</p>
-                  <div className="flex flex-wrap gap-3">
+                  <p className="text-sm text-[color:var(--muted)]">พบ {visiblePlaces.length} สถานที่</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {fillSwitch}
                     <button
                       type="button"
                       onClick={handleAutoTrip}
@@ -842,10 +894,13 @@ export default function TripRecommendations() {
                   <p className="text-sm text-[color:var(--muted)]">
                     เลือกสถานที่ที่ต้องการ แล้วกดสร้างเส้นทาง
                   </p>
-                  <button type="button" onClick={handleCancelCustomMode} className={outlineBtn}>
-                    <X size={20} strokeWidth={1.75} />
-                    ยกเลิก
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {fillSwitch}
+                    <button type="button" onClick={handleCancelCustomMode} className={outlineBtn}>
+                      <X size={20} strokeWidth={1.75} />
+                      ยกเลิก
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -858,10 +913,10 @@ export default function TripRecommendations() {
                   onClick={() => setSelectedCategory(null)}
                   className={chipClass(selectedCategory === null)}
                 >
-                  ทั้งหมด ({places.length})
+                  ทั้งหมด ({visiblePlaces.length})
                 </button>
                 {availableCategories.map((cat) => {
-                  const count = places.filter((p) => p.categoryName === cat).length;
+                  const count = visiblePlaces.filter((p) => p.categoryName === cat).length;
                   return (
                     <button
                       key={cat}
