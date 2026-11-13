@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  ArrowLeft, Check, ChevronDown, Clock, Globe, Info, ListChecks, Loader2, MapPin, Navigation, Phone,
-  Plus, Route, SearchX, Sparkles, Star, Tag, TriangleAlert, Wallet, X,
+  ArrowLeft, Check, ChevronDown, Clock, CloudOff, CloudRain, CloudSun, Globe, House, Info, ListChecks,
+  Loader2, MapPin, Navigation, Phone, Plus, Route, SearchX, Sparkles, Star, Tag, TriangleAlert, Wallet, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import type { MapFocus, MapPlace } from "./RecommendationMap";
 import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
 import { DAY_NAMES_TH, formatVisitDate } from "../lib/format";
 import { closedTripDates, tripDates } from "../lib/openingDays";
+import { FORECAST_MAX_DAYS_AHEAD } from "../create/tripDates";
 
 // ตรงกับ DistanceSource ของ backend (orsDistance.ts)
 type DistanceSource = "ors" | "haversine" | "mixed";
@@ -32,6 +33,9 @@ interface PoiResult {
   placeCost: number | null;
   perPersonDailyBudget: number | null;
   priceNature: "free" | "paid";
+  // ตรงกับ EnvironmentType ของ backend (poiPlaceQueries.ts)
+  environmentType: "INDOOR" | "OUTDOOR" | "MIXED";
+  rainProbability: number | null; // โอกาสฝนเฉลี่ย % ของวันเดินทางที่มีพยากรณ์ · null = ไม่มีพยากรณ์
   // ไม่มี = ใช้ distanceSource ของทั้งหน้าแทน
   distanceMethod?: "ors" | "haversine";
 }
@@ -159,6 +163,35 @@ function Metric({
       />
       {children}
     </span>
+  );
+}
+
+const RAINY_PERCENT = 50; // โอกาสฝนตั้งแต่ค่านี้แสดงไอคอนฝน
+
+// สภาพอากาศบนการ์ด: ในร่มไม่กระทบจากฝน · กลางแจ้ง/บางส่วนแสดงโอกาสฝน
+function WeatherMetric({ item }: { item: PoiResult }) {
+  if (item.environmentType === "INDOOR") {
+    return <Metric icon={House}>ในร่ม</Metric>;
+  }
+  const where = item.environmentType === "OUTDOOR" ? "กลางแจ้ง" : "กลางแจ้งบางส่วน";
+  if (item.rainProbability === null) {
+    return (
+      <Metric
+        icon={CloudOff}
+        title={`วันเดินทางยังไม่อยู่ในช่วงพยากรณ์อากาศ (ดูได้ล่วงหน้า ${FORECAST_MAX_DAYS_AHEAD + 1} วัน)`}
+      >
+        {where} · ยังไม่มีพยากรณ์อากาศ
+      </Metric>
+    );
+  }
+  const rain = Math.round(item.rainProbability);
+  return (
+    <Metric
+      icon={rain >= RAINY_PERCENT ? CloudRain : CloudSun}
+      title="ค่าเฉลี่ยโอกาสฝนของวันเดินทางที่มีพยากรณ์อากาศ"
+    >
+      {where} · โอกาสฝน {rain}%
+    </Metric>
   );
 }
 
@@ -627,6 +660,7 @@ export default function TripRecommendations() {
                 </Metric>
               </span>
             )}
+            <WeatherMetric item={item} />
           </div>
         </div>
 

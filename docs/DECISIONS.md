@@ -487,5 +487,6 @@
   - ปฏิทินกดวันที่ผ่านมาแล้วไม่ได้ · backend ไม่ห้ามวันในอดีต เพื่อให้แก้ไขทริปเดิมที่เริ่มไปแล้วได้
   - ช่วงพยากรณ์ฝั่ง frontend คิดจากวันที่อย่างเดียว ไม่เรียก API · ค่า 15 วันล่วงหน้าต้องตรงกับ `weatherForecast.ts`
   - วันสุดท้ายที่พยากรณ์ได้ (`forecastLastDay`) = วันที่ UTC + 15 ทั้ง backend และ frontend เพราะ Open-Meteo นับ "วันนี้" ตาม UTC ไม่ว่าจะส่ง `timezone` อะไร (ลองจริง 2026-11-13: Asia/Bangkok, UTC, Pacific/Kiritimati, Pacific/Pago_Pago ได้ช่วงเดียวกันหมด) · เดิมนับจากวันที่ไทย ช่วงเที่ยงคืน–7 โมงเช้าจึงขอเกิน 1 วันแล้ว API error ทั้ง request · วันแรกของช่วงยังเป็นวันนี้ตามเวลาไทย
+  - หน้าแนะนำสถานที่แสดงสภาพอากาศบนการ์ด (2026-11-13): `calculate-poi` ส่ง `environmentType` และ `rainProbability` (โอกาสฝนเฉลี่ย % หรือ null) เพิ่มในแต่ละผล · ในร่ม = "ในร่ม" · กลางแจ้ง/บางส่วน = โอกาสฝน % (ตั้งแต่ 50% ใช้ไอคอนฝน) หรือ "ยังไม่มีพยากรณ์อากาศ" · สูตรคะแนนไม่เปลี่ยน
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/utils/weatherForecast.ts`, `backend/src/utils/__tests__/weatherForecast.test.ts` (ใหม่), `backend/src/features/trip/tripDateRange.ts` (ใหม่), `tripController.ts`, `__tests__/tripDateRange.test.ts` (ใหม่), `frontend/src/features/trip/create/tripDates.ts` (ใหม่), `create/components/TripDatePicker.tsx` (ใหม่), `create/createTrip.tsx`

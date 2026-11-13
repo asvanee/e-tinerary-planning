@@ -84,6 +84,8 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
     const scoredPlaces = places.map((place) => {
       // getRoadDistancesKm คืนค่าให้ทุกสถานที่เสมอ
       const distanceKm = distancesKm.get(place.placeId) as number;
+      const rainProbability =
+        rainByGrid.get(gridKey(Number(place.latitude), Number(place.longitude))) ?? null;
 
       const breakdown = calculatePoiScore(
         place.categoryMatch,
@@ -95,14 +97,17 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
         place.priceNature,
         trip.useBudget,
         place.environmentType,
-        rainByGrid.get(gridKey(Number(place.latitude), Number(place.longitude))) ?? null
+        rainProbability
       );
 
       return {
         placeId: place.placeId,
-        // categoryName / priceNature ใช้แสดงผลในหน้าแนะนำ
+        // categoryName / priceNature / environmentType / rainProbability ใช้แสดงผลในหน้าแนะนำ
         categoryName: place.categoryName,
         priceNature: place.priceNature,
+        environmentType: place.environmentType,
+        // โอกาสฝนเฉลี่ย % ของวันเดินทางที่มีพยากรณ์ · null = ไม่มีพยากรณ์
+        rainProbability,
         // "ors" = ระยะทางถนน, "haversine" = เส้นตรงโดยประมาณ
         distanceMethod: perPlaceSource.get(place.placeId) ?? "haversine",
         ...breakdown,
