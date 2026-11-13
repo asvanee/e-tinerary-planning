@@ -4,6 +4,7 @@ import { AuthRequest } from "../auth/authMiddleware";
 import { errorMessage } from "../../utils/errorMessage";
 import { DAY_STRUCTURE_FIELDS, DayStructure, dayStructureChanged } from "./tripDayStructure";
 import { diffTripCategories, parseCategoryIds, TripCategoryLink } from "./tripCategories";
+import { getTripDateRangeError } from "./tripDateRange";
 
 const VALID_SCOPES = ["GROUP", "PER_PERSON"];
 const VALID_PERIODS = ["TOTAL_TRIP", "PER_DAY"];
@@ -104,6 +105,9 @@ function validateTripBody(body: TripBody, missingStartMessage: string): string |
     return "กรุณาเลือกขอบเขตและช่วงเวลาของงบประมาณให้ครบ";
   }
   if (!start_date || !end_date || !start_time || !number_of_people) return "ข้อมูลไม่ครบถ้วน";
+
+  const dateRangeError = getTripDateRangeError(start_date, end_date);
+  if (dateRangeError) return dateRangeError;
 
   if (
     typeof number_of_people !== "number" ||

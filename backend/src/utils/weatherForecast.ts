@@ -33,17 +33,24 @@ function addDays(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// วันสุดท้ายที่ Open-Meteo ยอมให้ขอ — API นับ "วันนี้" ตามวันที่ UTC ไม่ใช่ timezone ที่ส่งไป
+// (เที่ยงคืน–7 โมงเช้าเวลาไทย วันที่ UTC ยังเป็นเมื่อวาน ถ้านับจากเวลาไทยจะขอเกิน 1 วันแล้ว error)
+// ⚠️ ต้องแก้คู่กับ frontend/src/features/trip/create/tripDates.ts
+export function forecastLastDay(now: number = Date.now()): string {
+  return addDays(new Date(now).toISOString().slice(0, 10), FORECAST_MAX_DAYS_AHEAD);
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-// ตัดช่วงวันเดินทางให้อยู่ในวันนี้ถึงอีก 15 วัน — null ถ้าไม่เหลือวันหรือวันที่ผิดรูปแบบ
+// ตัดช่วงวันเดินทางให้อยู่ในวันนี้ (เวลาไทย) ถึงวันสุดท้ายที่พยากรณ์ได้ — null ถ้าไม่เหลือวันหรือวันที่ผิดรูปแบบ
 export function clampToForecastWindow(
   startDate: string,
   endDate: string,
-  today: string = todayInBangkok()
+  today: string = todayInBangkok(),
+  windowEnd: string = forecastLastDay()
 ): { start: string; end: string } | null {
   if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) return null;
 
-  const windowEnd = addDays(today, FORECAST_MAX_DAYS_AHEAD);
   const start = startDate > today ? startDate : today;
   const end = endDate < windowEnd ? endDate : windowEnd;
 

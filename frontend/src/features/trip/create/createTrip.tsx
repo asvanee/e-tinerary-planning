@@ -4,6 +4,10 @@ import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
 import { CATEGORY_GROUPS } from "../../../system/categoryGroups";
 import LocationPinPicker from "./components/LocationPinPicker";
+import TripDatePicker from "./components/TripDatePicker";
+import {
+    MAX_TRIP_DAYS, addDays, countTripDays, forecastLastDay, getTripDateError, hasForecast, todayInBangkok,
+} from "./tripDates";
 import type { ReactNode } from "react";
 import {
     ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, CircleCheck, Heart, Loader2,
@@ -422,9 +426,27 @@ export default function CreateTrip() {
 
     const calculateTripDays = (start: string, end: string): number => {
         if (!start || !end) return 1;
-        const diff = (new Date(end).getTime() - new Date(start).getTime()) / 86400000;
-        return Math.max(1, Math.round(diff) + 1);
+        return Math.max(1, countTripDays(start, end));
     };
+
+    const today = todayInBangkok();
+
+    // เปลี่ยนวันเริ่มแล้ววันจบหลุดช่วง 1–31 วัน ให้ล้างวันจบ
+    const handleStartDateChange = (value: string) => {
+        setStartDate(value);
+        if (endDate && getTripDateError(value, endDate)) setEndDate("");
+    };
+
+    // สรุปช่วงที่เลือก: กี่วัน มีพยากรณ์อากาศกี่วัน
+    const dateSummary = startDate && endDate && !getTripDateError(startDate, endDate)
+        ? (() => {
+            const days = countTripDays(startDate, endDate);
+            const lastForecastDay = forecastLastDay();
+            const forecastDays = Array.from({ length: days }, (_, i) => addDays(startDate, i))
+                .filter((d) => hasForecast(d, today, lastForecastDay)).length;
+            return { days, forecastDays };
+        })()
+        : null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -451,6 +473,12 @@ export default function CreateTrip() {
         // ติ๊กกำหนดงบแต่กรอกไม่ครบ = บล็อก · ไม่ติ๊ก = ข้าม
         if (useBudget && (!totalBudget || !budgetScope || !budgetPeriod)) {
             showError("กรุณากรอกงบประมาณและเลือกขอบเขต/ช่วงเวลาให้ครบ");
+            return;
+        }
+
+        const dateError = getTripDateError(startDate, endDate);
+        if (dateError) {
+            showError(dateError);
             return;
         }
 
@@ -626,7 +654,7 @@ export default function CreateTrip() {
             return false;
         }
         if (step === 1) {
-            const err = getMidnightCrossingError(
+            const err = getTripDateError(startDate, endDate) ?? getMidnightCrossingError(
                 startTime,
                 availableTimePerDay ? Number(availableTimePerDay) : null
             );
@@ -752,25 +780,29 @@ export default function CreateTrip() {
                                     <Section icon={CalendarDays} title="วัน เวลา และผู้เดินทาง">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
                                             <Field id="startDate" label="วันที่เริ่มต้น">
-                                                <input
+                                                <TripDatePicker
                                                     id="startDate"
-                                                    type="date"
-                                                    required
                                                     className={inputClass}
                                                     value={startDate}
-                                                    onChange={(e) => setStartDate(e.target.value)}
+                                                    onChange={handleStartDateChange}
+                                                    minDate={today}
                                                 />
                                             </Field>
-                                            <Field id="endDate" label="วันที่สิ้นสุด">
-                                                <input
+                                            <Field id="endDate" label="วันที่สิ้นสุด" hint={`ทริปยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`}>
+                                                <TripDatePicker
                                                     id="endDate"
-                                                    type="date"
-                                                    required
                                                     className={inputClass}
                                                     value={endDate}
-                                                    onChange={(e) => setEndDate(e.target.value)}
+                                                    onChange={setEndDate}
+                                                    minDate={startDate || today}
+                                                    maxDate={startDate ? addDays(startDate, MAX_TRIP_DAYS - 1) : undefined}
                                                 />
                                             </Field>
+                                            {dateSummary && (
+                                                <p className="md:col-span-2 text-sm text-[color:var(--muted)] -mt-1">
+                                                    ระยะเวลา {dateSummary.days} วัน · มีพยากรณ์อากาศ {dateSummary.forecastDays} จาก {dateSummary.days} วัน
+                                                </p>
+                                            )}
                                             <Field id="startTime" label="เวลาเริ่มต้น">
                                                 <input
                                                     id="startTime"

@@ -478,3 +478,14 @@
   - เวลาเดินทางยังคำนวณแยกจากเวลาเที่ยว และยังตรวจเวลาเปิด/ปิดกับเวลาของแต่ละวันตามเดิม
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `itineraryRoutes.ts`, `autoTripDurations.ts` (ลบ), `__tests__/autoTripBuilder.test.ts`, `__tests__/autoTripDurations.test.ts` (ลบ), `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx` (ลบ), `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/REPORT_REVISION.md`
+
+### D-60 · 2026-11-13 · ทริปยาวไม่เกิน 31 วัน และปฏิทินเลือกวันบอกว่าวันไหนมีพยากรณ์อากาศ
+- บริบท: Open-Meteo พยากรณ์ได้ 16 วันรวมวันนี้ (ลองเรียกจริง 2026-11-13: ขอ `end_date` เกิน 2026-11-28 ได้ error) ผู้ใช้ควรรู้ตอนเลือกวันว่าวันไหนยังไม่มีพยากรณ์ และเดิมไม่มีการจำกัดวันเลย
+- ข้อสรุป:
+  - ทริปยาวได้ไม่เกิน 31 วัน (นับรวมวันแรกและวันสุดท้าย) และวันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น — frontend เช็คก่อนส่ง backend ตรวจซ้ำใน `validateTripBody` (ตอบ 400)
+  - หน้าสร้าง/แก้ไขทริปใช้ปฏิทินที่ทำเอง (ไม่เพิ่ม library) แทน `<input type="date">` ทุกวันมีไอคอน `Cloud` สีฟ้า = มีพยากรณ์ / `CloudOff` สีเทา = ยังไม่มี พร้อมคำอธิบายไอคอน และสรุปว่ามีพยากรณ์กี่วันจากทั้งหมด
+  - ปฏิทินกดวันที่ผ่านมาแล้วไม่ได้ · backend ไม่ห้ามวันในอดีต เพื่อให้แก้ไขทริปเดิมที่เริ่มไปแล้วได้
+  - ช่วงพยากรณ์ฝั่ง frontend คิดจากวันที่อย่างเดียว ไม่เรียก API · ค่า 15 วันล่วงหน้าต้องตรงกับ `weatherForecast.ts`
+  - วันสุดท้ายที่พยากรณ์ได้ (`forecastLastDay`) = วันที่ UTC + 15 ทั้ง backend และ frontend เพราะ Open-Meteo นับ "วันนี้" ตาม UTC ไม่ว่าจะส่ง `timezone` อะไร (ลองจริง 2026-11-13: Asia/Bangkok, UTC, Pacific/Kiritimati, Pacific/Pago_Pago ได้ช่วงเดียวกันหมด) · เดิมนับจากวันที่ไทย ช่วงเที่ยงคืน–7 โมงเช้าจึงขอเกิน 1 วันแล้ว API error ทั้ง request · วันแรกของช่วงยังเป็นวันนี้ตามเวลาไทย
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/src/utils/weatherForecast.ts`, `backend/src/utils/__tests__/weatherForecast.test.ts` (ใหม่), `backend/src/features/trip/tripDateRange.ts` (ใหม่), `tripController.ts`, `__tests__/tripDateRange.test.ts` (ใหม่), `frontend/src/features/trip/create/tripDates.ts` (ใหม่), `create/components/TripDatePicker.tsx` (ใหม่), `create/createTrip.tsx`
