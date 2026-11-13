@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
 import { errorText } from "../../../../system/errorText";
@@ -94,13 +94,26 @@ function isAutoTripResponse(value: unknown): value is AutoTripResponse {
 // หน้า Auto Trip: จัดแผนอัตโนมัติ → ยืนยันบันทึกหรือส่งต่อไปแก้ในหน้า editor
 export default function AutoTrip() {
   const { tripId } = useParams();
+  const { state } = useLocation();
   const navigate = useNavigate();
   const { session } = useAuth();
   // ?others=0 = หน้าแนะนำปิดการเติมหมวดอื่น จึงไม่ขอสถานที่แนะนำเพิ่มเติม
   const [searchParams] = useSearchParams();
   const includeRecommendations = searchParams.get("others") !== "0";
 
-  const [data, setData] = useState<AutoTripResponse | null>(null);
+  const [data, setData] = useState<AutoTripResponse | null>(() => {
+    if (
+      typeof state === "object" &&
+      state !== null &&
+      "autoTripResult" in state &&
+      isAutoTripResponse(state.autoTripResult) &&
+      state.autoTripResult.trip_id === tripId
+    ) {
+      return state.autoTripResult;
+    }
+
+    return null;
+  });
   const [selectedDay, setSelectedDay] = useState(0);
   const [removedRecommendationIds, setRemovedRecommendationIds] = useState<Set<string>>(
     () => new Set()
@@ -496,6 +509,7 @@ export default function AutoTrip() {
       label: "POI Score เฉลี่ย",
     },
   ];
+  const saveSucceeded = saveMessage === "บันทึกแผนเดินทางลงฐานข้อมูลสำเร็จ";
 
   return (
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-16">
@@ -558,15 +572,14 @@ export default function AutoTrip() {
             </button>
           </div>
 
-          {/* ⚠️ ข้อความ "ไม่สำเร็จ" ก็มีคำว่า "สำเร็จ" จึงขึ้นสีเขียวด้วย (bug ที่ยังไม่แก้) */}
           {saveMessage && (
             <p
               role="status"
               className={`mt-3 flex items-center gap-2 text-sm ${
-                saveMessage.includes("สำเร็จ") ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
+                saveSucceeded ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
               }`}
             >
-              {saveMessage.includes("สำเร็จ") ? (
+              {saveSucceeded ? (
                 <CircleCheck size={16} strokeWidth={1.75} className="shrink-0" />
               ) : (
                 <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0" />
