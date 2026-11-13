@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  ArrowLeft, Check, ChevronDown, Clock, CloudOff, CloudRain, CloudSun, Globe, House, Info, ListChecks,
+  ArrowLeft, Check, ChevronDown, CirclePlus, Clock, CloudOff, CloudRain, CloudSun, Globe, House, Info, ListChecks,
   Loader2, MapPin, Navigation, Phone, Plus, Route, SearchX, Sparkles, Star, Tag, TriangleAlert, Wallet, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -520,15 +520,21 @@ export default function TripRecommendations() {
       tripRange !== null &&
       closedDates.length > 0 &&
       closedDates.length === tripDates(tripRange.start, tripRange.end).length;
+    // สถานที่หมวดอื่นที่ระบบเติมเข้ามา (หมวดที่เลือกมีไม่ถึง 50 แห่ง) — การ์ดพื้นเหลือง
+    const filled = item.categoryScore === 0;
 
     return (
       <li
         key={item.placeId}
         id={`place-card-${item.placeId}`}
-        className={`flex items-start gap-4 bg-white rounded-2xl border-2 p-4 sm:p-5 [box-shadow:var(--shadow)] transition-colors duration-200 ${
+        className={`flex items-start gap-4 rounded-2xl border-2 p-4 sm:p-5 [box-shadow:var(--shadow)] transition-colors duration-200 ${
+          filled ? "bg-amber-50" : "bg-white"
+        } ${
           isCustomMode && selected
             ? "border-[color:var(--navy)]"
-            : "border-[color:var(--line)]"
+            : filled
+              ? "border-amber-300"
+              : "border-[color:var(--line)]"
         } ${isCustomMode && !selected ? "opacity-80" : ""} ${
           focus?.id === item.placeId ? "ring-2 ring-[color:var(--sky)]" : ""
         }`}
@@ -538,6 +544,15 @@ export default function TripRecommendations() {
         </span>
 
         <div className="flex-1 min-w-0">
+          {filled && (
+            <span
+              title="หมวดหมู่ที่เลือกมีสถานที่ไม่พอ ระบบจึงเติมสถานที่หมวดอื่นมาแนะนำ"
+              className="inline-flex items-center gap-1 mb-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-medium"
+            >
+              <CirclePlus size={14} strokeWidth={2} className="shrink-0" />
+              หมวดอื่นที่ระบบเติมให้
+            </span>
+          )}
           <h3 className="font-prompt font-semibold text-base text-[color:var(--navy)]">
             {p?.place_name ?? "ไม่พบชื่อสถานที่"}
           </h3>
@@ -732,7 +747,7 @@ export default function TripRecommendations() {
             <span>
               {filledMatchCount === 0
                 ? "ไม่มีสถานที่ตรงตามหมวดหมู่ที่เลือกในพื้นที่นี้ ระบบจึงแนะนำสถานที่หมวดอื่นแทน"
-                : `หมวดหมู่ที่เลือกมีสถานที่ ${filledMatchCount} แห่งในพื้นที่นี้ ระบบจึงเพิ่มสถานที่หมวดอื่นมาแนะนำด้วย`}
+                : `หมวดหมู่ที่เลือกมีสถานที่ ${filledMatchCount} แห่งในพื้นที่นี้ ระบบจึงเพิ่มสถานที่หมวดอื่นมาแนะนำด้วย (การ์ดพื้นสีเหลือง)`}
             </span>
           </p>
         )}
