@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
 import { errorText } from "../../../../system/errorText";
@@ -96,6 +96,9 @@ export default function AutoTrip() {
   const { tripId } = useParams();
   const navigate = useNavigate();
   const { session } = useAuth();
+  // ?others=0 = หน้าแนะนำปิดการเติมหมวดอื่น จึงไม่ขอสถานที่แนะนำเพิ่มเติม
+  const [searchParams] = useSearchParams();
+  const includeRecommendations = searchParams.get("others") !== "0";
 
   const [data, setData] = useState<AutoTripResponse | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -188,8 +191,10 @@ export default function AutoTrip() {
         {
           method: "POST",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
+          body: JSON.stringify({ include_recommendations: includeRecommendations }),
         }
       );
 

@@ -554,7 +554,12 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
       }
       recommendationPlacesById.set(place.placeId, toAutoPlace(place, true));
     }
-    const recommendationPlaces = Array.from(recommendationPlacesById.values());
+    // include_recommendations: false = ผู้ใช้ปิดการเติมหมวดอื่นในหน้าแนะนำ ไม่ต้องเพิ่มสถานที่แนะนำเพิ่มเติม
+    // (ไม่ส่งมา = เพิ่มตามปกติ)
+    const includeRecommendations = req.body?.include_recommendations !== false;
+    const recommendationPlaces = includeRecommendations
+      ? Array.from(recommendationPlacesById.values())
+      : [];
 
     const tripInfo: TripInfo = {
       trip_id: String(trip.trip_id),

@@ -434,7 +434,8 @@ export default function TripRecommendations() {
         );
       }
 
-      navigate(`/trip/${tripId}/auto`);
+      // ปิดการเติมหมวดอื่นอยู่ = ให้ Auto Trip ไม่เพิ่มสถานที่หมวดอื่นด้วย
+      navigate(`/trip/${tripId}/auto${canToggleFilled && !showFilled ? "?others=0" : ""}`);
     } catch (err) {
       console.error("Auto Trip error:", err);
 

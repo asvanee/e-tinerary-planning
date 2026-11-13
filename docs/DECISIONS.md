@@ -499,6 +499,6 @@
   - สวิตช์ "เติมสถานที่หมวดอื่น (N)" อยู่แถวเดียวกับปุ่มจัดทริป ค่าเริ่มต้นปิด · แสดงเมื่อมีทั้งที่ตรงหมวดและที่เติมมา · ไม่มีที่ตรงหมวดเลย = แสดงหมวดอื่นทั้งหมดพร้อมกล่องแจ้ง ไม่มีสวิตช์
   - ปิดสวิตช์แล้วยกเลิกการเลือกสถานที่ที่ถูกซ่อนในโหมดจัดทริปเอง
   - กล่องแจ้งระยะทางเส้นตรงขึ้นเฉพาะเมื่อการ์ดที่แสดงอยู่มีระยะทางเส้นตรงจริง
-- ⚠️ Auto Trip อ่าน `poi_scores` ทั้งหมด จึงยังใช้สถานที่ที่ซ่อนอยู่ — ถ้าจะให้ตามสวิตช์ต้องคุยกับกิ่ง (เจ้าของ Auto Trip)
-- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`
+  - Auto Trip ทำตามสวิตช์: สวิตช์ปิดอยู่ หน้าแนะนำเปิด `/trip/:id/auto?others=0` → หน้า Auto ส่ง `include_recommendations: false` → `buildAutoTripController` ไม่เพิ่มสถานที่แนะนำเพิ่มเติม (หมวดอื่นตาม D-53) · ไม่ส่งค่า = เพิ่มตามปกติ · ไม่มีที่ตรงหมวดเลยหรือไม่มีการเติม = ไม่ส่ง `others=0`
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ส่วน Auto Trip เป็นโค้ดของกิ่ง ต้องแจ้งกิ่ง)
+- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `backend/src/features/itinerary/itineraryController.ts`
