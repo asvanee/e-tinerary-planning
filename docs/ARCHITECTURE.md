@@ -10,8 +10,8 @@ Browser (React SPA, Vite)
   │  (dev: Vite proxy /api → http://localhost:5000)
   │
   ├── ORS Directions (เรียกตรงจาก browser ใน RouteMap.tsx)
-  ├── Google Maps JS (LocationPinPicker.tsx)
-  └── OSM tiles (Leaflet)
+  ├── Nominatim ค้นหาที่อยู่ (LocationPinPicker.tsx)
+  └── OSM tiles (Leaflet — แผนที่ทุกหน้า รวมปักหมุดจุดเริ่มต้น)
   ▼
 Express API (backend/src/server.ts)
   ├── requireAuth → supabase.auth.getUser(token)
@@ -43,7 +43,8 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 
 ### 2.2 สร้าง/แก้ไขทริป (`tripController.ts`)
 - frontend เป็นคนคำนวณ `daily_budget` (`createTrip.tsx` ~บรรทัด 478–497) จาก scope (`GROUP`/`PER_PERSON`) × period (`TOTAL_TRIP`/`PER_DAY`) ได้ผลเป็น **งบต่อคนต่อวัน** (D-51) เทียบกับราคาต่อคนของสถานที่ตรงๆ
-- backend validate: ต้องมี province, ต้องปักหมุด, พิกัดต้องอยู่ในช่วง, `number_of_people` ต้องเป็นจำนวนเต็ม ≥ 1, `start_time + available_time_per_day` ต้องไม่เกินเที่ยงคืน
+- backend validate: ต้องมี province, ต้องปักหมุด, พิกัดต้องอยู่ในช่วง, `number_of_people` ต้องเป็นจำนวนเต็ม ≥ 1, `start_time + available_time_per_day` ต้องไม่เกินเที่ยงคืน, วันที่เป็น `YYYY-MM-DD` · วันจบไม่ก่อนวันเริ่ม · ยาวไม่เกิน 31 วัน (`tripDateRange.ts` — D-60) · ไม่ห้ามวันในอดีต (แก้ทริปเดิมได้)
+- frontend เลือกวันด้วย `create/components/TripDatePicker.tsx` (ไม่ใช้ `<input type="date">`): กดวันที่ผ่านมาแล้วไม่ได้ · วันจบเลือกได้ถึงวันเริ่ม + 30 · ทุกวันมีไอคอน `Cloud` (มีพยากรณ์) / `CloudOff` (ยังไม่มี) คิดจากวันที่อย่างเดียวด้วย `create/tripDates.ts` ไม่เรียก API · ใต้ช่องสรุปจำนวนวันที่มีพยากรณ์
 - การบันทึก `trip_categories` เป็นแบบ best-effort (ไม่ rollback แต่คืน `categoryWarning`)
 - ownership: query ใช้ `.eq("trip_id").eq("user_id")` ทุกครั้ง
 
@@ -56,6 +57,12 @@ pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับ
 หลังคำนวณจะ upsert Top 50 ลง `poi_scores` แล้วลบแถวของทริปที่หลุดจากผลรอบนี้
 
 จากนั้นคำนวณระยะทางถนนจากจุดเริ่มต้น (ORS ถ้าใช้ไม่ได้ใช้ haversine) และโอกาสฝนเฉลี่ยตาม grid 0.1° แล้วจึงคำนวณ `calculatePoiScore()`
+
+ช่วงวันที่ขอพยากรณ์ (`clampToForecastWindow`): วันนี้ตามเวลาไทย ถึง `forecastLastDay()` = **วันที่ UTC + 15** เพราะ Open-Meteo นับ "วันนี้" ตาม UTC ไม่ว่าส่ง `timezone` อะไร (ขอเกินช่วง = API error ทั้ง request) · frontend `create/tripDates.ts::forecastLastDay` ต้องตรงกัน (D-60)
+
+response ของ `calculate-poi` ต่อสถานที่มี `environmentType` และ `rainProbability` (โอกาสฝนเฉลี่ย % หรือ null) เพิ่มสำหรับแสดงผล — หน้าแนะนำแสดงบนการ์ด: ในร่ม / กลางแจ้ง(บางส่วน) · โอกาสฝน % (≥ 50% ไอคอนฝน) / ยังไม่มีพยากรณ์อากาศ (D-60)
+
+หน้าแนะนำ (D-61): สถานที่ที่เติมมา (`categoryScore` 0) เป็นการ์ดพื้นเหลืองพร้อมป้าย "หมวดอื่นที่ระบบเติมให้" และ**ซ่อนไว้เป็นค่าเริ่มต้น** — สวิตช์ "เติมสถานที่หมวดอื่น (N)" แถวเดียวกับปุ่มจัดทริปกดให้แสดง (มีสวิตช์เมื่อมีทั้งที่ตรงหมวดและที่เติมมา; ไม่มีที่ตรงหมวดเลย = แสดงทั้งหมด) · ซ่อน/แสดงทำที่หน้าจอ `poi_scores` ไม่เปลี่ยน · กล่องแจ้งระยะทางเส้นตรงขึ้นเฉพาะเมื่อการ์ดที่แสดงมีระยะเส้นตรง
 
 | มิติ | สูตร | weight |
 |---|---|---|
@@ -84,7 +91,7 @@ weight มาจากแบบสอบถาม AHP 42 คน (D-56 · `0ce75c
 4. `POST /itinerary/trips/:id/auto` ไม่รับเวลาเที่ยวจาก client; Backend กำหนดเวลาเที่ยว 60 นาทีต่อสถานที่ ทั้งสถานที่หลักและสถานที่แนะนำ · เวลาเดินทางคิดแยกต่างหาก
 5. Controller ส่ง candidate จาก `poi_scores` ที่จับคู่กับหมวดที่เลือกทั้งหมดให้ `buildAutoTrip()`; หาก place จับคู่หลายหมวดจะมี candidate ต่อหมวด แต่ builder ห้ามจัด `place_id` ซ้ำ
 6. Controller โหลดวันจาก `getOrCreateTripDays()` เช่นเดียวกับการยืนยันแผน แล้ว builder จัดตาม `dayNumber`/`visitDate` และใช้ `startTime`, `endTime`, `dailyBudget`, `useBudget` ของแต่ละวัน (Known Issue #41 แก้แล้ว) · Builder ทดลอง candidate หลักตาม POI Score จากมากไปน้อย; หลังเพิ่มจะลองจัดลำดับ nearest neighbor ใหม่และตำแหน่งแทรกที่เป็นไปได้ พร้อมคำนวณตารางทั้งทริปใหม่ทุกครั้ง · ทุกสถานที่ใช้เวลาเที่ยว 60 นาทีเต็ม ไม่รวมเวลาเดินทาง; ถ้าเวลาในวันหรือเวลาเปิดไม่พอจะข้ามสถานที่นั้น ไม่ลดเวลา · สถานที่ที่มีเวลาเปิดต้องเปิดตลอดช่วงเที่ยว; ไม่มี periods = ไม่ทราบเวลาและเลือกได้ (D-10/D-46) · ถ้าเปิดใช้งบจะสะสม `getPlaceCost()` แยกแต่ละวัน และไม่รับ candidate ที่ทำให้เกินงบ; ราคาไม่ทราบไม่นับยอด (D-52/D-54) · ใช้ ORS Matrix และ fallback Haversine; วันซึ่ง `endTime` เป็น null ไม่ถูกจำกัดด้วยเวลา 18:00
-7. หลังจัด candidate หลักแล้ว Controller ส่งสถานที่จากหมวดที่ไม่ได้เลือกซึ่งยังเหลือใน `poi_scores` ให้เป็น candidate แนะนำเพิ่มเติม · Builder เรียงตาม POI Score และลองเพิ่มไม่เกินหนึ่งแห่งต่อวัน โดยต้องไม่ซ้ำและเที่ยวได้ครบ 60 นาทีโดยไม่ลดเวลาของสถานที่หลัก · เพิ่มต่อท้ายวันเพื่อให้เอาออกได้โดยไม่กระทบลำดับ/เวลาเดินทางของสถานที่หลัก · ถ้าไม่มีตัวเลือกที่เหลือหรือไม่มีตัวเลือกที่ผ่านข้อจำกัด วันนั้นจะแจ้งว่าไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไข (D-53/D-59)
+7. หลังจัด candidate หลักแล้ว Controller ส่งสถานที่จากหมวดที่ไม่ได้เลือกซึ่งยังเหลือใน `poi_scores` ให้เป็น candidate แนะนำเพิ่มเติม · Builder เรียงตาม POI Score และลองเพิ่มไม่เกินหนึ่งแห่งต่อวัน โดยต้องไม่ซ้ำและเที่ยวได้ครบ 60 นาทีโดยไม่ลดเวลาของสถานที่หลัก · เพิ่มต่อท้ายวันเพื่อให้เอาออกได้โดยไม่กระทบลำดับ/เวลาเดินทางของสถานที่หลัก · ถ้าไม่มีตัวเลือกที่เหลือหรือไม่มีตัวเลือกที่ผ่านข้อจำกัด วันนั้นจะแจ้งว่าไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไข (D-53/D-59) · ทำตามสวิตช์ในหน้าแนะนำ (D-61): สวิตช์ปิด หน้าแนะนำเปิด `/trip/:id/auto?others=0` → `auto.tsx` ส่ง body `{ include_recommendations: false }` → controller ไม่ส่งสถานที่หมวดอื่นให้ builder · ไม่ส่งค่า = เพิ่มตามปกติ
 8. หน้า `auto.tsx` แสดงป้าย “สถานที่แนะนำเพิ่มเติม”; ผู้ใช้เอาสถานที่สำรองออกได้ก่อนบันทึก และ UI จะตัดออกจากแผนที่/ยอดสรุป/คำขอยืนยัน · แผนที่ใช้ `RouteMap` component เดียวกับ Itinerary Editor (Leaflet + OpenStreetMap + ORS Directions) และ backend ส่งพิกัดจุดเริ่มต้นมาด้วย · ปุ่มแก้ไขโหลดข้อมูลสถานที่และ draft ผ่าน endpoints เดิม แล้วส่ง `draft`, `places`, รายการ stops ตามวัน/ลำดับ และ `visitDurations` ให้ Itinerary Editor เพื่อปรับแผนต่อได้ (Known Issue #10 แก้แล้ว) · ตอนยืนยันส่ง `visit_durations` พร้อมรายการวันให้ `confirmItinerary` ตรวจซ้ำและบันทึกเวลารายสถานที่ใน `itineraries.visit_duration_min` ด้วย schema ที่มีอยู่แล้ว (D-36/D-43/D-53)
 
 ### 2.6 Trip Detail

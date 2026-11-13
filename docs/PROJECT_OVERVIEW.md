@@ -84,9 +84,9 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | `/register`, `/login`, `/confirm-email`, `/email-confirmed` | `features/auth/...` | – |
 | `/home` | `features/home/home.tsx` | ✓ |
 | `/trip/create`, `/trip/:tripId/edit` | `features/trip/create/createTrip.tsx` (ใช้ซ้ำสำหรับแก้ไข) | ✓ |
-| `/trip/:tripId/recommendations` | `TripRecommendations.tsx` + `RecommendationMap.tsx` — คำนวณและแสดงสถานที่แนะนำพร้อม POI Score | ✓ |
+| `/trip/:tripId/recommendations` | `TripRecommendations.tsx` + `RecommendationMap.tsx` — คำนวณและแสดงสถานที่แนะนำพร้อม POI Score · โอกาสฝนบนการ์ด · สวิตช์เติมสถานที่หมวดอื่น (ค่าเริ่มต้นปิด — D-61) | ✓ |
 | `/trip/:tripId/editor` | `ItineraryEditor.tsx` (รับข้อมูลผ่าน router state) | ✓ |
-| `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` — กรอกเวลาเที่ยวต่อ category ก่อนจัดทริป | ✓ |
+| `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` — ปุ่มจัดทริปอัตโนมัติ (ไม่ต้องกรอกเวลาเที่ยว — D-59) · `?others=0` = ไม่เพิ่มสถานที่หมวดอื่น (D-61) | ✓ |
 | `/trip/:tripId/detail` | `TripDetail.tsx` | ✓ |
 | `/trips` | `MyTrips.tsx` | ✓ |
 | `/admin/login` | `admin/login/AdminLogin.tsx` (ใช้ `system/auth/LoginForm.tsx` ร่วมกับ `/login`) | – |
@@ -104,13 +104,13 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/categories` | – | `categoriesController.ts` — `{ categories: [{ category_id, category_name, parent_group }] }` |
 | GET `/api/place-dropdown/provinces` · `/districts?province=` | – | `placeDropdownController.ts` |
 | GET `/api/places?ids=a,b` | ✓ | `placesController.ts` |
-| POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` · PUT `/api/trips/:tripId/addcategories` (D-38) | ✓ | `tripController.ts` |
-| POST `/api/poi/trips/:tripId/calculate-poi` | ✓ | `poiController.ts` |
+| POST `/api/trips` · GET `/api/trips` · GET/PUT/DELETE `/api/trips/:tripId` · PUT `/api/trips/:tripId/addcategories` (D-38) | ✓ | `tripController.ts` — POST/PUT ตรวจวันที่ `YYYY-MM-DD`, วันจบไม่ก่อนวันเริ่ม, ไม่เกิน 31 วัน (D-60) |
+| POST `/api/poi/trips/:tripId/calculate-poi` | ✓ | `poiController.ts` — ผลแต่ละที่มี `environmentType`, `rainProbability` (null = ไม่มีพยากรณ์) สำหรับแสดงผล (D-60) |
 | POST `/api/itinerary/trips/:tripId/draft` | ✓ | `itineraryController.buildDraft` |
 | GET `/api/itinerary/trips/:tripId` | ✓ | `getSavedItinerary` |
 | PUT `/api/itinerary/trips/:tripId` | ✓ | `confirmItinerary` |
 | GET `/api/itinerary/trips/:tripId/auto-places` | ✓ (เช็คเจ้าของทริปแล้วตั้งแต่ T2, `381dc8d`) | `getAutoTripPlacesTest` |
-| POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` — ไม่รับ body; Backend กำหนดเวลาเที่ยว 60 นาทีต่อสถานที่ ไม่รวมเวลาเดินทาง (D-59); stop ที่เป็นสถานที่สำรองมี `is_recommendation: true` (D-53) |
+| POST `/api/itinerary/trips/:tripId/auto` | ✓ | `buildAutoTripController` — body ไม่บังคับ: `{ include_recommendations: false }` = ไม่เพิ่มสถานที่แนะนำจากหมวดอื่น (D-61, ไม่ส่ง = เพิ่ม) · ไม่รับเวลาเที่ยวจาก client; Backend กำหนดเวลาเที่ยว 60 นาทีต่อสถานที่ ไม่รวมเวลาเดินทาง (D-59); stop ที่เป็นสถานที่สำรองมี `is_recommendation: true` (D-53) |
 | GET `/api/admin/me` | ✓ + admin (`requireAdmin` อ่าน `users.role` จาก DB) | `admin/adminController.getAdminMe` → `{ isAdmin: true }` |
 | GET `/api/admin/categories` | ✓ + admin | `admin/categories/categoryController.getAdminCategories` — 29 หมวด + ป้ายในแต่ละหมวด + จำนวนสถานที่ต่อป้าย (R5 P5e) |
 | PUT `/api/admin/categories/:categoryId` | ✓ + admin | `putCategory` — body `{ category_name, parent_group, environment_type, price_nature }` (ครบทุกช่อง, `categoryInput.ts`) · ชื่อซ้ำ 409 · คืนรายการล่าสุด |
