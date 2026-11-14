@@ -1,17 +1,19 @@
 import { Router } from "express";
-import { requireAuth } from "../features/auth/authMiddleware";
+import { requireAuth } from "../user/auth/authMiddleware";
 import { requireAdmin } from "./requireAdmin";
 import { getAdminMe } from "./adminController";
 import provincesRoutes from "./provinces/provincesRoutes";
 import importRoutes from "./imports/importRoutes";
+import categoryRoutes from "./categories/categoryRoutes";
 
 const router = Router();
 
-// ทุก route ของ admin ต้องผ่านทั้งสองตัว (D-24)
+// ทุก route ของ admin ต้อง login และเป็น admin
 router.use(requireAuth, requireAdmin);
 
 router.get("/me", getAdminMe);
 router.use("/provinces", provincesRoutes);
 router.use("/imports", importRoutes);
+router.use("/categories", categoryRoutes);
 
 export default router;

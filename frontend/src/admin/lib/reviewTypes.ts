@@ -11,7 +11,7 @@ export interface PlaceDecision {
   att_ids: string[];
   primary_att_id: string | null;
   field_sources: Record<string, string> | null;
-  field_values: Record<string, string> | null; // ค่าที่ admin พิมพ์เองตอน merge (D-32)
+  field_values: Record<string, string> | null; // ค่าที่ admin พิมพ์เองตอน merge
   lat: number | null;
   lng: number | null;
   note: string | null;

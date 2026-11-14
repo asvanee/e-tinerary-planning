@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
-import authRoutes from "./features/auth/authRoutes";
-import placesRoutes from "./features/places/placesRoutes";
-import tripRoutes from "./features/trip/tripRoutes";
-import categoriesRoutes from "./features/categories/categoriesRoutes";
-import poiRoutes from "./features/poi/poiRoutes";
-import itineraryRoutes from "./features/itinerary/itineraryRoutes";
-import placeDropdownRoutes from "./features/places/dropdown/placeDropdownRoutes";
+import authRoutes from "./user/auth/authRoutes";
+import placesRoutes from "./user/places/placesRoutes";
+import tripRoutes from "./user/trip/tripRoutes";
+import categoriesRoutes from "./user/categories/categoriesRoutes";
+import poiRoutes from "./user/poi/poiRoutes";
+import itineraryRoutes from "./user/itinerary/itineraryRoutes";
+import placeDropdownRoutes from "./user/places/dropdown/placeDropdownRoutes";
 import adminRoutes from "./admin/adminRoutes";
 import { checkDbConnection } from "./config/db";
 import { failStaleJobs } from "./admin/imports/importQueries";
@@ -22,9 +22,10 @@ app.use("/api/trips", tripRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/poi", poiRoutes);
 app.use("/api/itinerary", itineraryRoutes);
-app.use("/api/place-dropdown", placeDropdownRoutes); // แยกจาก /api/places โดยตั้งใจ — กัน path ชน
-app.use("/api/admin", adminRoutes); // Admin Panel (R5, D-24) — ทุก route ผ่าน requireAuth + requireAdmin
+app.use("/api/place-dropdown", placeDropdownRoutes); // แยกจาก /api/places กัน path ชน
+app.use("/api/admin", adminRoutes);
 
+// ตรวจ DB → ปิดงานนำเข้าที่ค้าง → เปิด server (ต่อ DB ไม่ได้ = ออกทันที)
 async function startServer() {
   const isConnected = await checkDbConnection();
   if (!isConnected) {
@@ -32,7 +33,7 @@ async function startServer() {
     process.exit(1);
   }
 
-  // job นำเข้าที่ค้าง running จาก process ก่อนหน้าไม่มีใครรันต่อแล้ว → failed (R5 P4)
+  // งานนำเข้าที่ค้างจากรอบก่อนไม่มีใครรันต่อแล้ว ตั้งเป็น failed
   try {
     const stale = await failStaleJobs();
     if (stale > 0) console.log(`ตั้งงานนำเข้าที่ค้างอยู่ ${stale} งานเป็น failed`);

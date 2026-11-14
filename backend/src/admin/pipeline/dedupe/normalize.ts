@@ -36,6 +36,7 @@ export function normalizeName(value: string): string {
 // ไม่ใช้ fuzzy edit-distance เพราะชื่อไทยที่ขึ้นต้นเหมือนกัน (หาด.../ถ้ำ.../วัด...) ได้ similarity สูงลวงตา
 const NAME_CONTAINMENT_MAX_LENGTH_DIFF = 6;
 
+// ชื่อ 2 ชื่อถือว่าตรงกันไหม (ตามเงื่อนไข 2 เคสด้านบน)
 export function namesStrictlyMatch(nameA: string, nameB: string): boolean {
   const a = normalizeName(nameA);
   const b = normalizeName(nameB);
@@ -57,6 +58,7 @@ export function parseCoords(row: AttractionRow): { lat: number; lng: number } | 
   return { lat, lng };
 }
 
+// ชื่อที่ใช้แสดง: ไทย → อังกฤษ → รหัสสถานที่
 export function displayName(row: AttractionRow): string {
   return row.ATT_NAME_TH || row.ATT_NAME_EN || row.ATT_ID;
 }
@@ -65,6 +67,7 @@ export function displayName(row: AttractionRow): string {
 // ไม่งั้นสถานที่จริงที่ถูก merge เข้าไปจะหายเงียบ (เจอที่เชียงใหม่: record ทดสอบแทนที่ "ผาช่อ")
 const JUNK_NAME_PATTERN = /ทดสอบ|test\b|api\b/i;
 
+// ชื่อดูเป็นข้อมูลทดสอบ/ขยะหรือไม่
 export function isJunkName(row: AttractionRow): boolean {
   return JUNK_NAME_PATTERN.test(displayName(row));
 }

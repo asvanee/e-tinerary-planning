@@ -24,6 +24,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
 const MAX_FIELD_VALUE_LENGTH = 1000;
 
+// อ่านหมายเหตุของ admin (ไม่เกิน 1000 ตัวอักษร ว่างได้)
 function readNote(v: unknown): Result<string | null> {
   if (v === undefined || v === null || v === "") return { ok: true, value: null };
   if (typeof v !== "string" || v.length > 1000) return fail("หมายเหตุต้องเป็นข้อความไม่เกิน 1000 ตัวอักษร");
@@ -79,7 +80,7 @@ export function parseGroupDecision(
       return fail("กรุณาเลือกแถวหลักจากสถานที่ที่รวม");
     }
 
-    // เลือกได้เฉพาะคอลัมน์ที่ใช้ตอนนำเข้า (D-31) · คอลัมน์ที่ไม่ส่งมาใช้ค่าของแถวหลัก
+    // เลือกได้เฉพาะคอลัมน์ที่ใช้ตอนนำเข้า · คอลัมน์ที่ไม่ส่งมาใช้ค่าของแถวหลัก
     const fieldSources: Record<string, string> = {};
     if (set.fieldSources !== undefined) {
       if (!isRecord(set.fieldSources)) return fail("รูปแบบการเลือกข้อมูลไม่ถูกต้อง");
@@ -94,7 +95,7 @@ export function parseGroupDecision(
       }
     }
 
-    // ค่าที่พิมพ์เอง (D-32) — ช่องที่นำเข้าเท่านั้น ยกเว้นพิกัด (ใช้ lat/lng) · ค่าว่าง = ล้างช่องนั้น
+    // ค่าที่พิมพ์เอง — ช่องที่นำเข้าเท่านั้น ยกเว้นพิกัด (ใช้ lat/lng) · ค่าว่าง = ล้างช่องนั้น
     const fieldValues: Record<string, string> = {};
     if (set.fieldValues !== undefined) {
       if (!isRecord(set.fieldValues)) return fail("รูปแบบค่าที่พิมพ์เองไม่ถูกต้อง");

@@ -1,10 +1,11 @@
 import { DedupeRules, BlockedPair } from "../dedupe/dedupeTypes";
 import { PlaceDecision } from "./reviewTypes";
 
+// key ของคู่ id (สลับลำดับแล้วได้ key เดิม)
 export const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
 /**
- * แปลงการตัดสินใจของ admin เป็นกฎ dedupe (แทน dedupeRules.ts ที่ hard code — D-26)
+ * แปลงการตัดสินใจของ admin เป็นกฎ dedupe
  * - merge       → forceMergeGroups (+ พิกัดที่กรอกเองตอน merge → locationOverrides ของแถวหลัก)
  * - separate    → blockedPairs ทุกคู่ในกลุ่ม ยกเว้นคู่ที่อยู่ใน merge เดียวกัน
  *                 (กลุ่ม 5 แถวที่ merge 2 แถว แล้วที่เหลือแยกกัน = merge 1 + separate 1)
@@ -62,12 +63,14 @@ export function coveredPairs(decisions: PlaceDecision[]): Map<string, string[]> 
   return covered;
 }
 
+// เรียก fn กับทุกคู่ของ id ในรายการ
 export function eachPair(ids: string[], fn: (a: string, b: string) => void): void {
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) fn(ids[i], ids[j]);
   }
 }
 
+// ข้อความที่มาของกฎ ใช้บันทึกว่ามาจากการตัดสินใจครั้งไหนของ admin
 function sourceOf(d: PlaceDecision): string {
   return `admin decision #${d.decision_id}${d.note ? ` — ${d.note}` : ""}`;
 }

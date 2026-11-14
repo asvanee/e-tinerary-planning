@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CheckCircle2, ExternalLink, MapPin, Trash2, Undo2 } from "lucide-react";
 import type { AttractionRow, ReviewRow, RowDecisionInput } from "../../lib/reviewTypes";
 import { ISSUE_LABELS, displayName, mapsUrl, parseLatLng } from "../../lib/placeFields";
+import NoteField from "./NoteField";
 
 interface ProblemRowCardProps {
   item: ReviewRow;
@@ -90,14 +91,7 @@ export default function ProblemRowCard({ item, row, busy, onSave, onUndo }: Prob
                 className="min-h-10 px-3 rounded-lg border border-[color:var(--line)]"
               />
             </label>
-            <label className="flex flex-col gap-1 grow">
-              <span className="font-prompt text-[color:var(--navy)]">หมายเหตุ (ไม่บังคับ)</span>
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="min-h-10 px-3 rounded-lg border border-[color:var(--line)]"
-              />
-            </label>
+            <NoteField value={note} onChange={setNote} />
           </div>
           {formError && <p role="alert" className="text-sm text-[color:var(--danger)]">{formError}</p>}
           <div className="flex flex-wrap gap-2">

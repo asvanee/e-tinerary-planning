@@ -11,7 +11,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 | backend `npx tsc --noEmit` | ✅ 0 errors (ณ `0c980bd` — T1 ไม่ได้แตะ backend) |
 | frontend `npx tsc -b` | ✅ 0 errors (Windows) |
 | frontend `npm run lint` | ❌ 5 errors, 4 warnings (หลัง cleanup 2026-10-21 — `no-explicit-any` 0) |
-| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) · ไม่ทดสอบบน Linux/CI ตาม D-22 |
+| frontend `npm run build` | ✅ ผ่านบน Windows (มีคำเตือน chunk > 500 kB) |
 | backend `npm test` | ✅ 98 passed (6 suites, 2026-10-21 — dedupe + review + import + resolve ของ admin pipeline) |
 | frontend `npm test` | ไม่มีไฟล์ test |
 
@@ -45,8 +45,7 @@ description: ตรวจผลหลังแก้โค้ดใน E-tinerar
 8. **ตรวจ secrets**: `git diff` ต้องไม่มี key/token/URL ของโปรเจกต์ Supabase และไม่มีไฟล์ `.env` ถูก stage
 
 ## ปัญหาที่รู้แล้วของ environment
-- `node_modules` ปัจจุบันติดตั้งบน Windows ถ้ารันใน WSL/Linux/CI ต้อง `npm ci` ใหม่ในเครื่องนั้น (ห้ามลบ node_modules ของผู้ใช้เอง ให้ถามก่อน)
-- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 · ไม่ทดสอบบน Linux/CI ตาม D-22 แต่ยังต้องตั้งชื่อให้ตรงกันทุกตัวอักษร)
+- ปัญหาตัวพิมพ์เล็ก-ใหญ่ของชื่อไฟล์จะไม่เห็นบน Windows (เคสเดิม `ConfirmEmail.css`, `Navbar.tsx` แก้แล้วใน T1 แต่ยังต้องตั้งชื่อให้ตรงกันทุกตัวอักษร)
 
 ## ข้อควรระวัง
 - ห้ามรายงานว่าผ่านถ้าไม่ได้รันในรอบนี้ และห้ามคัดลอกผลจาก baseline มาใช้แทน

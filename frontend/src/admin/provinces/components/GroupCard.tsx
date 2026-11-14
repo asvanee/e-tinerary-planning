@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Combine, ExternalLink, Split, Undo2 } from "lucide-react";
 import type { AttractionRow, GroupDecisionInput, MergeSetInput, PlaceDecision, ReviewGroup } from "../../lib/reviewTypes";
 import { KEY_FIELDS, MERGE_FIELDS, REASON_LABELS, displayName, fieldLabel, mapsUrl, parseLatLng } from "../../lib/placeFields";
+import NoteField from "./NoteField";
 
 interface GroupCardProps {
   group: ReviewGroup;
@@ -14,11 +15,11 @@ interface GroupCardProps {
 
 const valueOf = (row: AttractionRow | undefined, column: string) => row?.[column]?.trim() ?? "";
 
-// ค่าใน sources ที่แปลว่า "ใช้ค่าที่พิมพ์เอง" แทนการเลือกจากแถว (D-32)
+// ค่าใน sources ที่แปลว่า "ใช้ค่าที่พิมพ์เอง" แทนการเลือกจากแถว
 const MANUAL = "__manual__";
 
-// กลุ่มสถานที่ที่อาจเป็นที่เดียวกัน: เลือกแถวที่จะรวม → เลือกแถวหลัก → เลือกค่าทีละช่อง (D-26)
-// ตอนเลือกรวม: แสดงทุกช่องที่ใช้ตอนนำเข้า (MERGE_FIELDS — D-31) เลือกค่าจากแถวไหนก็ได้ หรือพิมพ์เอง (D-32)
+// กลุ่มสถานที่ที่อาจเป็นที่เดียวกัน: เลือกแถวที่จะรวม → เลือกแถวหลัก → เลือกค่าทีละช่อง
+// ตอนเลือกรวม: แสดงทุกช่องที่ใช้ตอนนำเข้า (MERGE_FIELDS) เลือกค่าจากแถวไหนก็ได้ หรือพิมพ์เอง
 // ยังไม่เลือกรวม: แสดงเฉพาะช่องสำคัญ (KEY_FIELDS) · พิกัดพิมพ์เองผ่านช่อง "กรอกพิกัดเอง"
 // แถวที่ไม่ได้เลือกจะถือว่าเป็นสถานที่แยก
 export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo }: GroupCardProps) {
@@ -265,14 +266,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                   className="min-h-10 px-3 rounded-lg border border-[color:var(--line)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 grow">
-                <span className="font-prompt text-[color:var(--navy)]">หมายเหตุ (ไม่บังคับ)</span>
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="min-h-10 px-3 rounded-lg border border-[color:var(--line)]"
-                />
-              </label>
+              <NoteField value={note} onChange={setNote} />
             </div>
           )}
           {formError && <p role="alert" className="text-sm text-[color:var(--danger)]">{formError}</p>}

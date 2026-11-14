@@ -1,12 +1,10 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState } from "react";
 import type { ReactNode } from "react";
 
 export interface User {
   user_id: string;
   username: string;
   email: string;
-  age: number;
-  gender: string;
   role: string;
   last_login: string;
 }
@@ -21,25 +19,23 @@ interface AuthContextType {
   session: AuthSession | null;
   login: (user: User, session: AuthSession) => void;
   logout: () => void;
-  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+// อ่าน user หรือ session ที่เก็บไว้ใน localStorage (ต้องมีทั้งคู่ ไม่งั้นคืน null)
+function readSaved<T>(key: "user" | "session"): T | null {
+  const savedUser = localStorage.getItem("user");
+  const savedSession = localStorage.getItem("session");
+  if (!savedUser || !savedSession) return null;
+  return JSON.parse(key === "user" ? savedUser : savedSession) as T;
+}
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    const savedSession = localStorage.getItem("session");
-    if (savedUser && savedSession) {
-      setUser(JSON.parse(savedUser));
-      setSession(JSON.parse(savedSession));
-    }
-    setIsLoading(false);
-  }, []);
+// เก็บข้อมูลผู้ใช้ที่ login อยู่ (user + session) ให้ทุกหน้าใช้ผ่าน useAuth และบันทึกลง localStorage
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // อ่าน localStorage ครั้งเดียวตอนสร้าง state (ต้องมีทั้งคู่ถึงถือว่าล็อกอินอยู่)
+  const [user, setUser] = useState<User | null>(() => readSaved<User>("user"));
+  const [session, setSession] = useState<AuthSession | null>(() => readSaved<AuthSession>("session"));
 
   const login = (userData: User, sessionData: AuthSession) => {
     setUser(userData);
@@ -56,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

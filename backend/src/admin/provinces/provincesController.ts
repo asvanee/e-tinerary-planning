@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { AuthRequest } from "../../features/auth/authMiddleware";
+import { AuthRequest } from "../../user/auth/authMiddleware";
 import { getProvinceRows, listCsvProvinces } from "../pipeline/attractionCsv";
 import { AttractionRow } from "../pipeline/attractionTypes";
 import { buildProvinceReview } from "../pipeline/review/buildReview";
@@ -23,6 +23,7 @@ async function loadProvince(province: unknown): Promise<{ name: string; rows: At
   return rows.length > 0 ? { name: province.trim(), rows } : null;
 }
 
+// ส่งผลตรวจของจังหวัดกลับหน้าเว็บ รับชื่อจังหวัดกับแถวของจังหวัดนั้น
 async function respondWithReview(res: Response, name: string, rows: AttractionRow[]) {
   const decisions = await listDecisions(name);
   res.json(buildProvinceReview(name, rows, decisions));
@@ -110,6 +111,7 @@ export const deleteGroupDecision = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// id ของการตัดสินใจระดับแถวของ attId นั้น
 function rowDecisionIds(decisions: PlaceDecision[], attId: string): string[] {
   return decisions.filter((d) => ROW_KINDS.has(d.kind) && d.att_ids[0] === attId).map((d) => d.decision_id);
 }

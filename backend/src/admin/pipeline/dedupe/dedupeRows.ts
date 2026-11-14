@@ -19,6 +19,7 @@ import {
 
 const LOCATION_PROXIMITY_METERS = 500;
 
+// ข้อความเหตุผลที่ให้คนตรวจ เมื่อแถวแชร์เบอร์/เว็บเดียวกันแต่ดูไม่ใช่ที่เดียวกัน
 const REVIEW_REASON = (matchedBy: ContactMatch[]) =>
   `แชร์ ${matchedBy.join("/")} เดียวกัน แต่ชื่อไม่คล้ายและพิกัดไม่ใกล้กัน (หรือไม่มีพิกัดยืนยัน) — น่าจะเป็น contact info ของหน่วยงานกลาง (เช่น ททท. จังหวัด) ไม่ใช่ของสถานที่เอง`;
 
@@ -44,12 +45,14 @@ class UnionFind {
   }
 }
 
+// เพิ่มค่าเข้า list ของ key นั้น (สร้าง list ใหม่ถ้ายังไม่มี)
 function addTo<K, V>(map: Map<K, V[]>, key: K, value: V): void {
   const list = map.get(key);
   if (list) list.push(value);
   else map.set(key, [value]);
 }
 
+// เพิ่มค่าเข้า set ของ key นั้น (สร้าง set ใหม่ถ้ายังไม่มี)
 function addToSet<K, V>(map: Map<K, Set<V>>, key: K, value: V): void {
   const set = map.get(key);
   if (set) set.add(value);

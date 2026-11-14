@@ -2,29 +2,15 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, LogOut, ShieldCheck } from "lucide-react";
 import { useAuth } from "../system/auth/useAuth";
+import { useLogout } from "../system/auth/useLogout";
 
 // โครงหน้าของฝั่ง admin (header ของตัวเอง ไม่ใช้ Navbar ของผู้ใช้)
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL || "";
-  const { logout, session, user } = useAuth();
+  const { user } = useAuth();
+  const handleLogout = useLogout("/admin/login");
 
   const username = user?.username || "ผู้ดูแลระบบ";
-
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-    } catch (error) {
-      // ต่อให้เรียก server ไม่สำเร็จ ก็ต้องออกจากระบบฝั่งเครื่องได้
-      console.error("Logout error:", error);
-    } finally {
-      logout();
-      navigate("/admin/login");
-    }
-  };
 
   const btnBase =
     "font-prompt text-sm font-medium min-h-10 min-w-10 px-3 md:px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)]";

@@ -1,9 +1,9 @@
 import { Response, NextFunction } from "express";
 import { supabase } from "../config/db";
-import { AuthRequest } from "../features/auth/authMiddleware";
+import { AuthRequest } from "../user/auth/authMiddleware";
 
 // ใช้ต่อจาก requireAuth เสมอ — อ่าน role จากตาราง users ทุก request
-// ห้ามเชื่อ user.role ที่ frontend เก็บใน localStorage (Known Issue #22)
+// ห้ามเชื่อ role ที่หน้าเว็บเก็บใน localStorage เพราะผู้ใช้แก้เองได้
 export const requireAdmin = async (
   req: AuthRequest,
   res: Response,

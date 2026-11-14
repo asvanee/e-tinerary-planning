@@ -3,8 +3,9 @@ import { NewDecision } from "../pipeline/review/decisionInput";
 import { PlaceDecision } from "../pipeline/review/reviewTypes";
 
 const TABLE = "admin_place_decisions";
-const PAGE_SIZE = 1000; // Supabase จำกัดแถวต่อ request (T7) — ต้อง paginate ทุก query ที่อาจเกิน
+const PAGE_SIZE = 1000; // Supabase คืนได้ไม่เกิน 1000 แถวต่อ request — query ที่อาจเกินต้องใช้ selectAll
 
+// ดึงข้อมูลทีละหน้า (หน้าละ 1000) จนครบ รับฟังก์ชันที่สร้าง query ตามช่วง from–to
 export async function selectAll<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -15,6 +16,7 @@ export async function selectAll<T>(build: (from: number, to: number) => PromiseL
   }
 }
 
+// การตัดสินใจของ admin ทั้งหมดในจังหวัด เรียงตามเวลา
 export function listDecisions(province: string): Promise<PlaceDecision[]> {
   return selectAll<PlaceDecision>((from, to) =>
     supabase.from(TABLE).select("*").eq("province", province).order("decided_at").order("decision_id").range(from, to)
@@ -43,6 +45,7 @@ export async function countImportedByProvince(): Promise<Map<string, number>> {
   return counts;
 }
 
+// บันทึกการตัดสินใจใหม่ (รายการว่างไม่ทำอะไร)
 export async function insertDecisions(decisions: NewDecision[]): Promise<void> {
   if (decisions.length === 0) return;
   const { error } = await supabase.from(TABLE).insert(decisions);

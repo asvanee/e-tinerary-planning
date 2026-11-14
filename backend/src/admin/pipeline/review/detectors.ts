@@ -11,6 +11,7 @@ export function isInThailand(c: { lat: number; lng: number }): boolean {
   return c.lat >= 5.6 && c.lat <= 20.5 && c.lng >= 97.3 && c.lng <= 105.7;
 }
 
+// ระยะห่างของ 2 แถวเป็นเมตร · แถวไหนไม่มีพิกัดคืน null
 export function distanceMeters(a: AttractionRow, b: AttractionRow): number | null {
   const ca = parseCoords(a);
   const cb = parseCoords(b);
@@ -70,8 +71,10 @@ export function provinceCenter(rows: AttractionRow[]): { lat: number; lng: numbe
   return { lat: median(coords.map((c) => c.lat)), lng: median(coords.map((c) => c.lng)) };
 }
 
+// ว่าง หรือเขียนว่า "ไม่มี"
 const isBlank = (value?: string) => !value || !value.trim() || value.trim() === "ไม่มี";
 
+// หาปัญหาของแถวเดียว รับแถว CSV กับจุดกลางของจังหวัด (ใช้เช็คว่าพิกัดอยู่ไกลผิดปกติไหม)
 export function detectRowIssues(row: AttractionRow, center: { lat: number; lng: number } | null): RowIssue[] {
   const issues: RowIssue[] = [];
 

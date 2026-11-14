@@ -80,7 +80,13 @@ describe("Google Places client (fetch ปลอม)", () => {
 
   test("getDetails ขอ field รวม type และคืน result · NOT_FOUND → error", async () => {
     const ok = fakeFetch({ status: "OK", result: { place_id: "g1", types: ["museum"] } });
-    expect(await createGooglePlacesClient("KEY", ok.fn).getDetails("g1")).toEqual({ place_id: "g1", types: ["museum"] });
+    // fetch ปลอมคืน body เดิมให้ Places API (New) ด้วย → ไม่มี priceRange = null
+    expect(await createGooglePlacesClient("KEY", ok.fn).getDetails("g1")).toEqual({
+      place_id: "g1",
+      types: ["museum"],
+      price_range_start: null,
+      price_range_end: null,
+    });
     const params = new URL(ok.urls[0]).searchParams;
     expect(params.get("place_id")).toBe("g1");
     expect(params.get("fields")).toContain("opening_hours");
@@ -88,6 +94,57 @@ describe("Google Places client (fetch ปลอม)", () => {
 
     const missing = createGooglePlacesClient("KEY", fakeFetch({ status: "NOT_FOUND" }).fn);
     await expect(missing.getDetails("g1")).rejects.toBeInstanceOf(GoogleApiError);
+  });
+});
+
+describe("getDetails ขอ priceRange จาก Places API (New) (D-52 — fetch ปลอม)", () => {
+  const DETAILS_OK = { status: "OK", result: { place_id: "g1" } };
+
+  // legacy Details ตอบ DETAILS_OK เสมอ · Places API (New) ตอบตาม newStatus/newBody
+  function routedFetch(newBody: unknown, newStatus = 200) {
+    const calls: { url: string; headers?: Record<string, string> }[] = [];
+    const fn = async (url: string, init?: { headers?: Record<string, string> }) => {
+      calls.push({ url, headers: init?.headers });
+      if (url.startsWith("https://places.googleapis.com/")) {
+        return { ok: newStatus >= 200 && newStatus < 300, status: newStatus, json: async () => newBody };
+      }
+      return { ok: true, status: 200, json: async () => DETAILS_OK };
+    };
+    return { fn, calls };
+  }
+  const thb = (units: string) => ({ currencyCode: "THB", units });
+
+  test("มี priceRange THB → เติม price_range_start/end · ส่ง key และ FieldMask ทาง header", async () => {
+    const { fn, calls } = routedFetch({ priceRange: { startPrice: thb("1"), endPrice: thb("200") } });
+    const details = await createGooglePlacesClient("KEY", fn).getDetails("g1");
+    expect(details).toMatchObject({ price_range_start: 1, price_range_end: 200 });
+    const newCall = calls.find((c) => c.url.startsWith("https://places.googleapis.com/"));
+    expect(newCall?.url).toBe("https://places.googleapis.com/v1/places/g1");
+    expect(newCall?.headers).toEqual({ "X-Goog-Api-Key": "KEY", "X-Goog-FieldMask": "priceRange" });
+  });
+
+  test.each([
+    ["ช่วงแบบมากกว่า X (ไม่มี endPrice)", { priceRange: { startPrice: thb("1000") } }, 1000, null],
+    ["ไม่ใช่เงินบาท", { priceRange: { startPrice: { currencyCode: "USD", units: "10" } } }, null, null],
+    ["ไม่มี priceRange", {}, null, null],
+  ])("%s", async (_label, body, start, end) => {
+    const details = await createGooglePlacesClient("KEY", routedFetch(body).fn).getDetails("g1");
+    expect(details.price_range_start).toBe(start);
+    expect(details.price_range_end).toBe(end);
+  });
+
+  test.each([403, 429])("HTTP %i → GoogleApiError แบบ fatal (หยุดทั้ง job)", async (status) => {
+    const err = await createGooglePlacesClient("KEY", routedFetch({}, status).fn).getDetails("g1").catch((e) => e);
+    expect(err).toBeInstanceOf(GoogleApiError);
+    expect(err.fatal).toBe(true);
+    expect(err.message).not.toContain("KEY");
+  });
+
+  test("error อื่น → นำเข้าต่อโดยไม่มีราคา", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const details = await createGooglePlacesClient("KEY", routedFetch({}, 500).fn).getDetails("g1");
+    expect(details).toMatchObject({ place_id: "g1", price_range_start: null, price_range_end: null });
+    spy.mockRestore();
   });
 });
 
@@ -249,7 +306,15 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
       csv,
       { lat: 18.7, lng: 98.9 },
       { place_id: "g1", name: "ชื่อ candidate", geometry: { location: { lat: 1, lng: 1 } } },
-      { place_id: "g1", name: "ชื่อ Google", website: "https://g.com", rating: 4.5, types: ["place_of_worship"] }
+      {
+        place_id: "g1",
+        name: "ชื่อ Google",
+        website: "https://g.com",
+        rating: 4.5,
+        types: ["place_of_worship"],
+        price_range_start: 1,
+        price_range_end: 200,
+      }
     );
     expect(record).toMatchObject({
       google_place_id: "g1",
@@ -259,7 +324,8 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
       website: "https://g.com",
       phone_number: "053111111",
       rating: 4.5,
-      price_level: null,
+      price_range_start: 1,
+      price_range_end: 200,
       opening_hours: null,
       gmaps_types: ["place_of_worship"],
       province: "เชียงใหม่",
@@ -275,6 +341,8 @@ describe("buildPlaceRecord / buildSearchQuery", () => {
     expect(record.place_name).toBe("ชื่อ CSV");
     expect(record.website).toBeNull(); // "ไม่มี" ใน CSV
     expect(record.gmaps_types).toBeNull();
+    expect(record.price_range_start).toBeNull();
+    expect(record.price_range_end).toBeNull();
     expect(record.formatted_address).toBe("เมืองเชียงใหม่, เชียงใหม่");
   });
 
@@ -313,10 +381,9 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
     return { client, calls };
   }
 
-  function fakeStore(opts: { existing?: Record<string, string>; cancelAfter?: number; failTypes?: boolean } = {}) {
+  function fakeStore(opts: { existing?: Record<string, string>; cancelAfter?: number } = {}) {
     const items: ImportItem[] = [];
     const places: PlaceRecord[] = [];
-    const placeTypes: [string, string[]][] = [];
     const progress: number[] = [];
     let finished: { status: string; error: string | null } | null = null;
     let cancelChecks = 0;
@@ -332,10 +399,6 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
         places.push(record);
         return `place-${places.length}`;
       },
-      async insertPlaceTypes(placeId, types) {
-        if (opts.failTypes) throw new Error("types fail");
-        placeTypes.push([placeId, types]);
-      },
       async addItem(item) {
         items.push(item);
       },
@@ -346,7 +409,7 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
         finished = { status, error };
       },
     };
-    return { store, items, places, placeTypes, progress, finished: () => finished };
+    return { store, items, places, progress, finished: () => finished };
   }
 
   const at = (meters: number) => ({ location: north(meters) });
@@ -411,7 +474,7 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
     expect(db.items[5]).toMatchObject({ place_id: "place-old" });
     expect(db.places.map((p) => p.att_id)).toEqual(["1", "2"]);
     expect(db.places[0]).toMatchObject({ latitude: 18.79, longitude: 98.98 }); // พิกัด CSV ไม่ใช่ของ Google
-    expect(db.placeTypes).toEqual([["place-1", ["a", "b"]]]);
+    expect(db.places[0].gmaps_types).toEqual(["a", "a", "b"]); // type จาก Google เก็บใน places เท่านั้น (ไม่เขียน place_types — D-38)
     expect(google.calls).toEqual({ find: 7, details: 2 }); // แถวพิกัดเสียไม่เรียก Google · ไม่ผ่านเกณฑ์ไม่เรียก Details
     expect(db.progress).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(db.finished()).toEqual({ status: "done", error: null });
@@ -446,9 +509,9 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
     expect(db.finished()).toEqual({ status: "failed", error: "Google status REQUEST_DENIED" });
   });
 
-  test("place_types บันทึกไม่สำเร็จ ยังนับว่า imported พร้อมหมายเหตุ · หน่วงหลังทุก request", async () => {
+  test("imported ไม่มีหมายเหตุ · หน่วงหลังทุก request", async () => {
     const google = fakeGoogle({ ที่: { candidate: { place_id: "g", name: "ที่", geometry: at(0) }, details: { types: ["museum"] } } });
-    const db = fakeStore({ failTypes: true });
+    const db = fakeStore();
     const sleeps: number[] = [];
     await runImportJob({
       jobId: "job-4",
@@ -460,7 +523,7 @@ describe("runImportJob (Google และ DB ปลอม)", () => {
         sleeps.push(ms);
       },
     });
-    expect(db.items[0]).toMatchObject({ status: "imported", message: "บันทึก place_types ไม่สำเร็จ" });
+    expect(db.items[0]).toMatchObject({ status: "imported", message: null });
     expect(sleeps).toEqual([200, 200]);
   });
 });

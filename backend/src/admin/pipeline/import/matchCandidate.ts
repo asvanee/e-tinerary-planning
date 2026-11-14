@@ -3,7 +3,7 @@ import { normalizeName } from "../dedupe/normalize";
 import type { LatLng } from "./googlePlaces";
 
 /**
- * เกณฑ์รับผลจาก Google (D-33 แทนที่ D-27 ข้อ "≤ 100 m รับเลย"): เทียบกับพิกัดและชื่อใน CSV
+ * เกณฑ์รับผลจาก Google: เทียบกับพิกัดและชื่อใน CSV
  * - ห่างไม่เกิน 1 km และชื่อคล้ายกัน → รับ
  * - ชื่อไม่คล้าย (แม้ห่าง 0 m), ห่างเกิน 1 km หรือ Google ไม่มีพิกัด → ส่งให้ admin ตัดสิน (needs_review_mismatch)
  * ระยะใกล้อย่างเดียวยืนยันไม่ได้ เพราะพิกัด CSV บางแถวคัดลอกมาจากหมุดของสิ่งที่อยู่ใกล้ๆ
@@ -61,6 +61,8 @@ export function namesSimilar(googleName: string | undefined, csvNames: (string |
   });
 }
 
+// เช็คว่าผลจาก Google เป็นสถานที่เดียวกับแถว CSV ไหม รับพิกัด CSV, พิกัดและชื่อจาก Google, ชื่อใน CSV
+// ผ่านเมื่อห่างไม่เกิน 1 กม. และชื่อคล้ายกัน
 export function matchCandidate(
   csvCoords: LatLng,
   googleCoords: LatLng | undefined,

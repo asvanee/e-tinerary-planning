@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { LogIn, Eye, EyeOff, Loader2, TriangleAlert } from "lucide-react";
+import { LogIn, Loader2, TriangleAlert } from "lucide-react";
+import PasswordField from "./PasswordField";
+import { inputClass, labelClass } from "./authFormClasses";
 import type { User } from "./AuthContext";
 
 // response ของ POST /api/auth/login เมื่อสำเร็จ (authController.login)
@@ -21,7 +23,6 @@ interface LoginFormProps {
 export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [shakeKey, setShakeKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,15 +62,11 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
     }
   };
 
-  const inputClass =
-    "w-full min-h-12 px-4 py-3 rounded-xl border border-[color:var(--line)] bg-white text-[color:var(--text)] placeholder:text-[color:var(--muted)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--navy)] focus:ring-4 focus:ring-[color:var(--line)] transition-all duration-200";
 
-  const labelClass = "font-prompt text-sm font-medium text-[color:var(--navy)]";
 
   return (
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-md bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-8 sm:px-12 py-8">
-        {/* Header */}
         <div className="text-center mb-6">
           <img
             src="/images/logo.png"
@@ -84,9 +81,7 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
           </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="email" className={labelClass}>อีเมล</label>
             <input
@@ -102,36 +97,8 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
             />
           </div>
 
-          {/* Password */}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className={labelClass}>รหัสผ่าน</label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={`${inputClass} pr-12`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-[color:var(--muted)] hover:text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] transition-colors duration-200"
-              >
-                {showPassword ? (
-                  <EyeOff size={20} strokeWidth={1.75} />
-                ) : (
-                  <Eye size={20} strokeWidth={1.75} />
-                )}
-              </button>
-            </div>
-          </div>
+          <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />
 
-          {/* Error message */}
           {message && (
             <p
               key={shakeKey}
@@ -143,7 +110,6 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
             </p>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={isSubmitting}

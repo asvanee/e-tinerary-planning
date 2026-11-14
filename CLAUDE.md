@@ -11,7 +11,7 @@
 | `backend/` | Express 5 + TS (CommonJS), Supabase (service role) | `src/server.ts` |
 | `frontend/` | React 19 + Vite 7 + TS + Tailwind 4, Leaflet, dnd-kit | `src/main.tsx`, routes อยู่ใน `src/App.tsx` |
 
-ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md` · โครงสร้าง DB: `docs/DATABASE_SCHEMA.md`
+ภาพรวมระบบ: `docs/ARCHITECTURE.md` · สถานะ: `docs/DEVELOPMENT_STATUS.md` · แผน: `docs/DEVELOPMENT_PLAN.md` · มติที่ตัดสินแล้ว: `docs/DECISIONS.md` · โครงสร้าง DB: `docs/DATABASE_SCHEMA.md` · น้ำหนัก POI (AHP): `docs/AHP_POI_WEIGHTS.md` · สิ่งที่ต้องแก้ในเล่มรายงาน: `docs/REPORT_REVISION.md`
 **แผนงานหลักของทีมคือ `README.md`** (requirement R1–R5) ส่วน `docs/DEVELOPMENT_PLAN.md` ใช้ติดตามรายละเอียดทางเทคนิค (กลุ่ม 0 โยง R กับโค้ด) ห้ามแก้ README.md ถ้าไม่ได้รับคำสั่ง
 
 ## คำสั่งที่มีอยู่จริง
@@ -19,21 +19,20 @@
 # backend
 cd backend && npm run dev          # ts-node-dev src/server.ts (ต้องมี .env และ Supabase ต้องเชื่อมต่อได้ ไม่งั้น exit 1)
 cd backend && npx tsc --noEmit     # type check (ไม่มี script build/lint)
-cd backend && npm test             # jest — test ของ admin pipeline (dedupe) อ่าน backend/data/attraction.csv
+cd backend && npm test             # jest — test ของ admin pipeline (dedupe อ่าน backend/data/attraction.csv), trip และ Auto Trip
 
 # frontend  (dev proxy /api → http://localhost:5000)
 cd frontend && npm run dev
 cd frontend && npm run build       # tsc -b && vite build
-cd frontend && npm run lint
-cd frontend && npm test            # vitest run — ยังไม่มีไฟล์ test
+cd frontend && npm run lint       # frontend ไม่มี test (ถอด Vitest 2026-11-03)
 ```
 การนำเข้าสถานที่ทำผ่านหน้า admin (`backend/src/admin/`) — `data-pipeline/` เดิมลบแล้วใน R5 P6 (D-37, กู้ได้จาก git history ที่ `d73808f`)
 
-Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows — ไม่ทดสอบ Linux/CI ตาม D-22) · eslint ❌ 5 errors / 4 warnings (หลัง cleanup 2026-10-21) · backend jest ✅ 107 tests (2026-10-22) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
+Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ · `npm run build` ✅ (Windows) · eslint ✅ 0 problems (2026-10-26) · backend jest ✅ 15 suites / 230 tests (2026-11-14) ห้ามรายงานว่า "ผ่าน" ถ้าไม่ได้รันจริงในรอบนั้น และห้ามโทษว่า error เดิมเกิดจากงานของเรา
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด
-2. **แก้เท่าที่งานต้องการ** ห้าม reformat, normalize line ending (repo มีทั้ง CRLF และ LF), rename หรือ refactor ไฟล์ที่ไม่เกี่ยวกับงาน และห้ามลบ comment "✅ มติ…" ถ้าไม่ได้รับอนุญาต
+2. **แก้เท่าที่งานต้องการ** ห้าม reformat, normalize line ending (ไฟล์บนดิสก์เป็น CRLF ทั้งหมด), rename หรือ refactor ไฟล์ที่ไม่เกี่ยวกับงาน
 3. **ห้ามสมมติว่าฟีเจอร์/API/ตารางทำงานตามที่คาด** โครงสร้าง DB ดูที่ `docs/DATABASE_SCHEMA.md` (snapshot 2026-10-18 — ไม่ใช่ migration) ถ้าไม่มีข้อมูลหรือไม่แน่ใจว่ายังตรงกับของจริงให้ถามผู้ใช้
 4. **ก่อนทำงานที่มีความเสี่ยง** (เปลี่ยน logic คะแนน/งบ/เวลา, query ที่ลบหรือเขียนข้อมูล, auth, ไฟล์ mirror, dependency, git history) ให้สรุปแนวทาง ไฟล์ที่กระทบ และผลกระทบ แล้วรอผู้ใช้ยืนยันก่อน
 5. **หลังแก้** ต้องรายงาน: ไฟล์ที่เปลี่ยน · เปลี่ยนอะไรและเพราะอะไร · คำสั่งตรวจที่รันจริงพร้อมผลลัพธ์ · สิ่งที่ยังไม่ได้ตรวจ ถ้ารันไม่ได้ให้บอกเหตุผล และห้ามอ้างว่าผ่าน
@@ -59,18 +58,19 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 - โค้ดใหม่ไม่ควรส่ง `err.message` ของ Supabase กลับให้ client ตรงๆ ให้ตอบข้อความภาษาไทยทั่วไปแล้ว `console.error` รายละเอียด (Known Issue #24)
 
 ## Conventions
-- Backend: `src/features/<feature>/<feature>Routes.ts` + `<feature>Controller.ts` (+ `*PlaceQueries.ts`, `*Builder.ts`), ใส่ shared helper ใน `src/utils/`, mount route ใน `src/server.ts` · คืน `res.status(x).json({ message: "<ภาษาไทย>" })` · ใน controller ให้ใช้ `try/catch` แล้ว `console.error` พร้อมชื่อ context
+- Backend: `src/user/<feature>/<feature>Routes.ts` + `<feature>Controller.ts` (+ `*PlaceQueries.ts`, `*Builder.ts`), ใส่ shared helper ใน `src/utils/`, mount route ใน `src/server.ts` · คืน `res.status(x).json({ message: "<ภาษาไทย>" })` · ใน controller ให้ใช้ `try/catch` แล้ว `console.error` พร้อมชื่อ context
 - Admin (D-24): backend `src/admin/` (mount `/api/admin`, ทุก route ผ่าน `requireAuth` + `requireAdmin`) · frontend `src/admin/<page>/` (ครอบด้วย `AdminRoute` + `AdminLayout`) · ของที่ user และ admin ใช้ร่วมกันอยู่ใน `frontend/src/system/` (เช่น `system/auth/`)
-- Frontend: `src/features/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
+- Frontend: `src/user/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
 - **ชื่อไฟล์และ import ต้องตรงกันทุกตัวอักษร (case-sensitive)** แม้ Windows จะไม่ฟ้อง เพราะ CI/Linux จะ fail
 - TypeScript strict ห้ามใช้ `any` (ตอนนี้เป็น 0 ทั้ง backend/frontend) ให้ใช้ type ที่ชัดเจนแทน
-- Comment และข้อความ UI เป็นภาษาไทยตามสไตล์เดิม
+- Comment และข้อความ UI เป็นภาษาไทย · หัวฟังก์ชัน `//` 1–2 บรรทัดบอกว่าทำอะไรและรับอะไร · ในฟังก์ชันใส่เฉพาะบรรทัดสำคัญ (ค่าคงที่ที่กำหนด, ปุ่มนี้คืออะไรกดแล้วไปไหน) · ไม่ใส่รหัสมติ/งาน (D-xx, T, R, Known Issue) ในโค้ด — รหัสและเหตุผลอยู่ใน `docs/DECISIONS.md` · ไฟล์ mirror คง `⚠️ ต้องแก้คู่กับ <ไฟล์>` ไว้
 
 ## จุดที่ต้องระวังเป็นพิเศษ
-- **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
+- **Mirror logic**: `backend/src/user/itinerary/itineraryBuilder.ts` ↔ `frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`, `utils/placePrice.ts`, `utils/timeString.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
 - **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
-- **Multi-category dedupe** (เลือก `confidence_score` สูงสุด) ต้องใช้เกณฑ์เดียวกันในทุก query — ใช้ `backend/src/utils/bestCategoryRow.ts`
-- **ลำดับ filter ของ POI** (province → category+fallback → budget → time) ห้ามสลับ
+- **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · ตาราง `place_categories` / `type_category_weights` / `place_types` และคอลัมน์ `categories.default_duration_min` ลบแล้ว (P5g) · `bestCategoryRow.ts` ลบแล้ว (2026-10-26)
+- **ลำดับ filter ของ POI** (province → budget → category) ห้ามสลับ — ขั้นหมวดต้องนับหลังงบ: ตรงหมวด ≥ 50 เหลือเฉพาะที่ตรง, < 50 เติมหมวดอื่นด้วย `category_score` 0 (D-48) · ขั้นเวลาตัดออกแล้ว (D-38)
+- **งบและราคา** (D-51/D-52): `daily_budget` = งบต่อคนต่อวัน · ราคาสถานที่ = ราคาต่อคนจาก `places.price_range_*` ผ่าน `getPlaceCost` เท่านั้น (ไม่มี priceRange: free = 0 / paid = ไม่ทราบ ไม่เดา) · ห้ามใช้ `price_level` ในโค้ดใหม่
 - `confirmItinerary` ต้องเช็ค conflict ก่อนลบแผนเดิม
 - `docs/DECISIONS.md` คือมติที่ตกลงแล้ว ถ้างานขัดกับมติให้ถามก่อน
 - **การนำเข้าใน admin เรียก Google Places ที่มีค่าใช้จ่าย** (`POST /api/admin/provinces/:province/import`, ยอมรับผล Google) — Claude ห้ามเรียกเอง ให้ผู้ใช้กดผ่านหน้าเว็บ · test ต้องใช้ Google ปลอมเสมอ

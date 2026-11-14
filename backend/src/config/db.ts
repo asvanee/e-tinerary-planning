@@ -1,17 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import { errorMessage } from "../utils/errorMessage";
 
-// โหลดค่าจาก .env
 dotenv.config();
 
-// สร้าง client Supabase
+// client หลักใช้ service role (ข้าม RLS) — query ข้อมูลผู้ใช้ต้องกรอง user_id เอง
 export const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// client ใช้ครั้งเดียวสำหรับ signUp/signInWithPassword — ห้ามใช้ client หลัก
-// เพราะ session จะติดค้างใน memory แล้วทำให้ query ทุก request ใช้ JWT ของผู้ใช้แทน service role (T22)
+// client แยกสำหรับ signUp/signInWithPassword — กัน session ผู้ใช้ไปค้างใน client หลัก
 export function createAuthClient() {
   return createClient(
     process.env.SUPABASE_URL!,
@@ -20,7 +19,7 @@ export function createAuthClient() {
   );
 }
 
-// เช็คว่าเชื่อมต่อ Supabase สำเร็จหรือไม่
+// เช็คว่าต่อ Supabase ได้ไหม (ใช้ตอนเปิด server)
 export async function checkDbConnection(): Promise<boolean> {
   try {
     const { error } = await supabase
@@ -35,7 +34,7 @@ export async function checkDbConnection(): Promise<boolean> {
     console.log("✅ เชื่อมต่อ Supabase สำเร็จ");
     return true;
   } catch (err) {
-    console.error("❌ เชื่อมต่อ Supabase ไม่สำเร็จ:", (err as { message?: string } | null)?.message);
+    console.error("❌ เชื่อมต่อ Supabase ไม่สำเร็จ:", errorMessage(err));
     return false;
   }
 }

@@ -1,5 +1,6 @@
 import { Response } from "express";
-import { AuthRequest } from "../../features/auth/authMiddleware";
+import { AuthRequest } from "../../user/auth/authMiddleware";
+import { isUuid } from "../../utils/uuid";
 import { getProvinceRows } from "../pipeline/attractionCsv";
 import { AttractionRow } from "../pipeline/attractionTypes";
 import { parseCoords } from "../pipeline/dedupe/normalize";
@@ -26,7 +27,6 @@ import {
 } from "./importQueries";
 
 const MAX_LIMIT_ROWS = 10_000;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM_STATUSES = new Set<ImportItemStatus>([
   "imported",
   "needs_review_mismatch",
@@ -36,7 +36,7 @@ const ITEM_STATUSES = new Set<ImportItemStatus>([
   "resolved",
 ]);
 
-// รันได้ครั้งละ 1 job ต่อ process (D-24) — เช็คคู่กับสถานะใน DB
+// รันได้ครั้งละ 1 job ต่อ process — เช็คคู่กับสถานะใน DB
 let jobRunningInProcess = false;
 
 interface ImportPlan {
@@ -55,6 +55,7 @@ interface ImportPlan {
   rows: ImportRow[]; // ไม่ส่งให้ client
 }
 
+// อ่านจำนวนแถวที่จะนำเข้าจาก query/body · ว่าง = ไม่จำกัด · ไม่ใช่จำนวนเต็ม 1..สูงสุด = ใช้ไม่ได้
 function parseLimit(value: unknown): { ok: true; value: number | null } | { ok: false } {
   if (value === undefined || value === null || value === "") return { ok: true, value: null };
   const n = typeof value === "string" ? Number(value) : value;
@@ -106,10 +107,12 @@ async function buildPlan(province: string, limit: number | null): Promise<Import
   };
 }
 
+// ตัดรายการแถวออกจากแผนนำเข้า เหลือแต่สรุปที่ส่งให้หน้าเว็บ
 function publicPlan({ rows: _rows, ...plan }: ImportPlan) {
   return plan;
 }
 
+// สร้างตัวเรียก Google Places จาก key ใน env · ไม่มี key = null
 const googleClient = () =>
   process.env.GOOGLE_PLACES_API_KEY ? createGooglePlacesClient(process.env.GOOGLE_PLACES_API_KEY) : null;
 
@@ -126,12 +129,14 @@ function withCsvInfo(items: StoredImportItem[], csvRows: AttractionRow[]) {
   });
 }
 
+// ชื่อจังหวัดจาก path (ตัดช่องว่าง) · ว่าง = null
 function provinceParam(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+// jobId จาก path · ไม่ใช่ uuid = null
 function jobIdParam(value: unknown): string | null {
-  return typeof value === "string" && UUID_PATTERN.test(value) ? value : null;
+  return isUuid(value) ? value : null;
 }
 
 // GET /api/admin/provinces/:province/import/preview?limit=N — ไม่เรียก Google
@@ -275,7 +280,7 @@ export const getPendingImports = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// POST /api/admin/imports/items/:itemId/resolve — body: { action: accept_google | csv_only | skip } (P4c)
+// POST /api/admin/imports/items/:itemId/resolve — body: { action: accept_google | csv_only | skip }
 export const resolveImportItem = async (req: AuthRequest, res: Response) => {
   try {
     const itemId = jobIdParam(req.params.itemId);

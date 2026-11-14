@@ -12,7 +12,7 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 2. **ง่ายที่สุดที่ใช้ได้** — แก้ตรงจุด ไม่สร้าง abstraction/option/config เผื่ออนาคต ไม่สร้าง helper ที่มีคนเรียกจุดเดียว (ยกเว้นทำให้ฟังก์ชันหลักอ่านง่ายขึ้นชัดเจน)
 3. **ไม่ซ้ำ** — logic เดียวกันที่อยู่ ≥ 2 ที่ ให้รวมไว้ที่เดียว แต่รวมเฉพาะเมื่อ "เหมือนกันจริงทุกกรณี" (เทียบ diff ก่อน) ถ้าต่างกันเล็กน้อย (เช่น class ปุ่มคนละขนาด, `formatVisitDate` long/short) ให้ใช้พารามิเตอร์หรือปล่อยแยก
 4. **ไม่มีโค้ดตาย** — ลบ export/ฟังก์ชัน/parameter/state/import ที่ไม่มีใครใช้ (grep ทั้ง repo ก่อนลบ) · ห้ามคอมเมนต์โค้ดทิ้งไว้ · ห้าม `console.log` debug (ใช้ `console.error("<context> error:", err)` เฉพาะ error)
-   - ยกเว้นสิ่งที่มีมติให้เก็บ เช่น `buildNearestNeighborOrder` (D-04) — เช็ค `docs/DECISIONS.md` ก่อนลบเสมอ
+   - ยกเว้นสิ่งที่มีมติให้เก็บ — เช็ค `docs/DECISIONS.md` ก่อนลบเสมอ
 5. **อ่านเหมือนโค้ดรอบข้าง** — ตั้งชื่อ, การจัดบรรทัด, ความถี่ของ comment และ pattern ให้เหมือนไฟล์ข้างเคียง
 
 ## Type (TypeScript strict)
@@ -23,19 +23,33 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 ## Comment
 - ภาษาไทย อธิบาย **ทำไม** หรือกติกาที่ไม่เห็นจากโค้ด (เช่น "ต้องเช็คก่อนลบแผนเดิม ไม่งั้นแผนเก่าหาย") ไม่อธิบายสิ่งที่โค้ดบอกอยู่แล้ว
 - เขียนตามสิ่งที่โค้ด **ทำตอนนี้** — ห้ามเขียนประวัติ ("เดิม…", "✅ แก้บั๊ก", "✅ เพิ่มใหม่", "← เพิ่ม") ประวัติอยู่ใน git และ docs
-- อ้างมติด้วยรหัส (`D-26`, `Known Issue #6`) แทนการเล่าซ้ำ · ห้ามอ้างไฟล์ที่ไม่มีใน repo
-- จุดที่รู้ว่ามี bug แต่ยังไม่แก้ ให้ใส่ `⚠️ … (Known Issue #n)` สั้นๆ
+- สั้นๆ ง่ายๆ บอกคร่าวๆ ว่าโค้ดทำอะไร/ทำยังไง เฉพาะที่จำเป็น ไม่รก — ใช้ `//` บรรทัดเดียวหรือสองบรรทัดแทน JSDoc ยาวๆ
+- **ห้ามใส่รหัสมติ/งานใน comment** (`D-26`, `T22`, `R5`, `Known Issue #6`, "มติ…") ให้เขียนเนื้อหาเป็นคำธรรมดาแทน เช่น `// ฝนเฉลี่ยทั้งช่วงทริป ใช้กริด 0.1° ไม่มีพยากรณ์ได้คะแนน 1.0` · รหัสและเหตุผลเต็มอยู่ใน docs · ห้ามอ้างไฟล์ที่ไม่มีใน repo
+- จุดที่รู้ว่ามี bug แต่ยังไม่แก้ ให้ใส่ `⚠️ …` สั้นๆ ว่าพังตรงไหน (รายละเอียดอยู่ใน Known Issues ของ `docs/DEVELOPMENT_STATUS.md`)
+- ไฟล์ mirror คงบรรทัด `// ⚠️ ต้องแก้คู่กับ <ไฟล์>` ไว้เสมอ
 
 ## Pattern ของโปรเจกต์ (ใช้ของที่มีอยู่ก่อนเขียนใหม่)
 | ต้องการ | ใช้ |
 |---|---|
-| เลือก category ที่ confidence สูงสุด | `backend/src/utils/bestCategoryRow.ts::pickBestCategoryRows` |
+| หมวดของสถานที่ | embed `category_labels!inner(categories!inner(...))` จาก `places` (เช่น `getSelectedPlaces`) |
 | query ที่อาจเกิน 1000 แถว | `selectAll` ใน `admin/provinces/decisionQueries.ts` + `.range()` |
 | ระยะทางเส้นตรง | `utils/haversine.ts` (mirror ฝั่ง frontend) |
-| format เวลา/ราคา/ระยะในหน้าทริป | `frontend/src/features/trip/lib/format.ts` |
-| ช่วงเวลาเปิด-ปิดเพื่อแสดงผล | `frontend/src/features/trip/lib/openingDays.ts` |
-| เรียก API ของ admin | `admin/lib/adminApi.ts::adminRequest` + `errorMessage` |
+| format วันที่/เวลา/ราคา/ระยะในหน้าทริป (`formatThaiDate`, `formatTravelTime`, `formatDistance`, `formatClockMinutes`) | `frontend/src/user/trip/lib/format.ts` |
+| ช่วงเวลาเปิด-ปิดเพื่อแสดงผล | `frontend/src/user/trip/lib/openingDays.ts` |
+| เรียก API ของ admin | `admin/lib/adminApi.ts::adminRequest` + `errorMessage` · โหลดข้อมูลใน useEffect ใช้ `loadAdmin` |
 | ตรวจเจ้าของทริป | `loadOwnedTrip` (itinerary) / `.eq("user_id", userId)` (trip) |
+| ตรวจ user + tripId ใน controller | `requireTripParams` (trip) / `getTripId` (itinerary) |
+| ตรวจรูปแบบ uuid | `backend/src/utils/uuid.ts::isUuid` |
+| ข้อความจาก error (backend) | `utils/errorMessage.ts` · (frontend) `system/errorText.ts::errorText(err, fallback)` |
+| ข้อความ `message` จาก response ของ backend (frontend) | `system/errorText.ts::apiMessage` |
+| ระยะ/เวลาเดินทางของคู่สถานที่ (แผนที่จัดเองและ Auto Trip) | `itineraryBuilder.ts::resolveTravelMetric` |
+| รายการวันที่ของทริป (backend) | `user/trip/tripDateRange.ts::enumerateDates` |
+| ช่องรหัสผ่าน / พื้นแผนที่ OSM / ช่องหมายเหตุ admin | `system/auth/PasswordField.tsx` / `system/OsmTileLayer.tsx` / `admin/provinces/components/NoteField.tsx` |
+| cache ในหน่วยความจำที่หมดอายุ | `utils/ttlCache.ts::TtlCache` |
+| ยิง ORS Matrix | `utils/orsMatrixRequest.ts::postOrsMatrix` + `coordKey` |
+| แปลงเวลา "HH:MM" ↔ นาที | `utils/timeString.ts` (mirror อยู่ใน frontend itineraryBuilder) |
+| ป้ายปัญหาของสถานที่ในแผน | `frontend/src/user/trip/components/ConflictBadges.tsx` |
+| ออกจากระบบ | `system/auth/useLogout.ts` |
 
 - Controller: validate input → `try { … } catch (err) { console.error("<ชื่อ> error:", err); res.status(500).json({ message: "<ไทย>" }) }`
 - ส่วนที่แตะ DB/บริการภายนอกให้รับเข้ามาเป็น parameter (เช่น `GooglePlacesClient`, `ImportStore`, `fetchFn`) เพื่อให้ logic หลักเป็น pure function และเขียน test ได้โดยไม่เรียกของจริง
@@ -51,17 +65,19 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 - **Pure function**: test เทียบผลเก่า/ใหม่ด้วย input สุ่มจำนวนมาก (เก็บไฟล์เก่าไว้ใน scratchpad ไม่ commit)
 - **Controller/query**: mock `config/db` ด้วย Proxy ที่บันทึกการเรียก แล้วเทียบ status + JSON + ลำดับการเรียก Supabase ของโค้ดเก่า/ใหม่
 - **Mirror**: diff สองฝั่งต้องต่างกันแค่ header/import/ค่าคงที่ที่ frontend ประกาศเอง (ดู `itinerary-mirror-sync`)
+- เก็บไฟล์เก่าไว้ใน scratchpad (`git archive HEAD backend/src frontend/src`) แล้วเทียบเก่า/ใหม่ด้วย input ชุดเดียวกัน · ลองใส่ bug ปลอมในสำเนาเก่าเพื่อยืนยันว่าตัวเทียบจับได้จริง
+- งานใหญ่แบ่งเป็นชุดตามส่วนของโค้ด (utils → user → admin → frontend) แต่ละชุดตรวจครบแล้วค่อย commit แยก
 
 ## Checklist ก่อนรายงานว่าเสร็จ
 - [ ] ทำงานครบตามที่ขอ รวมกรณี error/ว่าง/โหลด (UI มีสถานะ loading, error พร้อมปุ่มลองใหม่, ว่าง)
 - [ ] ไม่มี `any`, `console.log`, โค้ดที่คอมเมนต์ทิ้ง, import/ตัวแปรที่ไม่ใช้ (`npx tsc --noEmit --noUnusedLocals --noUnusedParameters`)
 - [ ] ไม่มี logic ซ้ำกับที่มีอยู่แล้ว (grep ชื่อฟังก์ชัน/สูตรที่คล้ายกัน)
-- [ ] comment ตรงกับโค้ด ไม่มีประวัติการแก้
+- [ ] comment ตรงกับโค้ด สั้น ไม่มีประวัติการแก้ และไม่มีรหัสมติ/งาน
 - [ ] line ending ไม่เปลี่ยน (`git diff --stat` ไม่มีไฟล์ที่เปลี่ยนทั้งไฟล์โดยไม่ตั้งใจ)
 - [ ] มี test สำหรับ logic ใหม่ (backend jest) และรันผ่าน · ไม่เรียก Google/Supabase จริงใน test
 - [ ] ผ่าน `verify-changes` และ lint ไม่แย่กว่า baseline
 
 ## หยุดแล้วถามผู้ใช้เมื่อ
 - การทำให้ง่ายขึ้นต้องเปลี่ยนพฤติกรรม (ข้อความที่ผู้ใช้เห็น, response shape, ลำดับ filter, สูตรคะแนน)
-- โค้ดที่จะลบมีมติให้เก็บไว้ หรืออยู่ในส่วนที่มีคนอื่นรับผิดชอบ (สูตร POI รอ research, Auto Trip ของเพื่อน)
+- โค้ดที่จะลบมีมติให้เก็บไว้ หรืออยู่ในส่วนที่มีคนอื่นรับผิดชอบ (สูตร POI รอ research, Auto Trip ของกิ่ง)
 - ต้องเพิ่ม dependency

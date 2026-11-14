@@ -1,0 +1,63 @@
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../system/auth/useAuth";
+import LoginForm from "../../../system/auth/LoginForm";
+import type { LoginResult } from "../../../system/auth/LoginForm";
+
+// หน้า login ของผู้ใช้: สำเร็จแล้วไป /home (ถ้าเป็น admin ไป /admin)
+// มีลิงก์ไปสมัครสมาชิก (/register) และไป login ของผู้ดูแลระบบ (/admin/login)
+export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+
+  // หลังยืนยันอีเมล Supabase ส่งกลับมาพร้อม token ใน URL hash ซึ่งเราไม่ได้ใช้ (login ผ่าน backend)
+  // จึงล้างทิ้งทันที กัน token ค้างบนแถบ URL และในปุ่ม Back
+  useEffect(() => {
+    if (/access_token=|refresh_token=|error=/.test(location.hash)) {
+      navigate(location.pathname + location.search, { replace: true });
+    }
+  }, [location.hash, location.pathname, location.search, navigate]);
+
+  const handleSuccess = ({ user, session }: LoginResult) => {
+    login(user, session);
+    // role ตรงนี้ใช้เลือกหน้าปลายทางเท่านั้น สิทธิ์จริงตรวจที่ backend (requireAdmin) ทุก request
+    navigate(user?.role === "admin" ? "/admin" : "/home");
+    return null;
+  };
+
+  const linkClass =
+    "font-semibold text-[color:var(--deep)] underline underline-offset-2 hover:text-[color:var(--navy)] transition-colors duration-200 cursor-pointer";
+
+  return (
+    <LoginForm
+      title="เข้าสู่ระบบ"
+      subtitle="ยินดีต้อนรับกลับมา"
+      onSuccess={handleSuccess}
+      footer={
+        <>
+          <p className="text-center text-sm text-[color:var(--muted)] mt-6">
+            ยังไม่มีบัญชี?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/register")}
+              className={linkClass}
+            >
+              สมัครสมาชิก
+            </button>
+          </p>
+
+          <p className="text-center text-sm mt-3">
+            <button
+              type="button"
+              onClick={() => navigate("/admin/login")}
+              className="text-[color:var(--muted)] underline underline-offset-2 hover:text-[color:var(--navy)] transition-colors duration-200 cursor-pointer"
+            >
+              เข้าสู่ระบบสำหรับผู้ดูแลระบบ
+            </button>
+          </p>
+        </>
+      }
+    />
+  );
+}

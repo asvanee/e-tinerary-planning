@@ -13,11 +13,11 @@ export interface ImportRow {
 }
 
 /**
- * แถวที่จะนำเข้าของจังหวัดหนึ่ง (D-26/D-30): CSV + การตัดสินใจของ admin
+ * แถวที่จะนำเข้าของจังหวัดหนึ่ง: CSV + การตัดสินใจของ admin
  * 1) ใช้การตัดสินใจชุดเดียวกับหน้า review (resolveDecisions) → กฎ dedupe → runDedupe
  * 2) กลุ่มที่ admin สั่ง merge: ใช้ primary_att_id เป็นแถวหลัก และเอาค่าแต่ละช่องจาก field_sources
- *    เฉพาะคอลัมน์ใน IMPORT_FIELDS (D-31 — การตัดสินใจเก่าที่เลือกช่องอื่นไว้ไม่มีผล) ช่องที่ไม่ได้เลือกใช้ค่าของแถวหลัก
- *    แล้วทับด้วยค่าที่ admin พิมพ์เอง (field_values — D-32) · พิกัดที่กรอกเองตอน merge อยู่ใน locationOverrides ของแถวหลักแล้ว
+ *    เฉพาะคอลัมน์ใน IMPORT_FIELDS (ช่องอื่นที่เคยเลือกไว้ไม่มีผล) ช่องที่ไม่ได้เลือกใช้ค่าของแถวหลัก
+ *    แล้วทับด้วยค่าที่ admin พิมพ์เอง (field_values) · พิกัดที่กรอกเองตอน merge อยู่ใน locationOverrides ของแถวหลักแล้ว
  * ลำดับผลลัพธ์ = ลำดับใน CSV ของแถวตัวแทน
  */
 export function prepareImportRows(provinceRows: AttractionRow[], decisions: PlaceDecision[]): ImportRow[] {

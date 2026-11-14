@@ -9,7 +9,7 @@ export interface RunDedupeResult extends DedupeResult {
 }
 
 /**
- * จุดเรียก dedupe จุดเดียว (ลำดับเดียวกับ data-pipeline เดิม):
+ * จุดเรียก dedupe จุดเดียว รับแถวทั้งหมดกับกฎที่ admin ตัดสินไว้ ตามลำดับ:
  * 1) แก้พิกัดที่คนยืนยันแล้ว → 2) dedupe อัตโนมัติ (ตัด excludeIds, เคารพ blockedPairs)
  * → 3) force merge เฉพาะกลุ่มที่มี id อยู่ในข้อมูลชุดนี้
  */

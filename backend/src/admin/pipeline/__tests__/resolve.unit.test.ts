@@ -9,7 +9,6 @@ import { resolveItem, ResolveStore } from "../import/resolveItem";
 function fakeStore(opts: { existing?: Record<string, string>; alreadyResolved?: boolean } = {}) {
   const places: PlaceRecord[] = [];
   const resolved: [string, string | null, string][] = [];
-  const types: [string, string[]][] = [];
   const store: ResolveStore = {
     async findPlaceIdByGooglePlaceId(id) {
       return opts.existing?.[id] ?? null;
@@ -18,16 +17,13 @@ function fakeStore(opts: { existing?: Record<string, string>; alreadyResolved?: 
       places.push(record);
       return `place-${places.length}`;
     },
-    async insertPlaceTypes(placeId, t) {
-      types.push([placeId, t]);
-    },
     async markResolved(itemId, placeId, message) {
       if (opts.alreadyResolved) return false;
       resolved.push([itemId, placeId, message]);
       return true;
     },
   };
-  return { store, places, resolved, types };
+  return { store, places, resolved };
 }
 
 function fakeGoogle(details: GoogleDetails = {}) {
@@ -60,7 +56,7 @@ const item = (extra: Partial<ImportItem> = {}): ImportItem & { item_id: string }
 const csvRow = row("a", { ATT_NAME_TH: "ชื่อ CSV", ATT_LOCATION: "18.79, 98.98", ATT_TEL: "053111111", PROVINCE_NAME_TH: "น่าน" });
 
 describe("resolveItem (P4c)", () => {
-  test("accept_google: Details 1 ครั้ง · พิกัดจาก CSV · ชื่อจาก Google · place_types · resolved", async () => {
+  test("accept_google: Details 1 ครั้ง · พิกัดจาก CSV · ชื่อจาก Google · gmaps_types · resolved", async () => {
     const google = fakeGoogle({ name: "ชื่อจาก Details", rating: 4.2, types: ["park", "park"] });
     const db = fakeStore();
     const result = await resolveItem({ item: item(), row: csvRow, action: "accept_google", google: google.client, store: db.store });
@@ -75,7 +71,7 @@ describe("resolveItem (P4c)", () => {
       rating: 4.2,
       att_id: "a",
     });
-    expect(db.types).toEqual([["place-1", ["park"]]]);
+    expect(db.places[0].gmaps_types).toEqual(["park", "park"]); // ไม่เขียน place_types แล้ว (D-38)
     expect(db.resolved).toEqual([["item-1", "place-1", "admin ยอมรับผล Google"]]);
   });
 

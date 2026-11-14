@@ -8,6 +8,7 @@ export class AdminApiError extends Error {
   }
 }
 
+// ดึงข้อความ message จากผลที่ backend ตอบ (ไม่มี = null)
 function messageFrom(data: unknown): string | null {
   if (typeof data === "object" && data !== null && "message" in data) {
     const { message } = data as { message: unknown };
@@ -38,7 +39,29 @@ export async function adminRequest<T>(
   return data as T;
 }
 
+// ข้อความ error ที่แสดงให้ admin เห็น: error จาก backend ใช้ข้อความนั้น ส่วนอื่นถือว่าต่อ server ไม่ได้
 export function errorMessage(err: unknown): string {
   if (err instanceof AdminApiError) return err.message;
   return "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้";
+}
+
+// โหลดข้อมูลใน useEffect: useEffect(() => loadAdmin(path, token, onData, onError), [...])
+// คืนฟังก์ชัน cleanup — ผลที่กลับมาหลัง deps เปลี่ยนหรือออกจากหน้าแล้วจะถูกทิ้ง
+export function loadAdmin<T>(
+  path: string,
+  token: string | undefined,
+  onData: (data: T) => void,
+  onError: (message: string) => void
+): () => void {
+  let ignore = false;
+  adminRequest<T>(path, token)
+    .then((data) => {
+      if (!ignore) onData(data);
+    })
+    .catch((err) => {
+      if (!ignore) onError(errorMessage(err));
+    });
+  return () => {
+    ignore = true;
+  };
 }

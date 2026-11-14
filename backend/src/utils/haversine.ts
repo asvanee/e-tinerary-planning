@@ -1,16 +1,13 @@
-/**
- * ระยะทางตรง (great-circle distance) ระหว่าง 2 พิกัดด้วยสูตร Haversine หน่วยกิโลเมตร
- * ใช้เป็น fallback เมื่อไม่มีระยะทางจาก ORS
- *
- * ⚠️ frontend port (frontend/src/features/trip/e-tinerary/lib/haversine.ts) ต้องตรงกันทุกบรรทัด
- */
+// ⚠️ ต้องแก้คู่กับ frontend/src/user/trip/e-tinerary/lib/haversine.ts
 
 const EARTH_RADIUS_KM = 6371;
 
+// องศา → เรเดียน
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
 
+// ระยะทางเส้นตรงระหว่าง 2 พิกัด (กม.) — ใช้แทนเมื่อไม่มีระยะทางจาก ORS
 export function haversineKm(
   lat1: number,
   lng1: number,
