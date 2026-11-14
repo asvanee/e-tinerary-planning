@@ -50,7 +50,7 @@ export function calculatePriceScore(
 }
 
 // น้ำหนักจากแบบสอบถาม AHP 42 คน (รวมผลแบบค่าเฉลี่ยเรขาคณิตของคำตอบ) — ที่มาดู docs/AHP_POI_WEIGHTS.md
-// คำนวณซ้ำได้ด้วย scripts/ahp/runAhp.ts
+// คำนวณซ้ำได้ด้วย ahp/runAhp.ts
 export const WEIGHTS = {
   category: 0.1421,
   rating: 0.0869,

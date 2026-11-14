@@ -555,3 +555,12 @@
   - ฟังก์ชันที่ซ้ำกันระหว่าง backend กับ frontend (mirror) คงไว้ เพราะคนละ package
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (Auto Trip เป็นโค้ดของกิ่ง — ทำตามที่เจ้าของโปรเจกต์สั่ง ควรแจ้งกิ่ง)
 - ไฟล์ที่กระทบ: commit `308446a` (comment หัวฟังก์ชัน/ปุ่ม), `68e4843`, `894161f` — `backend/src/user/itinerary/autoTripBuilder.ts` + test ของมัน (เผื่อเวลาเดินทาง 1 นาที), `itineraryBuilder.ts` ทั้งสองฝั่ง (export `resolveTravelMetric`), `frontend/src/user/trip/**`, `frontend/src/system/**`, `frontend/src/admin/**`
+
+### D-68 · 2026-11-14 · เก็บชุด AHP ไว้ที่ `backend/ahp/` และลบของที่ใช้เสร็จแล้ว (เตรียมส่งงาน)
+- บริบท: เตรียมส่งงาน — น้ำหนัก POI จาก AHP อยู่ในโค้ดแล้ว (D-56) และเก็บแบบสอบถามเสร็จแล้ว
+- ข้อสรุป:
+  - ย้ายสคริปต์คำนวณ `backend/scripts/ahp/` → `backend/ahp/` (`ahp.ts`, `runAhp.ts`, `reportExample.ts`, `__tests__/ahp.test.ts`) · คำสั่งรันเป็น `npx ts-node ahp/runAhp.ts …` · path ใน D-56 และแผนงานด้านบนเป็น path เดิมตามประวัติ
+  - ลบ `docs/ahp/` ทั้งโฟลเดอร์ (สคริปต์สร้าง Google Form `create_form.gs` ที่ใช้เก็บคำตอบเสร็จแล้ว + README) และชุด Python เดิม (`ahp.py`, `test_ahp.py`, `convert_form.py` ถูกแทนที่ด้วยชุด TypeScript) — กู้ได้จาก git history ที่ commit `8a17fa6`
+  - แก้ชื่อปัจจัย "ราคาเทียบงบ" เป็น "งบประมาณ" ใน `reportExample.ts` และ `docs/AHP_POI_WEIGHTS.md` ให้ตรงกับชื่อที่ `runAhp.ts` อ่านจากไฟล์คำตอบ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: `backend/ahp/**`, `docs/AHP_POI_WEIGHTS.md`, `backend/src/user/poi/poiScoreCalculator.ts` (comment), `CLAUDE.md` (กติกา comment)

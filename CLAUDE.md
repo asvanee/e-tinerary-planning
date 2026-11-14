@@ -32,7 +32,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 
 ## กฎการทำงาน (ต้องทำทุกครั้ง)
 1. **อ่านโค้ดจริงก่อนแก้** อย่าเชื่อ docs หรือ comment อย่างเดียว เพราะ comment ในโค้ดมักบอกว่า "แก้แล้ว" ทั้งที่อาจไม่ตรงกับโค้ด ให้ตรวจที่โค้ด
-2. **แก้เท่าที่งานต้องการ** ห้าม reformat, normalize line ending (repo มีทั้ง CRLF และ LF), rename หรือ refactor ไฟล์ที่ไม่เกี่ยวกับงาน และห้ามลบ comment "✅ มติ…" ถ้าไม่ได้รับอนุญาต
+2. **แก้เท่าที่งานต้องการ** ห้าม reformat, normalize line ending (ไฟล์บนดิสก์เป็น CRLF ทั้งหมด), rename หรือ refactor ไฟล์ที่ไม่เกี่ยวกับงาน
 3. **ห้ามสมมติว่าฟีเจอร์/API/ตารางทำงานตามที่คาด** โครงสร้าง DB ดูที่ `docs/DATABASE_SCHEMA.md` (snapshot 2026-10-18 — ไม่ใช่ migration) ถ้าไม่มีข้อมูลหรือไม่แน่ใจว่ายังตรงกับของจริงให้ถามผู้ใช้
 4. **ก่อนทำงานที่มีความเสี่ยง** (เปลี่ยน logic คะแนน/งบ/เวลา, query ที่ลบหรือเขียนข้อมูล, auth, ไฟล์ mirror, dependency, git history) ให้สรุปแนวทาง ไฟล์ที่กระทบ และผลกระทบ แล้วรอผู้ใช้ยืนยันก่อน
 5. **หลังแก้** ต้องรายงาน: ไฟล์ที่เปลี่ยน · เปลี่ยนอะไรและเพราะอะไร · คำสั่งตรวจที่รันจริงพร้อมผลลัพธ์ · สิ่งที่ยังไม่ได้ตรวจ ถ้ารันไม่ได้ให้บอกเหตุผล และห้ามอ้างว่าผ่าน
@@ -63,7 +63,7 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 - Frontend: `src/user/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
 - **ชื่อไฟล์และ import ต้องตรงกันทุกตัวอักษร (case-sensitive)** แม้ Windows จะไม่ฟ้อง เพราะ CI/Linux จะ fail
 - TypeScript strict ห้ามใช้ `any` (ตอนนี้เป็น 0 ทั้ง backend/frontend) ให้ใช้ type ที่ชัดเจนแทน
-- Comment และข้อความ UI เป็นภาษาไทยตามสไตล์เดิม
+- Comment และข้อความ UI เป็นภาษาไทย · หัวฟังก์ชัน `//` 1–2 บรรทัดบอกว่าทำอะไรและรับอะไร · ในฟังก์ชันใส่เฉพาะบรรทัดสำคัญ (ค่าคงที่ที่กำหนด, ปุ่มนี้คืออะไรกดแล้วไปไหน) · ไม่ใส่รหัสมติ/งาน (D-xx, T, R, Known Issue) ในโค้ด — รหัสและเหตุผลอยู่ใน `docs/DECISIONS.md` · ไฟล์ mirror คง `⚠️ ต้องแก้คู่กับ <ไฟล์>` ไว้
 
 ## จุดที่ต้องระวังเป็นพิเศษ
 - **Mirror logic**: `backend/src/user/itinerary/itineraryBuilder.ts` ↔ `frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`, `utils/placePrice.ts`, `utils/timeString.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`

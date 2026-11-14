@@ -1,5 +1,5 @@
 // ตัวอย่างการคำนวณสำหรับเล่มรายงาน (แคปหน้าจอ terminal ไปใส่เล่ม)
-// รันจาก backend/: npx ts-node scripts/ahp/reportExample.ts
+// รันจาก backend/: npx ts-node ahp/reportExample.ts
 import { FACTORS, buildMatrix, consistency, principalEigen, type Factor, type PairAnswer } from "./ahp";
 import {
   WEIGHTS,
@@ -9,13 +9,13 @@ import {
   calculatePriceScore,
   calculateRatingScore,
   calculateWeatherScore,
-} from "../../src/user/poi/poiScoreCalculator";
+} from "../src/user/poi/poiScoreCalculator";
 
 const NAME: Record<Factor, string> = {
   category: "หมวด",
   rating: "รีวิว",
   distance: "ระยะทาง",
-  budget: "ราคาเทียบงบ",
+  budget: "งบประมาณ",
   weather: "อากาศ",
 };
 

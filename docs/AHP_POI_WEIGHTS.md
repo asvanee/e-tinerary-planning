@@ -10,7 +10,7 @@
 สูตร POI Score เป็นผลรวมถ่วงน้ำหนักของ 5 ปัจจัย
 
 ```
-POI = w₁·หมวด + w₂·รีวิว + w₃·ระยะทาง + w₄·ราคาเทียบงบ + w₅·อากาศ
+POI = w₁·หมวด + w₂·รีวิว + w₃·ระยะทาง + w₄·งบประมาณ + w₅·อากาศ
 ```
 
 น้ำหนักเดิม (.35 / .25 / .15 / .15 / .10) ทีมกำหนดเอง ไม่มีงานวิจัยรองรับ
@@ -35,7 +35,7 @@ POI = w₁·หมวด + w₂·รีวิว + w₃·ระยะทาง +
 | หมวด | น. 210 กลุ่มผู้ใช้ตามความสนใจ (ประวัติศาสตร์ วัฒนธรรม ธรรมชาติ) · น. 211 Fig. 4 กรองตาม "Type of place" · Table I "User interests" |
 | รีวิว | น. 211 Fig. 4 "rating, number of reviews" และกรองตามช่วงคะแนน |
 | ระยะทาง | น. 208 "reducing the travel time between locations" และ "minimizes time (or distance) among subsequent visits" |
-| ราคาเทียบงบ | น. 208 "available budget" · Table I "Budget limitations" · น. 213 "constraints (such as visiting duration or budget)" |
+| งบประมาณ | น. 208 "available budget" · Table I "Budget limitations" · น. 213 "constraints (such as visiting duration or budget)" |
 | อากาศ | น. 210 "more susceptible to weather conditions" · Table I "Weather conditions" · น. 212 "weather forecast for each place" |
 
 Lopes et al. (2020) ใช้ปัจจัยเหล่านี้เป็นข้อมูลและตัวกรองให้ผู้ใช้ ไม่ได้ให้ค่าน้ำหนัก
@@ -95,7 +95,7 @@ Lopes et al. (2020) ใช้ปัจจัยเหล่านี้เป็
 
 | ปัจจัย | น้ำหนัก | อันดับ |
 |---|---|---|
-| ราคาเทียบงบ | **0.3926** | 1 |
+| งบประมาณ | **0.3926** | 1 |
 | อากาศ | **0.2147** | 2 |
 | ระยะทาง | **0.1637** | 3 |
 | หมวด | **0.1421** | 4 |
@@ -154,16 +154,16 @@ Lopes et al. (2020) ใช้ปัจจัยเหล่านี้เป็
 | (เดิม) ใช้งบ | .35 | .25 | .15 | .15 | .10 |
 | (เดิม) ไม่ใช้งบ | .412 | .294 | .176 | – | .118 |
 
-### สคริปต์คำนวณ (`backend/scripts/ahp/`)
+### สคริปต์คำนวณ (`backend/ahp/`)
 - `ahp.ts`: สร้างเมทริกซ์, eigenvector, CR, รวมผลแบบ AIJ, Compatibility Index
 - `runAhp.ts`: อ่าน CSV จาก Google Form แล้วพิมพ์น้ำหนักทุกคนและผลแต่ละกลุ่ม CR
   ```
   cd backend
-  npx ts-node scripts/ahp/runAhp.ts "<ไฟล์คำตอบ.csv>" [ไฟล์ผลรายคน.csv]
+  npx ts-node ahp/runAhp.ts "<ไฟล์คำตอบ.csv>" [ไฟล์ผลรายคน.csv]
   ```
 - ไฟล์คำตอบไม่เก็บใน repo
 
-### การตรวจว่าคำนวณถูก (`scripts/ahp/__tests__/ahp.test.ts`)
+### การตรวจว่าคำนวณถูก (`ahp/__tests__/ahp.test.ts`)
 ทดสอบกับตัวอย่างที่มีคำตอบในเปเปอร์ ผ่านทั้งหมด
 - Saaty (1987 น. 165): เมทริกซ์ LOCATION → .115/.402/.283/.163/.037, CR .092 · เมทริกซ์เกณฑ์ 4×4 → .053/.491/.238/.218, CR .02
 - Saaty (1994 น. 54–55): ตัวอย่าง Compatibility 4 ชุด (1.028, 1.114, 1.085, 1.457)
@@ -233,7 +233,7 @@ Lopes et al. (2020) ใช้ปัจจัยเหล่านี้เป็
 
 ## 9. ตัวอย่างการคำนวณผู้ตอบ 1 คน (สำหรับเล่มรายงาน)
 
-ผู้ตอบแถวที่ 7 ของไฟล์คำตอบ (CR ต่ำที่สุดใน 42 คน) · คำนวณด้วย `scripts/ahp/ahp.ts` (`evaluateRespondent`) เมื่อ 2026-11-04
+ผู้ตอบแถวที่ 7 ของไฟล์คำตอบ (CR ต่ำที่สุดใน 42 คน) · คำนวณด้วย `ahp/ahp.ts` (`evaluateRespondent`) เมื่อ 2026-11-04
 
 ### คำตอบ 10 คู่
 
