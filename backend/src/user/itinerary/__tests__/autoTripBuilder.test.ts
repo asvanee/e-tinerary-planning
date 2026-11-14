@@ -108,7 +108,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     start_time: "09:00",
     start_lat: 18.8,
     start_lng: 98.98,
-    available_time_per_day: 2,
+    available_time_per_day: 3,
   };
 
   const fridayHours = (open: string, close: string) => ({
@@ -261,7 +261,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     });
   });
 
-  test("uses a fixed one-hour visit duration when there is no travel", () => {
+  test("uses a fixed one-hour visit duration when travel takes the minimum 1 minute", () => {
     const place: AutoPlace = {
       place_id: "place-1",
       place_name: "Place",
@@ -277,8 +277,8 @@ describe("buildAutoTrip per-place visit durations", () => {
 
     expect(result.days[0].stops[0]).toMatchObject({
       duration_min: 60,
-      start_time: "09:00",
-      end_time: "10:00",
+      start_time: "09:01",
+      end_time: "10:01",
     });
     expect(result.days[0].total_visit_time_min).toBe(60);
   });
@@ -346,8 +346,8 @@ describe("buildAutoTrip per-place visit durations", () => {
     );
 
     expect(result.days[0].stops[0]).toMatchObject({
-      start_time: "20:00",
-      end_time: "21:00",
+      start_time: "20:01",
+      end_time: "21:01",
       duration_min: 60,
     });
   });
@@ -378,13 +378,13 @@ describe("buildAutoTrip per-place visit durations", () => {
         end_date: "2026-10-24",
         use_budget: true,
         daily_budget: 10,
-        available_time_per_day: 2,
+        available_time_per_day: 3,
         trip_days: [
           {
             dayNumber: 1,
             visitDate: "2026-10-23",
             startTime: "09:00",
-            endTime: "10:00",
+            endTime: "10:01",
             dailyBudget: 100,
             useBudget: true,
           },
@@ -392,7 +392,7 @@ describe("buildAutoTrip per-place visit durations", () => {
             dayNumber: 2,
             visitDate: "2026-10-24",
             startTime: "09:00",
-            endTime: "10:00",
+            endTime: "10:01",
             dailyBudget: 100,
             useBudget: true,
           },
@@ -428,7 +428,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     };
 
     const result = buildAutoTrip(
-      { ...budgetTrip, available_time_per_day: 2 },
+      { ...budgetTrip, available_time_per_day: 3 },
       [firstPlace, secondPlace]
     );
 
@@ -463,7 +463,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     };
 
     const result = buildAutoTrip(
-      { ...budgetTrip, available_time_per_day: 2 },
+      { ...budgetTrip, available_time_per_day: 3 },
       [firstPlace, secondPlace]
     );
 
@@ -494,7 +494,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     };
 
     const result = buildAutoTrip(
-      { ...trip, use_budget: false, daily_budget: 100, available_time_per_day: 2 },
+      { ...trip, use_budget: false, daily_budget: 100, available_time_per_day: 3 },
       [firstPlace, secondPlace]
     );
 
@@ -527,7 +527,7 @@ describe("buildAutoTrip per-place visit durations", () => {
         ...trip,
         use_budget: true,
         daily_budget: null,
-        available_time_per_day: 2,
+        available_time_per_day: 3,
       },
       [firstPlace, secondPlace]
     );
@@ -557,7 +557,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     };
 
     const result = buildAutoTrip(
-      { ...budgetTrip, available_time_per_day: 2 },
+      { ...budgetTrip, available_time_per_day: 3 },
       [unknownPricePlace, knownPricePlace]
     );
 
@@ -594,7 +594,7 @@ describe("buildAutoTrip per-place visit durations", () => {
         ...trip,
         use_budget: true,
         daily_budget: 100,
-        available_time_per_day: 2,
+        available_time_per_day: 3,
       },
       [freePlace, paidPlace]
     );
@@ -632,7 +632,7 @@ describe("buildAutoTrip per-place visit durations", () => {
         end_date: "2026-10-24",
         use_budget: true,
         daily_budget: 100,
-        available_time_per_day: 2,
+        available_time_per_day: 3,
       },
       [firstPlace, secondPlace]
     );
@@ -667,7 +667,7 @@ describe("buildAutoTrip per-place visit durations", () => {
     };
 
     const result = buildAutoTrip(
-      { ...budgetTrip, available_time_per_day: 2 },
+      { ...budgetTrip, available_time_per_day: 3 },
       [selectedPlace],
       undefined,
       [recommendation]
@@ -872,8 +872,8 @@ describe("buildAutoTrip per-place visit durations", () => {
     ]);
     expect(result.days[0].stops[0]).toMatchObject({
       place_id: "open-at-arrival",
-      start_time: "09:00",
-      end_time: "10:00",
+      start_time: "09:01",
+      end_time: "10:01",
     });
   });
 
@@ -893,7 +893,7 @@ describe("buildAutoTrip per-place visit durations", () => {
       place_id: "full-hour-window",
       place_name: "Full Hour Window",
       poiScore: 0.8,
-      opening_hours: fridayHours("0900", "1000"),
+      opening_hours: fridayHours("0900", "1001"),
     };
 
     const result = buildAutoTrip(trip, [shortWindow, fullHourWindow]);
@@ -902,8 +902,8 @@ describe("buildAutoTrip per-place visit durations", () => {
       "full-hour-window",
     ]);
     expect(result.days[0].stops[0]).toMatchObject({
-      start_time: "09:00",
-      end_time: "10:00",
+      start_time: "09:01",
+      end_time: "10:01",
       duration_min: 60,
     });
   });
@@ -945,8 +945,8 @@ describe("buildAutoTrip per-place visit durations", () => {
       "open-by-arrival",
     ]);
     expect(result.days[0].stops[1]).toMatchObject({
-      start_time: "10:00",
-      end_time: "11:00",
+      start_time: "10:02",
+      end_time: "11:02",
     });
   });
 
@@ -1040,7 +1040,7 @@ describe("buildAutoTrip per-place visit durations", () => {
       60,
       60,
     ]);
-    expect(result.days[0].total_travel_time_min).toBe(0);
+    expect(result.days[0].total_travel_time_min).toBe(2);
     expect(result.days[0].total_visit_time_min).toBe(120);
   });
 
@@ -1185,14 +1185,14 @@ describe("buildAutoTrip per-place visit durations", () => {
       poiScore: 0.9,
       latitude: 18.8,
       longitude: 98.98,
-      opening_hours: fridayHours("0900", "1000"),
+      opening_hours: fridayHours("0900", "1001"),
     };
     const secondPlace: AutoPlace = {
       ...firstPlace,
       place_id: "second-place",
       place_name: "Second Place",
       poiScore: 0.8,
-      opening_hours: fridayHours("1000", "1100"),
+      opening_hours: fridayHours("1000", "1102"),
     };
 
     const result = buildAutoTrip(trip, [firstPlace, secondPlace]);
@@ -1201,6 +1201,6 @@ describe("buildAutoTrip per-place visit durations", () => {
       "first-place",
       "second-place",
     ]);
-    expect(result.days[0].stops[1].start_time).toBe("10:00");
+    expect(result.days[0].stops[1].start_time).toBe("10:02");
   });
 });

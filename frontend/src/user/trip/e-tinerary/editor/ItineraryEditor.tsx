@@ -41,6 +41,7 @@ import type { OpeningHours } from "../lib/openingHoursChecker";
 import {
   DAY_NAMES_TH,
   formatBaht,
+  formatClockMinutes,
   formatDistance,
   formatTime,
   formatTimeRange,
@@ -140,12 +141,6 @@ const primaryBtn =
 // เหตุผลที่ "ไม่อยู่ในเวลาเปิด" แบบละเอียด: ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่
 // ใช้แสดงผลเท่านั้น ไม่กระทบ conflict flag
 
-// นาทีนับจากเที่ยงคืน → "HH:MM"
-function fmtMin(m: number): string {
-  const x = ((m % 1440) + 1440) % 1440;
-  return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
-}
-
 // อธิบายว่าทำไมสถานที่ไม่อยู่ในเวลาเปิด รับเวลาเปิดของสถานที่ วันในสัปดาห์ และเวลาเริ่ม/จบที่แผนกำหนด
 // คืนป้ายสั้นกับรายละเอียด · คืน null เมื่อไม่มีเวลาของแผน ไม่มีข้อมูลเวลาเปิด เปิด 24 ชม. หรือเปิดครอบคลุมช่วงที่ไปอยู่
 function describeClosure(
@@ -173,20 +168,20 @@ function describeClosure(
   if (inside) {
     return {
       label: "ปิดก่อนจบเวลาที่อยู่",
-      detail: `อยู่ถึง ${fmtMin(d)} น. แต่ปิดเวลา ${fmtMin(inside.end)} น.`,
+      detail: `อยู่ถึง ${formatClockMinutes(d)} น. แต่ปิดเวลา ${formatClockMinutes(inside.end)} น.`,
     };
   }
   const upcoming = ivs.filter((iv) => iv.start > a).sort((x, y) => x.start - y.start)[0];
   if (upcoming) {
     return {
       label: "ยังไม่เปิด",
-      detail: `ไปถึง ${fmtMin(a)} น. แต่เปิด ${fmtMin(upcoming.start)} น.`,
+      detail: `ไปถึง ${formatClockMinutes(a)} น. แต่เปิด ${formatClockMinutes(upcoming.start)} น.`,
     };
   }
   const lastEnd = Math.max(...ivs.map((iv) => iv.end));
   return {
     label: "ปิดแล้ว",
-    detail: `ไปถึง ${fmtMin(a)} น. แต่ปิดเวลา ${fmtMin(lastEnd)} น.`,
+    detail: `ไปถึง ${formatClockMinutes(a)} น. แต่ปิดเวลา ${formatClockMinutes(lastEnd)} น.`,
   };
 }
 

@@ -2,12 +2,9 @@ import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import { TRIP_START_ID, type TravelMatrix } from "../../utils/orsTravelMatrix";
 import { minutesToTimeString, timeStringToMinutes } from "../../utils/timeString";
-import {
-  calculateDistanceKm,
-  nearestNeighborTsp,
-  TspPlace,
-} from "./tspRouteOptimizer";
-import { getPlaceCost } from "./itineraryBuilder";
+import { nearestNeighborTsp, TspPlace } from "./tspRouteOptimizer";
+import { getPlaceCost, resolveTravelMetric } from "./itineraryBuilder";
+import { enumerateDates } from "../trip/tripDateRange";
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
 // จัดแผนอัตโนมัติ: เลือกสถานที่ทีละที่ตามคะแนน POI แล้วแทรกลงวัน/ตำแหน่งที่เวลาเดินทางรวมน้อยที่สุด
@@ -95,15 +92,9 @@ interface AutoTripResult {
 // ค่าที่กำหนด
 const LAST_DAY_MINUTE = 24 * 60 - 1; // วันที่ไม่ระบุเวลาจบ ใช้ 23:59
 const DEFAULT_DAY_END = "18:00"; // ทริปที่ไม่มีเวลาว่างต่อวัน ใช้ 18:00 เป็นเวลาจบ
-const DEFAULT_TRAVEL_SPEED_KMH = 30; // ความเร็วคิดเวลาเดินทางเมื่อไม่มีข้อมูลจาก ORS
 const AUTO_TRIP_VISIT_DURATION_MIN = 60; // เวลาเที่ยวต่อสถานที่ (1 ชั่วโมง)
 const TRIP_START_NAME = "จุดเริ่มต้นทริป";
 const DAY_START_NAME = "เริ่มต้นวัน";
-
-// ไม่มีใน matrix ใช้ความเร็วเฉลี่ย 30 กม./ชม. (ปัดขึ้น)
-function calculateTravelTimeMin(distanceKm: number): number {
-  return Math.ceil((distanceKm / DEFAULT_TRAVEL_SPEED_KMH) * 60);
-}
 
 // สร้างจุดเริ่มต้นทริปในรูปสถานที่ (รับพิกัดเริ่มต้น)
 function tripStartPoint(startLat: number, startLng: number): TspPlace {
@@ -137,48 +128,32 @@ interface EvaluatedSchedule {
   totalTravelTimeMin: number;
 }
 
-// รายการวันที่ตั้งแต่วันเริ่มถึงวันจบ (รับ "YYYY-MM-DD" 2 ค่า)
-function getTripDates(startDate: string, endDate: string): Date[] {
-  const dates: Date[] = [];
-  const date = new Date(`${startDate}T00:00:00Z`);
-  const end = new Date(`${endDate}T00:00:00Z`);
-
-  while (date <= end) {
-    dates.push(new Date(date));
-    date.setUTCDate(date.getUTCDate() + 1);
-  }
-
-  return dates;
-}
-
-// ช่วงเดินทางของแต่ละที่ในเส้นทาง เริ่มจากจุดเริ่มต้นทริป (ใช้ matrix ก่อน ไม่มีค่อยคิดเส้นตรง)
+// ช่วงเดินทางของแต่ละที่ในเส้นทาง เริ่มจากจุดเริ่มต้นทริป รับเส้นทาง พิกัดเริ่มต้น และ matrix
+// ระยะ/เวลาใช้ตัวเดียวกับแผนที่จัดเอง (resolveTravelMetric) จึงตรงกับตอนยืนยันแผน
 function getRouteLegs(
   route: AutoPlace[],
   startLat: number,
   startLng: number,
   travelMatrix: TravelMatrix | undefined
 ): RouteLeg[] {
-  let previousPoint = tripStartPoint(startLat, startLng);
-  let previousPlaceName = TRIP_START_NAME;
+  let previous = { id: TRIP_START_ID, lat: startLat, lng: startLng, name: TRIP_START_NAME };
 
   return route.map((place) => {
-    const point = toTspPlace(place);
-    const prevId = previousPoint.place_id === "TRIP_START" ? TRIP_START_ID : previousPoint.place_id;
-    const hit = travelMatrix?.[prevId]?.[place.place_id];
-
-    const distanceKm = hit
-      ? Number(hit.distanceKm.toFixed(2))
-      : calculateDistanceKm(previousPoint, point);
-    const travelTimeMin = hit ? hit.durationMin : calculateTravelTimeMin(distanceKm);
-
+    const metric = resolveTravelMetric(
+      travelMatrix ?? {},
+      previous.id,
+      place.place_id,
+      previous.lat,
+      previous.lng,
+      place.latitude,
+      place.longitude
+    );
     const leg = {
-      distanceKm,
-      travelTimeMin,
-      previousPlaceName,
+      distanceKm: metric.distanceKm,
+      travelTimeMin: metric.durationMin,
+      previousPlaceName: previous.name,
     };
-
-    previousPoint = point;
-    previousPlaceName = place.place_name;
+    previous = { id: place.place_id, lat: place.latitude, lng: place.longitude, name: place.place_name };
     return leg;
   });
 }
@@ -417,9 +392,10 @@ function schedulePlaces(
   recommendationPlaces: AutoPlace[],
   travelMatrix?: TravelMatrix
 ): EvaluatedSchedule {
-  const dates = trip.trip_days
-    ? trip.trip_days.map((day) => new Date(`${day.visitDate}T00:00:00Z`))
-    : getTripDates(trip.start_date, trip.end_date);
+  const visitDates = trip.trip_days
+    ? trip.trip_days.map((day) => day.visitDate)
+    : enumerateDates(trip.start_date, trip.end_date);
+  const dates = visitDates.map((visitDate) => new Date(`${visitDate}T00:00:00Z`));
   const routes = dates.map((): AutoPlace[] => []);
   const candidates = [...places].sort((a, b) => b.poiScore - a.poiScore);
   const selectedPlaceIds = new Set<string>();

@@ -53,3 +53,9 @@ export function formatThaiDate(isoDate: string): string {
     timeZone: "UTC",
   });
 }
+
+// นาทีนับจากเที่ยงคืน -> "HH:MM" (เกิน 24 ชม. วนกลับมาเริ่มวันใหม่)
+export function formatClockMinutes(minutes: number): string {
+  const wrapped = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+}

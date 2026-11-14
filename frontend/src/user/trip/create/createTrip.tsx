@@ -38,15 +38,16 @@ interface TripSummary {
     tripDays: number;
 }
 
-// เวลาเริ่ม + เวลาว่างต่อวันต้องไม่ข้ามเที่ยงคืน — เตือนก่อนส่ง (backend ตรวจซ้ำ)
+// ตรวจเวลาว่างต่อวัน (ชั่วโมง ต้องเป็นจำนวนเต็ม ≥ 1) และเวลาเริ่ม + เวลาว่างต้องไม่ข้ามเที่ยงคืน · null = ผ่าน
+// ⚠️ กติกาเดียวกับ validateNoMidnightCrossing ใน backend/src/user/trip/tripController.ts
 function getMidnightCrossingError(
     startTime: string,
     availableTimePerDay: number | null
 ): string | null {
     if (availableTimePerDay === null) return null;
 
-    if (Number.isNaN(availableTimePerDay) || availableTimePerDay <= 0) {
-        return "เวลาว่างต่อวันต้องเป็นตัวเลขมากกว่า 0";
+    if (!Number.isInteger(availableTimePerDay) || availableTimePerDay <= 0) {
+        return "เวลาว่างต่อวันต้องเป็นจำนวนเต็มตั้งแต่ 1 ชั่วโมงขึ้นไป";
     }
 
     const match = /^(\d{1,2}):(\d{2})$/.exec(startTime);

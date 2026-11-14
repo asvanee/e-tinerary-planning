@@ -33,9 +33,17 @@ export function hasForecast(isoDate: string, today: string, lastForecastDay: str
     return isoDate >= today && isoDate <= lastForecastDay;
 }
 
+// วันที่ "YYYY-MM-DD" มีอยู่จริงในปฏิทินไหม (เช่น 2026-02-30 ไม่มี)
+function isRealDate(isoDate: string): boolean {
+    const time = Date.parse(`${isoDate}T00:00:00Z`);
+    return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 10) === isoDate;
+}
+
 // ตรวจช่วงวันก่อนส่ง (backend ตรวจซ้ำ) — null = ผ่าน
+// ⚠️ กติกาเดียวกับ getTripDateRangeError ใน backend/src/user/trip/tripDateRange.ts
 export function getTripDateError(startDate: string, endDate: string): string | null {
     if (!startDate || !endDate) return "กรุณาเลือกวันที่เริ่มต้นและวันที่สิ้นสุด";
+    if (!isRealDate(startDate) || !isRealDate(endDate)) return "รูปแบบวันที่ไม่ถูกต้อง";
     const days = countTripDays(startDate, endDate);
     if (days < 1) return "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น";
     if (days > MAX_TRIP_DAYS) return `ทริปยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`;

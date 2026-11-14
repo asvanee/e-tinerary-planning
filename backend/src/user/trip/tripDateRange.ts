@@ -13,6 +13,16 @@ function toUtcDay(isoDate: unknown): number | null {
   return time;
 }
 
+// ทุกวันตั้งแต่ startDate ถึง endDate ("YYYY-MM-DD") รวมวันแรกและวันสุดท้าย
+export function enumerateDates(startDate: string, endDate: string): string[] {
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  const dates: string[] = [];
+  for (let time = Date.parse(`${startDate}T00:00:00Z`); time <= end; time += DAY_MS) {
+    dates.push(new Date(time).toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
 // null = ผ่าน, string = ข้อความ error
 export function getTripDateRangeError(startDate: unknown, endDate: unknown): string | null {
   const start = toUtcDay(startDate);

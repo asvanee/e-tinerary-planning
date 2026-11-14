@@ -2,6 +2,7 @@ import { supabase } from "../../config/db";
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { minutesToTimeString, timeStringToMinutes } from "../../utils/timeString";
 import type { PriceNature } from "../poi/poiPlaceQueries";
+import { enumerateDates } from "../trip/tripDateRange";
 
 export interface TripDay {
   tripDayId: string;
@@ -117,28 +118,6 @@ function asArray<T>(
 ): T[] {
   if (value == null) return [];
   return Array.isArray(value) ? value : [value];
-}
-
-// ทุกวันตั้งแต่ startDate ถึง endDate ("YYYY-MM-DD")
-function enumerateDates(
-  startDate: string,
-  endDate: string
-): string[] {
-  const [sy, sm, sd] = startDate.split("-").map(Number);
-  const [ey, em, ed] = endDate.split("-").map(Number);
-
-  const start = Date.UTC(sy, sm - 1, sd);
-  const end = Date.UTC(ey, em - 1, ed);
-  const dates: string[] = [];
-
-  for (let t = start; t <= end; t += 86400000) {
-    const d = new Date(t);
-    dates.push(
-      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`
-    );
-  }
-
-  return dates;
 }
 
 // แปลงแถว trip_days เป็น TripDay (useBudget มาจากการตั้งค่าของทริป)

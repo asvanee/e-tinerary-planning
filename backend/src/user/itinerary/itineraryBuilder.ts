@@ -66,7 +66,7 @@ function getDayOfWeek(visitDate: string): number {
 }
 
 // ระยะ/เวลาเดินทางของคู่จาก matrix · ไม่มีในนั้นใช้ haversine ÷ ความเร็วเฉลี่ย (ขั้นต่ำ 1 นาที)
-function resolveTravelMetric(
+export function resolveTravelMetric(
   matrix: TravelMatrix,
   fromId: string,
   toId: string,

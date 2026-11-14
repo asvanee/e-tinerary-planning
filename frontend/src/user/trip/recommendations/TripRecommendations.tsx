@@ -14,8 +14,8 @@ import RecommendationMap from "./RecommendationMap";
 import { categoryColor } from "./categoryColors";
 import type { MapFocus, MapPlace } from "./RecommendationMap";
 import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
-import { DAY_NAMES_TH, formatVisitDate } from "../lib/format";
-import { closedTripDates, tripDates } from "../lib/openingDays";
+import { DAY_NAMES_TH, formatClockMinutes, formatVisitDate } from "../lib/format";
+import { closedTripDates, openIntervalsForDay, tripDates } from "../lib/openingDays";
 import { FORECAST_MAX_DAYS_AHEAD } from "../create/tripDates";
 
 // ตรงกับ DistanceSource ของ backend (orsDistance.ts)
@@ -132,41 +132,28 @@ interface HoursView {
   summary: string | null; // ไม่ null = ทุกวันเหมือนกัน แสดงบรรทัดเดียวได้
 }
 
-// "0930" -> "09:30"
-function toHHMM(p: { time?: unknown } | undefined): string | null {
-  const t = p?.time;
-  return typeof t === "string" && /^\d{4}$/.test(t) ? `${t.slice(0, 2)}:${t.slice(2)}` : null;
-}
-
-// ตารางเวลาเปิดรายวันสำหรับแสดงบนการ์ด — null = ไม่มีข้อมูล
+// ตารางเวลาเปิดรายวันสำหรับแสดงบนการ์ด (ใช้ช่วงเปิดชุดเดียวกับที่เตือนวันปิด) — null = ไม่มีข้อมูล
 function parseOpeningHours(oh: OpeningHours | null | undefined): HoursView | null {
-  const periods = oh?.periods;
-  if (!Array.isArray(periods) || periods.length === 0) return null;
-
-  if (periods.length === 1 && !periods[0]?.close) {
+  const first = openIntervalsForDay(oh, DAY_ORDER[0]);
+  if (first === null) return null;
+  if (first === "24h") {
     return {
       rows: DAY_ORDER.map((d) => ({ day: DAY_NAMES_TH[d], text: "เปิด 24 ชั่วโมง" })),
       summary: "เปิด 24 ชั่วโมง ทุกวัน",
     };
   }
 
-  const byDay: string[][] = [[], [], [], [], [], [], []];
-  for (const p of periods) {
-    const day = p?.open?.day;
-    const start = toHHMM(p?.open);
-    if (!Number.isInteger(day) || day < 0 || day > 6 || !start) continue;
-    const end = toHHMM(p?.close);
-    const overnight = p?.close && p.close.day !== day;
-    byDay[day].push(
-      end ? `${start} - ${end}${overnight ? " (ข้ามวัน)" : ""}` : `เปิดเวลา ${start}`
-    );
-  }
-
-  const rows = DAY_ORDER.map((d) => ({
-    day: DAY_NAMES_TH[d],
-    // หลายช่วงในวันเดียว (เช่น พักเที่ยง) เรียงตามเวลาเริ่ม
-    text: byDay[d].length ? [...byDay[d]].sort().join(", ") : "ปิด",
-  }));
+  const rows = DAY_ORDER.map((d) => {
+    const intervals = openIntervalsForDay(oh, d);
+    // หลายช่วงในวันเดียว (เช่น พักเที่ยง) เรียงตามเวลาเริ่ม · ช่วงที่เปิดมาจากเมื่อคืนเริ่มที่ 00:00 · ปิดหลังเที่ยงคืนบอก "(ข้ามวัน)"
+    const text = Array.isArray(intervals) && intervals.length
+      ? [...intervals]
+          .sort((x, y) => x.start - y.start || x.end - y.end)
+          .map(({ start, end }) => `${formatClockMinutes(Math.max(0, start))} - ${formatClockMinutes(end)}${end >= 1440 ? " (ข้ามวัน)" : ""}`)
+          .join(", ")
+      : "ปิด";
+    return { day: DAY_NAMES_TH[d], text };
+  });
   const same = rows.every((r) => r.text === rows[0].text);
   return { rows, summary: same ? `เปิดทุกวัน ${rows[0].text}` : null };
 }
