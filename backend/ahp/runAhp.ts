@@ -1,41 +1,11 @@
 // รันจาก backend/: npx ts-node ahp/runAhp.ts <ไฟล์คำตอบ.csv> [ไฟล์ผลรายคน.csv]
 // ไฟล์คำตอบ = CSV ที่ export จาก Google Form (ไฟล์จริงของแบบสอบถามอยู่ที่ backend/ahp/responses.csv)
-import { readFileSync, writeFileSync } from "fs";
-import { parse } from "csv-parse/sync";
-import {
-  COMPATIBILITY_LIMIT,
-  FACTORS,
-  PAIRS,
-  aggregateAij,
-  compatibility,
-  evaluateRespondent,
-  type Factor,
-  type PairAnswer,
-} from "./ahp";
+import { writeFileSync } from "fs";
+import { COMPATIBILITY_LIMIT, FACTORS, aggregateAij, compatibility } from "./ahp";
+import { loadRespondents } from "./responses";
 
 // ระดับ CR ที่ใช้แบ่งกลุ่มผู้ตอบ ตาม Battistoni et al. (2013) Table 4
 const CR_SUBSETS = [0.1, 0.2, 0.5, 1.0];
-
-// ข้อความตัวเลือกในฟอร์ม → ปัจจัยในสูตร POI
-const LABELS: Record<string, Factor> = {
-  "หมวดหมู่": "category",
-  "คะแนนรีวิว": "rating",
-  "ระยะทาง": "distance",
-  "งบประมาณ": "budget",
-  "สภาพอากาศ": "weather",
-};
-
-// คอลัมน์ข้อ q: "<q>.1 …ปัจจัยไหนสำคัญกว่า" และ "<q>.2 สำคัญกว่ามากแค่ไหน"
-function readAnswers(row: Record<string, string>, header: string[], rowNo: number): PairAnswer[] {
-  return PAIRS.map((_, q) => {
-    const choiceCol = header.find((h) => h.startsWith(`${q + 1}.1 `));
-    const scaleCol = header.find((h) => h.startsWith(`${q + 1}.2 `));
-    if (!choiceCol || !scaleCol) throw new Error(`ไม่พบคอลัมน์ข้อ ${q + 1}`);
-    const winner = LABELS[row[choiceCol].trim()];
-    if (!winner) throw new Error(`แถว ${rowNo} ข้อ ${q + 1}: ไม่รู้จักตัวเลือก "${row[choiceCol]}"`);
-    return { winner, intensity: Number(row[scaleCol]) };
-  });
-}
 
 function formatWeights(weights: number[]): string {
   return FACTORS.map((f, i) => `${f} ${weights[i].toFixed(4)}`).join(" · ");
@@ -45,13 +15,7 @@ function main() {
   const [inputPath, outputPath] = process.argv.slice(2);
   if (!inputPath) throw new Error("ต้องระบุไฟล์คำตอบ .csv");
 
-  const rows: Record<string, string>[] = parse(readFileSync(inputPath, "utf8"), {
-    columns: true,
-    bom: true,
-    skip_empty_lines: true,
-  });
-  const header = Object.keys(rows[0] ?? {});
-  const results = rows.map((row, i) => evaluateRespondent(readAnswers(row, header, i + 1)));
+  const results = loadRespondents(inputPath);
   const passed = results.filter((r) => r.passed);
   const allWeights = aggregateAij(results.map((r) => r.matrix));
 

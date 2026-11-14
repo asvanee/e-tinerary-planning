@@ -95,17 +95,21 @@ export function evaluateRespondent(answers: PairAnswer[]): RespondentResult {
   return { matrix, weights, lambdaMax, ci, cr, passed: cr < CR_LIMIT };
 }
 
-// AIJ: ค่าเฉลี่ยเรขาคณิตของคำตอบทีละช่อง (ทุกคนมีน้ำหนักเท่ากัน) แล้วหา eigenvector
-// ตาม Battistoni et al. (2013) น. 6 · ค่าเฉลี่ยเรขาคณิตคงความเป็นส่วนกลับ (Saaty 1987 น. 174)
-export function aggregateAij(matrices: number[][][]): number[] {
+// เมทริกซ์รวมของกลุ่ม: ค่าเฉลี่ยเรขาคณิตของคำตอบทีละช่อง (ทุกคนมีน้ำหนักเท่ากัน)
+// ค่าเฉลี่ยเรขาคณิตคงความเป็นส่วนกลับ (Saaty 1987 น. 174)
+export function geometricMeanMatrix(matrices: number[][][]): number[][] {
   if (matrices.length === 0) throw new Error("ไม่มีผู้ตอบให้รวมผล");
   const n = matrices[0].length;
-  const group = Array.from({ length: n }, (_, i) =>
+  return Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) =>
       Math.exp(matrices.reduce((s, m) => s + Math.log(m[i][j]), 0) / matrices.length)
     )
   );
-  return principalEigen(group).weights;
+}
+
+// AIJ: รวมเมทริกซ์ของทุกคนแล้วหา eigenvector ตาม Battistoni et al. (2013) น. 6
+export function aggregateAij(matrices: number[][][]): number[] {
+  return principalEigen(geometricMeanMatrix(matrices)).weights;
 }
 
 // Compatibility Index ของ Saaty (1994) น. 52–53 = (1/n²)·Σᵢⱼ (wᵢ/wⱼ)(vⱼ/vᵢ) · เท่ากันพอดี = 1

@@ -1,6 +1,8 @@
 // ตัวอย่างการคำนวณสำหรับเล่มรายงาน (แคปหน้าจอ terminal ไปใส่เล่ม)
 // รันจาก backend/: npx ts-node ahp/reportExample.ts
-import { FACTORS, buildMatrix, consistency, principalEigen, type Factor, type PairAnswer } from "./ahp";
+import { join } from "path";
+import { FACTORS, buildMatrix, consistency, geometricMeanMatrix, principalEigen, type Factor, type PairAnswer } from "./ahp";
+import { loadRespondents } from "./responses";
 import {
   WEIGHTS,
   calculateCategoryScore,
@@ -64,20 +66,14 @@ function part1() {
   console.info(`CR = CI / RI = ${ci.toFixed(4)} / 1.12 = ${cr.toFixed(4)}  (${cr < 0.1 ? "ผ่าน" : "ไม่ผ่าน"}เกณฑ์ 0.10)`);
 }
 
-// เมทริกซ์รวมของกลุ่ม 42 คน (ค่าเฉลี่ยเรขาคณิตทีละช่อง — ข้อ 4.3 ของ docs/AHP_POI_WEIGHTS.md)
+// เมทริกซ์รวมของกลุ่ม 42 คน คำนวณจากไฟล์คำตอบจริง (ค่าเฉลี่ยเรขาคณิตทีละช่อง — ข้อ 4.3 ของ docs/AHP_POI_WEIGHTS.md)
 function part2() {
-  const m = [
-    [1, 2.711, 0.623, 0.295, 0.606],
-    [0.369, 1, 0.612, 0.272, 0.451],
-    [1.605, 1.633, 1, 0.363, 0.744],
-    [3.389, 3.671, 2.756, 1, 1.677],
-    [1.65, 2.215, 1.344, 0.596, 1],
-  ];
+  const m = geometricMeanMatrix(loadRespondents(join(__dirname, "responses.csv")).map((r) => r.matrix));
   const { weights, lambdaMax } = principalEigen(m);
   const { cr } = consistency(lambdaMax, 5);
 
   console.info("\n\n========== ส่วนที่ 2: น้ำหนักของกลุ่มผู้ตอบ 42 คน ==========");
-  console.info("(เมทริกซ์รวมแบบค่าเฉลี่ยเรขาคณิต AIJ — ตัวเลขในเมทริกซ์ปัดเป็น 3 ตำแหน่ง)");
+  console.info("(เมทริกซ์รวมแบบค่าเฉลี่ยเรขาคณิต AIJ)");
   console.info(["\nปัจจัย".padEnd(14), "น้ำหนัก"].join(""));
   FACTORS.forEach((f, i) => console.info([NAME[f].padEnd(14), weights[i].toFixed(4)].join("")));
   console.info(`\nλmax = ${lambdaMax.toFixed(3)} · CR = ${cr.toFixed(3)}`);
