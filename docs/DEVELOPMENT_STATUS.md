@@ -11,7 +11,7 @@
 | `data-pipeline`: `tsc --noEmit -p .` | ✅ ผ่าน (exit 0) | ลบ package แล้ว 2026-10-22 (D-37) |
 | `frontend`: `tsc -b` (ขั้นแรกของ `npm run build`) | ✅ ผ่าน (exit 0) — รันบน Windows หลัง T1 (2026-10-17) | ก่อน T1 ไม่ผ่าน (`auto.tsx(108,10) TS6133` ตัวแปร `loading` ไม่ถูกใช้) |
 | `frontend`: `eslint .` | ✅ 0 problems (Claude รันบน Windows 2026-10-26 หลังแก้ #18) | เดิม 5 errors / 4 warnings — แก้ setState ใน effect (AuthContext, LocationPinPicker), ref ระหว่าง render + แยก `categoryColors.ts` (RecommendationMap), array คงที่ (ItineraryEditor) |
-| `frontend`: `npm run build` (`tsc -b && vite build`) | ✅ ผ่านบน Windows หลัง T1 (2026-10-17) — มีคำเตือน chunk 748 kB > 500 kB | **ยังไม่ได้ทดสอบบน Linux/CI** (ต้อง `npm ci` ใหม่ในเครื่องนั้น) |
+| `frontend`: `npm run build` (`tsc -b && vite build`) | ✅ ผ่านบน Windows หลัง T1 (2026-10-17) — มีคำเตือน chunk 748 kB > 500 kB | |
 | `frontend`: `vitest run` | 🗑️ ถอด Vitest และ script `test` ออกแล้ว 2026-11-03 (ไม่มีไฟล์ test) · ผลเดิม: ⚠️ รันได้บน Windows (Node v22.19.0) — ตอบว่า "No tests found" และจบด้วย **exit 1** (ผู้ใช้รัน `npx vitest run` 2026-10-16) | ไม่มีไฟล์ test อยู่แล้ว `npm test` จึงถือว่า fail จนกว่าจะมีไฟล์ test · บน Linux เคยรันไม่ขึ้นเพราะไม่พบ native rollup ของ Linux |
 | `backend`: `jest` | ✅ 15 suites / 230 tests ผ่าน (`npm test` บน Windows 2026-11-14 หลัง `894161f` — แก้ test ของ Auto Trip 13 จุดให้ตรงกับเวลาเดินทางขั้นต่ำ 1 นาที) · ก่อนหน้า ✅ 15 suites / 230 tests ผ่าน (`npx jest` บน Windows 2026-11-13 หลัง D-60 เพิ่ม `tripDateRange.test.ts` และ `weatherForecast.test.ts`) · ก่อนหน้า ✅ 13 suites / 214 tests ผ่าน (`npm test -- --runInBand` บน Windows 2026-11-04 หลัง Auto Trip ใช้เวลาคงที่ 60 นาทีต่อสถานที่) · ก่อนเปลี่ยนมี 14 suites / 228 tests | ก่อน 2026-10-18 ไม่มีไฟล์ test ("No tests found", exit 1) · jest 30 + ts-jest 29.4.11 ใช้ด้วยกันได้ (T15) · characterization test อ่าน `backend/data/attraction.csv` (~20 MB) |
 | รอบ cleanup 2026-11-14 (`bd0f5e9`..`894161f`) | ✅ backend `tsc --noEmit --noUnusedLocals --noUnusedParameters` · frontend `tsc -b` / `eslint .` / `npm run build` ผ่านทั้งหมด (Windows) · คอมไพล์ด้วย esbuild เทียบ HEAD ของ 68 ไฟล์ที่แก้เฉพาะ comment ได้ผลเหมือนกันทุก byte · ช่องรหัสผ่านและชั้นแผนที่เทียบ HTML/props กับของเดิมแล้วเหมือนกัน | **ยังไม่ได้ทดสอบบนหน้าเว็บ** หลังรวมโค้ดซ้ำ — หน้าที่ควรลอง: login/สมัครสมาชิก, หน้าแนะนำสถานที่ (ตารางเวลาเปิด), Auto Trip, MyTrips, รายละเอียดทริป, admin นำเข้า/ตรวจสถานที่ |
@@ -63,7 +63,6 @@
 3. ~~ความหมายของงบ~~ ✅ ตัดสินแล้ว 2026-10-26 (D-51): `daily_budget` เป็นงบต่อคนต่อวัน · ข้อความเดิม: `daily_budget` คืองบ **ทั้งกลุ่มต่อวัน** แต่ hard filter และ `cumulativeCost` เอาไปเทียบกับราคาจาก `PRICE_LEVEL_TO_BAHT` โดยไม่คูณจำนวนคน ยังไม่ทราบว่าราคาในตารางนั้นเป็นราคาต่อคนหรือไม่ — **ต้องให้เจ้าของโปรเจกต์ตัดสินใจ**
 4. พฤติกรรมเมื่อ access token หมดอายุ (backend จะตอบ 401 แต่ frontend ยังเห็นว่าล็อกอินอยู่)
 5. `/trip/:id/auto` จับคู่ trip day ด้วย `item.day_number ?? item.day ?? item.day_no` แต่ response ของ `getSavedItinerary` ใช้ `dayNumber` จึงตกไปใช้ `tripDays[index]` แทน — ผลลัพธ์อาจถูกต้องโดยบังเอิญ
-6. ~~การ build บน Linux/CI~~ ไม่ต้องตรวจตาม D-22 (โปรเจกต์ส่งงานไม่ใช้ Linux/CI) — เคสตัวพิมพ์เล็ก-ใหญ่ที่รู้ (#2, #3) แก้แล้วใน T1
 
 ## Known Issues (พบจากโค้ดหรือผลการตรวจ)
 
