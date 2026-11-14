@@ -98,7 +98,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `visit_duration_min` | int4 | | CHECK 1..1440 · เวลาที่ผู้ใช้กรอก (D-36) · เพิ่ม 2026-10-22 (`docs/sql/2026-10-22_p5f_visit_duration.sql`) · แถวที่บันทึกก่อน P5f เป็น NULL |
 | `is_time_conflict` | bool | | `false` |
 | `is_closed_conflict` / `is_budget_conflict` / `is_hours_unknown` | bool | | |
-| `is_budget_unknown` | bool | NOT NULL | `false` |
+| ~~`is_budget_unknown`~~ | — | | **ลบคอลัมน์แล้ว 2026-11-14** — ผู้ใช้รัน `ALTER TABLE public.itineraries DROP COLUMN is_budget_unknown` · Claude ตรวจด้วย select: คอลัมน์ไม่มีแล้ว (42703), `itineraries` ยัง 22 แถว · โค้ดไม่เคยอ่าน/เขียนคอลัมน์นี้ (ค่าเดิม `false` ทุกแถว) · "ไม่ทราบราคา" ดูจาก `place_cost` เป็น NULL (D-70) |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 
 ### `poi_scores` · rows ~394 (0 — 2026-10-22 ลบตามทริป) · ใช้ในโค้ด: `poiController.ts`, `itineraryPlaceQueries.ts`
@@ -118,7 +118,7 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `place_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
-| `google_place_id` | text | NOT NULL | UNIQUE (upsert onConflict ของ data-pipeline) |
+| `google_place_id` | text | NOT NULL | UNIQUE (upsert onConflict ของ data-pipeline) · สถานที่ที่นำเข้าจาก CSV อย่างเดียวเก็บเป็น `csv:<ATT_ID>` (ตรวจ 2026-11-14: 7 จาก 114 แห่ง) |
 | `place_name` | text | NOT NULL | |
 | `latitude` / `longitude` | float8 | NOT NULL | ไม่มี CHECK ช่วงพิกัด (R2) |
 | `rating` | numeric | | CHECK 0..5 |
