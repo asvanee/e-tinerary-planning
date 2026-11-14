@@ -1,4 +1,4 @@
-// ⚠️ ต้องแก้คู่กับ frontend/src/features/trip/e-tinerary/lib/openingHoursChecker.ts
+// ⚠️ ต้องแก้คู่กับ frontend/src/user/trip/e-tinerary/lib/openingHoursChecker.ts
 
 // เช็คว่าสถานที่เปิดตลอดช่วงที่ไปเที่ยวไหม จาก places.opening_hours (รูปแบบ Google periods)
 // day 0 = อาทิตย์ .. 6 = เสาร์, time = "HHMM" · ไม่มี close = เปิด 24 ชม. · ไม่มีข้อมูล = ไม่ทราบ (ไม่ใช่ปิด)

@@ -36,7 +36,7 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 ```
 
 ### 2.1 Auth
-- `POST /api/auth/register`: `supabase.auth.signUp` แล้ว insert `users` (role `user`), redirect ใน email ถูก **hardcode** เป็น `http://localhost:5173/email-confirmed` (ต้องเพิ่ม URL นี้ใน Redirect URLs ของ Supabase เอง) · หน้า `/email-confirmed` (`features/auth/emailConfirmed/emailConfirmed.tsx`) แสดงติ๊กถูก "ยืนยันอีเมลสำเร็จ" + ปุ่มเข้าสู่ระบบ/หน้าหลัก หรือข้อความ "ลิงก์ไม่ถูกต้องหรือหมดอายุ" เมื่อ hash มี `error=` · Supabase แนบ session มาใน URL hash ซึ่งหน้านี้ล้างทิ้งทันทีด้วย `navigate(..., { replace: true })` เพราะ frontend ไม่ได้ใช้ token นี้ (#26 — `login.tsx` ยังคง logic ล้าง hash เดิมไว้) · หลังสมัครเสร็จ frontend พาไป `/confirm-email` (หน้า "ตรวจสอบอีเมล" ให้ไปเปิดอีเมล) — ผู้ใช้ยืนยันว่าทดสอบ manual ผ่าน (2026-11-06)
+- `POST /api/auth/register`: `supabase.auth.signUp` แล้ว insert `users` (role `user`), redirect ใน email ถูก **hardcode** เป็น `http://localhost:5173/email-confirmed` (ต้องเพิ่ม URL นี้ใน Redirect URLs ของ Supabase เอง) · หน้า `/email-confirmed` (`user/auth/emailConfirmed/emailConfirmed.tsx`) แสดงติ๊กถูก "ยืนยันอีเมลสำเร็จ" + ปุ่มเข้าสู่ระบบ/หน้าหลัก หรือข้อความ "ลิงก์ไม่ถูกต้องหรือหมดอายุ" เมื่อ hash มี `error=` · Supabase แนบ session มาใน URL hash ซึ่งหน้านี้ล้างทิ้งทันทีด้วย `navigate(..., { replace: true })` เพราะ frontend ไม่ได้ใช้ token นี้ (#26 — `login.tsx` ยังคง logic ล้าง hash เดิมไว้) · หลังสมัครเสร็จ frontend พาไป `/confirm-email` (หน้า "ตรวจสอบอีเมล" ให้ไปเปิดอีเมล) — ผู้ใช้ยืนยันว่าทดสอบ manual ผ่าน (2026-11-06)
 - `POST /api/auth/login`: `signInWithPassword` → บังคับว่าต้อง `email_confirmed_at` → อ่าน profile จาก `users` → อัปเดต `last_login` → คืน `{ user, session }` · `signUp`/`signInWithPassword` เรียกผ่าน `createAuthClient()` (client ใหม่ต่อ request ใน `config/db.ts`) เพื่อไม่ให้ session ไปติดกับ client หลักที่ใช้ query (T22, แก้ Known Issue #21 เมื่อ 2026-10-17)
 - Frontend `AuthContext` เก็บ `user`/`session` ใน `localStorage` และไม่มีโค้ด refresh token (ตรวจด้วย grep แล้วไม่พบ) — **พฤติกรรมเมื่อ token หมดอายุ: ต้องตรวจสอบเพิ่มเติม**
 - `logout` เรียก `supabase.auth.admin.signOut(token)`
@@ -48,7 +48,7 @@ MyTrips ─► Trip Detail ─► Itinerary Editor (แก้ไขแผน) / 
 - การบันทึก `trip_categories` เป็นแบบ best-effort (ไม่ rollback แต่คืน `categoryWarning`)
 - ownership: query ใช้ `.eq("trip_id").eq("user_id")` ทุกครั้ง
 
-### 2.3 POI Recommendation (`features/poi/`)
+### 2.3 POI Recommendation (`user/poi/`)
 pipeline ใน `getFilteredPlaces()` ต้องทำตามลำดับนี้ (ตามที่ comment ระบุ):
 1. กรอง province (บังคับ) แล้ว AND กับ district ถ้ามี
 2. Hard filter งบ: ตัดที่ที่ `getPlaceCost(...) > dailyBudget` ทิ้ง (`utils/placePrice.ts` — ขอบบน priceRange → ขอบล่าง → ไม่มีข้อมูล: free = 0 · paid ไม่ทราบราคาให้ปล่อยผ่าน — D-52)
@@ -76,7 +76,7 @@ weight มาจากแบบสอบถาม AHP 42 คน (D-56 · `0ce75c
 
 **หมวดของสถานที่ (ตั้งแต่ R5 P5c 2026-10-22):** มาจากป้าย ททท. — `places.att_type_label` → `category_labels` → `categories` (D-35/D-39) 1 สถานที่ = 1 หมวด · POI และ Auto Trip ใช้ relation นี้จับคู่สถานที่ · `getSelectedPlaces` ใช้ embed แบบไม่บังคับ inner join เพื่อไม่ให้ความสัมพันธ์หมวดตัดแถวสถานที่ออกจากผลค้นหา · Auto Trip โหลดหมวดที่ผู้ใช้เลือกจาก `trip_categories` → `categories` (D-45) · ไม่อ่านตาราง `place_categories` หรือคอลัมน์ `default_duration_min` ที่ถูกลบใน P5g
 
-### 2.4 Itinerary (manual) — `features/itinerary/` + frontend mirror
+### 2.4 Itinerary (manual) — `user/itinerary/` + frontend mirror
 1. `POST /draft` `{place_ids}`: lazy-create `trip_days` ตามช่วงวันที่ (ครั้งแรกเท่านั้น), ตอบ `items: []` เสมอ (ไม่จัดลงวันอัตโนมัติ — D-03, D-58) และคืน `travelMatrix` N×N (ORS + fallback haversine ที่ 30 km/h)
 2. Frontend `ItineraryEditor.tsx` (dnd-kit) จะ recompute ทุกครั้งที่มีการลาก ด้วย `frontend/.../lib/itineraryBuilder.ts` ซึ่ง **mirror** มาจาก `backend/.../itineraryBuilder.ts` (ตรวจด้วย diff แล้วว่า `buildDayItems` ตรงกันทุกบรรทัด) และ `lib/openingHoursChecker.ts` ซึ่ง mirror จาก `backend/src/utils/openingHoursChecker.ts`
 3. `PUT /itinerary/trips/:id` `{days:[{trip_day_id, place_ids}], visit_durations:{[place_id]: นาที}}`: ตรวจเวลาที่อยู่ก่อน (`visitDurations.ts::parseVisitDurations` — ทุกสถานที่ในแผนต้องเป็นจำนวนเต็ม 1–1440 ไม่งั้น 400 ก่อนลบแผนเดิม · D-36) แล้ว backend สร้าง matrix ใหม่และ `buildItinerary()` ใหม่ ถ้ามี `isClosedConflict|isTimeConflict|isBudgetConflict` จะปฏิเสธ (400) **ก่อน**ลบ ถ้าผ่านจะลบ itineraries เดิมของทุกวันแล้ว insert ใหม่ (ไม่ใช่ transaction)
@@ -113,8 +113,8 @@ GET `/api/trips/:id` + GET `/api/itinerary/trips/:id` → แสดงผล ป
 - ใช้ `SUPABASE_ANON_KEY` ในการเขียนข้อมูล แปลว่า RLS ของ `places` น่าจะอนุญาตให้ anon เขียนได้ (**ต้องตรวจสอบ**)
 
 ## 4. Conventions ที่สังเกตได้
-- Backend: feature folder `features/<name>/<name>Routes.ts` + `<name>Controller.ts`, ไฟล์ช่วยตั้งชื่อเป็น `<name>PlaceQueries.ts` / `<name>Builder.ts`, utils ที่ใช้ร่วมกันอยู่ใน `src/utils/` · controller เป็น `async (req: AuthRequest, res)` คืน `{ message }` ภาษาไทย พร้อม status code · ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)`
-- Frontend: `features/<area>/<page>/<Page>.tsx` (ชื่อไฟล์มีทั้ง camelCase และ PascalCase ปนกัน) · Tailwind + CSS variables (`--navy`, `--sky` ฯลฯ) · fetch ตรงในคอมโพเนนต์ (ไม่มี API layer รวม)
+- Backend: feature folder `user/<name>/<name>Routes.ts` + `<name>Controller.ts`, ไฟล์ช่วยตั้งชื่อเป็น `<name>PlaceQueries.ts` / `<name>Builder.ts`, utils ที่ใช้ร่วมกันอยู่ใน `src/utils/` · controller เป็น `async (req: AuthRequest, res)` คืน `{ message }` ภาษาไทย พร้อม status code · ตรวจ `tripId` ด้วย `!tripId || Array.isArray(tripId)`
+- Frontend: `user/<area>/<page>/<Page>.tsx` (ชื่อไฟล์มีทั้ง camelCase และ PascalCase ปนกัน) · Tailwind + CSS variables (`--navy`, `--sky` ฯลฯ) · fetch ตรงในคอมโพเนนต์ (ไม่มี API layer รวม)
 - Admin (D-24): frontend `src/admin/` (`dashboard/`, `provinces/`, `imports/`, `lib/` — เรียก API ผ่าน `lib/adminApi.ts::adminRequest`) + `src/system/` (auth ที่ใช้ร่วมกับหน้าผู้ใช้) · backend `src/admin/` (`requireAdmin`, `provinces/`, `imports/`, `pipeline/` เป็น logic ล้วนที่รับ Google/DB เข้ามาเป็น parameter เพื่อให้ test ได้)
 - TypeScript strict ทั้งสองฝั่ง, frontend เปิด `noUnusedLocals`/`noUnusedParameters`
 - Comment ในโค้ดเป็นภาษาไทยและยาว มักมี "✅ มติ…" บอกเหตุผลของการตัดสินใจ ห้ามลบ comment เหล่านี้ทิ้งโดยไม่มีเหตุผล

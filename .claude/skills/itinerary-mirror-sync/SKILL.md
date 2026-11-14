@@ -11,13 +11,13 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 ## คู่ไฟล์ที่ต้องตรงกัน
 | Backend (source of truth) | Frontend mirror |
 |---|---|
-| `backend/src/features/itinerary/itineraryBuilder.ts` (`buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type — `buildItinerary` มีแค่ฝั่ง backend · D-58) | `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` |
-| `backend/src/utils/openingHoursChecker.ts` | `frontend/src/features/trip/e-tinerary/lib/openingHoursChecker.ts` |
-| `backend/src/utils/haversine.ts` | `frontend/src/features/trip/e-tinerary/lib/haversine.ts` |
+| `backend/src/user/itinerary/itineraryBuilder.ts` (`buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type — `buildItinerary` มีแค่ฝั่ง backend · D-58) | `frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts` |
+| `backend/src/utils/openingHoursChecker.ts` | `frontend/src/user/trip/e-tinerary/lib/openingHoursChecker.ts` |
+| `backend/src/utils/haversine.ts` | `frontend/src/user/trip/e-tinerary/lib/haversine.ts` |
 | ค่าคงที่ `TRIP_START_ID`, `FALLBACK_AVG_SPEED_KMH`, type `TravelMatrix`/`TravelMetric` ใน `backend/src/utils/orsTravelMatrix.ts` | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
 | `getKnownPrice`, `getPlaceCost` ใน `backend/src/utils/placePrice.ts` (D-52 — POI filter / price score ใช้ตัวเดียวกัน) | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
 | `timeStringToMinutes`, `minutesToTimeString` ใน `backend/src/utils/timeString.ts` (`itineraryPlaceQueries.ts` ใช้ตัวเดียวกัน) | ประกาศซ้ำในไฟล์ `lib/itineraryBuilder.ts` ของ frontend |
-| type `PriceNature` ใน `backend/src/features/poi/poiPlaceQueries.ts` | type ใน frontend lib |
+| type `PriceNature` ใน `backend/src/user/poi/poiPlaceQueries.ts` | type ใน frontend lib |
 
 ค่าที่ต้องตรงกัน (ณ `0c980bd`): `TRIP_START_ID="__trip_start__"`, `FALLBACK_AVG_SPEED_KMH=30`, เวลาเดินทางขั้นต่ำ 1 นาที, เวลาที่เกิน 23:59 ให้ cap ไว้ที่ 23:59
 
@@ -26,8 +26,8 @@ description: ใช้ทุกครั้งที่แก้ logic การ
 ## ขั้นตอน
 1. อ่านทั้งสองไฟล์ของคู่ที่จะแก้ แล้วรัน diff เพื่อดูว่าตอนนี้ตรงกันหรือไม่ ก่อนแก้:
    ```bash
-   diff <(sed -n '/^export function buildDayItems/,/^}/p' backend/src/features/itinerary/itineraryBuilder.ts) \
-        <(sed -n '/^export function buildDayItems/,/^}/p' frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts)
+   diff <(sed -n '/^export function buildDayItems/,/^}/p' backend/src/user/itinerary/itineraryBuilder.ts) \
+        <(sed -n '/^export function buildDayItems/,/^}/p' frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts)
    ```
    (ใช้ได้ใน Git Bash/WSL ถ้าอยู่บน Windows PowerShell ให้เปรียบเทียบด้วยการอ่านไฟล์) ถ้าก่อนแก้ก็ไม่ตรงกันอยู่แล้ว ให้รายงานผู้ใช้ก่อน
 2. แก้ backend ก่อน แล้ว port ไป frontend **ทีละบรรทัด** (เฉพาะ logic เท่านั้น ส่วน import path/type ต่างกันได้)

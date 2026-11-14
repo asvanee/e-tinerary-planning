@@ -1,4 +1,4 @@
-// ⚠️ ต้องแก้คู่กับ frontend/src/features/trip/e-tinerary/lib/haversine.ts
+// ⚠️ ต้องแก้คู่กับ frontend/src/user/trip/e-tinerary/lib/haversine.ts
 
 const EARTH_RADIUS_KM = 6371;
 

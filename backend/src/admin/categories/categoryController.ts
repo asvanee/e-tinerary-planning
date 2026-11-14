@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { AuthRequest } from "../../features/auth/authMiddleware";
+import { AuthRequest } from "../../user/auth/authMiddleware";
 import { isUuid } from "../../utils/uuid";
 import { parseCategoryUpdate, parseLabelMove } from "./categoryInput";
 import {

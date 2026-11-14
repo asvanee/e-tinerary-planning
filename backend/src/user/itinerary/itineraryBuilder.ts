@@ -11,7 +11,7 @@ import {
 } from "../../utils/orsTravelMatrix";
 import type { PriceNature } from "../poi/poiPlaceQueries";
 
-// ⚠️ ต้องแก้คู่กับ frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts (ใช้ skill itinerary-mirror-sync)
+// ⚠️ ต้องแก้คู่กับ frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts (ใช้ skill itinerary-mirror-sync)
 // คำนวณเวลา/ระยะทาง/ราคา/conflict ของแผนเดินทาง — backend ใช้ตรวจซ้ำตอนยืนยันแผน
 // ราคาไม่เดา: ฟรี = 0 บาท, เสียเงินแต่ไม่มีราคา = ไม่ทราบ · ระยะทางมาจาก travel matrix ที่สร้างไว้แล้ว
 

@@ -58,15 +58,15 @@ Baseline หลัง T1 (2026-10-17): backend tsc ✅ · frontend `tsc -b` ✅ 
 - โค้ดใหม่ไม่ควรส่ง `err.message` ของ Supabase กลับให้ client ตรงๆ ให้ตอบข้อความภาษาไทยทั่วไปแล้ว `console.error` รายละเอียด (Known Issue #24)
 
 ## Conventions
-- Backend: `src/features/<feature>/<feature>Routes.ts` + `<feature>Controller.ts` (+ `*PlaceQueries.ts`, `*Builder.ts`), ใส่ shared helper ใน `src/utils/`, mount route ใน `src/server.ts` · คืน `res.status(x).json({ message: "<ภาษาไทย>" })` · ใน controller ให้ใช้ `try/catch` แล้ว `console.error` พร้อมชื่อ context
+- Backend: `src/user/<feature>/<feature>Routes.ts` + `<feature>Controller.ts` (+ `*PlaceQueries.ts`, `*Builder.ts`), ใส่ shared helper ใน `src/utils/`, mount route ใน `src/server.ts` · คืน `res.status(x).json({ message: "<ภาษาไทย>" })` · ใน controller ให้ใช้ `try/catch` แล้ว `console.error` พร้อมชื่อ context
 - Admin (D-24): backend `src/admin/` (mount `/api/admin`, ทุก route ผ่าน `requireAuth` + `requireAdmin`) · frontend `src/admin/<page>/` (ครอบด้วย `AdminRoute` + `AdminLayout`) · ของที่ user และ admin ใช้ร่วมกันอยู่ใน `frontend/src/system/` (เช่น `system/auth/`)
-- Frontend: `src/features/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
+- Frontend: `src/user/<area>/<page>/<Page>.tsx` · Tailwind + CSS variables (`--navy`, `--sky`, …) · fetch ใช้ path `/api/...` และส่ง `Authorization: Bearer ${session.access_token}` · ไอคอนใช้ `lucide-react`
 - **ชื่อไฟล์และ import ต้องตรงกันทุกตัวอักษร (case-sensitive)** แม้ Windows จะไม่ฟ้อง เพราะ CI/Linux จะ fail
 - TypeScript strict ห้ามใช้ `any` (ตอนนี้เป็น 0 ทั้ง backend/frontend) ให้ใช้ type ที่ชัดเจนแทน
 - Comment และข้อความ UI เป็นภาษาไทยตามสไตล์เดิม
 
 ## จุดที่ต้องระวังเป็นพิเศษ
-- **Mirror logic**: `backend/src/features/itinerary/itineraryBuilder.ts` ↔ `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`, `utils/placePrice.ts`, `utils/timeString.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
+- **Mirror logic**: `backend/src/user/itinerary/itineraryBuilder.ts` ↔ `frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts` และ `backend/src/utils/openingHoursChecker.ts` ↔ `frontend/.../lib/openingHoursChecker.ts` (รวมถึง `haversine.ts`, `utils/placePrice.ts`, `utils/timeString.ts`) ต้องแก้คู่กันเสมอ → ใช้ skill `itinerary-mirror-sync`
 - **Primary key ทุกตารางเป็น uuid คอลัมน์เดียว** (D-28) — ตารางใหม่ใช้ `gen_random_uuid()` ห้าม int/composite key · id ใน TS เป็น `string` · หา "ล่าสุด" ด้วยคอลัมน์เวลา ไม่ใช่ลำดับ id
 - **หมวดของสถานที่มาจากป้าย ททท.** (D-35/D-39): `places.att_type_label` → `category_labels` → `categories` (embed `category_labels!inner(categories!inner(...))`) 1 สถานที่ = 1 หมวด ใช้เกณฑ์นี้ทุก query · ตาราง `place_categories` / `type_category_weights` / `place_types` และคอลัมน์ `categories.default_duration_min` ลบแล้ว (P5g) · `bestCategoryRow.ts` ลบแล้ว (2026-10-26)
 - **ลำดับ filter ของ POI** (province → budget → category) ห้ามสลับ — ขั้นหมวดต้องนับหลังงบ: ตรงหมวด ≥ 50 เหลือเฉพาะที่ตรง, < 50 เติมหมวดอื่นด้วย `category_score` 0 (D-48) · ขั้นเวลาตัดออกแล้ว (D-38)

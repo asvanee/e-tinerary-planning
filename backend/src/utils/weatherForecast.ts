@@ -35,7 +35,7 @@ function addDays(isoDate: string, days: number): string {
 
 // วันสุดท้ายที่ Open-Meteo ยอมให้ขอ — API นับ "วันนี้" ตามวันที่ UTC ไม่ใช่ timezone ที่ส่งไป
 // (เที่ยงคืน–7 โมงเช้าเวลาไทย วันที่ UTC ยังเป็นเมื่อวาน ถ้านับจากเวลาไทยจะขอเกิน 1 วันแล้ว error)
-// ⚠️ ต้องแก้คู่กับ frontend/src/features/trip/create/tripDates.ts
+// ⚠️ ต้องแก้คู่กับ frontend/src/user/trip/create/tripDates.ts
 export function forecastLastDay(now: number = Date.now()): string {
   return addDays(new Date(now).toISOString().slice(0, 10), FORECAST_MAX_DAYS_AHEAD);
 }

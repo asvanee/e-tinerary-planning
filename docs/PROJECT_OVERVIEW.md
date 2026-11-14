@@ -6,11 +6,11 @@
 ## 1. โปรเจกต์นี้ทำอะไร
 
 เว็บแอปวางแผนทริปท่องเที่ยวในประเทศไทย (UI และข้อความ error เป็นภาษาไทย) ผู้ใช้ทำได้ดังนี้
-1. สมัครและเข้าสู่ระบบด้วย Supabase Auth ผ่าน backend (`backend/src/features/auth/`)
-2. สร้างทริป โดยกำหนดจังหวัด/อำเภอ, ช่วงวันที่, เวลาเริ่ม, จำนวนคน, งบประมาณ, เวลาว่างต่อวัน, หมวดหมู่ที่สนใจ และหมุดจุดเริ่มต้น (`frontend/src/features/trip/create/createTrip.tsx`)
-3. ให้ระบบคำนวณคะแนนสถานที่แนะนำ (POI score) จาก category, rating, ระยะทางถนน (ORS), ราคา และโอกาสฝน (Open-Meteo) (`backend/src/features/poi/`)
-4. เลือกสถานที่ แล้วลากวางลงแต่ละวันเองใน Itinerary Editor ระบบจะคำนวณเวลา/งบ/เวลาเปิด-ปิดให้ทันที (`frontend/src/features/trip/e-tinerary/editor/ItineraryEditor.tsx`)
-5. หรือใช้ "จัดทริปอัตโนมัติ" (Auto Trip) (`backend/src/features/itinerary/autoTripBuilder.ts`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`)
+1. สมัครและเข้าสู่ระบบด้วย Supabase Auth ผ่าน backend (`backend/src/user/auth/`)
+2. สร้างทริป โดยกำหนดจังหวัด/อำเภอ, ช่วงวันที่, เวลาเริ่ม, จำนวนคน, งบประมาณ, เวลาว่างต่อวัน, หมวดหมู่ที่สนใจ และหมุดจุดเริ่มต้น (`frontend/src/user/trip/create/createTrip.tsx`)
+3. ให้ระบบคำนวณคะแนนสถานที่แนะนำ (POI score) จาก category, rating, ระยะทางถนน (ORS), ราคา และโอกาสฝน (Open-Meteo) (`backend/src/user/poi/`)
+4. เลือกสถานที่ แล้วลากวางลงแต่ละวันเองใน Itinerary Editor ระบบจะคำนวณเวลา/งบ/เวลาเปิด-ปิดให้ทันที (`frontend/src/user/trip/e-tinerary/editor/ItineraryEditor.tsx`)
+5. หรือใช้ "จัดทริปอัตโนมัติ" (Auto Trip) (`backend/src/user/itinerary/autoTripBuilder.ts`, `frontend/src/user/trip/e-tinerary/auto/auto.tsx`)
 6. ยืนยันแผน (backend ตรวจซ้ำก่อนบันทึก) และดูแผนที่ยืนยันแล้ว (`TripDetail.tsx`)
 
 ข้อมูลสถานที่มาจาก CSV สถานที่ท่องเที่ยวของ ททท. (`backend/data/attraction.csv`) ที่ admin ตรวจและนำเข้าผ่านหน้า `/admin` แล้วเติมรายละเอียดจาก Google Places API ลงตาราง `places` (ข้อมูลเชียงใหม่/ชลบุรี/กรุงเทพฯ เดิมมาจาก `data-pipeline/` ที่ลบแล้ว — D-37)
@@ -24,7 +24,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
 ├── backend/                   Express 5 + TypeScript (CommonJS) — REST API
 │   ├── src/server.ts          ★ entry point จริง (mount routes ทั้งหมด, เช็ค DB ก่อน listen)
 │   ├── src/config/            db.ts (Supabase client, service role), ors.ts (config ORS)
-│   ├── src/features/<feature>/  <feature>Routes.ts + <feature>Controller.ts (+ queries/builders)
+│   ├── src/user/<feature>/  <feature>Routes.ts + <feature>Controller.ts (+ queries/builders)
 │   │   ├── auth/              register / login / logout + requireAuth middleware
 │   │   ├── trip/              CRUD ทริป
 │   │   ├── categories/        GET หมวดหมู่
@@ -40,7 +40,7 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
     ├── src/main.tsx           entry (AuthProvider > App)
     ├── src/App.tsx            ★ routing ทั้งหมด
     ├── src/components/navbar.tsx
-    ├── src/features/          auth / home / welcome / trip/{create,recommendations,
+    ├── src/user/          auth / home / welcome / trip/{create,recommendations,
     │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
     ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
     ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
@@ -80,10 +80,10 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 
 | Path | Component | Protected |
 |---|---|---|
-| `/` | `features/welcome/Welcome.tsx` | – |
-| `/register`, `/login`, `/confirm-email`, `/email-confirmed` | `features/auth/...` | – |
-| `/home` | `features/home/home.tsx` | ✓ |
-| `/trip/create`, `/trip/:tripId/edit` | `features/trip/create/createTrip.tsx` (ใช้ซ้ำสำหรับแก้ไข) | ✓ |
+| `/` | `user/welcome/Welcome.tsx` | – |
+| `/register`, `/login`, `/confirm-email`, `/email-confirmed` | `user/auth/...` | – |
+| `/home` | `user/home/home.tsx` | ✓ |
+| `/trip/create`, `/trip/:tripId/edit` | `user/trip/create/createTrip.tsx` (ใช้ซ้ำสำหรับแก้ไข) | ✓ |
 | `/trip/:tripId/recommendations` | `TripRecommendations.tsx` + `RecommendationMap.tsx` — คำนวณและแสดงสถานที่แนะนำพร้อม POI Score · โอกาสฝนบนการ์ด · สวิตช์เติมสถานที่หมวดอื่น (ค่าเริ่มต้นปิด — D-61) | ✓ |
 | `/trip/:tripId/editor` | `ItineraryEditor.tsx` (รับข้อมูลผ่าน router state) | ✓ |
 | `/trip/:tripId/auto` | `e-tinerary/auto/auto.tsx` — ปุ่มจัดทริปอัตโนมัติ (ไม่ต้องกรอกเวลาเที่ยว — D-59) · `?others=0` = ไม่เพิ่มสถานที่หมวดอื่น (D-61) | ✓ |
@@ -127,7 +127,7 @@ ZIP ที่ได้รับมี `node_modules/` ของทั้ง 3 pa
 | GET `/api/admin/provinces/:province/import/pending` | ✓ + admin | `getPendingImports` — แถว `needs_review_*` ของทุก job ในจังหวัด (P4c) |
 | POST `/api/admin/imports/items/:itemId/resolve` | ✓ + admin | `resolveImportItem` — body `{ action: accept_google | csv_only | skip }` · 409 เมื่อทำไม่ได้ (เช่นแถวซ้ำ/พิกัดเสีย/ตัดสินไปแล้ว) · ⚠️ accept_google เรียก Google Details 1 ครั้ง |
 
-Auth: `requireAuth` (`features/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
+Auth: `requireAuth` (`user/auth/authMiddleware.ts`) อ่าน `Authorization: Bearer <access_token>` แล้วเรียก `supabase.auth.getUser(token)` ฝั่ง frontend เก็บ `user` และ `session` ไว้ใน `localStorage` (`system/auth/AuthContext.tsx`) · route ของ admin (`backend/src/admin/adminRoutes.ts`) ผ่าน `requireAuth` + `requireAdmin` ทุกตัว
 
 ## 7. ตารางฐานข้อมูล (อนุมานจาก query — ไม่มี schema/migration ใน repo)
 > โครงสร้างจริงจาก Supabase (snapshot 2026-10-18) อยู่ที่ [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) — ถ้าขัดกับหัวข้อนี้ให้ยึดไฟล์นั้น

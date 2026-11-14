@@ -75,7 +75,7 @@
   - API ของ admin ทั้งหมดอยู่ใน `backend/src/admin/` mount ที่ `/api/admin` ตรวจสิทธิ์ด้วย `requireAuth` + `requireAdmin` (อ่าน `users.role` จาก DB ทุก request ตาม Known Issue #22)
   - โค้ดจาก `data-pipeline/` (dedupe, อ่าน CSV, Google Places) ย้ายเข้า `backend/src/admin/pipeline/` แบบ **copy แล้วปรับ** (ไม่เขียนใหม่จากศูนย์) และต้องมี jest test ยืนยันผลเท่าเดิมก่อนลบ
   - ลบ `data-pipeline/` ใน phase สุดท้าย (P6) หลังย้ายและตรวจครบ — ต้องขอยืนยันจากผู้ใช้อีกครั้งก่อนลบ · ก่อนถึง P6 ไม่แก้การทำงานของ data-pipeline
-  - frontend: `src/features/` = หน้าของ user (ไม่เปลี่ยนชื่อ) · `src/admin/` = หน้าของ admin · `src/system/` = ของที่ใช้ร่วมกัน (ย้าย `AuthContext`, `useAuth`, `ProtectedRoute` มาไว้ที่ `src/system/auth/` และเพิ่ม `LoginForm`)
+  - frontend: `src/user/` = หน้าของ user (ไม่เปลี่ยนชื่อ) · `src/admin/` = หน้าของ admin · `src/system/` = ของที่ใช้ร่วมกัน (ย้าย `AuthContext`, `useAuth`, `ProtectedRoute` มาไว้ที่ `src/system/auth/` และเพิ่ม `LoginForm`)
   - login มี 2 หน้า: `/login` (user) และ `/admin/login` (admin) ใช้ `LoginForm` ร่วมกันและเรียก `/api/auth/login` เดิม · บัญชีที่ role เป็น `admin` login จากหน้าไหนก็ไป `/admin` (redirect เป็นแค่ UX สิทธิ์จริงตรวจที่ backend)
   - ตอบ D-23 Q1 = frontend เรียก backend `/api/admin/*` (ไม่มี service แยก) · Q6 = ใช้ jest ของ backend ที่มีอยู่ (ไม่ต้องเพิ่ม test runner)
   - Known Issue #15 (`.gitignore` ของ data-pipeline) ไม่ต้องแก้แยก เพราะโค้ดใหม่อยู่ใน backend — เอาบรรทัด ignore ออกตอนลบ data-pipeline ใน P6 · `data-pipeline/chiangmai_*.txt` เก็บไว้จนถึง P6 (ใช้เทียบผลใน P2)
@@ -132,7 +132,7 @@
 - บริบท: `trip_days` ถูกสร้างครั้งเดียวใน `getOrCreateTripDays` แล้วไม่อัปเดตเมื่อแก้ทริป · ทางที่ sync ทีละวัน (update/insert/delete) ซับซ้อนและต้องตัดสินว่าสถานที่ในวันที่ถูกตัดไปอยู่ไหน
 - ข้อสรุป (ผู้ใช้เลือกทางที่ง่ายที่สุด): ถ้า `start_date`, `end_date`, `start_time`, `available_time_per_day` หรือ `daily_budget` เปลี่ยน `updateTrip` จะลบ `trip_days` ของทริปนั้น (CASCADE ลบ `itineraries` = แผนเดิม) แล้วครั้งหน้าที่จัดแผนจะสร้างวันใหม่จากข้อมูลล่าสุด · frontend ถามยืนยันก่อนบันทึก · ช่องอื่น (จังหวัด หมวดหมู่ จุดเริ่ม ฯลฯ) แผนเดิมยังอยู่ · หลังบันทึกไปหน้า recommendations เหมือนเดิม
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/trip/tripController.ts` (`updateTrip`), `backend/src/features/trip/tripDayStructure.ts`, `frontend/src/features/trip/create/createTrip.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/trip/tripController.ts` (`updateTrip`), `backend/src/user/trip/tripDayStructure.ts`, `frontend/src/user/trip/create/createTrip.tsx`
 
 ### D-30 · 2026-10-21 · รายละเอียดการนำเข้า R5 P4a (ขยาย D-26/D-27)
 - บริบท: ระหว่างวางแผน P4a พบว่า (1) โค้ดยังไม่ได้ใช้ `primary_att_id`/`field_sources` ของ merge (2) แผนเดิมใช้ upsert `onConflict google_place_id` ซึ่งอาจเขียนทับสถานที่ของจังหวัดอื่นเงียบๆ (3) เงื่อนไข "จังหวัดต้องยังไม่มีแถวใน `places`" ทำให้นำเข้าส่วนที่เหลือหลัง "ทดลอง N แถวแรก" ไม่ได้
@@ -185,7 +185,7 @@
   - ป้ายที่มีน้อยมาก (เช่น งานประเพณี 4, โรงหนังเก่า 2)
   - ค่า `category_score` ในสูตร POI (สูตรพักไว้ตาม D-23 — ต้องคุยกับทีม)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ (คาดการณ์): ตาราง `categories` / `place_categories` / `trip_categories`, `backend/src/features/poi/poiPlaceQueries.ts`, `features/categories/categoriesController.ts`, `frontend/src/features/trip/create/createTrip.tsx`, `backend/src/admin/pipeline/import/` (ใส่หมวดตอนนำเข้า), หน้า admin Category Mapping
+- ไฟล์ที่กระทบ (คาดการณ์): ตาราง `categories` / `place_categories` / `trip_categories`, `backend/src/user/poi/poiPlaceQueries.ts`, `user/categories/categoriesController.ts`, `frontend/src/user/trip/create/createTrip.tsx`, `backend/src/admin/pipeline/import/` (ใส่หมวดตอนนำเข้า), หน้า admin Category Mapping
 
 ### D-36 · 2026-10-21 · ผู้ใช้กรอกเวลาที่จะอยู่แต่ละสถานที่เอง และเลิกใช้ `categories.default_duration_min`
 - บริบท: `default_duration_min` (ค่าเริ่มต้น 60 นาที และค่าต่อหมวด) เป็นตัวเลขที่ทีมกำหนดเองโดยไม่มีงานวิจัยรองรับ (เหตุผลเดียวกับ D-35)
@@ -215,7 +215,7 @@
   - ลบตาราง `type_category_weights` (ไม่มีโค้ดใช้) และ `place_types` ใน P5 (แทนที่ D-27 ข้อ "เขียน type จาก Google ลง `place_types`") · type จาก Google ยังเก็บใน `places.gmaps_types` · ต้องเอา `insertPlaceTypes` ออกจากการนำเข้า (`importQueries.ts`, `importJob.ts`, `resolveItem.ts` + test) ก่อนลบตาราง · สำรองก่อนลบ
 - ผลที่ยอมรับ: query ของ Auto Trip ที่ยังอ่านสองคอลัมน์นี้ (`itineraryPlaceQueries.ts`, `autoTripBuilder.ts`, `itineraryController.ts` ส่วน auto) จะใช้ไม่ได้หลังรัน SQL ลบ จนกว่ากิ่งแก้
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ตกลงกับกิ่ง (ผู้ทำ Auto Trip))
-- ไฟล์ที่กระทบ (คาดการณ์): `backend/src/features/poi/poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`, `utils/bestCategoryRow.ts`, ตาราง `categories` / `place_categories` · หลังโค้ดเปลี่ยนต้องแก้ CLAUDE.md (ลำดับ filter ของ POI, กฎ multi-category dedupe)
+- ไฟล์ที่กระทบ (คาดการณ์): `backend/src/user/poi/poiPlaceQueries.ts`, `itineraryPlaceQueries.ts`, `placesController.ts`, `utils/bestCategoryRow.ts`, ตาราง `categories` / `place_categories` · หลังโค้ดเปลี่ยนต้องแก้ CLAUDE.md (ลำดับ filter ของ POI, กฎ multi-category dedupe)
 
 ### D-39 · 2026-10-22 · ตาราง ป้าย ททท. → หมวด (R5 P5a — ขยาย D-35)
 - บริบท: ข้อมูลจริงจาก P5-0 — CSV มี 53 ป้ายใน 3 กลุ่มใหญ่ · `places` 1,230 แถวมี `att_type_label` ครบทุกแถว · หมวดเดิม 15 หมวดชื่ออังกฤษ · ป้าย "ประวัติความเป็นมา" ไม่ใช่ประเภทสถานที่ (สุ่มดูแล้วมีทั้งวัด พิพิธภัณฑ์ ตลาด ธีมปาร์ค สปา)
@@ -281,7 +281,7 @@
   - การนำเข้าเลิกเขียน `place_types` (type จาก Google ยังอยู่ใน `places.gmaps_types`) — แทนที่ D-27 ข้อเขียน `place_types`
   - เก็บตาราง `backup_20261022_*` ไว้ก่อน (Claude เสนอ ผู้ใช้ไม่ได้คัดค้าน) — ลบเมื่อมั่นใจ
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/admin/imports/importQueries.ts`, `admin/pipeline/import/importJob.ts`, `resolveItem.ts` (+ test), `features/categories/categoriesController.ts`, ตาราง `categories`, `place_categories`, `type_category_weights`, `place_types`
+- ไฟล์ที่กระทบ: `backend/src/admin/imports/importQueries.ts`, `admin/pipeline/import/importJob.ts`, `resolveItem.ts` (+ test), `user/categories/categoriesController.ts`, ตาราง `categories`, `place_categories`, `type_category_weights`, `place_types`
 
 ### D-42 · 2026-10-22 · ทำเท่าที่จำเป็น — ตัดงานที่ไม่ทำให้ระบบพัง
 - บริบท: ผู้ใช้อยากทำให้ง่าย แก้เฉพาะสิ่งที่ถ้าไม่แก้แล้วงานพัง ไม่แก้เผื่ออนาคต
@@ -303,7 +303,7 @@
   - ข้อยกเว้นนี้ไม่ครอบคลุมการปรับสูตร POI, จำนวนสถานที่ต่อหมวด, การใช้ ORS แทน haversine, flow แก้ไขแผน หรือการคำนวณ POI ใหม่/เลือกหมวดเมื่อไม่มีสถานที่
   - ไม่เปลี่ยน schema ฐานข้อมูล
 - ผู้ตัดสินใจ: กิ่ง
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/`, `frontend/src/components/AutoTripDurationForm.tsx`, `frontend/src/features/trip/e-tinerary/auto/`, `frontend/src/App.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/`, `frontend/src/components/AutoTripDurationForm.tsx`, `frontend/src/user/trip/e-tinerary/auto/`, `frontend/src/App.tsx`
 
 ### D-44 · 2026-10-23 · ตัวเลือกเวลาเที่ยวของ Auto Trip
 - บริบท: ฟอร์ม Auto Trip ใช้ได้ง่ายขึ้นเมื่อจำกัดเวลาต่อหมวดเป็นตัวเลือกมาตรฐาน
@@ -313,7 +313,7 @@
   - ไม่เปลี่ยนช่วง 1–1440 นาทีของ Itinerary Editor และ `itineraries.visit_duration_min` ตาม D-36
   - ไม่เปลี่ยน schema ฐานข้อมูลหรือ response shape
 - ผู้ตัดสินใจ: กิ่ง
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripDurations.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/autoTripDurations.ts`, `frontend/src/user/trip/recommendations/AutoTripDurationForm.tsx`
 
 ### D-45 · 2026-10-23 · ใช้หมวดที่เลือกจากทริปสำหรับฟอร์มเวลา Auto Trip
 - บริบท: ผู้ใช้เลือกหมวดไว้แล้วตอนสร้างทริป จึงควรกรอกเวลาให้ครบตามหมวดที่เลือก ไม่ใช่เฉพาะหมวดที่บังเอิญมีแถวใน `poi_scores`
@@ -324,7 +324,7 @@
   - Backend ตรวจเวลาโดยอิงหมวดที่ผูกกับทริป และจัดเฉพาะสถานที่ POI ที่จับคู่กับหมวดที่เลือก
   - ไม่เปลี่ยน schema หรือ response shape
 - ผู้ตัดสินใจ: กิ่ง
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/itineraryPlaceQueries.ts`, `backend/src/user/itinerary/itineraryController.ts`, `frontend/src/user/trip/recommendations/AutoTripDurationForm.tsx`
 
 ### D-46 · 2026-10-23 · ตรวจเวลาเปิด Auto Trip ณ เวลาถึงจริง
 - บริบท: การกรองเวลาเปิดที่เวลาเริ่มทริปไม่ตรงกับเวลาที่ไปถึงสถานที่จริง และไม่ควรเลือกสถานที่ที่ทราบว่าปิด
@@ -335,13 +335,13 @@
   - ถ้าหมวดนั้นไม่มีสถานที่เปิดในเวลาที่จัดได้ จะไม่เลือกสถานที่ที่ทราบว่าปิด และลองจัดในวันถัดไปภายในช่วงทริป
   - คงพฤติกรรมสูงสุดหนึ่งสถานที่ต่อหมวดต่อทริป; ไม่เปลี่ยน API contract หรือ schema
 - ผู้ตัดสินใจ: กิ่ง
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryController.ts`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/autoTripBuilder.ts`, `backend/src/user/itinerary/itineraryController.ts`
 
 ### D-47 · 2026-10-25 · เลิกเก็บอายุและเพศของผู้ใช้
 - บริบท: ระบบไม่ได้ใช้อายุ/เพศในส่วนไหน (ไม่มีโค้ดอ่านค่า) และผู้ใช้ไม่อยากเก็บข้อมูลที่ไม่จำเป็น
 - ข้อสรุป (ผู้ใช้เลือก): หน้าสมัครสมาชิกเหลือ ชื่อผู้ใช้ / อีเมล / รหัสผ่าน · `register` เลิกรับและ insert `age`, `gender` · ลบคอลัมน์ `users.age`, `users.gender` ด้วย SQL ที่ผู้ใช้รันเอง ไม่สำรองข้อมูล (มีแต่บัญชีทดสอบ)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/auth/authController.ts`, `frontend/src/features/auth/register/register.tsx`, `frontend/src/system/auth/AuthContext.tsx`, `docs/sql/2026-10-25_drop_users_age_gender.sql`, `docs/DATABASE_SCHEMA.md`
+- ไฟล์ที่กระทบ: `backend/src/user/auth/authController.ts`, `frontend/src/user/auth/register/register.tsx`, `frontend/src/system/auth/AuthContext.tsx`, `docs/sql/2026-10-25_drop_users_age_gender.sql`, `docs/DATABASE_SCHEMA.md`
 
 ### D-48 · 2026-10-25 · category score: เติมหมวดอื่นเมื่อหมวดที่เลือกมีไม่ถึง 50 ที่ (R1 — แทนที่ D-38 ข้อ fallback หมวด)
 - บริบท: หลัง D-35/D-38 สถานที่มี 1 หมวด และ `category_score` เป็น 1.0 ทุกที่ หมวดจึงเป็นแค่ hard filter · ถ้าหมวดที่เลือกมีไม่ถึง Top 50 (เช่น น่าน "จุดชมวิว" 11 แห่ง) หน้าแนะนำแสดงแค่นั้น · วาวิจัยแล้วว่าจุดนี้คือที่ที่ category score ต้องทำงาน
@@ -353,7 +353,7 @@
   - แก้พร้อมกัน: หลัง upsert Top 50 ลบแถว `poi_scores` ของทริปที่หลุดจากผลรอบนี้ (เดิมค้างอยู่ และ Auto Trip อ่านทุกแถว)
 - ผลที่ยอมรับ: `poi_scores` ของทริปที่หมวดไม่ถึง 50 มีสถานที่หมวดอื่นปนอยู่ — Auto Trip (กิ่ง) อ่านทุกแถว ต้องให้กิ่งตรวจว่าจัดเฉพาะหมวดของทริปหรือไม่
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/poi/poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `__tests__/poiScoreCalculator.test.ts`, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-25_poi_category_score_nullable.sql`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_PLAN.md`, skill `supabase-data-access`
+- ไฟล์ที่กระทบ: `backend/src/user/poi/poiPlaceQueries.ts`, `poiScoreCalculator.ts`, `poiController.ts`, `__tests__/poiScoreCalculator.test.ts`, `frontend/src/user/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-25_poi_category_score_nullable.sql`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/DEVELOPMENT_PLAN.md`, skill `supabase-data-access`
 ### D-49 · 2026-10-26 · เติมสถานที่ Auto Trip ภายในเวลารวมของแต่ละหมวด
 - บริบท: Auto Trip เดิมเลือกได้หนึ่งสถานที่ต่อหมวด และใช้เวลาที่กรอกเป็นเวลาเที่ยวต่อสถานที่ ทำให้ไม่สามารถเติมสถานที่เพิ่มภายในเวลาที่ผู้ใช้กำหนดได้
 - ข้อสรุป:
@@ -363,7 +363,7 @@
   - แบ่งเวลาเที่ยวของหมวดให้สถานที่ในหมวดนั้นโดยเฉลี่ย; ถ้าเวลาเปิดหรือเวลาสิ้นสุดวันจำกัด ให้ลดเวลาของจุดเท่าที่จำเป็น
   - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
 - ผู้ตัดสินใจ: กิ่ง
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/autoTripBuilder.ts`, `backend/src/user/itinerary/itineraryPlaceQueries.ts`, `backend/src/user/itinerary/itineraryController.ts`, `backend/src/user/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/user/trip/recommendations/AutoTripDurationForm.tsx`
 
 ### D-50 · 2026-10-26 · ใช้เวลาเที่ยวที่กรอกแยกต่อสถานที่ใน Auto Trip
 - บริบท: ผู้ใช้ยืนยันว่าเวลาที่กรอกต่อหมวดหมายถึงเวลาเที่ยวต่อสถานที่ ไม่ใช่เวลาเฉลี่ยหรือเพดานรวมของหมวด (แทนที่ D-49)
@@ -374,7 +374,7 @@
   - ถ้าเวลาเปิดหรือเวลาสิ้นสุดวันจำกัด อาจลดเวลาเที่ยวของจุดเท่าที่จำเป็น
   - ไม่มีข้อมูลเวลาเปิดยังเลือกได้ตาม D-10/D-46 · คำนวณเวลาและระยะทางจาก ORS Matrix โดย fallback เป็น Haversine เมื่อไม่มีข้อมูล ORS · ไม่เปลี่ยน schema หรือ API contract
 - ผู้ตัดสินใจ: กิ่ง
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `backend/src/features/itinerary/itineraryController.ts`, `backend/src/features/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/autoTripBuilder.ts`, `backend/src/user/itinerary/itineraryPlaceQueries.ts`, `backend/src/user/itinerary/itineraryController.ts`, `backend/src/user/itinerary/__tests__/autoTripBuilder.test.ts`, `frontend/src/user/trip/recommendations/AutoTripDurationForm.tsx`
 
 ### D-51 · 2026-10-26 · daily_budget เป็นงบต่อคนต่อวัน (ปิด Needs Verification #3 / T5 — ขยาย D-01)
 - บริบท: `daily_budget` เดิมเป็นงบรวมของทั้งกลุ่มต่อวัน แต่ราคาสถานที่ (`PRICE_LEVEL_TO_BAHT`) เป็นค่าเดียวไม่คูณจำนวนคน ไปหลายคนจึงดูเหมือนงบพอทั้งที่ไม่พอ · Google ระบุว่าช่วงราคาบน Maps คือ "the average price that people spend per head" (https://support.google.com/local-listings/answer/9851099)
@@ -385,7 +385,7 @@
   - `trips.total_budget` เก็บตัวเลขที่ผู้ใช้กรอกตาม scope/period ตรงๆ (เดิมเก็บยอดที่แปลงแล้ว ทำให้หน้าแก้ไขโหลดกลับผิดและบันทึกซ้ำแล้วงบพอง · TripDetail แสดงผิด) — ใช้แสดงผลและโหลดกลับเท่านั้น ไม่เข้า logic
   - ข้อมูลเดิม: ลบทริปทดสอบทั้งหมด (`docs/sql/2026-10-26_delete_test_trips.sql`) ไม่แปลงค่า
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `frontend/src/features/trip/create/createTrip.tsx`, `backend/src/features/poi/poiScoreCalculator.ts` (`perPersonDailyBudget` เลิกหารจำนวนคน), `poiPlaceQueries.ts`, `poiController.ts`, `TripDetail.tsx`, `ItineraryEditor.tsx`, `MyTrips.tsx`, `docs/sql/2026-10-26_delete_test_trips.sql`
+- ไฟล์ที่กระทบ: `frontend/src/user/trip/create/createTrip.tsx`, `backend/src/user/poi/poiScoreCalculator.ts` (`perPersonDailyBudget` เลิกหารจำนวนคน), `poiPlaceQueries.ts`, `poiController.ts`, `TripDetail.tsx`, `ItineraryEditor.tsx`, `MyTrips.tsx`, `docs/sql/2026-10-26_delete_test_trips.sql`
 
 ### D-52 · 2026-10-26 · ราคาสถานที่ใช้ priceRange ของ Google อย่างเดียว และ price score เทียบงบต่อคน
 - บริบท: `PRICE_LEVEL_TO_BAHT` (200/450/900/1,500) และตาราง price score เดิม (0.9/0.8/80−20×ระดับ) ไม่มีแหล่งอ้างอิง · Google ไม่ผูก price_level กับจำนวนเงิน ("The exact amount indicated by a specific value will vary from region to region." — https://developers.google.com/maps/documentation/places/web-service/details) · Places API (New) มี `priceRange` เป็นเงินจริง (https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places · SKU Enterprise) ซึ่ง Google ระบุว่าเป็นราคาเฉลี่ยต่อคน (https://support.google.com/local-listings/answer/9851099)
@@ -410,7 +410,7 @@
   - หน้า Auto ติดป้าย “สถานที่แนะนำเพิ่มเติม”; ผู้ใช้เอาออกได้ก่อนยืนยัน และจะไม่ส่งสถานที่ที่เอาออกไปบันทึก
   - ใช้เฉพาะ POI score ที่มีอยู่แล้ว ไม่เปลี่ยน D-48 หรือคำนวณ POI เพิ่ม; หากไม่มีตัวเลือกที่เหลือหรือจัดลงไม่ได้ ให้แจ้งว่าไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไข
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `__tests__/autoTripBuilder.test.ts`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `autoTripTypes.ts`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `__tests__/autoTripBuilder.test.ts`, `frontend/src/user/trip/e-tinerary/auto/auto.tsx`, `autoTripTypes.ts`
 
 ### D-54 · 2026-10-27 · Auto Trip ตรวจงบต่อวันด้วยราคา priceRange
 - บริบท: Auto Trip ไม่คัดสถานที่ตามงบระหว่างจัดแผน ทำให้ยอดต่อวันอาจเกินงบและถูกปฏิเสธตอนยืนยัน
@@ -420,7 +420,7 @@
   - ตรวจงบเมื่อ `use_budget === true` และ `daily_budget !== null` เท่านั้น; `getPlaceCost() === null` ไม่เพิ่มยอด และ `free` ที่ไม่มีราคาเป็น 0 ตาม D-52
   - ใช้กับสถานที่หลักและสถานที่แนะนำเพิ่มเติม โดยไม่เปลี่ยนข้อมูลราคาที่ส่งในผล `selected_places`
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryPlaceQueries.ts`, `itineraryController.ts`, `autoTripBuilder.ts`, `__tests__/autoTripBuilder.test.ts`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/itineraryPlaceQueries.ts`, `itineraryController.ts`, `autoTripBuilder.ts`, `__tests__/autoTripBuilder.test.ts`
 
 ### D-55 · 2026-10-27 · น้ำหนัก POI ตั้งต้นใช้ Test 1 และให้ผู้ใช้ปรับน้ำหนักต่อทริปได้ (แทนที่ค่าน้ำหนักใน D-17) · **ถูกแทนที่โดย D-56 — ไม่ทำ**
 - บริบท: กิ่งทดลองน้ำหนัก 4 ชุด (Test 1–4) กับ Museum 14 แห่งในเมืองเชียงใหม่ (รายงาน `E-tinerary (4)/(5)/(6).pdf` นอก repo) และสรุปเสนอ Test 1 · งานวิจัยที่อ้าง (Kesorn et al. 2017, R.-Toubes et al. 2020, Xue & Zhang 2020, Lian 2022) สนับสนุนการเลือกปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก · ให้ผู้ใช้ปรับเองได้ ค่าตั้งต้นจึงเป็นแค่จุดเริ่ม
@@ -432,7 +432,7 @@
 - ยังไม่ได้ตัดสิน: รายการ preset (ข้อเสนอ: Test 1–4 = สมดุล / เน้นหมวด / เน้นอากาศ / เน้นหมวดและรีวิว) · รูปแบบคอลัมน์ (5 คอลัมน์ numeric หรือ jsonb) · ปรับเองแล้วบังคับผลรวม = 100% หรือ normalize ให้
 - ข้อควรระวังจากการตรวจรายงาน (Claude, 2026-10-27): ทดลองบนโค้ดก่อน D-48/D-52 (category 0.4 จาก `confidence_score`, price 0.8 จากตารางเดิม) · ภาพผล "Test 1" ใน `E-tinerary (4).pdf` คำนวณด้วยน้ำหนัก D-17 ไม่ใช่ Test 1 · Museum เป็น INDOOR จึงได้ weather 1 เสมอ → ควรรัน Test 1 ใหม่บนโค้ดปัจจุบันด้วยหลายหมวดก่อนใช้ในรายงาน · Lian 2022 (Wireless Communications and Mobile Computing, Hindawi) ต้องตรวจสถานะ retraction ก่อนอ้าง
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่จะกระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`, `computeWeights`, test), `poiController.ts`, `poiPlaceQueries.ts` (`getTripInfo`), `features/trip/tripController.ts` (สร้าง/แก้ทริป), `frontend/src/features/trip/create/createTrip.tsx`, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/DATABASE_SCHEMA.md`, SQL ใหม่ใน `docs/sql/`
+- ไฟล์ที่จะกระทบ: `backend/src/user/poi/poiScoreCalculator.ts` (`WEIGHTS`, `computeWeights`, test), `poiController.ts`, `poiPlaceQueries.ts` (`getTripInfo`), `user/trip/tripController.ts` (สร้าง/แก้ทริป), `frontend/src/user/trip/create/createTrip.tsx`, `frontend/src/user/trip/recommendations/TripRecommendations.tsx`, `docs/DATABASE_SCHEMA.md`, SQL ใหม่ใน `docs/sql/`
 
 ### D-56 · 2026-10-27 · พักการให้ผู้ใช้ปรับน้ำหนัก POI เอง และหาน้ำหนักของระบบด้วย AHP (แทนที่ D-55) · **ทำแล้ว 2026-11-03 — ใช้น้ำหนัก AHP ในระบบ**
 - บริบท: ผู้ใช้ต้องการให้ทุกตัวเลขในระบบมาจากงานวิจัย ไม่ใช้ตัวเลขที่ทีมคิดเอง (Test 1 มาจากการทดลองของทีม) · ทบทวนงานวิจัยฉบับเต็ม 6 ฉบับ (Lopes et al. 2016, 2020 · Vansteenwegen et al. 2011 · Souffriau et al. 2008 · R.W. Saaty 1987 · Forman & Peniwati 1998) พบว่ารองรับการเลือก 5 ปัจจัย แต่ไม่มีงานไหนให้ค่าน้ำหนัก
@@ -444,7 +444,7 @@
 - รออาจารย์ตัดสิน: กลุ่มและจำนวนผู้ตอบ · วิธีจัดการคำตอบที่ CR ไม่ผ่าน (ให้แก้ หรือตัดออก) · ต้องประเมินผลหลังใช้หรือไม่
 - ข้อควรระวัง: ค่าภายในสูตรที่ยังไม่มีแหล่งอ้างอิงและ AHP ไม่ครอบคลุม — `calculateDistanceScore` = `1/(1+km)` (R3), `RAIN_EXPOSURE.MIXED` = 0.5, rating ที่ไม่มีข้อมูล = 0.5 (แก้แล้วใน D-57 · MIXED ผู้ใช้ยอมรับให้คงไว้)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่จะกระทบ (เมื่อได้ผล AHP): `backend/src/features/poi/poiScoreCalculator.ts` (`WEIGHTS`) + test
+- ไฟล์ที่จะกระทบ (เมื่อได้ผล AHP): `backend/src/user/poi/poiScoreCalculator.ts` (`WEIGHTS`) + test
 - ✅ ผล (2026-11-03, ผู้ใช้เลือก — รายละเอียดเต็มที่ `docs/AHP_POI_WEIGHTS.md`):
   - ผู้ตอบ 42 คน · CR รายคนผ่าน 0.10 ไม่มีเลย (มัธยฐาน 0.345) → ใช้ผู้ตอบทุกคนตาม Battistoni et al. 2013 (ไม่ตัดออก แทนข้อเสนอเดิม)
   - รวมผลแบบ AIJ (ค่าเฉลี่ยเรขาคณิตของคำตอบ) ตาม Battistoni et al. 2013 แทน AIP · ตรวจด้วยการแบ่งกลุ่ม CR ≤ 0.1/0.2/0.5/1.0 + Compatibility Index ≤ 1.1 (Saaty 1994): 0.5 และ 1.0 ผ่าน · 0.2 (6 คน) ได้ 1.112 ไม่ผ่าน · 0.1 ไม่มีผู้ตอบ → รายงานเป็นข้อจำกัด
@@ -459,7 +459,7 @@
   - `RAIN_EXPOSURE.MIXED` = 0.5 ผู้ใช้ยอมรับให้คงไว้
 - ✅ ผู้ใช้รัน `docs/sql/2026-10-27_poi_rating_score_nullable.sql` แล้ว (2026-10-27) — ยังไม่ได้ตรวจว่าการคำนวณรอบใหม่บันทึก `rating_score` = null ได้จริง (`poi_scores` ที่มีอยู่คำนวณก่อน D-57 ทั้งหมด)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`
+- ไฟล์ที่กระทบ: `backend/src/user/poi/poiScoreCalculator.ts` (`calculateRatingScore`, `computeWeights`) + test, `frontend/src/user/trip/recommendations/TripRecommendations.tsx`, `docs/sql/2026-10-27_poi_rating_score_nullable.sql`, `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`
 
 ### D-58 · 2026-11-03 · ลบฟังก์ชันที่ไม่มีใครใช้ใน itineraryBuilder (แทนที่ D-04) · **ทำแล้ว**
 - บริบท: ระหว่างเคลียร์โค้ดทั้ง repo พบว่า `buildNearestNeighborOrder` ไม่มีที่เรียกใช้ และ Auto Trip ใช้ `nearestNeighborTsp` ใน `tspRouteOptimizer.ts` ของตัวเองแล้ว (เหตุผลของ D-04 จึงไม่มีแล้ว) · `buildInitialDraft` คืน `[]` เสมอโดยไม่ใช้พารามิเตอร์ · frontend mirror มี `buildItinerary` ที่หน้าเว็บไม่ได้เรียก (หน้าเว็บใช้แค่ `buildDayItems`)
@@ -468,7 +468,7 @@
   - ลบ `buildItinerary` เฉพาะฝั่ง frontend (backend ยังใช้ตอนยืนยันแผน)
   - mirror ตอนนี้ = `buildDayItems`, `resolveTravelMetric`, `getDayOfWeek` + type ต้องตรงกันทุกบรรทัด
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/itineraryBuilder.ts`, `itineraryController.ts`, `frontend/src/features/trip/e-tinerary/lib/itineraryBuilder.ts`, skill `itinerary-mirror-sync`, skill `clean-code` · กู้คืนได้จาก git ก่อน commit นี้
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/itineraryBuilder.ts`, `itineraryController.ts`, `frontend/src/user/trip/e-tinerary/lib/itineraryBuilder.ts`, skill `itinerary-mirror-sync`, skill `clean-code` · กู้คืนได้จาก git ก่อน commit นี้
 
 ### D-59 · 2026-11-04 · Auto Trip ใช้เวลาเที่ยวคงที่ 1 ชั่วโมงต่อสถานที่ (แทนที่ D-50 และส่วนกำหนดเวลาใน D-53)
 - บริบท: ผู้ใช้ยกเลิกการกรอกเวลาเที่ยวแยกตามหมวด และกำหนดให้แต่ละสถานที่ใช้เวลาเที่ยว 1 ชั่วโมง
@@ -477,7 +477,7 @@
   - Backend กำหนดเวลาเที่ยว 60 นาทีเต็มต่อสถานที่ ทั้งสถานที่ในหมวดที่เลือกและสถานที่แนะนำ; ไม่ลดเวลาเมื่อเวลาเปิดหรือเวลาที่เหลือของวันไม่พอ แต่ข้ามสถานที่นั้น
   - เวลาเดินทางยังคำนวณแยกจากเวลาเที่ยว และยังตรวจเวลาเปิด/ปิดกับเวลาของแต่ละวันตามเดิม
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `itineraryRoutes.ts`, `autoTripDurations.ts` (ลบ), `__tests__/autoTripBuilder.test.ts`, `__tests__/autoTripDurations.test.ts` (ลบ), `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `frontend/src/features/trip/recommendations/AutoTripDurationForm.tsx` (ลบ), `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/REPORT_REVISION.md`
+- ไฟล์ที่กระทบ: `backend/src/user/itinerary/autoTripBuilder.ts`, `itineraryController.ts`, `itineraryRoutes.ts`, `autoTripDurations.ts` (ลบ), `__tests__/autoTripBuilder.test.ts`, `__tests__/autoTripDurations.test.ts` (ลบ), `frontend/src/user/trip/e-tinerary/auto/auto.tsx`, `frontend/src/user/trip/recommendations/AutoTripDurationForm.tsx` (ลบ), `docs/ARCHITECTURE.md`, `docs/PROJECT_OVERVIEW.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_STATUS.md`, `docs/REPORT_REVISION.md`
 
 ### D-60 · 2026-11-13 · ทริปยาวไม่เกิน 31 วัน และปฏิทินเลือกวันบอกว่าวันไหนมีพยากรณ์อากาศ
 - บริบท: Open-Meteo พยากรณ์ได้ 16 วันรวมวันนี้ (ลองเรียกจริง 2026-11-13: ขอ `end_date` เกิน 2026-11-28 ได้ error) ผู้ใช้ควรรู้ตอนเลือกวันว่าวันไหนยังไม่มีพยากรณ์ และเดิมไม่มีการจำกัดวันเลย
@@ -489,7 +489,7 @@
   - วันสุดท้ายที่พยากรณ์ได้ (`forecastLastDay`) = วันที่ UTC + 15 ทั้ง backend และ frontend เพราะ Open-Meteo นับ "วันนี้" ตาม UTC ไม่ว่าจะส่ง `timezone` อะไร (ลองจริง 2026-11-13: Asia/Bangkok, UTC, Pacific/Kiritimati, Pacific/Pago_Pago ได้ช่วงเดียวกันหมด) · เดิมนับจากวันที่ไทย ช่วงเที่ยงคืน–7 โมงเช้าจึงขอเกิน 1 วันแล้ว API error ทั้ง request · วันแรกของช่วงยังเป็นวันนี้ตามเวลาไทย
   - หน้าแนะนำสถานที่แสดงสภาพอากาศบนการ์ด (2026-11-13): `calculate-poi` ส่ง `environmentType` และ `rainProbability` (โอกาสฝนเฉลี่ย % หรือ null) เพิ่มในแต่ละผล · ในร่ม = "ในร่ม" · กลางแจ้ง/บางส่วน = โอกาสฝน % (ตั้งแต่ 50% ใช้ไอคอนฝน) หรือ "ยังไม่มีพยากรณ์อากาศ" · สูตรคะแนนไม่เปลี่ยน
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/utils/weatherForecast.ts`, `backend/src/utils/__tests__/weatherForecast.test.ts` (ใหม่), `backend/src/features/trip/tripDateRange.ts` (ใหม่), `tripController.ts`, `__tests__/tripDateRange.test.ts` (ใหม่), `frontend/src/features/trip/create/tripDates.ts` (ใหม่), `create/components/TripDatePicker.tsx` (ใหม่), `create/createTrip.tsx`
+- ไฟล์ที่กระทบ: `backend/src/utils/weatherForecast.ts`, `backend/src/utils/__tests__/weatherForecast.test.ts` (ใหม่), `backend/src/user/trip/tripDateRange.ts` (ใหม่), `tripController.ts`, `__tests__/tripDateRange.test.ts` (ใหม่), `frontend/src/user/trip/create/tripDates.ts` (ใหม่), `create/components/TripDatePicker.tsx` (ใหม่), `create/createTrip.tsx`
 
 ### D-61 · 2026-11-13 · หน้าแนะนำซ่อนสถานที่หมวดอื่นที่ระบบเติมให้เป็นค่าเริ่มต้น
 - บริบท: ผู้ใช้อยากเห็นเฉพาะสถานที่ตรงหมวดก่อน แล้วเลือกเองว่าจะเติมหมวดอื่นไหม (เดิมเสนอช่องติ๊กในหน้าสร้างทริป แต่ต้องเพิ่มคอลัมน์และขัด D-48 จึงทำเป็นสวิตช์ในหน้าแนะนำแทน)
@@ -501,13 +501,13 @@
   - กล่องแจ้งระยะทางเส้นตรงขึ้นเฉพาะเมื่อการ์ดที่แสดงอยู่มีระยะทางเส้นตรงจริง
   - Auto Trip ทำตามสวิตช์: สวิตช์ปิดอยู่ หน้าแนะนำเปิด `/trip/:id/auto?others=0` → หน้า Auto ส่ง `include_recommendations: false` → `buildAutoTripController` ไม่เพิ่มสถานที่แนะนำเพิ่มเติม (หมวดอื่นตาม D-53) · ไม่ส่งค่า = เพิ่มตามปกติ · ไม่มีที่ตรงหมวดเลยหรือไม่มีการเติม = ไม่ส่ง `others=0`
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (ส่วน Auto Trip เป็นโค้ดของกิ่ง ต้องแจ้งกิ่ง)
-- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`, `backend/src/features/itinerary/itineraryController.ts`
+- ไฟล์ที่กระทบ: `frontend/src/user/trip/recommendations/TripRecommendations.tsx`, `frontend/src/user/trip/e-tinerary/auto/auto.tsx`, `backend/src/user/itinerary/itineraryController.ts`
 
 ### D-62 · 2026-11-13 · เวลาว่างต่อวันต้องกรอกเสมอ
 - บริบท: คอลัมน์ `trips.available_time_per_day` เป็น `integer not null` (ผู้ใช้ส่ง DDL จาก Supabase 2026-11-13) แต่หน้าสร้างทริปไม่บังคับกรอกและ backend ไม่ตรวจ ถ้าเว้นว่างจะส่ง null แล้วบันทึกล้มด้วย error ของ Supabase
 - ข้อสรุป: บังคับกรอก (ไม่แก้ DB) — ช่องในหน้าสร้าง/แก้ไขทริปมี `required` · `validateTripBody` ตอบ 400 "กรุณากรอกเวลาว่างต่อวัน" และต้องเป็นจำนวนเต็มตั้งแต่ 1 ชั่วโมง · โค้ด Itinerary/Auto Trip ที่รองรับ `end_time` ว่างยังคงไว้ (ไม่แตะ)
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `backend/src/features/trip/tripController.ts`, `frontend/src/features/trip/create/createTrip.tsx`
+- ไฟล์ที่กระทบ: `backend/src/user/trip/tripController.ts`, `frontend/src/user/trip/create/createTrip.tsx`
 
 > D-63–D-65 เป็นงานของกิ่งใน branch `feature/choose-trip-and-map-v2` (6 พ.ย.) ซึ่งใช้เลข D-60–D-62 ซ้ำกับมติบน dev — เปลี่ยนเลขตอน merge เข้า dev 2026-11-13 (เนื้อหาเดิม)
 
@@ -518,7 +518,7 @@
   - บันทึกหมวดด้วย endpoint เดิม แล้วคำนวณ POI ใหม่ก่อนตรวจสถานที่และเปิดหน้า Auto Trip
   - ไม่เปลี่ยน schema และหน้าสร้างทริปยังไม่บังคับเลือกหมวด
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `docs/DEVELOPMENT_STATUS.md`
+- ไฟล์ที่กระทบ: `frontend/src/user/trip/recommendations/TripRecommendations.tsx`, `docs/DEVELOPMENT_STATUS.md`
 
 ### D-64 · 2026-11-06 · แสดงผล Auto Trip ทันทีหลังเลือกและบันทึกหมวด
 - บริบท: หลังเลือกและบันทึกหมวด ผู้ใช้ต้องกดปุ่มจัดทริปอัตโนมัติซ้ำในหน้า Auto Trip อีกครั้ง
@@ -526,7 +526,7 @@
   - หลังบันทึกหมวดและคำนวณ POI แล้ว ให้เรียกจัด Auto Trip ทันทีและส่งผลไปหน้าแสดงแผน
   - คงปุ่มเริ่มจัดทริปไว้สำหรับกรณีที่เข้าหน้า Auto Trip ตาม flow ปกติ
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`, `frontend/src/features/trip/e-tinerary/auto/auto.tsx`
+- ไฟล์ที่กระทบ: `frontend/src/user/trip/recommendations/TripRecommendations.tsx`, `frontend/src/user/trip/e-tinerary/auto/auto.tsx`
 
 ### D-65 · 2026-11-06 · จัด Auto Trip ทันทีเมื่อทริปมีหมวดอยู่แล้ว
 - บริบท: เมื่อมีหมวดในทริปอยู่ก่อนแล้ว ปุ่มจากหน้าแนะนำยังเปิดหน้า Auto Trip ที่ต้องกดเริ่มคำนวณอีกครั้ง
@@ -534,5 +534,5 @@
   - เมื่อกดจัดทริปอัตโนมัติและทริปมีหมวดแล้ว ให้เรียกจัดทริปทันที และส่งผลไปหน้าแสดงแผน
   - รวมการเรียกคำนวณและส่งผลเข้าหน้าแสดงแผนไว้ใน flow เดียวกันทั้งกรณีมีหมวดเดิมและกรณีเพิ่งเลือกหมวด
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
-- ไฟล์ที่กระทบ: `frontend/src/features/trip/recommendations/TripRecommendations.tsx`
+- ไฟล์ที่กระทบ: `frontend/src/user/trip/recommendations/TripRecommendations.tsx`
 - ตอน merge (2026-11-13): การเรียกจัดทริปจากหน้าแนะนำส่ง `include_recommendations` ตามสวิตช์ของ D-61 และเปิดหน้า Auto ด้วย `?others=0` เมื่อปิดสวิตช์ ให้ปุ่มจัดใหม่ในหน้า Auto ทำแบบเดียวกัน · ทริปที่เพิ่งเลือกหมวดใน popup ยังไม่มีสวิตช์บนหน้า จึงเพิ่มสถานที่แนะนำเพิ่มเติมตามปกติ

@@ -6,12 +6,12 @@ description: วางแผนและพัฒนาฟีเจอร์ใ�
 # Feature Development (E-tinerary)
 
 ## ขอบเขต
-ใช้กับฟีเจอร์ใน `backend/src/features/*` และ `frontend/src/features/*` รวมถึงฝั่ง admin (`backend/src/admin/*`, `frontend/src/admin/*` — D-24) ถ้าฟีเจอร์แตะ logic ของ itinerary ให้ใช้ `itinerary-mirror-sync` ร่วมด้วย ถ้าแตะ query ให้ใช้ `supabase-data-access` ร่วมด้วย
+ใช้กับฟีเจอร์ใน `backend/src/user/*` และ `frontend/src/user/*` รวมถึงฝั่ง admin (`backend/src/admin/*`, `frontend/src/admin/*` — D-24) ถ้าฟีเจอร์แตะ logic ของ itinerary ให้ใช้ `itinerary-mirror-sync` ร่วมด้วย ถ้าแตะ query ให้ใช้ `supabase-data-access` ร่วมด้วย
 
 ## ขั้นตอน
 1. **ทำความเข้าใจคำขอ** — เขียน requirement สั้นๆ แล้วเทียบกับ `docs/DECISIONS.md` และ `docs/DEVELOPMENT_PLAN.md` ถ้าคำขอขัดกับมติหรือกำกวม ให้หยุดแล้วถาม
 2. **สำรวจโค้ดจริง** (ห้ามข้าม)
-   - หา route ใน `backend/src/server.ts` → `features/<x>/<x>Routes.ts` → controller → queries/builder
+   - หา route ใน `backend/src/server.ts` → `user/<x>/<x>Routes.ts` → controller → queries/builder
    - หาหน้า UI ใน `frontend/src/App.tsx` → component → ดูว่า fetch ไป endpoint ไหน และส่ง `location.state` อะไรต่อ (editor/auto/detail ส่งข้อมูลกันผ่าน router state)
    - `grep` หา caller ทั้งหมดของฟังก์ชันหรือ field ที่จะเปลี่ยน รวมถึง response shape ที่ frontend อ่านอยู่ (เช่น `tripDays`, `items`, `travelMatrix`)
 3. **เสนอแผนก่อนลงมือ** (ต้องทำถ้าแตะเกิน 2 ไฟล์ หรือเปลี่ยน API contract/DB): ไฟล์ที่จะแก้, contract ใหม่ของ request/response, ผลกระทบต่อหน้าเดิม, วิธีตรวจ แล้วรอผู้ใช้ยืนยัน

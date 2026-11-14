@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../features/auth/authMiddleware";
+import { requireAuth } from "../user/auth/authMiddleware";
 import { requireAdmin } from "./requireAdmin";
 import { getAdminMe } from "./adminController";
 import provincesRoutes from "./provinces/provincesRoutes";

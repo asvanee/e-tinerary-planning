@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { AuthRequest } from "../../features/auth/authMiddleware";
+import { AuthRequest } from "../../user/auth/authMiddleware";
 import { isUuid } from "../../utils/uuid";
 import { getProvinceRows } from "../pipeline/attractionCsv";
 import { AttractionRow } from "../pipeline/attractionTypes";

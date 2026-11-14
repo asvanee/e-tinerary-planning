@@ -2,7 +2,7 @@ import { checkOpeningStatus } from "./openingHoursChecker";
 import type { OpeningHours } from "./openingHoursChecker";
 import { haversineKm } from "./haversine";
 
-// ⚠️ ต้องแก้คู่กับ backend/src/features/itinerary/itineraryBuilder.ts (ใช้ skill itinerary-mirror-sync)
+// ⚠️ ต้องแก้คู่กับ backend/src/user/itinerary/itineraryBuilder.ts (ใช้ skill itinerary-mirror-sync)
 // คำนวณแผนใหม่ทันทีตอนผู้ใช้ลากจัดในหน้า editor — backend ตรวจซ้ำด้วยโค้ดเดียวกันก่อนบันทึก
 // ค่าคงที่และฟังก์ชันที่ backend import จาก utils/ ประกาศซ้ำไว้ในไฟล์นี้
 

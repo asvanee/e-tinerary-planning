@@ -34,8 +34,8 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 | หมวดของสถานที่ | embed `category_labels!inner(categories!inner(...))` จาก `places` (เช่น `getSelectedPlaces`) |
 | query ที่อาจเกิน 1000 แถว | `selectAll` ใน `admin/provinces/decisionQueries.ts` + `.range()` |
 | ระยะทางเส้นตรง | `utils/haversine.ts` (mirror ฝั่ง frontend) |
-| format เวลา/ราคา/ระยะในหน้าทริป | `frontend/src/features/trip/lib/format.ts` |
-| ช่วงเวลาเปิด-ปิดเพื่อแสดงผล | `frontend/src/features/trip/lib/openingDays.ts` |
+| format เวลา/ราคา/ระยะในหน้าทริป | `frontend/src/user/trip/lib/format.ts` |
+| ช่วงเวลาเปิด-ปิดเพื่อแสดงผล | `frontend/src/user/trip/lib/openingDays.ts` |
 | เรียก API ของ admin | `admin/lib/adminApi.ts::adminRequest` + `errorMessage` · โหลดข้อมูลใน useEffect ใช้ `loadAdmin` |
 | ตรวจเจ้าของทริป | `loadOwnedTrip` (itinerary) / `.eq("user_id", userId)` (trip) |
 | ตรวจ user + tripId ใน controller | `requireTripParams` (trip) / `getTripId` (itinerary) |
@@ -44,7 +44,7 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 | cache ในหน่วยความจำที่หมดอายุ | `utils/ttlCache.ts::TtlCache` |
 | ยิง ORS Matrix | `utils/orsMatrixRequest.ts::postOrsMatrix` + `coordKey` |
 | แปลงเวลา "HH:MM" ↔ นาที | `utils/timeString.ts` (mirror อยู่ใน frontend itineraryBuilder) |
-| ป้ายปัญหาของสถานที่ในแผน | `frontend/src/features/trip/components/ConflictBadges.tsx` |
+| ป้ายปัญหาของสถานที่ในแผน | `frontend/src/user/trip/components/ConflictBadges.tsx` |
 | ออกจากระบบ | `system/auth/useLogout.ts` |
 
 - Controller: validate input → `try { … } catch (err) { console.error("<ชื่อ> error:", err); res.status(500).json({ message: "<ไทย>" }) }`
@@ -62,7 +62,7 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 - **Controller/query**: mock `config/db` ด้วย Proxy ที่บันทึกการเรียก แล้วเทียบ status + JSON + ลำดับการเรียก Supabase ของโค้ดเก่า/ใหม่
 - **Mirror**: diff สองฝั่งต้องต่างกันแค่ header/import/ค่าคงที่ที่ frontend ประกาศเอง (ดู `itinerary-mirror-sync`)
 - เก็บไฟล์เก่าไว้ใน scratchpad (`git archive HEAD backend/src frontend/src`) แล้วเทียบเก่า/ใหม่ด้วย input ชุดเดียวกัน · ลองใส่ bug ปลอมในสำเนาเก่าเพื่อยืนยันว่าตัวเทียบจับได้จริง
-- งานใหญ่แบ่งเป็นชุดตามส่วนของโค้ด (utils → features → admin → frontend) แต่ละชุดตรวจครบแล้วค่อย commit แยก
+- งานใหญ่แบ่งเป็นชุดตามส่วนของโค้ด (utils → user → admin → frontend) แต่ละชุดตรวจครบแล้วค่อย commit แยก
 
 ## Checklist ก่อนรายงานว่าเสร็จ
 - [ ] ทำงานครบตามที่ขอ รวมกรณี error/ว่าง/โหลด (UI มีสถานะ loading, error พร้อมปุ่มลองใหม่, ว่าง)
