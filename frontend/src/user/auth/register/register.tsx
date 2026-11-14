@@ -11,6 +11,7 @@ import {
   CircleCheck,
 } from "lucide-react";
 
+// หน้าสมัครสมาชิก: ส่งข้อมูลให้ backend สำเร็จแล้วไปหน้าแจ้งยืนยันอีเมล (/confirm-email) · มีลิงก์ไปหน้า login (/login)
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");

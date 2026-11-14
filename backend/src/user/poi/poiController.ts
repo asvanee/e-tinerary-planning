@@ -19,7 +19,7 @@ async function deleteStalePoiScores(tripId: string, keepPlaceIds: string[]) {
   return query;
 }
 
-// คำนวณคะแนน POI ของทริปใหม่ทุกครั้ง: กรองสถานที่ → หาระยะทาง + พยากรณ์ฝน → คิดคะแนน
+// คำนวณคะแนน POI ของทริปใหม่ รับ tripId จาก path (คิดใหม่ทั้งหมดทุกครั้ง): กรองสถานที่ → หาระยะทาง + พยากรณ์ฝน → คิดคะแนน
 // → เก็บ 50 อันดับแรกลง poi_scores แล้วลบผลเก่าที่หลุดอันดับ
 export const calculatePoi = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;

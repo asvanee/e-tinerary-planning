@@ -54,11 +54,13 @@ function formatDuration(minutes?: number | null) {
   return mins === 0 ? `${hours} ชม.` : `${hours} ชม. ${mins} นาที`;
 }
 
+// ระยะทางเป็นข้อความ เช่น "2.5 กม." (ไม่มีค่าแสดง "-")
 function formatDistance(distance?: number | null) {
   if (distance == null) return "-";
   return `${Number(distance).toFixed(1)} กม.`;
 }
 
+// เปิด Google Maps ที่พิกัดนี้ในแท็บใหม่
 function openGoogleMaps(latitude: number, longitude: number) {
   window.open(
     `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
@@ -67,6 +69,7 @@ function openGoogleMaps(latitude: number, longitude: number) {
   );
 }
 
+// ดึงข้อความ message จากผลที่ backend ตอบ (ไม่มี = undefined)
 function getResponseMessage(payload: unknown): string | undefined {
   if (
     typeof payload === "object" &&
@@ -80,6 +83,7 @@ function getResponseMessage(payload: unknown): string | undefined {
   return undefined;
 }
 
+// เช็คว่าผลที่ได้เป็นผล Auto Trip ที่ใช้ได้ (มี trip_id และ days)
 function isAutoTripResponse(value: unknown): value is AutoTripResponse {
   return (
     typeof value === "object" &&
@@ -91,7 +95,7 @@ function isAutoTripResponse(value: unknown): value is AutoTripResponse {
   );
 }
 
-// หน้า Auto Trip: จัดแผนอัตโนมัติ → ยืนยันบันทึกหรือส่งต่อไปแก้ในหน้า editor
+// หน้า Auto Trip: แสดงแผนที่ระบบจัดให้ (รับผลมาจากหน้าแนะนำ หรือกดจัดใหม่เอง) แล้วเลือกยืนยันบันทึกหรือส่งต่อไปแก้ในหน้า editor
 export default function AutoTrip() {
   const { tripId } = useParams();
   const { state } = useLocation();
@@ -188,10 +192,12 @@ export default function AutoTrip() {
     [visibleDays]
   );
 
+  // กลับหน้าแนะนำสถานที่ของทริปนี้
   const handleBack = () => {
     navigate(`/trip/${tripId}/recommendations`);
   };
 
+  // ให้ backend จัดทริปอัตโนมัติใหม่ (POST /auto) แล้วแสดงผลที่ได้
   const handleGenerateTrip = async () => {
     if (!tripId || !session) return;
 
@@ -238,6 +244,7 @@ export default function AutoTrip() {
   };
 
   // ส่งแผนนี้ไปแก้ต่อในหน้า editor (ต้องสร้าง draft ก่อนเพื่อได้ trip_day_id และ travel matrix)
+  // ปุ่มแก้ไขเส้นทาง: เตรียมแผนปัจจุบัน (สถานที่ + ร่างแผน) แล้วไปหน้า editor
   const handleEditTrip = async () => {
     if (!tripId || !session) return;
 
@@ -345,6 +352,7 @@ export default function AutoTrip() {
   };
 
   // บันทึกแผน — backend คำนวณและตรวจซ้ำก่อนบันทึก
+  // ปุ่มยืนยันแผน: บันทึกแผนนี้ลงทริป (PUT) สำเร็จแล้วไปหน้ารายละเอียดทริป
   const handleConfirmTrip = async () => {
     if (!data || !tripId || !session) {
       return;
@@ -464,6 +472,7 @@ export default function AutoTrip() {
             <p className="text-sm text-[color:var(--muted)]">
               ระบบกำหนดเวลาเที่ยวสถานที่ละ 1 ชั่วโมง และคำนวณเวลาเดินทางกับเวลาเปิด-ปิดให้
             </p>
+            {/* ปุ่มจัดทริปอัตโนมัติ → ให้ระบบจัดแผน */}
             <button
               onClick={handleGenerateTrip}
               disabled={generating}
@@ -516,6 +525,7 @@ export default function AutoTrip() {
       <Navbar />
 
       <div className="fade-in max-w-5xl mx-auto px-4 py-6">
+        {/* ปุ่มกลับสถานที่แนะนำ → หน้าแนะนำสถานที่ */}
         <button
           onClick={handleBack}
           className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
@@ -537,6 +547,7 @@ export default function AutoTrip() {
           </p>
 
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
+            {/* ปุ่มยืนยันแผน → บันทึกแล้วไปหน้ารายละเอียดทริป */}
             <button
               onClick={handleConfirmTrip}
               disabled={saving || editing}
@@ -554,6 +565,7 @@ export default function AutoTrip() {
                 </>
               )}
             </button>
+            {/* ปุ่มแก้ไขเส้นทาง → ไปแก้ในหน้า editor */}
             <button
               onClick={handleEditTrip}
               disabled={saving || editing}
@@ -609,6 +621,7 @@ export default function AutoTrip() {
           {visibleDays.map((day, index) => {
             const stops = getDayStops(index);
             const active = selectedDay === index;
+            // แท็บเลือกวัน 1 วัน → แสดงสถานที่และแผนที่ของวันนั้น
             return (
               <button
                 key={index}
@@ -726,6 +739,7 @@ export default function AutoTrip() {
                       </li>
                     </ul>
 
+                    {/* ปุ่มดูตำแหน่ง → เปิด Google Maps ที่สถานที่นี้ */}
                     <button
                       onClick={() => openGoogleMaps(stop.latitude, stop.longitude)}
                       className="mt-3 inline-flex items-center gap-1.5 text-sm text-[color:var(--deep)] underline underline-offset-2 hover:text-[color:var(--navy)]"
@@ -733,6 +747,7 @@ export default function AutoTrip() {
                       <ExternalLink size={14} strokeWidth={1.75} />
                       ดูตำแหน่งบน Google Maps
                     </button>
+                    {/* ปุ่มไม่เอาสถานที่นี้ → ตัดสถานที่แนะนำเพิ่มเติมออกจากแผน (มีเฉพาะสถานที่นอกหมวดที่เลือก) */}
                     {stop.is_recommendation && (
                       <button
                         onClick={() =>

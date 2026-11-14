@@ -3,6 +3,7 @@ import { useAuth } from "../../system/auth/useAuth";
 import LoginForm from "../../system/auth/LoginForm";
 import type { LoginResult } from "../../system/auth/LoginForm";
 
+// หน้า login ของ admin: login แล้วต้องเป็น admin จริงถึงเข้า /admin ได้ · มีปุ่มกลับไป login ของผู้ใช้ (/login)
 export default function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();

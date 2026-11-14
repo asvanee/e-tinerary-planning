@@ -38,6 +38,7 @@ const pinIcon = L.divIcon({
     iconAnchor: [11, 11],
 });
 
+// ค้นหาสถานที่ในไทยจาก Nominatim ด้วยข้อความ query (signal ใช้ยกเลิกคำค้นเก่า) คืนรายการผลลัพธ์
 async function searchPlaces(query: string, signal: AbortSignal): Promise<SearchResult[]> {
     const params = new URLSearchParams({
         format: "jsonv2",
@@ -88,6 +89,8 @@ interface LocationPinPickerProps {
     onConfirm: (lat: number, lng: number, address: string | null) => void;
 }
 
+// แผนที่ปักหมุดจุดเริ่มต้นทริป: ค้นหาสถานที่หรือคลิก/ลากหมุดบนแผนที่ แล้วกด "ยืนยันปักหมุด"
+// รับพิกัดเริ่มต้น (กรณีแก้ทริป) และ onConfirm ที่เรียกเมื่อกดยืนยัน
 export default function LocationPinPicker({
     initialLat,
     initialLng,
@@ -196,6 +199,7 @@ export default function LocationPinPicker({
                             className="w-full min-h-12 pl-12 pr-4 py-3 rounded-xl border border-[color:var(--line)] bg-white text-[color:var(--text)] placeholder:text-[color:var(--muted)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--navy)] focus:ring-4 focus:ring-[color:var(--line)] transition-all duration-200 font-sarabun"
                         />
                     </div>
+                    {/* ปุ่มค้นหา → ค้นหาสถานที่จากข้อความที่พิมพ์ */}
                     <button
                         type="button"
                         onClick={() => void runSearch()}
@@ -217,6 +221,7 @@ export default function LocationPinPicker({
                     >
                         {results.map((result) => (
                             <li key={result.id} className="border-b border-[color:var(--line)] last:border-b-0">
+                                {/* ผลการค้นหา 1 รายการ → กดแล้วย้ายหมุดไปที่นั่น (ยังต้องกดยืนยันปักหมุดอีกครั้ง) */}
                                 <button
                                     type="button"
                                     onClick={() => pickResult(result)}
@@ -290,6 +295,7 @@ export default function LocationPinPicker({
                     </span>
                 </p>
 
+                {/* ปุ่มยืนยันปักหมุด → ส่งพิกัดและที่อยู่ให้ฟอร์ม */}
                 <button
                     type="button"
                     onClick={handleConfirm}

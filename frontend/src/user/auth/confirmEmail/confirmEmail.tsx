@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { MailCheck } from "lucide-react";
 
+// หน้าแจ้งให้ไปยืนยันอีเมลหลังสมัคร · มีปุ่มกลับหน้าแรก (/)
 export default function ConfirmEmail() {
   const navigate = useNavigate();
 

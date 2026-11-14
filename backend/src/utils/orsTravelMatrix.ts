@@ -36,11 +36,13 @@ interface PairMetric {
 
 const pairCache = new TtlCache<PairMetric>(100_000);
 
+// key ใน cache ของคู่สถานที่ a → b (รับ profile ของ ORS กับ 2 จุด)
 function pairKey(profile: string, a: TravelPoint, b: TravelPoint): string {
   return `${profile}|${coordKey(a.latitude, a.longitude)}|${coordKey(b.latitude, b.longitude)}`;
 }
 
-// ยิง ORS ทีละชุดของต้นทาง — ชุดไหนล้มจะหยุด แล้วคืนเท่าที่ได้ (ที่เหลือเป็น null)
+// ถาม ORS ขอระยะทาง+เวลาของทุกคู่จากรายการจุด แบ่งยิงทีละชุดของต้นทาง
+// ชุดไหนล้มจะหยุด แล้วคืนเท่าที่ได้ (ที่เหลือเป็น null)
 async function fetchOrsMatrix(points: TravelPoint[]) {
   const n = points.length;
   const distances: (number | null)[][] = points.map(() => new Array(n).fill(null));
@@ -84,6 +86,7 @@ async function fetchOrsMatrix(points: TravelPoint[]) {
   return { distances, durations };
 }
 
+// ปัดทศนิยม 2 ตำแหน่ง
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -93,11 +96,13 @@ function toMinutes(seconds: number): number {
   return Math.max(1, Math.round(seconds / 60));
 }
 
+// เช็คว่าเป็นตัวเลขจริง (ไม่ใช่ null/NaN)
 function isFiniteNumber(v: number | null | undefined): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
-// สร้าง matrix ของทุกคู่ (ส่งจุดเริ่มต้นมาด้วย id = TRIP_START_ID · id ซ้ำใช้ตัวแรก)
+// สร้าง matrix ระยะทาง+เวลาเดินทางของทุกคู่ รับรายการจุด (จุดเริ่มต้นทริปใช้ id = TRIP_START_ID · id ซ้ำใช้ตัวแรก)
+// ลำดับ: ดูจาก cache → ถาม ORS เฉพาะคู่ที่ขาด → คู่ที่ยังไม่มีใช้ haversine
 export async function buildTravelMatrix(input: TravelPoint[]): Promise<TravelMatrix> {
   const seen = new Set<string>();
   const points = input.filter((p) => !seen.has(p.id) && seen.add(p.id));

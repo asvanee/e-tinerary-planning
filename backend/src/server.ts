@@ -25,6 +25,7 @@ app.use("/api/itinerary", itineraryRoutes);
 app.use("/api/place-dropdown", placeDropdownRoutes); // แยกจาก /api/places กัน path ชน
 app.use("/api/admin", adminRoutes);
 
+// ตรวจ DB → ปิดงานนำเข้าที่ค้าง → เปิด server (ต่อ DB ไม่ได้ = ออกทันที)
 async function startServer() {
   const isConnected = await checkDbConnection();
   if (!isConnected) {

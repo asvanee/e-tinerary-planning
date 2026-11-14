@@ -86,7 +86,8 @@ function resolveTravelMetric(
   };
 }
 
-// คำนวณ 1 วันใหม่ตั้งแต่ต้นวันทุกครั้ง: เวลาถึง/ออก ระยะทาง ยอดเงินสะสม และ conflict ของแต่ละที่
+// คำนวณ 1 วัน รับข้อมูลวัน (พร้อมลำดับสถานที่) ข้อมูลสถานที่ และ travel matrix
+// คิดใหม่ตั้งแต่ต้นวันทุกครั้ง: เวลาถึง/ออก ระยะทาง ยอดเงินสะสม และ conflict ของแต่ละที่
 export function buildDayItems(
   day: DayAssignment,
   placesById: Map<string, PlaceInput>,
@@ -194,7 +195,7 @@ export function buildDayItems(
   return results;
 }
 
-// รวมทุกวัน (ใช้ตอนยืนยันแผน)
+// รวมผลของทุกวัน รับรายการวัน ข้อมูลสถานที่ และ travel matrix (ใช้ตอนยืนยันแผน)
 export function buildItinerary(
   dayAssignments: DayAssignment[],
   placesById: Map<string, PlaceInput>,

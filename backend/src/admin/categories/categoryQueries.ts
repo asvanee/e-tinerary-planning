@@ -68,6 +68,7 @@ export async function listAdminCategories(): Promise<AdminCategory[]> {
   }));
 }
 
+// เช็คว่ามีหมวดนี้ในระบบไหม (รับ categoryId)
 export async function categoryExists(categoryId: string): Promise<boolean> {
   const { count, error } = await supabase
     .from("categories")

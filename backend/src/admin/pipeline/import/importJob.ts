@@ -65,6 +65,7 @@ export function buildSearchQuery(row: ImportRow["row"]): string {
     .join(" ");
 }
 
+// ข้อความจาก error (ไม่ใช่ Error ใช้แปลงเป็นข้อความ)
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }

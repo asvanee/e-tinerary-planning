@@ -3,9 +3,6 @@ import { haversineKm } from "./haversine";
 import { coordKey, postOrsMatrix } from "./orsMatrixRequest";
 import { TtlCache } from "./ttlCache";
 
-// ระยะทางถนนจากจุดเริ่มต้นไปแต่ละสถานที่ (ใช้ในหน้าแนะนำ POI)
-// ยิง ORS เป็นก้อนเพราะโควต้านับเป็นจำนวน request · ที่ไหนไม่ได้ค่าจาก ORS ใช้ haversine แทน (ไม่ throw)
-
 export type DistanceSource = "ors" | "haversine" | "mixed";
 
 export interface DistancePlace {
@@ -32,6 +29,7 @@ function cacheKey(
   return `${profile}|${coordKey(startLat, startLng)}|${coordKey(place.latitude, place.longitude)}`;
 }
 
+// ขอระยะทางถนนจากจุดเริ่มต้นไปสถานที่ในก้อนเดียว (1 request) — รับพิกัดเริ่มต้นกับรายการสถานที่
 async function fetchMatrixChunk(
   startLat: number,
   startLng: number,
@@ -56,6 +54,8 @@ async function fetchMatrixChunk(
   return row;
 }
 
+// ระยะทางถนน (กม.) จากจุดเริ่มต้นไปแต่ละสถานที่ ใช้ในหน้าแนะนำ POI
+// รับพิกัดเริ่มต้นกับรายการสถานที่ · ยิง ORS เป็นก้อนเพื่อประหยัดโควต้า · ที่ไม่ได้ค่าจาก ORS ใช้ haversine แทน (ไม่ throw)
 export async function getRoadDistancesKm(
   startLat: number,
   startLng: number,

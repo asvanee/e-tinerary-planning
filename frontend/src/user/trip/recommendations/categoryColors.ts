@@ -36,5 +36,6 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 const FALLBACK_COLOR = "#6B7280";
 
+// สีของหมวด (ใช้กับหมุดและป้ายหมวด) · หมวดที่ไม่มีในรายการใช้สีเทา
 export const categoryColor = (name: string | null | undefined): string =>
   (name && CATEGORY_COLORS[name]) || FALLBACK_COLOR;

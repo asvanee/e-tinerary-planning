@@ -27,6 +27,7 @@ const primaryBtn =
 const secondaryBtn =
   "font-prompt inline-flex items-center gap-2 px-4 min-h-10 rounded-xl border border-[color:var(--navy)] text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] disabled:opacity-50";
 
+// กล่องแสดงตัวเลขสรุป 1 ช่อง (ป้ายชื่อ + จำนวน)
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl bg-[color:var(--sky-soft)] px-4 py-3">
@@ -36,6 +37,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+// หัวข้อของแต่ละส่วนในหน้า
 function SectionTitle({ children }: { children: string }) {
   return <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)] mb-3">{children}</h2>;
 }

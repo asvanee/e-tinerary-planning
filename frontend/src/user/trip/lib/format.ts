@@ -18,10 +18,12 @@ export function formatVisitDate(visitDate: string, style: "long" | "short"): str
   });
 }
 
+// จำนวนเงินเป็นข้อความ เช่น "1,200 ฿"
 export function formatBaht(amount: number): string {
   return amount.toLocaleString("th-TH") + " ฿";
 }
 
+// ช่วงเวลาเป็นข้อความ เช่น "09:00 - 10:30 น." (ไม่มีเวลาแสดง "—")
 export function formatTimeRange(start: string | null, end: string | null): string {
   if (!start && !end) return "—";
   return `${start ? start.slice(0, 5) : "—"} - ${end ? end.slice(0, 5) : "—"} น.`;

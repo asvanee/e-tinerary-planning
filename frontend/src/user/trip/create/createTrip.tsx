@@ -73,6 +73,7 @@ const labelClass = "font-prompt text-sm font-medium text-[color:var(--navy)]";
 
 const hintClass = "text-xs text-[color:var(--muted)]";
 
+// กล่องหัวข้อของฟอร์ม 1 ส่วน รับไอคอน หัวข้อ และเนื้อหาข้างใน
 function Section({
     icon: Icon,
     title,
@@ -93,6 +94,7 @@ function Section({
     );
 }
 
+// ช่องกรอก 1 ช่อง รับ id ของ input ป้ายชื่อ คำอธิบายใต้ช่อง และตัว input
 function Field({
     id,
     label,
@@ -113,6 +115,7 @@ function Field({
     );
 }
 
+// ครอบ dropdown ให้มีลูกศรด้านขวา
 function SelectWrap({ children }: { children: ReactNode }) {
     return (
         <div className="relative">
@@ -126,6 +129,7 @@ function SelectWrap({ children }: { children: ReactNode }) {
     );
 }
 
+// แถวสรุป 1 แถว (ป้ายชื่อ + ค่า) ใน popup สรุปทริปที่สร้าง
 function SummaryRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex justify-between gap-4">
@@ -137,6 +141,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 const STEPS = ["จังหวัดปลายทางและจุดเริ่มต้น", "วันเวลาและจำนวนคน", "งบและความสนใจ"];
 
+// แถบแสดงขั้นตอนของฟอร์ม กดวงกลมของขั้นที่ผ่านมาแล้วเพื่อย้อนกลับไปขั้นนั้น (ขั้นที่ยังไม่ถึงกดไม่ได้)
 function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }) {
     return (
         <ol className="flex items-center gap-2 mb-6" aria-label="ขั้นตอนการกรอก">
@@ -182,6 +187,8 @@ function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }
     );
 }
 
+// ฟอร์มสร้างทริป 3 ขั้น (จังหวัดและจุดเริ่มต้น → วันเวลาและจำนวนคน → งบและความสนใจ)
+// ถ้า URL มี tripId = โหมดแก้ไข: โหลดข้อมูลเดิมมาใส่ฟอร์ม · บันทึกเสร็จไปหน้าแนะนำสถานที่ (/trip/:tripId/recommendations)
 export default function CreateTrip() {
     const navigate = useNavigate();
     const { session } = useAuth();
@@ -939,6 +946,7 @@ export default function CreateTrip() {
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {groupCategories.map((cat) => {
                                                                         const selected = selectedCategoryIds.includes(cat.category_id);
+                                                                        // ปุ่มเลือก/ยกเลิกหมวดที่สนใจ
                                                                         return (
                                                                             <button
                                                                                 key={cat.category_id}
@@ -983,6 +991,7 @@ export default function CreateTrip() {
                         )}
 
                         <div className="flex gap-3">
+                            {/* ปุ่มย้อนกลับ → ขั้นก่อนหน้า (ขั้นแรกไม่แสดง) */}
                             {step > 0 && (
                                 <button
                                     type="button"
@@ -994,6 +1003,7 @@ export default function CreateTrip() {
                                 </button>
                             )}
 
+                            {/* ขั้นที่ไม่ใช่ขั้นสุดท้ายมีปุ่ม "ถัดไป" (ตรวจข้อมูลขั้นนี้แล้วไปขั้นต่อไป) · ขั้นสุดท้ายเป็นปุ่มสร้าง/บันทึกทริป (ส่งฟอร์ม) */}
                             {step < LAST_STEP ? (
                                 <button
                                     type="button"
@@ -1127,6 +1137,7 @@ export default function CreateTrip() {
                             )}
                         </dl>
 
+                        {/* ปุ่มดูสถานที่ที่ตรงใจ → หน้าแนะนำสถานที่ของทริปที่เพิ่งสร้าง */}
                         <button
                             type="button"
                             onClick={() => navigate(`/trip/${createdTrip.trip_id}/recommendations`)}

@@ -11,6 +11,7 @@ export type DayStructure = Record<(typeof DAY_STRUCTURE_FIELDS)[number], string 
 
 const BUDGET_EPSILON = 0.005; // กันทศนิยมของ numeric คลาดเล็กน้อย
 
+// เทียบ 2 ค่าว่าเท่ากันไหม (ตัวเลขเทียบแบบยอมคลาดเล็กน้อย, null เท่ากับ null)
 function sameValue(a: string | number | null, b: string | number | null): boolean {
   if (a === null || a === undefined || b === null || b === undefined) {
     return (a ?? null) === (b ?? null);

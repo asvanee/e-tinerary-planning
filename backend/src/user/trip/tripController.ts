@@ -31,6 +31,7 @@ interface TripBody {
 }
 
 // คืน user id หรือตอบ 401 แล้วคืน null
+// ดึง user id จาก req.user · ไม่มีให้ตอบ 401 แล้วคืน null
 function requireUserId(req: AuthRequest, res: Response): string | null {
   const userId = req.user?.id;
   if (!userId) {
@@ -40,7 +41,7 @@ function requireUserId(req: AuthRequest, res: Response): string | null {
   return userId;
 }
 
-// คืน user id + trip id จาก path หรือตอบ 401/400 แล้วคืน null
+// ดึง user id จาก req.user กับ tripId จาก path · ขาดอย่างใดอย่างหนึ่งตอบ 401/400 แล้วคืน null
 function requireTripParams(req: AuthRequest, res: Response): { userId: string; tripId: string } | null {
   const userId = requireUserId(req, res);
   if (!userId) return null;
@@ -82,7 +83,8 @@ function validateNoMidnightCrossing(
   return null;
 }
 
-// ตรวจ body ของ createTrip / updateTrip — null = ผ่าน, string = ข้อความ error (400)
+// ตรวจ body ของ createTrip / updateTrip รับ body กับข้อความที่ใช้ตอนไม่ได้ปักหมุดจุดเริ่มต้น
+// null = ผ่าน, string = ข้อความ error (ตอบ 400)
 function validateTripBody(body: TripBody, missingStartMessage: string): string | null {
   const {
     province,
@@ -155,10 +157,13 @@ function toTripColumns(body: TripBody) {
   };
 }
 
+// แปลง category id เป็นแถวของตาราง trip_categories
 function toTripCategoryRows(tripId: string, categoryIds: string[]) {
   return categoryIds.map((categoryId) => ({ trip_id: tripId, category_id: categoryId }));
 }
 
+// สร้างทริปใหม่ รับข้อมูลทริปจาก body (user_id ใช้จาก token เท่านั้น)
+// บันทึกหมวดที่เลือกด้วย · บันทึกหมวดไม่สำเร็จไม่ยกเลิกทริป
 export const createTrip = async (req: AuthRequest, res: Response) => {
   const userId = requireUserId(req, res);
   if (!userId) return;
@@ -207,6 +212,7 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ทริปทั้งหมดของผู้ใช้ที่ login อยู่ เรียงใหม่สุดก่อน
 export const getMyTrips = async (req: AuthRequest, res: Response) => {
   const userId = requireUserId(req, res);
   if (!userId) return;
@@ -225,7 +231,7 @@ interface TripCategoryRow {
   category: { category_id: string; category_name: string };
 }
 
-// ทริปเดียวพร้อมหมวดที่เลือกไว้ (หน้ารายละเอียดและหน้าแก้ทริป)
+// ทริปเดียวพร้อมหมวดที่เลือกไว้ รับ tripId จาก path (ใช้ในหน้ารายละเอียดและหน้าแก้ทริป)
 export const getTripById = async (req: AuthRequest, res: Response) => {
   const params = requireTripParams(req, res);
   if (!params) return;
@@ -270,7 +276,8 @@ export const getTripById = async (req: AuthRequest, res: Response) => {
   });
 };
 
-// แก้ทริป — หมวดเดิมลบแล้วบันทึกใหม่ · ถ้าวัน/เวลา/งบต่อวันเปลี่ยน ล้าง trip_days (แผนเดิมถูกลบตาม)
+// แก้ทริป รับ tripId จาก path กับข้อมูลใหม่จาก body
+// หมวดเดิมลบแล้วบันทึกใหม่ · ถ้าวัน/เวลา/งบต่อวันเปลี่ยน ล้าง trip_days (แผนเดิมถูกลบตาม)
 export const updateTrip = async (req: AuthRequest, res: Response) => {
   const params = requireTripParams(req, res);
   if (!params) return;
@@ -365,8 +372,8 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// บันทึกหมวดของทริปเป็นชุดที่ส่งมา (popup ของ Auto Trip) — เพิ่มที่ขาดก่อนแล้วค่อยลบที่เกิน
-// ถ้าล้มกลางทางหมวดเดิมจะไม่หาย
+// บันทึกหมวดของทริปเป็นชุดที่ส่งมา (popup ของ Auto Trip) รับ tripId จาก path กับ category_ids จาก body
+// เพิ่มที่ขาดก่อนแล้วค่อยลบที่เกิน ถ้าล้มกลางทางหมวดเดิมจะไม่หาย
 export const updateTripCategories = async (req: AuthRequest, res: Response) => {
   const params = requireTripParams(req, res);
   if (!params) return;
@@ -447,7 +454,7 @@ export const updateTripCategories = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ลบทริปของผู้ใช้เอง — trip_days / trip_categories / poi_scores ลบตามด้วย FK CASCADE
+// ลบทริปของผู้ใช้เอง รับ tripId จาก path · trip_days / trip_categories / poi_scores ลบตามด้วย FK CASCADE
 export const deleteTrip = async (req: AuthRequest, res: Response) => {
   const params = requireTripParams(req, res);
   if (!params) return;

@@ -70,6 +70,7 @@ function timeStringToMinutes(time: string): number {
   return hh * 60 + mm;
 }
 
+// นาทีนับจากเที่ยงคืน → "HH:MM:00" (ไม่เกิน 23:59 เพราะคอลัมน์ time เก็บข้ามเที่ยงคืนไม่ได้)
 function minutesToTimeString(totalMinutes: number): string {
   const capped = Math.min(Math.max(totalMinutes, 0), 24 * 60 - 1);
   const hh = Math.floor(capped / 60);
@@ -85,6 +86,7 @@ function getKnownPrice(
   return priceRangeEnd ?? priceRangeStart;
 }
 
+// ราคาที่ใช้คิดงบ — ไม่มีราคา: หมวดฟรีคิด 0 บาท · หมวดเสียเงินคืน null (ไม่ทราบ ไม่เดา)
 function getPlaceCost(
   priceRangeStart: number | null,
   priceRangeEnd: number | null,
@@ -125,7 +127,8 @@ function resolveTravelMetric(
   };
 }
 
-// คำนวณ 1 วันใหม่ตั้งแต่ต้นวันทุกครั้ง: เวลาถึง/ออก ระยะทาง ยอดเงินสะสม และ conflict ของแต่ละที่
+// คำนวณ 1 วัน รับข้อมูลวัน (พร้อมลำดับสถานที่) ข้อมูลสถานที่ และ travel matrix
+// คิดใหม่ตั้งแต่ต้นวันทุกครั้ง: เวลาถึง/ออก ระยะทาง ยอดเงินสะสม และ conflict ของแต่ละที่
 export function buildDayItems(
   day: DayAssignment,
   placesById: Map<string, PlaceInput>,

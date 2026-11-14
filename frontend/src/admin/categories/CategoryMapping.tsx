@@ -32,11 +32,13 @@ const fieldClass =
 const selectClass = `${fieldClass} appearance-none pr-9`;
 const labelTextClass = "font-prompt text-xs font-medium text-[color:var(--deep)]";
 
+// ดึงเฉพาะช่องที่แก้ได้ของหมวด (ใช้เป็นค่าเริ่มต้นของฟอร์ม)
 function fieldsOf(category: AdminCategory): CategoryFields {
   const { category_name, parent_group, environment_type, price_nature } = category;
   return { category_name, parent_group, environment_type, price_nature };
 }
 
+// dropdown 1 ช่อง รับป้ายชื่อ ค่าที่เลือก ตัวเลือก และฟังก์ชันเมื่อเปลี่ยนค่า
 function Select({
   label,
   value,
@@ -69,6 +71,8 @@ function Select({
   );
 }
 
+// การ์ดของหมวด 1 หมวด: แก้ชื่อ/กลุ่ม/ประเภทสภาพแวดล้อม/ประเภทราคา แล้วกดบันทึก · ย้ายป้าย ททท. ไปหมวดอื่นได้
+// รับหมวดนี้ รายการหมวดทั้งหมด สถานะกำลังบันทึก และฟังก์ชันบันทึก/ย้ายป้าย
 function CategoryCard({
   category,
   allCategories,
@@ -187,6 +191,7 @@ function CategoryCard({
   );
 }
 
+// หน้า admin จัดการหมวดและป้าย ททท. ที่อยู่ในแต่ละหมวด (โหลดหมวดทั้งหมดจาก backend)
 export default function CategoryMapping() {
   const { session } = useAuth();
   const token: string | undefined = session?.access_token;

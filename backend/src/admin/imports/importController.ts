@@ -55,6 +55,7 @@ interface ImportPlan {
   rows: ImportRow[]; // ไม่ส่งให้ client
 }
 
+// อ่านจำนวนแถวที่จะนำเข้าจาก query/body · ว่าง = ไม่จำกัด · ไม่ใช่จำนวนเต็ม 1..สูงสุด = ใช้ไม่ได้
 function parseLimit(value: unknown): { ok: true; value: number | null } | { ok: false } {
   if (value === undefined || value === null || value === "") return { ok: true, value: null };
   const n = typeof value === "string" ? Number(value) : value;
@@ -106,10 +107,12 @@ async function buildPlan(province: string, limit: number | null): Promise<Import
   };
 }
 
+// ตัดรายการแถวออกจากแผนนำเข้า เหลือแต่สรุปที่ส่งให้หน้าเว็บ
 function publicPlan({ rows: _rows, ...plan }: ImportPlan) {
   return plan;
 }
 
+// สร้างตัวเรียก Google Places จาก key ใน env · ไม่มี key = null
 const googleClient = () =>
   process.env.GOOGLE_PLACES_API_KEY ? createGooglePlacesClient(process.env.GOOGLE_PLACES_API_KEY) : null;
 
@@ -126,10 +129,12 @@ function withCsvInfo(items: StoredImportItem[], csvRows: AttractionRow[]) {
   });
 }
 
+// ชื่อจังหวัดจาก path (ตัดช่องว่าง) · ว่าง = null
 function provinceParam(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+// jobId จาก path · ไม่ใช่ uuid = null
 function jobIdParam(value: unknown): string | null {
   return isUuid(value) ? value : null;
 }

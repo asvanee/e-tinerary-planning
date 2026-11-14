@@ -22,11 +22,13 @@ export function gridKey(lat: number, lng: number): string {
   return `${lat.toFixed(GRID_DECIMALS)},${lng.toFixed(GRID_DECIMALS)}`;
 }
 
+// วันนี้ตามเวลาไทย "YYYY-MM-DD"
 function todayInBangkok(): string {
   // เวลาไทย = UTC+7 (ไม่มี DST)
   return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+// บวกวันให้วันที่ "YYYY-MM-DD"
 function addDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -60,6 +62,7 @@ export function clampToForecastWindow(
 // เก็บเฉพาะค่าที่ได้จริง API พลาดจะได้ลองใหม่รอบหน้า
 const rainCache = new TtlCache<number>();
 
+// ค่าเฉลี่ยของตัวเลขใน array (ข้ามค่าที่ไม่ใช่ตัวเลข) · ไม่มีเลยคืน null
 function averageOf(values: unknown): number | null {
   if (!Array.isArray(values)) return null;
   const nums = values.filter(
@@ -69,6 +72,7 @@ function averageOf(values: unknown): number | null {
   return nums.reduce((sum, v) => sum + v, 0) / nums.length;
 }
 
+// ขอโอกาสฝนเฉลี่ยของกริดชุดหนึ่งจาก Open-Meteo ช่วง start–end · พลาดคืน Map ว่าง
 async function fetchChunk(
   grids: string[],
   start: string,
@@ -117,7 +121,7 @@ async function fetchChunk(
   return out;
 }
 
-// คืน Map<gridKey, โอกาสฝนเฉลี่ย %> เฉพาะกริดที่มีข้อมูล
+// โอกาสฝนเฉลี่ย % ของแต่ละพิกัดในช่วงวันเดินทาง (รับพิกัด + วันเริ่ม/จบ) คืน Map<gridKey, %> เฉพาะกริดที่มีข้อมูล
 export async function getAverageRainProbability(
   points: LatLng[],
   startDate: string,

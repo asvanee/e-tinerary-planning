@@ -8,6 +8,7 @@ export class AdminApiError extends Error {
   }
 }
 
+// ดึงข้อความ message จากผลที่ backend ตอบ (ไม่มี = null)
 function messageFrom(data: unknown): string | null {
   if (typeof data === "object" && data !== null && "message" in data) {
     const { message } = data as { message: unknown };
@@ -38,6 +39,7 @@ export async function adminRequest<T>(
   return data as T;
 }
 
+// ข้อความ error ที่แสดงให้ admin เห็น: error จาก backend ใช้ข้อความนั้น ส่วนอื่นถือว่าต่อ server ไม่ได้
 export function errorMessage(err: unknown): string {
   if (err instanceof AdminApiError) return err.message;
   return "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้";

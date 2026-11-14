@@ -43,6 +43,7 @@ const ADMIN_PAGES: [string, ReactNode][] = [
   ["/admin/categories", <CategoryMapping />],
 ];
 
+// กำหนดเส้นทางของเว็บทั้งหมด: หน้าที่ต้อง login ครอบด้วย ProtectedRoute, หน้า admin ครอบด้วย AdminRoute + AdminLayout
 export default function App() {
   return (
     <BrowserRouter>

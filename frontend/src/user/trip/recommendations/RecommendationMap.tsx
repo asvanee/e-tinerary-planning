@@ -64,6 +64,7 @@ function makePinIcon(color: string, rank: number, selected: boolean, active: boo
 // icon ขึ้นกับสี/อันดับ/สถานะเท่านั้น — cache ระดับ module ใช้ซ้ำได้ทุก render (ไม่ต้องอ่าน ref ระหว่าง render)
 const pinIconCache = new Map<string, L.DivIcon>();
 
+// ไอคอนหมุด (เลขอันดับ สีตามหมวด ไฮไลต์เมื่อเลือก/โฟกัส) · ใช้ที่ cache ไว้ถ้าเคยสร้างแล้ว
 function getPinIcon(color: string, rank: number, selected: boolean, active: boolean) {
   const key = `${color}|${rank}|${selected}|${active}`;
   let icon = pinIconCache.get(key);
@@ -118,6 +119,7 @@ function FitBounds({ points }: { points: MapPlace[] }) {
   return null;
 }
 
+// เมื่อสั่งโฟกัสสถานที่ ให้แผนที่เลื่อนไปที่หมุดนั้นแล้วเปิดป๊อปอัป (ไม่แสดงอะไรเอง)
 function FocusHandler({
   focus,
   points,
@@ -221,6 +223,7 @@ export default function RecommendationMap({
                       {p.categoryName} · อันดับ {p.rank} · {p.score} คะแนน
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      {/* ปุ่มดูในรายการ → กลับแท็บรายการและเลื่อนไปที่การ์ดนี้ */}
                       <button
                         type="button"
                         onClick={() => onShowCard(p.placeId)}
@@ -236,6 +239,7 @@ export default function RecommendationMap({
                       >
                         ดูในรายการ
                       </button>
+                      {/* ปุ่มเลือก/ยกเลิกเลือก (เฉพาะโหมดจัดทริปเอง) */}
                       {isCustomMode && (
                         <button
                           type="button"

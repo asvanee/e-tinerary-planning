@@ -6,11 +6,13 @@ export const FORECAST_MAX_DAYS_AHEAD = 15; // Open-Meteo พยากรณ์�
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// วันนี้ตามเวลาไทย "YYYY-MM-DD"
 export function todayInBangkok(): string {
     // เวลาไทย = UTC+7 (ไม่มี DST)
     return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+// บวกวันให้วันที่ "YYYY-MM-DD"
 export function addDays(isoDate: string, days: number): string {
     return new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 }
@@ -26,6 +28,7 @@ export function forecastLastDay(now: number = Date.now()): string {
     return addDays(new Date(now).toISOString().slice(0, 10), FORECAST_MAX_DAYS_AHEAD);
 }
 
+// วันนี้มีพยากรณ์ฝนไหม (อยู่ระหว่างวันนี้ถึงวันสุดท้ายที่พยากรณ์ได้)
 export function hasForecast(isoDate: string, today: string, lastForecastDay: string): boolean {
     return isoDate >= today && isoDate <= lastForecastDay;
 }

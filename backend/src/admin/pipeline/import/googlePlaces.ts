@@ -13,7 +13,7 @@ const PLACE_NEW_URL = "https://places.googleapis.com/v1/places/";
 
 // Find Place ขอแค่ field พื้นฐาน (ถูกกว่า) — ข้อมูลที่เหลือขอใน Details หลังจับคู่ผ่านแล้วเท่านั้น
 const FIND_PLACE_FIELDS = "place_id,name,geometry,formatted_address";
-// field เดิมของ data-pipeline + type (ขอชื่อ "type" แต่ Google คืนเป็น "types")
+// field ที่ขอจาก Google + type (ขอชื่อ "type" แต่ Google คืนเป็น "types")
 const DETAILS_FIELDS =
   "place_id,name,formatted_address,formatted_phone_number,website,opening_hours,rating,user_ratings_total,geometry,type";
 
@@ -96,6 +96,7 @@ interface GoogleResponse {
   result?: GoogleDetails;
 }
 
+// สร้างตัวเรียก Google Places (ใช้ Find Place + Details) รับ API key กับฟังก์ชัน fetch (ใส่ของปลอมได้เวลาทดสอบ)
 export function createGooglePlacesClient(apiKey: string, fetchFn: FetchFn = fetch): GooglePlacesClient {
   async function call(baseUrl: string, params: Record<string, string>): Promise<GoogleResponse> {
     const url = `${baseUrl}?${new URLSearchParams({ ...params, language: "th", key: apiKey })}`;

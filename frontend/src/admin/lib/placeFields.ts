@@ -64,13 +64,16 @@ const FIELD_LABELS: Record<string, string> = {
   ATT_UPDATED_DATE: "อัปเดตล่าสุด",
 };
 
+// ชื่อไทยของคอลัมน์ CSV (ไม่มีในรายการใช้ชื่อคอลัมน์เดิม)
 export const fieldLabel = (column: string) => FIELD_LABELS[column] ?? column;
 
+// ชื่อที่ใช้แสดงของแถว: ไทย → อังกฤษ → รหัส · ไม่พบแถวแสดงข้อความแจ้ง
 export function displayName(row: AttractionRow | undefined): string {
   if (!row) return "(ไม่พบข้อมูล)";
   return row.ATT_NAME_TH?.trim() || row.ATT_NAME_EN?.trim() || row.ATT_ID;
 }
 
+// แปลง "lat, lng" เป็นพิกัด · รูปแบบผิดคืน null
 export function parseLatLng(value: string | undefined): { lat: number; lng: number } | null {
   const parts = (value ?? "").split(",").map((p) => p.trim());
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
@@ -81,6 +84,7 @@ export function parseLatLng(value: string | undefined): { lat: number; lng: numb
 
 // ลิงก์เปิดตำแหน่งใน Google Maps — ถ้าพิกัดพังแต่เป็นลิงก์ Google Maps (short link) ใช้ลิงก์นั้นตรงๆ
 const GOOGLE_MAPS_LINK = /^https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps)\//i;
+// ลิงก์เปิด Google Maps ของแถว (จากพิกัด หรือลิงก์เดิมใน CSV) · ไม่มีคืน null
 export function mapsUrl(row: AttractionRow | undefined): string | null {
   const coords = parseLatLng(row?.ATT_LOCATION);
   if (coords) return `https://www.google.com/maps?q=${coords.lat},${coords.lng}`;

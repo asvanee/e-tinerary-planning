@@ -8,11 +8,13 @@ export interface OrsConfig {
   cacheTtlMs: number;
 }
 
+// อ่านตัวเลขบวกจาก env ชื่อ name ถ้าไม่ใช่ตัวเลขบวกใช้ fallback
 function numberFromEnv(name: string, fallback: number): number {
   const parsed = Number(process.env[name]);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+// รวมค่าตั้ง ORS จาก env คืนเป็น object (ไม่รับ parameter)
 export function getOrsConfig(): OrsConfig {
   const baseUrl = (
     process.env.ORS_BASE_URL || "https://api.heigit.org/openrouteservice"

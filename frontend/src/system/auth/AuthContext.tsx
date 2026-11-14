@@ -23,6 +23,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// อ่าน user หรือ session ที่เก็บไว้ใน localStorage (ต้องมีทั้งคู่ ไม่งั้นคืน null)
 function readSaved<T>(key: "user" | "session"): T | null {
   const savedUser = localStorage.getItem("user");
   const savedSession = localStorage.getItem("session");
@@ -30,6 +31,7 @@ function readSaved<T>(key: "user" | "session"): T | null {
   return JSON.parse(key === "user" ? savedUser : savedSession) as T;
 }
 
+// เก็บข้อมูลผู้ใช้ที่ login อยู่ (user + session) ให้ทุกหน้าใช้ผ่าน useAuth และบันทึกลง localStorage
 export function AuthProvider({ children }: { children: ReactNode }) {
   // อ่าน localStorage ครั้งเดียวตอนสร้าง state (ต้องมีทั้งคู่ถึงถือว่าล็อกอินอยู่)
   const [user, setUser] = useState<User | null>(() => readSaved<User>("user"));

@@ -41,6 +41,8 @@ function formatDate(value: string) {
   });
 }
 
+// หน้าทริปของฉัน: โหลดทริปทั้งหมดของผู้ใช้จาก GET /api/trips แสดงเป็นการ์ด
+// กดการ์ด = ดูรายละเอียดทริป · กดถังขยะ = ถามยืนยันแล้วลบทริป · ปุ่มสร้างทริปใหม่ไปหน้าสร้างทริป
 export default function MyTrips() {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -133,6 +135,7 @@ export default function MyTrips() {
       <Navbar />
 
       <div className="fade-in max-w-4xl mx-auto px-4 py-8">
+        {/* ปุ่มกลับ → หน้าก่อนหน้า */}
         <button
           onClick={() => navigate(-1)}
           className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
@@ -150,6 +153,7 @@ export default function MyTrips() {
               ดูทริปทั้งหมดที่คุณเคยวางแผนไว้
             </p>
           </div>
+          {/* ปุ่มสร้างทริปใหม่ → หน้าสร้างทริป */}
           <button
             onClick={() => navigate("/trip/create")}
             className={`${primaryBtn} w-full sm:w-auto whitespace-nowrap`}
@@ -208,6 +212,7 @@ export default function MyTrips() {
             <p className="text-sm text-[color:var(--muted)]">
               เริ่มวางแผนทริปแรกของคุณได้เลย
             </p>
+            {/* ปุ่มสร้างทริปใหม่ (แสดงเมื่อยังไม่มีทริป) → หน้าสร้างทริป */}
             <button
               onClick={() => navigate("/trip/create")}
               className={`${primaryBtn} mt-2`}
@@ -315,6 +320,7 @@ export default function MyTrips() {
               แผนการเดินทางทั้งหมดของทริปนี้จะถูกลบและกู้คืนไม่ได้
             </p>
             <div className="flex gap-3">
+              {/* ปุ่มยกเลิก → ปิด popup ไม่ลบ */}
               <button
                 onClick={() => setConfirmTripId(null)}
                 disabled={deletingId === confirmTripId}
@@ -322,6 +328,7 @@ export default function MyTrips() {
               >
                 ยกเลิก
               </button>
+              {/* ปุ่มลบ → ลบทริปที่เลือกจริง */}
               <button
                 onClick={() => handleDelete(confirmTripId)}
                 disabled={deletingId === confirmTripId}

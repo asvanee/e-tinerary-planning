@@ -141,6 +141,7 @@ function enumerateDates(
   return dates;
 }
 
+// แปลงแถว trip_days เป็น TripDay (useBudget มาจากการตั้งค่าของทริป)
 function mapTripDayRow(
   row: TripDayRow,
   useBudget: boolean
@@ -156,6 +157,7 @@ function mapTripDayRow(
   };
 }
 
+// เจ้าของทริปกับพิกัดจุดเริ่มต้น รับ tripId · ไม่พบทริปคืน null (ใช้ตรวจสิทธิ์ก่อนทำงานกับทริป)
 export async function getTripOwnerAndStart(
   tripId: string
 ): Promise<TripOwnerAndStart | null> {
@@ -174,7 +176,7 @@ export async function getTripOwnerAndStart(
   };
 }
 
-// วันของทริป — ยังไม่มีจะสร้างจากข้อมูลทริป (เวลาจบ = เวลาเริ่ม + เวลาว่างต่อวัน)
+// วันของทริป รับ tripId · ยังไม่มีจะสร้างจากข้อมูลทริป (เวลาจบ = เวลาเริ่ม + เวลาว่างต่อวัน)
 export async function getOrCreateTripDays(
   tripId: string
 ): Promise<TripDay[]> {
@@ -260,7 +262,7 @@ export async function getOrCreateTripDays(
     .sort((a, b) => a.dayNumber - b.dayNumber);
 }
 
-// ข้อมูลสถานที่ที่ใช้คำนวณแผน (พิกัด ราคา เวลาเปิด)
+// ข้อมูลสถานที่ที่ใช้คำนวณแผน (พิกัด ราคา เวลาเปิด) รับรายการ place_id
 export async function getSelectedPlaces(
   placeIds: string[]
 ): Promise<SelectedPlace[]> {
@@ -307,7 +309,7 @@ export async function getSelectedPlaces(
   return places;
 }
 
-// สถานที่จาก poi_scores ของทริป สำหรับ Auto Trip (1 แถวต่อสถานที่ต่อหมวด)
+// สถานที่จาก poi_scores ของทริป สำหรับ Auto Trip รับ tripId (1 แถวต่อสถานที่ต่อหมวด)
 export async function getAutoTripPlaces(
   tripId: string
 ): Promise<AutoTripPlace[]> {
@@ -384,7 +386,7 @@ export async function getAutoTripPlaces(
   return result;
 }
 
-// หมวดที่ผู้ใช้เลือกไว้ในทริป (ไม่ซ้ำ เรียงตามชื่อ)
+// หมวดที่ผู้ใช้เลือกไว้ในทริป รับ tripId (ไม่ซ้ำ เรียงตามชื่อ)
 export async function getAutoTripCategories(
   tripId: string
 ): Promise<Array<{ categoryId: string; categoryName: string }>> {

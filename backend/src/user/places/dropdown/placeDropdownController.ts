@@ -10,6 +10,7 @@ function distinctSorted(values: (string | null)[]): string[] {
   ).sort((a, b) => a.localeCompare(b, "th"));
 }
 
+// รายชื่อจังหวัดทั้งหมดที่มีสถานที่ในระบบ (ไม่รับ parameter)
 export const getProvinces = async (_req: Request, res: Response) => {
   const { data, error } = await supabase
     .from("places")
@@ -21,7 +22,7 @@ export const getProvinces = async (_req: Request, res: Response) => {
   res.json({ provinces: distinctSorted((data ?? []).map((row: { province: string | null }) => row.province)) });
 };
 
-// ส่ง ?province= มาจะได้เฉพาะอำเภอของจังหวัดนั้น ไม่ส่งได้ทั้งหมด
+// รายชื่ออำเภอ รับ ?province= (ไม่ส่งจะได้ทุกอำเภอ ส่งมาจะได้เฉพาะของจังหวัดนั้น)
 export const getDistricts = async (req: Request, res: Response) => {
   const { province } = req.query;
 

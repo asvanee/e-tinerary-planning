@@ -8,9 +8,10 @@ export const ATTRACTION_CSV_PATH = path.join(__dirname, "../../../data/attractio
 // ไฟล์ใหญ่ (~20 MB) อ่านและ parse ครั้งเดียวแล้ว cache ไว้ใน memory ของ process
 let cachedRows: Promise<AttractionRow[]> | null = null;
 
+// อ่านไฟล์ attraction.csv แล้วแปลงเป็นแถว (ตัดแถวที่ไม่มีจังหวัดทิ้ง)
 async function readRows(): Promise<AttractionRow[]> {
   const content = await fs.promises.readFile(ATTRACTION_CSV_PATH, "utf8");
-  // ตัวเลือกเดียวกับ data-pipeline เดิม — relax_quotes เพราะคำบรรยายภาษาไทยมี " ปนอยู่
+  // relax_quotes เพราะคำบรรยายภาษาไทยมี " ปนอยู่
   const rows = parse(content, {
     columns: true,
     skip_empty_lines: true,
@@ -21,6 +22,7 @@ async function readRows(): Promise<AttractionRow[]> {
   return rows.filter((row) => row.PROVINCE_NAME_TH?.trim());
 }
 
+// แถวทั้งหมดของ CSV (อ่านครั้งแรกครั้งเดียว ครั้งต่อไปใช้ที่ cache ไว้)
 export function loadAttractionRows(): Promise<AttractionRow[]> {
   if (!cachedRows) {
     cachedRows = readRows().catch((err) => {
@@ -31,6 +33,7 @@ export function loadAttractionRows(): Promise<AttractionRow[]> {
   return cachedRows;
 }
 
+// แถวของจังหวัดเดียว รับชื่อจังหวัดภาษาไทย
 export async function getProvinceRows(province: string): Promise<AttractionRow[]> {
   const rows = await loadAttractionRows();
   return rows.filter((row) => row.PROVINCE_NAME_TH.trim() === province);

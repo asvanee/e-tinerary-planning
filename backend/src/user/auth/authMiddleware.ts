@@ -5,6 +5,8 @@ export interface AuthRequest extends Request {
   user?: { id: string; email?: string };
 }
 
+// ตรวจ token ใน header Authorization (Bearer) กับ Supabase
+// ผ่านแล้วใส่ id/email ของผู้ใช้ไว้ใน req.user แล้วไปต่อ · ไม่ผ่านตอบ 401
 export const requireAuth = async (
   req: AuthRequest,
   res: Response,

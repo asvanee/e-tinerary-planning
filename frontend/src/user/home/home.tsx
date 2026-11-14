@@ -37,6 +37,7 @@ const demoPlaces = [
   { name: "เชียงใหม่", location: "เชียงใหม่", icon: Mountain },
 ];
 
+// หน้าแรกหลัง login: แนะนำขั้นตอนการใช้งาน และมีปุ่ม "เริ่มวางแผนเที่ยว" ไปหน้าสร้างทริป (/trip/create)
 export default function Home() {
   const { user } = useAuth();
   const username = user?.username;
@@ -66,6 +67,7 @@ export default function Home() {
               แล้วเราจะแนะนำสถานที่และจัดเส้นทางให้ในแต่ละวัน
             </p>
 
+            {/* ปุ่มเริ่มวางแผนเที่ยว → หน้าสร้างทริป */}
             <button
               onClick={() => navigate("/trip/create")}
               className="font-prompt font-medium w-full sm:w-auto sm:px-10 min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200"

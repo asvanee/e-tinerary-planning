@@ -2,6 +2,7 @@
 
 const EARTH_RADIUS_KM = 6371;
 
+// องศา → เรเดียน
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }

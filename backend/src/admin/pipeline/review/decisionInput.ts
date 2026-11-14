@@ -24,6 +24,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
 const MAX_FIELD_VALUE_LENGTH = 1000;
 
+// อ่านหมายเหตุของ admin (ไม่เกิน 1000 ตัวอักษร ว่างได้)
 function readNote(v: unknown): Result<string | null> {
   if (v === undefined || v === null || v === "") return { ok: true, value: null };
   if (typeof v !== "string" || v.length > 1000) return fail("หมายเหตุต้องเป็นข้อความไม่เกิน 1000 ตัวอักษร");

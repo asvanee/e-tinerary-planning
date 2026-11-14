@@ -1,5 +1,6 @@
 // cache ในหน่วยความจำที่หมดอายุตามเวลา — เต็มแล้วลบตัวที่เก่าสุดออก
 export class TtlCache<V> {
+  // get(key, now) คืนค่าถ้ายังไม่หมดอายุ · set(key, value, expiresAt) เก็บค่า (เวลาเป็น ms)
   private readonly entries = new Map<string, { value: V; expiresAt: number }>();
 
   constructor(private readonly maxEntries = Infinity) {}

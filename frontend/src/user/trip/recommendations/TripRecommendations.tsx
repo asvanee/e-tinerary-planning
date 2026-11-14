@@ -68,10 +68,12 @@ interface CategoryOption {
   parent_group: string;
 }
 
+// เช็คว่าเป็น array ของข้อความทั้งหมด
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+// ดึงข้อความ message จากผลที่ backend ตอบ (ไม่มี = undefined)
 function getApiMessage(payload: unknown): string | undefined {
   if (
     typeof payload === "object" &&
@@ -85,6 +87,7 @@ function getApiMessage(payload: unknown): string | undefined {
   return undefined;
 }
 
+// ดึง id ของหมวดที่ทริปเลือกไว้จากผล GET /api/trips/:tripId
 function getTripCategoryIds(payload: unknown): string[] {
   if (
     typeof payload !== "object" ||
@@ -101,6 +104,7 @@ function getTripCategoryIds(payload: unknown): string[] {
   return payload.trip.category_ids;
 }
 
+// เช็คว่าข้อมูลเป็นหมวดที่ใช้ได้ (มี category_id และ category_name)
 function isCategoryOption(value: unknown): value is CategoryOption {
   return (
     typeof value === "object" &&
@@ -114,10 +118,12 @@ function isCategoryOption(value: unknown): value is CategoryOption {
   );
 }
 
+// เช็คว่าเป็น array ของหมวดที่ใช้ได้ทั้งหมด
 function isCategoryOptionArray(value: unknown): value is CategoryOption[] {
   return Array.isArray(value) && value.every(isCategoryOption);
 }
 
+// ดึงรายการหมวดจากผล GET /api/categories · รูปแบบผิดคืน array ว่าง
 function getCategoryOptions(payload: unknown): CategoryOption[] {
   if (
     typeof payload !== "object" ||
@@ -179,6 +185,7 @@ function parseOpeningHours(oh: OpeningHours | null | undefined): HoursView | nul
   return { rows, summary: same ? `เปิดทุกวัน ${rows[0].text}` : null };
 }
 
+// กล่องแสดงสถานะกลางหน้า (กำลังโหลด / error / ไม่มีข้อมูล) รับไอคอน หัวข้อ ข้อความ และปุ่มที่ใส่เพิ่มได้
 function StateCard({
   icon: Icon,
   iconClass = "text-[color:var(--sky)]",
@@ -207,6 +214,7 @@ function StateCard({
   );
 }
 
+// ตัวเลขเล็กๆ บนการ์ดสถานที่ (ไอคอน + ค่า) · tone="warn" แสดงเป็นสีแดงเตือน
 function Metric({
   icon: Icon,
   tone,
@@ -271,6 +279,8 @@ const primaryBtn =
 const outlineBtn =
   "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] bg-transparent border-2 border-[color:var(--sky)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-200";
 
+// หน้าแนะนำสถานที่ของทริป: คำนวณคะแนน (POST /api/poi/.../calculate-poi) แล้วแสดงเป็นการ์ดเรียงตามคะแนน พร้อมแผนที่
+// ปุ่ม "จัดทริปอัตโนมัติ" ไปหน้า Auto Trip · "จัดทริปเอง" ให้เลือกสถานที่แล้วกด "สร้างเส้นทาง" ไปหน้า editor
 export default function TripRecommendations() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -425,6 +435,7 @@ export default function TripRecommendations() {
     fetchData();
   }, [tripId, session, navigate]);
 
+  // เลือก/ยกเลิกเลือกสถานที่ (ใช้ในโหมดจัดทริปเอง)
   const togglePlace = (placeId: string) => {
     setSelectedPlaceIds((prev) =>
       prev.includes(placeId)
@@ -433,17 +444,20 @@ export default function TripRecommendations() {
     );
   };
 
+  // เข้าโหมดจัดทริปเอง (ล้างที่เลือกไว้)
   const handleStartCustomMode = () => {
     setIsCustomMode(true);
     setSelectedPlaceIds([]);
   };
 
+  // ออกจากโหมดจัดทริปเอง (ล้างที่เลือกและข้อความ error)
   const handleCancelCustomMode = () => {
     setIsCustomMode(false);
     setSelectedPlaceIds([]);
     setCreateRouteError(null);
   };
 
+  // ปุ่มสร้างเส้นทาง: ส่งสถานที่ที่เลือกไปสร้างร่างแผน (POST /draft) แล้วไปหน้า editor
   const handleCreateRoute = async () => {
     if (!tripId || !session || selectedPlaceIds.length === 0) return;
 
@@ -485,6 +499,7 @@ export default function TripRecommendations() {
     }
   };
 
+  // เปิดหน้าต่างเลือกหมวด แล้วโหลดรายการหมวดทั้งหมดมาให้เลือก
   const loadCategoryOptions = async () => {
     setCategoryDialogOpen(true);
     setCategoriesLoading(true);
@@ -504,6 +519,7 @@ export default function TripRecommendations() {
     }
   };
 
+  // ให้ backend จัดทริปอัตโนมัติ (POST /auto) แล้วพาไปหน้า Auto Trip พร้อมผลที่ได้
   const generateAndOpenAutoTrip = async (
     id: string,
     accessToken: string
@@ -533,7 +549,7 @@ export default function TripRecommendations() {
     });
   };
 
-  // ถ้าไม่มีหมวดให้เลือกก่อน แล้วคำนวณ Auto Trip ทันที
+  // ปุ่มจัดทริปอัตโนมัติ: ถ้าทริปยังไม่มีหมวดให้เลือกหมวดก่อน ถ้ามีแล้วจัดทริปทันที
   const handleAutoTrip = async () => {
     if (!tripId || !session) return;
 
@@ -624,6 +640,7 @@ export default function TripRecommendations() {
     </button>
   );
 
+  // เลือก/ยกเลิกเลือกหมวดในหน้าต่างเลือกหมวด
   const toggleTripCategory = (categoryId: string) => {
     setSelectedCategoryIds((previous) =>
       previous.includes(categoryId)
@@ -632,6 +649,7 @@ export default function TripRecommendations() {
     );
   };
 
+  // ปุ่มจัดทริปอัตโนมัติในหน้าต่างเลือกหมวด: บันทึกหมวด → คำนวณคะแนนใหม่ → จัดทริปอัตโนมัติ
   const handleSaveCategories = async () => {
     if (!tripId || !session) return;
     if (selectedCategoryIds.length === 0) {
@@ -720,11 +738,13 @@ export default function TripRecommendations() {
     });
   }, [rankOf, displayedPlaces]);
 
+  // กดดูบนแผนที่ที่การ์ด → สลับไปแท็บแผนที่และโฟกัสหมุดของสถานที่นั้น
   const handleShowOnMap = (placeId: string) => {
     setFocus({ id: placeId, nonce: Date.now() });
     setView("map");
   };
 
+  // ปุ่ม "ดูในรายการ" ในป๊อปอัปของหมุด → สลับกลับแท็บรายการและเลื่อนไปที่การ์ดของสถานที่นั้น
   const handleShowCard = (placeId: string) => {
     setFocus({ id: placeId, nonce: Date.now() });
     setView("list");
@@ -960,6 +980,7 @@ export default function TripRecommendations() {
       <Navbar />
 
       <main className={`max-w-6xl mx-auto px-4 sm:px-8 py-6 ${isCustomMode ? "pb-28" : ""}`}>
+        {/* ปุ่มกลับ → ฟอร์มสร้าง/แก้ทริป (/trip/create) */}
         <button
           type="button"
           onClick={() => navigate("/trip/create")}
@@ -1047,6 +1068,7 @@ export default function TripRecommendations() {
                   <p className="text-sm text-[color:var(--muted)]">พบ {visiblePlaces.length} สถานที่</p>
                   <div className="flex flex-wrap items-center gap-3">
                     {fillSwitch}
+                    {/* ปุ่มจัดทริปอัตโนมัติ → ให้ระบบจัดแผนทั้งทริป แล้วไปหน้า Auto Trip */}
                     <button
                       type="button"
                       onClick={handleAutoTrip}
@@ -1065,6 +1087,7 @@ export default function TripRecommendations() {
                         </>
                       )}
                     </button>
+                    {/* ปุ่มจัดทริปเอง → เข้าโหมดเลือกสถานที่เอง */}
                     <button type="button" onClick={handleStartCustomMode} className={primaryBtn}>
                       <ListChecks size={20} strokeWidth={1.75} />
                       จัดทริปเอง
@@ -1078,6 +1101,7 @@ export default function TripRecommendations() {
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
                     {fillSwitch}
+                    {/* ปุ่มยกเลิก → ออกจากโหมดจัดทริปเอง */}
                     <button type="button" onClick={handleCancelCustomMode} className={outlineBtn}>
                       <X size={20} strokeWidth={1.75} />
                       ยกเลิก
@@ -1089,6 +1113,7 @@ export default function TripRecommendations() {
 
             {availableCategories.length > 0 && (
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-1 px-1">
+                {/* ปุ่มทั้งหมด → ล้างตัวกรองหมวด */}
                 <button
                   type="button"
                   aria-pressed={selectedCategory === null}
@@ -1099,6 +1124,7 @@ export default function TripRecommendations() {
                 </button>
                 {availableCategories.map((cat) => {
                   const count = visiblePlaces.filter((p) => p.categoryName === cat).length;
+                  // ปุ่มกรองตามหมวด 1 หมวด
                   return (
                     <button
                       key={cat}
@@ -1120,6 +1146,7 @@ export default function TripRecommendations() {
 
             {/* สลับมุมมองบนมือถือ (จอใหญ่แสดงรายการ + แผนที่คู่กัน) */}
             <div className="flex gap-2 mb-4 lg:hidden">
+              {/* ปุ่มสลับมุมมอง: รายการ / แผนที่ */}
               <button
                 type="button"
                 aria-pressed={view === "list"}
@@ -1178,6 +1205,7 @@ export default function TripRecommendations() {
                   </p>
                 )}
               </div>
+              {/* ปุ่มสร้างเส้นทาง → ส่งสถานที่ที่เลือกไปสร้างร่างแผน แล้วไปหน้า editor */}
               <button
                 type="button"
                 onClick={handleCreateRoute}
@@ -1259,6 +1287,7 @@ export default function TripRecommendations() {
                           const selected = selectedCategoryIds.includes(
                             category.category_id
                           );
+                          // ปุ่มเลือก/ยกเลิกหมวด 1 หมวด
                           return (
                             <button
                               key={category.category_id}
@@ -1298,6 +1327,7 @@ export default function TripRecommendations() {
             )}
 
             <div className="mt-6 flex flex-wrap justify-end gap-3">
+              {/* ปุ่มยกเลิก → ปิดหน้าต่างเลือกหมวด */}
               <button
                 type="button"
                 disabled={savingCategories}
@@ -1306,6 +1336,7 @@ export default function TripRecommendations() {
               >
                 ยกเลิก
               </button>
+              {/* ปุ่มจัดทริปอัตโนมัติ → บันทึกหมวดที่เลือก แล้วจัดทริปอัตโนมัติ */}
               <button
                 type="button"
                 disabled={

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 
+// หน้าที่ลิงก์ในอีเมลพามา: ยืนยันสำเร็จหรือลิงก์หมดอายุ · ปุ่มไปหน้า login (/login) และกลับหน้าแรก (/)
 export default function EmailConfirmed() {
   const navigate = useNavigate();
   const location = useLocation();

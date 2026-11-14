@@ -92,11 +92,11 @@ interface AutoTripResult {
   days: AutoTripDay[];
   total_distance_km: number;
 }
-//ตัวแปรที่กำหนด
-const LAST_DAY_MINUTE = 24 * 60 - 1;
-const DEFAULT_DAY_END = "18:00";
-const DEFAULT_TRAVEL_SPEED_KMH = 30;
-const AUTO_TRIP_VISIT_DURATION_MIN = 60;
+// ค่าที่กำหนด
+const LAST_DAY_MINUTE = 24 * 60 - 1; // วันที่ไม่ระบุเวลาจบ ใช้ 23:59
+const DEFAULT_DAY_END = "18:00"; // ทริปที่ไม่มีเวลาว่างต่อวัน ใช้ 18:00 เป็นเวลาจบ
+const DEFAULT_TRAVEL_SPEED_KMH = 30; // ความเร็วคิดเวลาเดินทางเมื่อไม่มีข้อมูลจาก ORS
+const AUTO_TRIP_VISIT_DURATION_MIN = 60; // เวลาเที่ยวต่อสถานที่ (1 ชั่วโมง)
 const TRIP_START_NAME = "จุดเริ่มต้นทริป";
 const DAY_START_NAME = "เริ่มต้นวัน";
 
@@ -114,6 +114,7 @@ function calculateTravelTimeMin(distanceKm: number): number {
   return Math.ceil((distanceKm / DEFAULT_TRAVEL_SPEED_KMH) * 60);
 }
 
+// สร้างจุดเริ่มต้นทริปในรูปสถานที่ (รับพิกัดเริ่มต้น)
 function tripStartPoint(startLat: number, startLng: number): TspPlace {
   return {
     place_id: "TRIP_START",
@@ -123,6 +124,7 @@ function tripStartPoint(startLat: number, startLng: number): TspPlace {
   };
 }
 
+// ตัดสถานที่ให้เหลือเฉพาะ field ที่ใช้เรียงเส้นทาง
 function toTspPlace(place: AutoPlace): TspPlace {
   return {
     place_id: place.place_id,
@@ -144,6 +146,7 @@ interface EvaluatedSchedule {
   totalTravelTimeMin: number;
 }
 
+// รายการวันที่ตั้งแต่วันเริ่มถึงวันจบ (รับ "YYYY-MM-DD" 2 ค่า)
 function getTripDates(startDate: string, endDate: string): Date[] {
   const dates: Date[] = [];
   const date = new Date(`${startDate}T00:00:00Z`);
@@ -207,7 +210,8 @@ function getNearestNeighborRoute(
   });
 }
 
-// จัดสถานที่ได้เมื่อมีเวลาเที่ยวครบ 1 ชั่วโมงและเปิดตลอดช่วงนั้น
+// เวลาเที่ยวที่จัดได้ของสถานที่ (นาที) รับสถานที่ วันในสัปดาห์ เวลาถึง และเวลาจบวัน
+// ได้ 1 ชั่วโมงเมื่อเหลือเวลาพอและเปิดตลอดช่วงนั้น ไม่งั้นได้ 0
 function getFeasibleVisitDuration(
   place: AutoPlace,
   dayOfWeek: number,
@@ -227,7 +231,7 @@ function getFeasibleVisitDuration(
     : 0;
 }
 
-// คิดตารางเวลาของทุกวันจากเส้นทาง — ที่ไหนอยู่ไม่ได้หรือเกินงบคืน null
+// คิดตารางเวลาของทุกวันจากเส้นทาง รับข้อมูลทริป เส้นทางรายวัน วันที่ และ matrix · ที่ไหนอยู่ไม่ได้หรือเกินงบคืน null
 // วันที่ 2 ขึ้นไปที่แรกไม่นับเวลาเดินทาง แต่ยังนับในเวลาเดินทางรวมที่ใช้เลือกเส้นทาง
 function evaluateSchedule(
   trip: TripInfo,
@@ -535,6 +539,8 @@ function schedulePlaces(
   return currentSchedule;
 }
 
+// จัดทริปอัตโนมัติ รับข้อมูลทริป สถานที่จากหมวดที่เลือก matrix เวลาเดินทาง และสถานที่แนะนำเพิ่มเติม
+// คืนสถานที่ที่จัดได้ ตารางรายวัน และระยะทางรวม
 export function buildAutoTrip(
   trip: TripInfo,
   places: AutoPlace[],

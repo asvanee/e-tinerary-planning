@@ -115,6 +115,7 @@ const EMPTY_PLACES: MergedPlace[] = [];
 const isProblem = (i: ItineraryItemResult) =>
   i.isClosedConflict || i.isTimeConflict || i.isBudgetConflict;
 
+// key ของช่องวัน (ใช้เป็น id ของกล่องที่วางสถานที่ได้)
 function dayKey(tripDayId: string) {
   return `day-${tripDayId}`;
 }
@@ -139,11 +140,14 @@ const primaryBtn =
 // เหตุผลที่ "ไม่อยู่ในเวลาเปิด" แบบละเอียด: ปิดทั้งวัน / ยังไม่เปิด / ปิดแล้ว / ปิดก่อนจบเวลาที่อยู่
 // ใช้แสดงผลเท่านั้น ไม่กระทบ conflict flag
 
+// นาทีนับจากเที่ยงคืน → "HH:MM"
 function fmtMin(m: number): string {
   const x = ((m % 1440) + 1440) % 1440;
   return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
 }
 
+// อธิบายว่าทำไมสถานที่ไม่อยู่ในเวลาเปิด รับเวลาเปิดของสถานที่ วันในสัปดาห์ และเวลาเริ่ม/จบที่แผนกำหนด
+// คืนป้ายสั้นกับรายละเอียด · คืน null เมื่อไม่มีเวลาของแผน ไม่มีข้อมูลเวลาเปิด เปิด 24 ชม. หรือเปิดครอบคลุมช่วงที่ไปอยู่
 function describeClosure(
   oh: OpeningHours | null | undefined,
   dayOfWeek: number,
@@ -252,6 +256,7 @@ function PlaceCard({
       }`}
     >
       <div className="flex items-start gap-1.5">
+        {/* ที่จับสำหรับลาก (ลากเพื่อจัดลำดับหรือย้ายวัน) */}
         <button
           type="button"
           {...attributes}
@@ -281,6 +286,7 @@ function PlaceCard({
           </p>
         </div>
 
+        {/* ปุ่มเปิด/ปิดแผงจัดลำดับ-ย้ายวัน (สำหรับจอเล็กที่ลากยาก) */}
         <button
           type="button"
           onClick={() => setShowActions((v) => !v)}
@@ -366,6 +372,7 @@ function PlaceCard({
         <div className="lg:hidden mt-2 pt-2 border-t border-[color:var(--line)] flex flex-wrap items-center gap-1.5">
           {onShift && (
             <>
+              {/* ปุ่มเลื่อนขึ้น 1 ลำดับในวันเดียวกัน */}
               <button
                 type="button"
                 onClick={() => onShift(-1)}
@@ -375,6 +382,7 @@ function PlaceCard({
               >
                 <ChevronUp size={18} strokeWidth={1.75} />
               </button>
+              {/* ปุ่มเลื่อนลง 1 ลำดับในวันเดียวกัน */}
               <button
                 type="button"
                 onClick={() => onShift(1)}
@@ -412,6 +420,7 @@ function PlaceCard({
             />
           </div>
 
+          {/* ปุ่มเอาออก → ย้ายสถานที่กลับไปคลังที่ยังไม่จัดวัน */}
           {onRemove && (
             <button
               type="button"
@@ -429,6 +438,7 @@ function PlaceCard({
   );
 }
 
+// กล่องที่วางสถานที่ลงได้ (คลังที่ยังไม่จัดวัน หรือวันใดวันหนึ่ง) รับ id ของกล่อง
 function DroppableColumn({
   id,
   grid,
@@ -612,16 +622,19 @@ export default function ItineraryEditor() {
     });
   }, [tripDaysMeta, computedByDay, placesInfoById]);
 
+  // หาว่าสถานที่นี้อยู่ในกล่องไหน (คลังหรือวันไหน)
   function findContainerKey(placeId: string): string | undefined {
     return Object.keys(containers).find((key) =>
       containers[key].includes(placeId)
     );
   }
 
+  // เริ่มลากการ์ด จำไว้ว่าลากอันไหน
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
   }
 
+  // ปล่อยการ์ด → ย้ายไปกล่องที่วาง (ลำดับตามการ์ดที่วางทับ) · ปล่อยนอกกล่องไม่เปลี่ยน
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null);
     const { active, over } = event;
@@ -684,6 +697,7 @@ export default function ItineraryEditor() {
     });
   }
 
+  // ปุ่มยืนยันแผน: ส่งแผนให้ backend ตรวจซ้ำและบันทึก (PUT) สำเร็จแล้วไปหน้ารายละเอียดทริป
   async function handleConfirm() {
     if (!session || !tripId) return;
 
@@ -756,6 +770,7 @@ export default function ItineraryEditor() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-4">
         <div className="fade-in mb-4 flex items-start gap-3">
+          {/* ปุ่มกลับ → หน้าก่อนหน้า */}
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -968,6 +983,7 @@ export default function ItineraryEditor() {
               )}
             </div>
 
+            {/* ปุ่มยืนยันแผน → บันทึกแล้วไปหน้ารายละเอียดทริป (กดไม่ได้ถ้ายังมีจุดที่มีปัญหา หรือยังไม่กรอกเวลาที่อยู่ครบ) */}
             <button
               type="button"
               onClick={handleConfirm}

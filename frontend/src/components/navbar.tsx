@@ -3,6 +3,8 @@ import { Home, FolderOpen, Plane, LogOut } from "lucide-react";
 import { useAuth } from "../system/auth/useAuth";
 import { useLogout } from "../system/auth/useLogout";
 
+// แถบเมนูด้านบนของหน้าผู้ใช้: โลโก้/หน้าหลัก → /home, ทริปของฉัน → /trips, สร้างทริป → /trip/create
+// และปุ่มออกจากระบบ (เสร็จแล้วกลับหน้าแรก /)
 export default function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();

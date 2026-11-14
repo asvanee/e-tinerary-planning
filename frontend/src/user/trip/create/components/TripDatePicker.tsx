@@ -15,10 +15,12 @@ interface Props {
     className: string;
 }
 
+// ปี เดือน(0-11) วัน → "YYYY-MM-DD"
 function toIso(year: number, month: number, day: number): string {
     return new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10);
 }
 
+// ชื่อเดือนและปีภาษาไทยที่หัวปฏิทิน
 function monthLabel(year: number, month: number): string {
     return new Date(Date.UTC(year, month, 1)).toLocaleDateString("th-TH", {
         month: "long",
@@ -28,6 +30,7 @@ function monthLabel(year: number, month: number): string {
 }
 
 // ปฏิทินเลือกวัน ทุกวันมีไอคอนเมฆบอกว่ามีพยากรณ์อากาศหรือยัง
+// รับค่าวันที่ที่เลือก ฟังก์ชันเมื่อเลือกวัน และช่วงวันที่เลือกได้ (minDate–maxDate)
 export default function TripDatePicker({ id, value, onChange, minDate, maxDate, className }: Props) {
     const [open, setOpen] = useState(false);
     const [view, setView] = useState({ year: 0, month: 0 });
@@ -76,6 +79,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
 
     return (
         <div ref={rootRef} className="relative">
+            {/* ปุ่มช่องวันที่ → เปิด/ปิดปฏิทิน */}
             <button
                 id={id}
                 type="button"
@@ -97,6 +101,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
                     className="absolute left-0 z-20 mt-2 w-full min-w-72 max-w-sm rounded-2xl border border-[color:var(--line)] bg-white p-4 shadow-[var(--shadow)]"
                 >
                     <div className="flex items-center justify-between mb-3">
+                        {/* ปุ่มเดือนก่อนหน้า */}
                         <button
                             type="button"
                             onClick={() => shiftMonth(-1)}
@@ -109,6 +114,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
                         <p className="font-prompt font-medium text-[color:var(--navy)]">
                             {monthLabel(view.year, view.month)}
                         </p>
+                        {/* ปุ่มเดือนถัดไป */}
                         <button
                             type="button"
                             onClick={() => shiftMonth(1)}
@@ -131,6 +137,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
                             const selected = iso === value;
                             const forecast = hasForecast(iso, today, lastForecast);
                             const Icon = forecast ? Cloud : CloudOff;
+                            // ปุ่มวันที่ 1 วัน กดแล้วเลือกวันนั้นและปิดปฏิทิน
                             return (
                                 <button
                                     key={iso}

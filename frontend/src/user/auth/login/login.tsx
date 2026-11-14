@@ -4,6 +4,8 @@ import { useAuth } from "../../../system/auth/useAuth";
 import LoginForm from "../../../system/auth/LoginForm";
 import type { LoginResult } from "../../../system/auth/LoginForm";
 
+// หน้า login ของผู้ใช้: สำเร็จแล้วไป /home (ถ้าเป็น admin ไป /admin)
+// มีลิงก์ไปสมัครสมาชิก (/register) และไป login ของผู้ดูแลระบบ (/admin/login)
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();

@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { supabase, createAuthClient } from "../../config/db";
 import { errorMessage } from "../../utils/errorMessage";
 
-// สมัครสมาชิก: สร้างบัญชีใน Supabase Auth ก่อน แล้วค่อยบันทึกโปรไฟล์ลงตาราง users
+// สมัครสมาชิก รับ username, email, password จาก body
+// สร้างบัญชีใน Supabase Auth ก่อน แล้วค่อยบันทึกโปรไฟล์ลงตาราง users
 export const register = async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
 
@@ -11,6 +12,7 @@ export const register = async (req: Request, res: Response) => {
       email,
       password,
       options: {
+        // ลิงก์ในอีเมลยืนยันจะพาไปหน้านี้ (ตอนนี้ตั้งเป็น localhost)
         emailRedirectTo: "http://localhost:5173/email-confirmed",
         data: { username },
       },
@@ -59,7 +61,8 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-// เข้าสู่ระบบ: ต้องยืนยันอีเมลแล้ว · คืนโปรไฟล์จากตาราง users และบันทึกเวลา login ล่าสุด
+// เข้าสู่ระบบ รับ email, password จาก body · ต้องยืนยันอีเมลแล้ว
+// คืนโปรไฟล์จากตาราง users กับ session และบันทึกเวลา login ล่าสุด
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -112,6 +115,7 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+// ออกจากระบบ รับ token จาก header Authorization แล้วเพิกถอน session นั้น
 export const logout = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (token) {

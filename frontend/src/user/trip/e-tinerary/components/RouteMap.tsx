@@ -47,6 +47,7 @@ const DAY_COLORS = [
   "#5990c0",
 ];
 
+// สีของเส้นทางแต่ละวัน (วนสีเมื่อวันเกินจำนวนสีที่มี)
 function getDayColor(index: number): string {
   return DAY_COLORS[index % DAY_COLORS.length];
 }
@@ -81,12 +82,14 @@ interface RouteResult {
 
 const routeCache = new Map<string, RouteResult>();
 
+// key ใน cache ของเส้นทาง จากรายการจุดที่ผ่าน
 function routeKey(points: LatLng[]): string {
   return `${ORS_PROFILE}:${points
     .map(([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`)
     .join("|")}`;
 }
 
+// ขอเส้นทางถนนที่ผ่านทุกจุดจาก ORS (รับรายการ [lat, lng] กับ signal ใช้ยกเลิก) คืนเส้นพิกัดกับตำแหน่งของแต่ละจุดบนเส้น
 async function fetchRoute(
   points: LatLng[],
   signal: AbortSignal
@@ -124,6 +127,7 @@ async function fetchRoute(
 // หมุดเป็น divIcon — ไม่พึ่งไฟล์รูป default ของ Leaflet ที่มักพังใน Vite
 const iconCache = new Map<string, L.DivIcon>();
 
+// หมุดแสดงเลขลำดับในสีของวันนั้น · ใช้ที่ cache ไว้ถ้าเคยสร้างแล้ว
 function numberIcon(order: number, color: string): L.DivIcon {
   const key = `${order}-${color}`;
   let icon = iconCache.get(key);
@@ -164,6 +168,8 @@ function FitBounds({ points }: { points: LatLng[] }) {
   return null;
 }
 
+// แผนที่เส้นทางรายวัน รับพิกัดจุดเริ่มต้นกับรายการวัน (แต่ละวันมีสถานที่เรียงตามลำดับ)
+// เลือกซ่อน/แสดงเส้นของแต่ละวันได้ · ถ้าขอเส้นทางถนนไม่ได้จะลากเส้นตรงแทน
 export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
   const hasStart = startLat != null && startLng != null;
   const startPoint: LatLng | null = hasStart ? [startLat!, startLng!] : null;
@@ -192,6 +198,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
     });
   }, [daysWithItems]);
 
+  // ซ่อน/แสดงเส้นทางของวันนั้นบนแผนที่
   const toggleDay = (dayNumber: number) => {
     setVisibleDayNumbers((prev) => {
       const next = new Set(prev);

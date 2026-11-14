@@ -2,6 +2,7 @@ import type { OpeningHours } from "../e-tinerary/lib/openingHoursChecker";
 
 // ช่วงเวลาเปิดรายวันจาก places.opening_hours — ใช้แสดงผลเท่านั้น (ไม่กระทบ conflict)
 
+// "0930" → 570 นาทีนับจากเที่ยงคืน
 function hhmmToMin(t: string): number {
   return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2, 4), 10);
 }

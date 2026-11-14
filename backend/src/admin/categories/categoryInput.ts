@@ -18,6 +18,7 @@ export interface CategoryUpdate {
 
 export type Parsed<T> = { value: T } | { error: string };
 
+// เช็คว่า value เป็นหนึ่งในตัวเลือกที่กำหนด
 function isOneOf<T extends string>(options: readonly T[], value: unknown): value is T {
   return typeof value === "string" && (options as readonly string[]).includes(value);
 }

@@ -113,6 +113,7 @@ interface SavedItineraryResponse {
   tripDays: SavedItineraryDayRow[];
 }
 
+// แปลงแถวทริปจาก backend เป็นข้อมูลที่หน้านี้ใช้แสดง
 function mapTripRow(row: TripRow): TripSummary {
   return {
     province: row.province,
@@ -131,6 +132,7 @@ function mapTripRow(row: TripRow): TripSummary {
   };
 }
 
+// แปลงวันของแผนที่บันทึกไว้ (พร้อมสถานที่ในวันนั้น) เป็นข้อมูลที่หน้านี้ใช้แสดง
 function mapSavedDay(row: SavedItineraryDayRow): TripDay {
   return {
     tripDayId: row.tripDayId,
@@ -160,6 +162,7 @@ function mapSavedDay(row: SavedItineraryDayRow): TripDay {
   };
 }
 
+// ช่วงวันที่เป็นข้อความไทย เช่น "1 ม.ค. - 3 ม.ค. 2569"
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
   const e = new Date(end + "T00:00:00");
@@ -276,6 +279,8 @@ function TimelineStop({
   );
 }
 
+// หน้ารายละเอียดทริป: แสดงข้อมูลทริปกับแผนเดินทางที่ยืนยันแล้ว รวมแผนที่และรายวัน
+// ปุ่มแก้ไขเส้นทาง → editor · แสดงสถานที่แนะนำ → หน้าแนะนำ · แก้ไขข้อมูลทริป → ฟอร์มแก้ทริป · กลับหน้าหลัก → /home
 export default function TripDetail() {
   const { tripId: tripIdParam } = useParams();
   const navigate = useNavigate();
@@ -498,6 +503,7 @@ export default function TripDetail() {
       <Navbar />
 
       <div className="fade-in max-w-5xl mx-auto px-4 py-6">
+        {/* ปุ่มกลับหน้าหลัก → /home */}
         <button
           onClick={() => navigate("/home")}
           className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
@@ -571,6 +577,7 @@ export default function TripDetail() {
           )}
 
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
+            {/* ปุ่มแก้ไขเส้นทาง → โหลดแผนที่บันทึกไว้แล้วเปิดหน้า editor */}
             <button
               onClick={handleEditRoute}
               disabled={preparingEdit}
@@ -589,6 +596,7 @@ export default function TripDetail() {
               )}
             </button>
 
+            {/* ปุ่มแสดงสถานที่แนะนำ → หน้าแนะนำสถานที่ของทริปนี้ */}
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
               className={secondaryBtn}
@@ -597,6 +605,7 @@ export default function TripDetail() {
               แสดงสถานที่แนะนำ
             </button>
 
+            {/* ปุ่มแก้ไขข้อมูลทริป → ฟอร์มแก้ทริป (วัน งบ หมวด จุดเริ่มต้น) */}
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/edit`)}
               className={ghostBtn}
@@ -654,6 +663,7 @@ export default function TripDetail() {
             <p className="text-sm text-[color:var(--muted)] max-w-md">
               เริ่มจากเลือกสถานที่ที่สนใจก่อน ระบบจะช่วยจัดร่างเส้นทางให้อัตโนมัติ
             </p>
+            {/* ปุ่มไปเลือกสถานที่ (แสดงเมื่อยังไม่มีแผน) → หน้าแนะนำสถานที่ */}
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
               className={`${primaryBtn} mt-2`}

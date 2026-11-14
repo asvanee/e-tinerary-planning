@@ -61,6 +61,8 @@ export function namesSimilar(googleName: string | undefined, csvNames: (string |
   });
 }
 
+// เช็คว่าผลจาก Google เป็นสถานที่เดียวกับแถว CSV ไหม รับพิกัด CSV, พิกัดและชื่อจาก Google, ชื่อใน CSV
+// ผ่านเมื่อห่างไม่เกิน 1 กม. และชื่อคล้ายกัน
 export function matchCandidate(
   csvCoords: LatLng,
   googleCoords: LatLng | undefined,

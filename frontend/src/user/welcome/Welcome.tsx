@@ -6,12 +6,14 @@ import { UserPlus, LogIn, MapPin, Route, CalendarDays } from "lucide-react";
   ค่าหลังจุลภาคคือ fallback ถ้า global.css ยังไม่ถูกโหลด หน้าจะยังเห็นสีปกติ
 */
 
+// ไอคอนบอกสิ่งที่เว็บทำได้ ที่แสดงใต้ข้อความต้อนรับ
 const features = [
   { icon: MapPin, label: "แนะนำสถานที่" },
   { icon: Route, label: "จัดเส้นทาง" },
   { icon: CalendarDays, label: "วางแผนทริป" },
 ];
 
+// หน้าแรกของเว็บ: ปุ่มสมัครสมาชิก (/register) และเข้าสู่ระบบ (/login)
 export default function Welcome() {
   const navigate = useNavigate();
 

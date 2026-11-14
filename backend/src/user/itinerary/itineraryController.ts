@@ -23,6 +23,7 @@ import { errorMessage } from "../../utils/errorMessage";
 
 const INTERNAL_ERROR = "เกิดข้อผิดพลาดภายในระบบ";
 
+// แปลงสถานที่เป็นจุดสำหรับขอ travel matrix
 function toTravelPoint(place: {
   placeId: string;
   latitude: number;
@@ -31,6 +32,7 @@ function toTravelPoint(place: {
   return { id: place.placeId, latitude: place.latitude, longitude: place.longitude };
 }
 
+// รวมข้อมูลวันกับรหัสสถานที่ที่จัดลงวันนั้น (เรียงตามลำดับ) เป็น DayAssignment
 function toDayAssignment(day: TripDay, orderedPlaceIds: string[]): DayAssignment {
   return {
     tripDayId: day.tripDayId,
@@ -44,6 +46,7 @@ function toDayAssignment(day: TripDay, orderedPlaceIds: string[]): DayAssignment
   };
 }
 
+// หา id ที่ขอมาแต่ไม่พบในรายการสถานที่ที่ดึงได้
 function findMissingPlaceIds(
   requestedIds: string[],
   places: { placeId: string }[]
@@ -54,7 +57,7 @@ function findMissingPlaceIds(
     .filter((id) => !foundIds.has(id));
 }
 
-// tripId จาก path หรือตอบ 400 แล้วคืน null
+// ดึง tripId จาก path · ไม่มีหรือรูปแบบผิดตอบ 400 แล้วคืน null
 function getTripId(req: AuthRequest, res: Response, message = "ไม่พบรหัสทริป"): string | null {
   const { tripId } = req.params;
   if (!tripId || Array.isArray(tripId)) {
@@ -85,8 +88,8 @@ async function loadOwnedTrip(
   return tripOwner;
 }
 
-// ร่างแผน (ยังไม่บันทึก): สร้าง trip_days ถ้ายังไม่มี แล้วส่งวัน + travel matrix ให้ editor
-// ร่างแรกยังไม่จัดสถานที่ลงวัน ผู้ใช้ลากจัดเองทั้งหมด
+// ร่างแผน (ยังไม่บันทึก) รับ tripId จาก path กับ place_ids ที่เลือกจาก body
+// สร้าง trip_days ถ้ายังไม่มี แล้วส่งวัน + travel matrix ให้ editor · ร่างแรกยังไม่จัดสถานที่ลงวัน ผู้ใช้ลากจัดเอง
 export const buildDraft = async (req: AuthRequest, res: Response) => {
   const tripId = getTripId(req, res);
   if (!tripId) return;
@@ -152,7 +155,7 @@ interface ConfirmDayInput {
   place_ids: string[];
 }
 
-// ยืนยันแผน: body = { days: [{ trip_day_id, place_ids }], visit_durations: { [place_id]: นาที } }
+// ยืนยันแผน รับ tripId จาก path · body = { days: [{ trip_day_id, place_ids }], visit_durations: { [place_id]: นาที } }
 // backend คำนวณระยะ/เวลา/ราคาซ้ำเองทั้งหมด (ไม่เชื่อค่าจากหน้าเว็บ) แล้วลบแผนเดิมของทริปก่อนบันทึกใหม่
 export const confirmItinerary = async (req: AuthRequest, res: Response) => {
   const tripId = getTripId(req, res);
@@ -343,7 +346,7 @@ interface SavedItineraryRow {
   places: SavedPlaceSummary | SavedPlaceSummary[] | null;
 }
 
-// แผนที่ยืนยันแล้วพร้อมข้อมูลสถานที่ (หน้ารายละเอียดทริป)
+// แผนที่ยืนยันแล้วพร้อมข้อมูลสถานที่ รับ tripId จาก path (ใช้ในหน้ารายละเอียดทริป)
 export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
   const tripId = getTripId(req, res);
   if (!tripId) return;
@@ -433,7 +436,7 @@ export const getSavedItinerary = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// สถานที่ที่ Auto Trip จะใช้ — หน้าแนะนำเรียกเช็คก่อนเปิดหน้า Auto Trip
+// สถานที่ที่ Auto Trip จะใช้ รับ tripId จาก path (หน้าแนะนำเรียกเช็คก่อนเปิดหน้า Auto Trip)
 export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
   try {
     const tripId = getTripId(req, res, "tripId is required");
@@ -458,6 +461,7 @@ export async function getAutoTripPlacesTest(req: AuthRequest, res: Response) {
   }
 }
 
+// แปลงสถานที่จาก query เป็นรูปแบบที่ Auto Trip ใช้ (isRecommendation = สถานที่แนะนำนอกหมวดที่เลือก)
 function toAutoPlace(
   p: AutoTripPlace,
   isRecommendation = false
@@ -478,7 +482,8 @@ function toAutoPlace(
   };
 }
 
-// จัดแผนอัตโนมัติ โดยใช้เวลาเที่ยว 1 ชั่วโมงต่อสถานที่
+// จัดแผนอัตโนมัติ รับ tripId จาก path · body.include_recommendations = false คือไม่เติมสถานที่นอกหมวด
+// ใช้เวลาเที่ยว 1 ชั่วโมงต่อสถานที่
 export async function buildAutoTripController(req: AuthRequest, res: Response) {
   try {
     const tripId = getTripId(req, res);

@@ -26,6 +26,7 @@ const TOOLS: AdminTool[] = [
   },
 ];
 
+// หน้าแรกของ admin: การ์ดเครื่องมือแต่ละอัน กดแล้วไปหน้านั้น (ดูรายการใน TOOLS: จังหวัด /admin/provinces, หมวด /admin/categories)
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
