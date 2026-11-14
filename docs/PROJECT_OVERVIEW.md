@@ -43,7 +43,8 @@ e-tinerary-project/            (git repo, remote: github.com/macaronieiei/e-tine
     ├── src/user/          auth / home / welcome / trip/{create,recommendations,
     │                          e-tinerary/{editor,auto,components,lib},detail,myTrips}
     ├── src/admin/             หน้า admin (D-24): login, dashboard, provinces/ (ตรวจข้อมูลจังหวัด), imports/ (นำเข้า + รอตรวจ), lib/
-    ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm
+    ├── src/system/auth/       ใช้ร่วม user/admin: AuthContext, useAuth, ProtectedRoute, LoginForm, PasswordField, authFormClasses
+    ├── src/system/            errorText.ts (errorText, apiMessage), OsmTileLayer.tsx (พื้นแผนที่ OSM), categoryGroups.ts
     ├── vite.config.ts         proxy /api → http://localhost:5000
     ├── eslint.config.js
     └── dist/                  ผลของ npm run build — ถูก gitignore

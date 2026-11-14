@@ -34,13 +34,17 @@ description: แนวทางเขียนโค้ดใน E-tinerary ใ�
 | หมวดของสถานที่ | embed `category_labels!inner(categories!inner(...))` จาก `places` (เช่น `getSelectedPlaces`) |
 | query ที่อาจเกิน 1000 แถว | `selectAll` ใน `admin/provinces/decisionQueries.ts` + `.range()` |
 | ระยะทางเส้นตรง | `utils/haversine.ts` (mirror ฝั่ง frontend) |
-| format เวลา/ราคา/ระยะในหน้าทริป | `frontend/src/user/trip/lib/format.ts` |
+| format วันที่/เวลา/ราคา/ระยะในหน้าทริป (`formatThaiDate`, `formatTravelTime`, `formatDistance`, `formatClockMinutes`) | `frontend/src/user/trip/lib/format.ts` |
 | ช่วงเวลาเปิด-ปิดเพื่อแสดงผล | `frontend/src/user/trip/lib/openingDays.ts` |
 | เรียก API ของ admin | `admin/lib/adminApi.ts::adminRequest` + `errorMessage` · โหลดข้อมูลใน useEffect ใช้ `loadAdmin` |
 | ตรวจเจ้าของทริป | `loadOwnedTrip` (itinerary) / `.eq("user_id", userId)` (trip) |
 | ตรวจ user + tripId ใน controller | `requireTripParams` (trip) / `getTripId` (itinerary) |
 | ตรวจรูปแบบ uuid | `backend/src/utils/uuid.ts::isUuid` |
 | ข้อความจาก error (backend) | `utils/errorMessage.ts` · (frontend) `system/errorText.ts::errorText(err, fallback)` |
+| ข้อความ `message` จาก response ของ backend (frontend) | `system/errorText.ts::apiMessage` |
+| ระยะ/เวลาเดินทางของคู่สถานที่ (แผนที่จัดเองและ Auto Trip) | `itineraryBuilder.ts::resolveTravelMetric` |
+| รายการวันที่ของทริป (backend) | `user/trip/tripDateRange.ts::enumerateDates` |
+| ช่องรหัสผ่าน / พื้นแผนที่ OSM / ช่องหมายเหตุ admin | `system/auth/PasswordField.tsx` / `system/OsmTileLayer.tsx` / `admin/provinces/components/NoteField.tsx` |
 | cache ในหน่วยความจำที่หมดอายุ | `utils/ttlCache.ts::TtlCache` |
 | ยิง ORS Matrix | `utils/orsMatrixRequest.ts::postOrsMatrix` + `coordKey` |
 | แปลงเวลา "HH:MM" ↔ นาที | `utils/timeString.ts` (mirror อยู่ใน frontend itineraryBuilder) |

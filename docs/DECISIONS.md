@@ -536,3 +536,22 @@
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `frontend/src/user/trip/recommendations/TripRecommendations.tsx`
 - ตอน merge (2026-11-13): การเรียกจัดทริปจากหน้าแนะนำส่ง `include_recommendations` ตามสวิตช์ของ D-61 และเปิดหน้า Auto ด้วย `?others=0` เมื่อปิดสวิตช์ ให้ปุ่มจัดใหม่ในหน้า Auto ทำแบบเดียวกัน · ทริปที่เพิ่งเลือกหมวดใน popup ยังไม่มีสวิตช์บนหน้า จึงเพิ่มสถานที่แนะนำเพิ่มเติมตามปกติ
+
+### D-66 · 2026-11-14 · เปลี่ยนชื่อโฟลเดอร์ `features/` เป็น `user/`
+- บริบท: โค้ดฝั่งผู้ใช้ทั่วไปอยู่ใน `features/` ส่วน admin อยู่ใน `admin/` — ผู้ใช้ต้องการชื่อที่คู่กันและสื่อความหมาย
+- ข้อสรุป: ย้าย `backend/src/features` → `backend/src/user` และ `frontend/src/features` → `frontend/src/user` ด้วย `git mv` (ประวัติไฟล์ไม่หาย) · URL ของ API ไม่เปลี่ยน · แก้ import, comment ของไฟล์ mirror, `CLAUDE.md`, `docs/` และ `.claude/skills/` ให้ชี้ path ใหม่
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์
+- ไฟล์ที่กระทบ: commit `bd0f5e9` (78 ไฟล์ — เปลี่ยนเฉพาะ path)
+
+### D-67 · 2026-11-14 · รวมโค้ดซ้ำและใช้กติกาเดียวกันทั้ง repo (รวม Auto Trip ของกิ่ง)
+- บริบท: cleanup ทั้ง repo — พบฟังก์ชัน/หน้าจอที่ทำหน้าที่เดียวกันแต่ logic ต่างกันเล็กน้อย ผู้ใช้ให้รวมและเลือกยึดตัวใดตัวหนึ่ง ยอมให้การแสดงผลเปลี่ยน · ผู้ใช้สั่งให้ทำกับไฟล์ Auto Trip เองโดยไม่ต้องรอกิ่ง
+- ข้อสรุป:
+  - เวลาเดินทางของ Auto Trip ใช้ `resolveTravelMetric` ตัวเดียวกับแผนที่จัดเอง (ปัดเวลาใกล้สุด ขั้นต่ำ 1 นาทีต่อช่วง ระยะทางปัด 2 ตำแหน่ง) แทนสูตรเดิมที่ปัดขึ้นและไม่ปัดระยะทาง — ตอนใช้ข้อมูลจาก matrix เป็นแบบนี้อยู่แล้ว ที่เปลี่ยนคือกรณีไม่มี matrix
+  - รายการวันที่ของทริปใช้ `enumerateDates` ตัวเดียว (`backend/src/user/trip/tripDateRange.ts`)
+  - ฟอร์มสร้างทริปตรวจว่าเวลาว่างต่อวันเป็นจำนวนเต็ม และวันที่มีอยู่จริงในปฏิทิน เหมือน backend
+  - ตารางเวลาเปิดบนการ์ดหน้าแนะนำใช้ `openIntervalsForDay` ชุดเดียวกับคำเตือนวันปิด (วันถัดจากร้านที่เปิดข้ามเที่ยงคืนแสดงช่วงที่ยังเปิด แทนคำว่า "ปิด")
+  - frontend: format วันที่/เวลา/ระยะใช้ชุดกลางใน `user/trip/lib/format.ts` ทั้ง MyTrips, TripDetail และ Auto Trip (หน้า Auto Trip แสดงวันที่เดือนแบบย่อ, 0 นาทีเป็น "น้อยกว่า 1 นาที", ระยะต่ำกว่า 1 กม. เป็นเมตร, ช่วงวันที่ในหน้ารายละเอียดมีปีทั้งสองฝั่ง)
+  - รวมช่องรหัสผ่าน (`system/auth/PasswordField.tsx`), พื้นแผนที่ (`system/OsmTileLayer.tsx`), `apiMessage` (`system/errorText.ts`) และบล็อกซ้ำในหน้า admin (`NoteField`, `GoogleCandidateInfo`)
+  - ฟังก์ชันที่ซ้ำกันระหว่าง backend กับ frontend (mirror) คงไว้ เพราะคนละ package
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (Auto Trip เป็นโค้ดของกิ่ง — ทำตามที่เจ้าของโปรเจกต์สั่ง ควรแจ้งกิ่ง)
+- ไฟล์ที่กระทบ: commit `308446a` (comment หัวฟังก์ชัน/ปุ่ม), `68e4843`, `894161f` — `backend/src/user/itinerary/autoTripBuilder.ts` + test ของมัน (เผื่อเวลาเดินทาง 1 นาที), `itineraryBuilder.ts` ทั้งสองฝั่ง (export `resolveTravelMetric`), `frontend/src/user/trip/**`, `frontend/src/system/**`, `frontend/src/admin/**`
