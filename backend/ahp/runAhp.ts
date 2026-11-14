@@ -1,5 +1,5 @@
 // รันจาก backend/: npx ts-node ahp/runAhp.ts <ไฟล์คำตอบ.csv> [ไฟล์ผลรายคน.csv]
-// ไฟล์คำตอบ = CSV ที่ export จาก Google Form (ไม่เก็บไว้ใน repo)
+// ไฟล์คำตอบ = CSV ที่ export จาก Google Form (ไฟล์จริงของแบบสอบถามอยู่ที่ backend/ahp/responses.csv)
 import { readFileSync, writeFileSync } from "fs";
 import { parse } from "csv-parse/sync";
 import {
