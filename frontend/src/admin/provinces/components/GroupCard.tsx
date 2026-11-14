@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Combine, ExternalLink, Split, Undo2 } from "lucide-react";
 import type { AttractionRow, GroupDecisionInput, MergeSetInput, PlaceDecision, ReviewGroup } from "../../lib/reviewTypes";
 import { KEY_FIELDS, MERGE_FIELDS, REASON_LABELS, displayName, fieldLabel, mapsUrl, parseLatLng } from "../../lib/placeFields";
+import NoteField from "./NoteField";
 
 interface GroupCardProps {
   group: ReviewGroup;
@@ -265,14 +266,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                   className="min-h-10 px-3 rounded-lg border border-[color:var(--line)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 grow">
-                <span className="font-prompt text-[color:var(--navy)]">หมายเหตุ (ไม่บังคับ)</span>
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="min-h-10 px-3 rounded-lg border border-[color:var(--line)]"
-                />
-              </label>
+              <NoteField value={note} onChange={setNote} />
             </div>
           )}
           {formError && <p role="alert" className="text-sm text-[color:var(--danger)]">{formError}</p>}

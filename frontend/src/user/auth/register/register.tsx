@@ -4,19 +4,18 @@ import { useNavigate } from "react-router-dom";
 import {
   MapPinned,
   UserPlus,
-  Eye,
-  EyeOff,
   Loader2,
   TriangleAlert,
   CircleCheck,
 } from "lucide-react";
+import PasswordField from "../../../system/auth/PasswordField";
+import { inputClass, labelClass } from "../../../system/auth/authFormClasses";
 
 // หน้าสมัครสมาชิก: ส่งข้อมูลให้ backend สำเร็จแล้วไปหน้าแจ้งยืนยันอีเมล (/confirm-email) · มีลิงก์ไปหน้า login (/login)
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
@@ -60,10 +59,7 @@ export default function Register() {
     }
   };
 
-  const inputClass =
-    "w-full min-h-12 px-4 py-3 rounded-xl border border-[color:var(--line)] bg-white text-[color:var(--text)] placeholder:text-[color:var(--muted)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--navy)] focus:ring-4 focus:ring-[color:var(--line)] transition-all duration-200";
 
-  const labelClass = "font-prompt text-sm font-medium text-[color:var(--navy)]";
 
   const linkClass =
     "font-semibold text-[color:var(--deep)] underline underline-offset-2 hover:text-[color:var(--navy)] transition-colors duration-200 cursor-pointer";
@@ -117,33 +113,7 @@ export default function Register() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className={labelClass}>รหัสผ่าน</label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className={`${inputClass} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-[color:var(--muted)] hover:text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] transition-colors duration-200"
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} strokeWidth={1.75} />
-                  ) : (
-                    <Eye size={20} strokeWidth={1.75} />
-                  )}
-                </button>
-              </div>
-            </div>
+            <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
 
             {/* Message (เต็มความกว้าง) */}
             {message && (

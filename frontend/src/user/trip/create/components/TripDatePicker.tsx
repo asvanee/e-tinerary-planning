@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Cloud, CloudOff } from "lucide-react";
 import {
-    FORECAST_MAX_DAYS_AHEAD, formatThaiDate, forecastLastDay, hasForecast, todayInBangkok,
+    FORECAST_MAX_DAYS_AHEAD, forecastLastDay, hasForecast, todayInBangkok,
 } from "../tripDates";
+import { formatThaiDate } from "../../lib/format";
 
 const WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 

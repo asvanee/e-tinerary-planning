@@ -3,6 +3,7 @@ import { Check, FileText, Loader2, Trash2, TriangleAlert } from "lucide-react";
 import { adminRequest, errorMessage, loadAdmin } from "../lib/adminApi";
 import { ITEM_STATUS_CLASS, ITEM_STATUS_LABELS } from "../lib/importLabels";
 import type { ImportItem } from "../lib/importTypes";
+import GoogleCandidateInfo from "./GoogleCandidateInfo";
 import MapLink from "./MapLink";
 
 type ResolveAction = "accept_google" | "csv_only" | "skip";
@@ -78,8 +79,6 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
     <ul className="flex flex-col gap-3">
       {items.map((item) => {
         const candidate = item.candidate;
-        const candidateLocation =
-          candidate?.lat != null && candidate.lng != null ? `${candidate.lat}, ${candidate.lng}` : null;
         // แถวซ้ำ/ไม่พบใน Google ไม่มีผลให้ยอมรับ (backend ตรวจซ้ำ)
         const canAccept = item.status !== "needs_review_duplicate" && !!item.google_place_id;
         const busy = busyItemId !== null;
@@ -105,13 +104,7 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
               <div>
                 <p className="text-xs text-[color:var(--muted)]">Google</p>
                 {candidate ? (
-                  <>
-                    <p className="text-[color:var(--text)]">{candidate.name ?? "–"}</p>
-                    {candidate.formatted_address && (
-                      <p className="text-xs text-[color:var(--muted)]">{candidate.formatted_address}</p>
-                    )}
-                    <MapLink location={candidateLocation} />
-                  </>
+                  <GoogleCandidateInfo candidate={candidate} />
                 ) : (
                   <p className="text-[color:var(--muted)]">–</p>
                 )}

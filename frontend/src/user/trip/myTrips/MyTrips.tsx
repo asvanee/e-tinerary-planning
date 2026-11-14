@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
+import { formatThaiDate } from "../lib/format";
 
 interface Trip {
   trip_id: string;
@@ -28,17 +29,6 @@ interface Trip {
   daily_budget: number | null;
   available_time_per_day: number | null;
   created_at: string;
-}
-
-// "2026-10-05" -> "5 ต.ค. 2569" (ถ้าแปลงไม่ได้ แสดงค่าดิบ)
-function formatDate(value: string) {
-  const d = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 // หน้าทริปของฉัน: โหลดทริปทั้งหมดของผู้ใช้จาก GET /api/trips แสดงเป็นการ์ด
@@ -251,7 +241,7 @@ export default function MyTrips() {
                     <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-[color:var(--muted)]">
                       <span className="flex items-center gap-1.5">
                         <CalendarDays size={16} strokeWidth={1.75} />
-                        {formatDate(trip.start_date)} - {formatDate(trip.end_date)}
+                        {formatThaiDate(trip.start_date)} - {formatThaiDate(trip.end_date)}
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Users size={16} strokeWidth={1.75} />

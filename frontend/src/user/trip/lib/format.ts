@@ -43,3 +43,13 @@ export function formatTravelTime(minutes: number): string {
 export function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`;
 }
+
+// "2026-11-25" -> "25 พ.ย. 2569"
+export function formatThaiDate(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}

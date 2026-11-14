@@ -10,11 +10,11 @@ import {
   MapContainer,
   Marker,
   Polyline,
-  TileLayer,
   Tooltip,
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
+import OsmTileLayer from "../../../../system/OsmTileLayer";
 import "leaflet/dist/leaflet.css";
 import { Loader2, MapPinned, TriangleAlert } from "lucide-react";
 
@@ -31,9 +31,8 @@ const ORS_PROFILE =
 // ORS directions รับได้สูงสุด 50 waypoints ต่อ request — เกินจากนี้ใช้เส้นตรงแทน
 const ORS_MAX_WAYPOINTS = 50;
 
-const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Routing by <a href="https://openrouteservice.org">openrouteservice</a>';
+// เครดิตเพิ่มเติมของ ORS ที่ต่อท้ายเครดิต OpenStreetMap
+const ORS_ATTRIBUTION = ' | Routing by <a href="https://openrouteservice.org">openrouteservice</a>';
 
 type LatLng = [number, number]; // [lat, lng] (รูปแบบของ Leaflet)
 
@@ -366,7 +365,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
           scrollWheelZoom
           className="w-full h-52 sm:h-64 lg:h-[420px]"
         >
-          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
+          <OsmTileLayer extraAttribution={ORS_ATTRIBUTION} />
           <FitBounds points={boundsPoints} />
 
           {startPoint && (

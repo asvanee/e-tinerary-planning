@@ -9,7 +9,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/navbar";
 import { useAuth } from "../../../system/auth/useAuth";
 import { CATEGORY_GROUPS } from "../../../system/categoryGroups";
-import { errorText } from "../../../system/errorText";
+import { apiMessage, errorText } from "../../../system/errorText";
 import RecommendationMap from "./RecommendationMap";
 import { categoryColor } from "./categoryColors";
 import type { MapFocus, MapPlace } from "./RecommendationMap";
@@ -71,20 +71,6 @@ interface CategoryOption {
 // เช็คว่าเป็น array ของข้อความทั้งหมด
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-// ดึงข้อความ message จากผลที่ backend ตอบ (ไม่มี = undefined)
-function getApiMessage(payload: unknown): string | undefined {
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "message" in payload &&
-    typeof payload.message === "string"
-  ) {
-    return payload.message;
-  }
-
-  return undefined;
 }
 
 // ดึง id ของหมวดที่ทริปเลือกไว้จากผล GET /api/trips/:tripId
@@ -509,7 +495,7 @@ export default function TripRecommendations() {
       const response = await fetch("/api/categories");
       const payload: unknown = await response.json();
       if (!response.ok) {
-        throw new Error(getApiMessage(payload) ?? "โหลดหมวดหมู่ไม่สำเร็จ");
+        throw new Error(apiMessage(payload) ?? "โหลดหมวดหมู่ไม่สำเร็จ");
       }
       setCategoryOptions(getCategoryOptions(payload));
     } catch (err) {
@@ -540,7 +526,7 @@ export default function TripRecommendations() {
     );
     const payload: unknown = await response.json();
     if (!response.ok) {
-      throw new Error(getApiMessage(payload) ?? "จัดทริปอัตโนมัติไม่สำเร็จ");
+      throw new Error(apiMessage(payload) ?? "จัดทริปอัตโนมัติไม่สำเร็จ");
     }
 
     setCategoryDialogOpen(false);
@@ -564,7 +550,7 @@ export default function TripRecommendations() {
       });
       const tripPayload: unknown = await tripResponse.json();
       if (!tripResponse.ok) {
-        throw new Error(getApiMessage(tripPayload) ?? "โหลดข้อมูลทริปไม่สำเร็จ");
+        throw new Error(apiMessage(tripPayload) ?? "โหลดข้อมูลทริปไม่สำเร็จ");
       }
 
       if (getTripCategoryIds(tripPayload).length === 0) {
@@ -674,7 +660,7 @@ export default function TripRecommendations() {
       );
       const savePayload: unknown = await saveResponse.json();
       if (!saveResponse.ok) {
-        throw new Error(getApiMessage(savePayload) ?? "บันทึกหมวดหมู่ไม่สำเร็จ");
+        throw new Error(apiMessage(savePayload) ?? "บันทึกหมวดหมู่ไม่สำเร็จ");
       }
 
       const poiResponse = await fetch(
@@ -688,7 +674,7 @@ export default function TripRecommendations() {
       );
       const poiPayload: unknown = await poiResponse.json();
       if (!poiResponse.ok) {
-        throw new Error(getApiMessage(poiPayload) ?? "คำนวณคะแนนสถานที่ไม่สำเร็จ");
+        throw new Error(apiMessage(poiPayload) ?? "คำนวณคะแนนสถานที่ไม่สำเร็จ");
       }
 
       await generateAndOpenAutoTrip(tripId, session.access_token);

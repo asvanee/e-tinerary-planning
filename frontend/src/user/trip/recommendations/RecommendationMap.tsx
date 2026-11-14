@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, useMap } from "react-leaflet";
+import OsmTileLayer from "../../../system/OsmTileLayer";
 import "leaflet/dist/leaflet.css";
 import { categoryColor } from "./categoryColors";
 
@@ -174,11 +175,7 @@ export default function RecommendationMap({
           scrollWheelZoom
           className="h-full w-full"
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maxZoom={19}
-          />
+          <OsmTileLayer />
           <FitBounds points={points} />
           <FocusHandler focus={focus} points={points} markerRefs={markerRefs} />
 

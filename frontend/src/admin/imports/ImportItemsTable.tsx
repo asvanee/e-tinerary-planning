@@ -3,6 +3,7 @@ import { Loader2, TriangleAlert } from "lucide-react";
 import { loadAdmin } from "../lib/adminApi";
 import { ITEM_STATUS_CLASS, ITEM_STATUS_LABELS } from "../lib/importLabels";
 import type { ImportItemsPage, ImportItemStatus } from "../lib/importTypes";
+import GoogleCandidateInfo from "./GoogleCandidateInfo";
 import MapLink from "./MapLink";
 
 const PAGE_SIZE = 100; // ตรงกับ backend importQueries.ts::ITEMS_PAGE_SIZE
@@ -88,8 +89,6 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
             <tbody>
               {data.items.map((item) => {
                 const candidate = item.candidate;
-                const candidateLocation =
-                  candidate?.lat != null && candidate.lng != null ? `${candidate.lat}, ${candidate.lng}` : null;
                 return (
                   <tr key={item.item_id} className="border-t border-[color:var(--line)] align-top">
                     <td className="px-3 py-2 min-w-48">
@@ -104,13 +103,7 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
                     </td>
                     <td className="px-3 py-2 min-w-48">
                       {candidate ? (
-                        <>
-                          <p className="text-[color:var(--text)]">{candidate.name ?? "–"}</p>
-                          {candidate.formatted_address && (
-                            <p className="text-xs text-[color:var(--muted)]">{candidate.formatted_address}</p>
-                          )}
-                          <MapLink location={candidateLocation} />
-                        </>
+                        <GoogleCandidateInfo candidate={candidate} />
                       ) : (
                         <span className="text-[color:var(--muted)]">–</span>
                       )}

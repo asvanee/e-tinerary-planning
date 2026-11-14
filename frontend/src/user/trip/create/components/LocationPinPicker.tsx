@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMap, useMapEvents } from "react-leaflet";
+import OsmTileLayer from "../../../../system/OsmTileLayer";
 import "leaflet/dist/leaflet.css";
 import { CircleCheck, Loader2, MapPin, Search, TriangleAlert } from "lucide-react";
 
@@ -254,11 +255,7 @@ export default function LocationPinPicker({
                     scrollWheelZoom
                     className="h-full w-full"
                 >
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        maxZoom={19}
-                    />
+                    <OsmTileLayer />
                     <FocusMap focus={focus} />
                     <ClickToPin onPick={moveMarker} />
                     <Marker

@@ -41,13 +41,3 @@ export function getTripDateError(startDate: string, endDate: string): string | n
     if (days > MAX_TRIP_DAYS) return `ทริปยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`;
     return null;
 }
-
-// "25 พ.ย. 2569"
-export function formatThaiDate(isoDate: string): string {
-    return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("th-TH", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        timeZone: "UTC",
-    });
-}

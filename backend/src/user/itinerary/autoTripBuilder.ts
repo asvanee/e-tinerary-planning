@@ -1,7 +1,7 @@
 import type { OpeningHours } from "../../utils/openingHoursChecker";
 import { checkOpeningStatus } from "../../utils/openingHoursChecker";
 import { TRIP_START_ID, type TravelMatrix } from "../../utils/orsTravelMatrix";
-import { timeStringToMinutes } from "../../utils/timeString";
+import { minutesToTimeString, timeStringToMinutes } from "../../utils/timeString";
 import {
   calculateDistanceKm,
   nearestNeighborTsp,
@@ -99,15 +99,6 @@ const DEFAULT_TRAVEL_SPEED_KMH = 30; // ความเร็วคิดเว�
 const AUTO_TRIP_VISIT_DURATION_MIN = 60; // เวลาเที่ยวต่อสถานที่ (1 ชั่วโมง)
 const TRIP_START_NAME = "จุดเริ่มต้นทริป";
 const DAY_START_NAME = "เริ่มต้นวัน";
-
-// นาที -> "HH:MM"
-function minutesToTime(minutes: number): string {
-  const normalized = Math.max(0, minutes);
-  const hour = Math.floor(normalized / 60);
-  const minute = normalized % 60;
-
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-}
 
 // ไม่มีใน matrix ใช้ความเร็วเฉลี่ย 30 กม./ชม. (ปัดขึ้น)
 function calculateTravelTimeMin(distanceKm: number): number {
@@ -338,8 +329,8 @@ function evaluateSchedule(
         poiScore: place.poiScore,
         latitude: Number(place.latitude),
         longitude: Number(place.longitude),
-        start_time: minutesToTime(arrivalTime),
-        end_time: minutesToTime(departureTime),
+        start_time: minutesToTimeString(arrivalTime).slice(0, 5),
+        end_time: minutesToTimeString(departureTime).slice(0, 5),
         duration_min: durationMin,
         travel_distance_km: Number(leg.distanceKm.toFixed(2)),
         travel_time_min: leg.travelTimeMin,

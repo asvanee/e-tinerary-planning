@@ -9,6 +9,7 @@ import {
   formatBaht,
   formatDistance,
   formatTime,
+  formatThaiDate,
   formatTimeRange,
   formatTravelTime,
   formatVisitDate,
@@ -160,17 +161,6 @@ function mapSavedDay(row: SavedItineraryDayRow): TripDay {
       isCostUnknown: item.isCostUnknown,
     })),
   };
-}
-
-// ช่วงวันที่เป็นข้อความไทย เช่น "1 ม.ค. - 3 ม.ค. 2569"
-function formatDateRange(start: string, end: string): string {
-  const s = new Date(start + "T00:00:00");
-  const e = new Date(end + "T00:00:00");
-  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
-  return `${s.toLocaleDateString("th-TH", opts)} - ${e.toLocaleDateString("th-TH", {
-    ...opts,
-    year: "numeric",
-  })}`;
 }
 
 const BUDGET_SCOPE_LABELS: Record<string, string> = {
@@ -541,7 +531,7 @@ export default function TripDetail() {
           <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[color:var(--muted)]">
             <li className="flex items-center gap-2">
               <CalendarDays size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />
-              {formatDateRange(trip.startDate, trip.endDate)}
+              {formatThaiDate(trip.startDate)} - {formatThaiDate(trip.endDate)}
             </li>
             <li className="flex items-center gap-2">
               <Users size={18} strokeWidth={1.75} className="shrink-0 text-[color:var(--sky)]" />

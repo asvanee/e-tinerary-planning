@@ -2,13 +2,14 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../../../../components/navbar";
 import { useAuth } from "../../../../system/auth/useAuth";
-import { errorText } from "../../../../system/errorText";
+import { apiMessage, errorText } from "../../../../system/errorText";
 import type {
   AutoTripResponse,
   AutoTripStop,
 } from "./autoTripTypes";
 import type { ItineraryItemResult } from "../lib/itineraryBuilder";
 import RouteMap from "../components/RouteMap";
+import { formatDistance, formatThaiDate, formatTravelTime } from "../../lib/format";
 import {
   ArrowLeft,
   CalendarDays,
@@ -37,29 +38,6 @@ const secondaryBtn =
 const ghostBtn =
   "font-prompt font-medium min-h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)] active:scale-[0.98] transition-all duration-200 whitespace-nowrap";
 
-// "2026-11-10" -> "10 พฤศจิกายน 2569" (อ่านไม่ได้คืนค่าเดิม)
-function formatDate(date?: string) {
-  if (!date) return "";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return parsed.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
-}
-
-// นาที -> "45 นาที" / "1 ชม. 30 นาที"
-function formatDuration(minutes?: number | null) {
-  if (minutes == null) return "-";
-  if (minutes < 60) return `${minutes} นาที`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins === 0 ? `${hours} ชม.` : `${hours} ชม. ${mins} นาที`;
-}
-
-// ระยะทางเป็นข้อความ เช่น "2.5 กม." (ไม่มีค่าแสดง "-")
-function formatDistance(distance?: number | null) {
-  if (distance == null) return "-";
-  return `${Number(distance).toFixed(1)} กม.`;
-}
-
 // เปิด Google Maps ที่พิกัดนี้ในแท็บใหม่
 function openGoogleMaps(latitude: number, longitude: number) {
   window.open(
@@ -67,20 +45,6 @@ function openGoogleMaps(latitude: number, longitude: number) {
     "_blank",
     "noopener,noreferrer"
   );
-}
-
-// ดึงข้อความ message จากผลที่ backend ตอบ (ไม่มี = undefined)
-function getResponseMessage(payload: unknown): string | undefined {
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "message" in payload &&
-    typeof payload.message === "string"
-  ) {
-    return payload.message;
-  }
-
-  return undefined;
 }
 
 // เช็คว่าผลที่ได้เป็นผล Auto Trip ที่ใช้ได้ (มี trip_id และ days)
@@ -226,7 +190,7 @@ export default function AutoTrip() {
 
       if (!response.ok) {
         throw new Error(
-          getResponseMessage(payload) ?? "ไม่สามารถจัดทริปอัตโนมัติได้"
+          apiMessage(payload) ?? "ไม่สามารถจัดทริปอัตโนมัติได้"
         );
       }
       if (!isAutoTripResponse(payload)) {
@@ -636,7 +600,7 @@ export default function AutoTrip() {
               >
                 <span className="block font-medium">วันที่ {day.day}</span>
                 <span className={`block text-xs ${active ? "text-white/80" : "text-[color:var(--muted)]"}`}>
-                  {formatDate(day.date)} ·{" "}
+                  {formatThaiDate(day.date)} ·{" "}
                   {stops.length > 0
                     ? `${stops.length} สถานที่`
                     : "ไม่มีสถานที่แนะนำเพิ่มเติมที่เข้าเงื่อนไข"}
@@ -659,14 +623,14 @@ export default function AutoTrip() {
             <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
               {currentDay ? `วันที่ ${currentDay.day}` : "สถานที่ในวันนี้"}
               {currentDay && (
-                <span className="font-normal text-[color:var(--deep)] text-base"> — {formatDate(currentDay.date)}</span>
+                <span className="font-normal text-[color:var(--deep)] text-base"> — {formatThaiDate(currentDay.date)}</span>
               )}
             </h2>
             {currentDay && (
               <span className="flex items-center gap-1.5 text-sm text-[color:var(--muted)]">
                 <Clock size={14} strokeWidth={1.75} />
-                เที่ยว {formatDuration(currentDay.total_visit_time_min)} · เดินทาง{" "}
-                {formatDuration(currentDay.total_travel_time_min)}
+                เที่ยว {formatTravelTime(currentDay.total_visit_time_min)} · เดินทาง{" "}
+                {formatTravelTime(currentDay.total_travel_time_min)}
               </span>
             )}
           </div>
@@ -701,7 +665,7 @@ export default function AutoTrip() {
                       <span className="text-[color:var(--muted)]">· {formatDistance(stop.travel_distance_km)}</span>
                     )}
                     {stop.travel_time_min > 0 && (
-                      <span className="text-[color:var(--muted)]">· ใช้เวลา {formatDuration(stop.travel_time_min)}</span>
+                      <span className="text-[color:var(--muted)]">· ใช้เวลา {formatTravelTime(stop.travel_time_min)}</span>
                     )}
                   </div>
 
@@ -735,7 +699,7 @@ export default function AutoTrip() {
                       </li>
                       <li className="flex items-center gap-1.5">
                         <Timer size={14} strokeWidth={1.75} className="shrink-0 text-[color:var(--muted)]" />
-                        ระยะเวลาเที่ยว {formatDuration(stop.duration_min)}
+                        ระยะเวลาเที่ยว {formatTravelTime(stop.duration_min)}
                       </li>
                     </ul>
 
