@@ -9,7 +9,7 @@ import {
   calculatePriceScore,
   calculateRatingScore,
   calculateWeatherScore,
-} from "../../src/features/poi/poiScoreCalculator";
+} from "../../src/user/poi/poiScoreCalculator";
 
 const NAME: Record<Factor, string> = {
   category: "หมวด",

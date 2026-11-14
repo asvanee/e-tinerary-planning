@@ -18,7 +18,7 @@ import math
 import sys
 from itertools import combinations
 
-# ลำดับปัจจัยตรงกับ WEIGHTS ใน backend/src/features/poi/poiScoreCalculator.ts
+# ลำดับปัจจัยตรงกับ WEIGHTS ใน backend/src/user/poi/poiScoreCalculator.ts
 FACTORS = ["category", "rating", "distance", "budget", "weather"]
 
 # Random consistency index (R.I.) — Saaty 1987 น. 171
