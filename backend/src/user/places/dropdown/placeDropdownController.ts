@@ -10,33 +10,42 @@ function distinctSorted(values: (string | null)[]): string[] {
   ).sort((a, b) => a.localeCompare(b, "th"));
 }
 
+// อ่านค่าคอลัมน์เดียวของทุกแถวใน places ทีละ 1,000 แถว (Supabase ตอบได้สูงสุด 1,000 แถวต่อครั้ง) · filterProvince = กรองเฉพาะจังหวัดนั้น
+const PAGE_SIZE = 1000;
+async function fetchColumnValues(
+  column: "province" | "district",
+  filterProvince?: string
+): Promise<{ values: (string | null)[]; failed: boolean }> {
+  const values: (string | null)[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let query = supabase.from("places").select(column).not(column, "is", null);
+    if (filterProvince) query = query.eq("province", filterProvince);
+    const { data, error } = await query.order(column).range(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error(`fetch places ${column} error:`, error);
+      return { values, failed: true };
+    }
+    const rows = (data ?? []) as unknown as Record<string, string | null>[];
+    values.push(...rows.map((row) => row[column]));
+    if (rows.length < PAGE_SIZE) return { values, failed: false };
+  }
+}
+
 // รายชื่อจังหวัดทั้งหมดที่มีสถานที่ในระบบ (ไม่รับ parameter)
 export const getProvinces = async (_req: Request, res: Response) => {
-  const { data, error } = await supabase
-    .from("places")
-    .select("province")
-    .not("province", "is", null);
+  const { values, failed } = await fetchColumnValues("province");
+  if (failed) return res.status(500).json({ message: "ไม่สามารถโหลดรายชื่อจังหวัดได้" });
 
-  if (error) return res.status(500).json({ message: error.message });
-
-  res.json({ provinces: distinctSorted((data ?? []).map((row: { province: string | null }) => row.province)) });
+  res.json({ provinces: distinctSorted(values) });
 };
 
 // รายชื่ออำเภอ รับ ?province= (ไม่ส่งจะได้ทุกอำเภอ ส่งมาจะได้เฉพาะของจังหวัดนั้น)
 export const getDistricts = async (req: Request, res: Response) => {
   const { province } = req.query;
+  const filterProvince = typeof province === "string" && province.trim() !== "" ? province : undefined;
 
-  let query = supabase
-    .from("places")
-    .select("district")
-    .not("district", "is", null);
+  const { values, failed } = await fetchColumnValues("district", filterProvince);
+  if (failed) return res.status(500).json({ message: "ไม่สามารถโหลดรายชื่ออำเภอได้" });
 
-  if (typeof province === "string" && province.trim() !== "") {
-    query = query.eq("province", province);
-  }
-
-  const { data, error } = await query;
-  if (error) return res.status(500).json({ message: error.message });
-
-  res.json({ districts: distinctSorted((data ?? []).map((row: { district: string | null }) => row.district)) });
+  res.json({ districts: distinctSorted(values) });
 };
