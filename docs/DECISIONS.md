@@ -576,3 +576,10 @@
 - ข้อสรุป: ลบคอลัมน์ ไม่ให้ backend เขียนค่านี้ · ผู้ใช้รัน `ALTER TABLE public.itineraries DROP COLUMN is_budget_unknown` เอง (2026-11-14) · Claude ตรวจด้วย select แล้วว่าคอลัมน์หาย แถวไม่หาย และ `npm test` ผ่าน 15 suites / 230 tests
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์
 - ไฟล์ที่กระทบ: `docs/DATABASE_SCHEMA.md` (ตาราง `itineraries`) · ในเล่มต้องลบแถวนี้จากตารางที่ 6 และภาพที่ 25–26 (ผู้ใช้แก้เอง)
+
+### D-71 · 2026-11-15 · `places` อ้างป้าย ททท. ด้วย `category_label_id` แทน `att_type_label`
+- บริบท: เดิม FK ของ `places` ไป `category_labels` ใช้ข้อความ `att_type_label` (D-39/D-40) ทำให้เปลี่ยนชื่อป้ายต้องพึ่ง `ON UPDATE CASCADE` และคีย์เป็นข้อความ
+- ข้อสรุป: เพิ่ม `places.category_label_id` (uuid NOT NULL, FK → `category_labels.category_label_id` ON DELETE RESTRICT) เติมค่าจาก `att_type_label` ที่มีอยู่แล้ว ไม่ต้องนำเข้าข้อมูลใหม่ · ลบ FK เดิม `places_att_type_label_fkey` (ถ้าเก็บไว้ embed `category_labels!inner` จะคลุมเครือ) · คอลัมน์ `att_type_label` ยังอยู่ใช้แสดงผล · `insertPlace` (นำเข้า) หา id จากป้ายก่อน ไม่พบป้ายจะ error ไม่เดาหมวด · หน้า admin หมวดหมู่นับสถานที่ต่อป้ายด้วย id
+- สถานะ: **ผู้ใช้รัน SQL แล้ว ผ่าน (2026-11-15/16)** `docs/sql/2026-11-15_places_category_label_id.sql` · Claude ยังไม่ได้ตรวจด้วย select (ไม่มีสิทธิ์อ่านฐานข้อมูล) · อัปเดต `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`, `CLAUDE.md` แล้ว · ตาราง `backup_20261115_places` ยังเก็บไว้ ลบได้เมื่อมั่นใจ
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (สั่งทำ 2026-11-15)
+- ไฟล์ที่กระทบ: `backend/src/admin/imports/importQueries.ts` (`insertPlace`, `findCategoryLabelId`), `backend/src/admin/categories/categoryQueries.ts` (นับสถานที่ต่อป้าย) · query ฝั่งผู้ใช้ที่ embed `category_labels!inner(...)` ไม่ต้องแก้

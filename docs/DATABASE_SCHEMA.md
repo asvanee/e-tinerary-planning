@@ -20,7 +20,7 @@ users.user_id ──CASCADE──► trips.user_id
 trips.trip_id ──CASCADE──► trip_days.trip_id · poi_scores.trip_id · trip_categories.trip_id
 trip_days.trip_day_id ──CASCADE──► itineraries.trip_day_id
 places.place_id ──CASCADE──► itineraries.place_id · poi_scores.place_id
-places.att_type_label ──(ON UPDATE CASCADE / ON DELETE RESTRICT)──► category_labels.att_type_label (P5b)
+places.category_label_id ──(ON DELETE RESTRICT)──► category_labels.category_label_id (D-71 · 2026-11-15 · เดิม FK ใช้ `att_type_label`)
 category_labels.category_id ──(ON DELETE RESTRICT)──► categories.category_id (P5b)
 categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► trip_categories.category_id
 ```
@@ -127,7 +127,8 @@ categories.category_id ──(ไม่มี ON DELETE = NO ACTION)──► tr
 | `user_ratings_total` | int4 | | |
 | `opening_hours` | jsonb | | รูปแบบ Google `{ periods, open_now, weekday_text }` · `periods[].open/close` = `{ day: 0=อาทิตย์..6=เสาร์, time: "HHMM" }` · เปิด 24 ชม. = มี period เดียวที่ไม่มี `close` · วันที่ปิด = ไม่มี period ของวันนั้น · เปิดข้ามเที่ยงคืน = `close.day` เป็นวันถัดไป · วันเดียวมีได้หลายช่วง · ไม่มี `periods` = ไม่ทราบเวลา (D-10) · อ่านโดย `utils/openingHoursChecker.ts` (+ mirror frontend) |
 | `formatted_address`, `province`, `district`, `phone_number`, `website` | text | | |
-| `att_id`, `att_type_label`, `att_category_label`, `att_detail_th` | text | | มาจาก `attraction.csv` · `att_type_label` FK → `category_labels.att_type_label` + index `idx_places_att_type_label` (P5b 2026-10-22) |
+| `att_id`, `att_type_label`, `att_category_label`, `att_detail_th` | text | | มาจาก `attraction.csv` · `att_type_label` ใช้แสดงผล **ไม่ใช่ key แล้ว** (D-71 — ลบ FK `places_att_type_label_fkey` แล้ว) · index `idx_places_att_type_label` ยังอยู่ |
+| `category_label_id` | uuid | NOT NULL | FK → `category_labels.category_label_id` ON DELETE RESTRICT (`places_category_label_id_fkey`) + index `idx_places_category_label_id` · เพิ่ม 2026-11-15 (D-71 — ผู้ใช้รัน `docs/sql/2026-11-15_places_category_label_id.sql` แล้ว ผ่าน · สำรอง `backup_20261115_places`) · หมวดของสถานที่หาจากคอลัมน์นี้ |
 | `att_facebook`, `att_instagram`, `att_tiktok`, `att_youtube`, `att_line` | text | | มาจาก `attraction.csv` |
 | `gmaps_types` | text[] | | เติมโดย `fetchGmapsCategories.ts` |
 | `created_at` | timestamptz | | `now()` |
@@ -224,7 +225,7 @@ ALTER TABLE public.admin_place_decisions ADD COLUMN field_values jsonb;
 | คอลัมน์ | type | null | default / constraint |
 |---|---|---|---|
 | `category_label_id` | uuid | NOT NULL | `gen_random_uuid()` (PK) |
-| `att_type_label` | text | NOT NULL | UNIQUE · ถูกอ้างโดย `places.att_type_label` (FK `places_att_type_label_fkey` ON UPDATE CASCADE / ON DELETE RESTRICT) |
+| `att_type_label` | text | NOT NULL | UNIQUE · ข้อความป้ายจาก CSV · `places` อ้างด้วย `category_label_id` แล้ว (D-71) ไม่ได้อ้างด้วยคอลัมน์นี้ · `insertPlace` ใช้ค้น id จากข้อความนี้ตอนนำเข้า |
 | `category_id` | uuid | NOT NULL | FK → `categories` ON DELETE RESTRICT · index `idx_category_labels_category_id` |
 | `created_at` / `updated_at` | timestamptz | | `now()` |
 

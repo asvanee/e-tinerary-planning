@@ -206,6 +206,18 @@ export async function failStaleJobs(): Promise<number> {
 
 // ---------- ImportStore (ให้ runImportJob ใช้) / ResolveStore (ให้ resolveItem ใช้) ----------
 
+// id ของป้าย ททท. ใน category_labels รับข้อความป้าย (att_type_label) · ไม่มีป้ายหรือไม่พบคืน null
+async function findCategoryLabelId(attTypeLabel: string | null): Promise<string | null> {
+  if (!attTypeLabel) return null;
+  const { data, error } = await supabase
+    .from("category_labels")
+    .select("category_label_id")
+    .eq("att_type_label", attTypeLabel)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.category_label_id ?? null;
+}
+
 export const supabaseImportStore: ImportStore = {
   async isCancelRequested(jobId) {
     const { data, error } = await supabase.from(JOBS).select("cancel_requested").eq("job_id", jobId).single();
@@ -224,8 +236,17 @@ export const supabaseImportStore: ImportStore = {
   },
 
   // insert เท่านั้น (ไม่ upsert) — google_place_id ซ้ำจะ error แทนการเขียนทับข้อมูลเดิม
+  // ต้องหา category_label_id จากป้าย ททท. ก่อน (places.category_label_id เป็น NOT NULL) · ไม่พบป้ายจะ error ไม่เดาหมวด
   async insertPlace(record: PlaceRecord) {
-    const { data, error } = await supabase.from("places").insert(record).select("place_id").single();
+    const categoryLabelId = await findCategoryLabelId(record.att_type_label);
+    if (!categoryLabelId) {
+      throw new Error(`ไม่พบป้ายประเภท "${record.att_type_label ?? "(ว่าง)"}" ในตาราง category_labels จึงบันทึกสถานที่ไม่ได้`);
+    }
+    const { data, error } = await supabase
+      .from("places")
+      .insert({ ...record, category_label_id: categoryLabelId })
+      .select("place_id")
+      .single();
     if (error) throw new Error(`บันทึก places ไม่สำเร็จ: ${error.message}`);
     return data.place_id as string;
   },

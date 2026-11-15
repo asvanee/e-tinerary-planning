@@ -39,16 +39,16 @@ export async function listAdminCategories(): Promise<AdminCategory[]> {
       .select("category_id, category_name, parent_group, environment_type, price_nature")
       .order("category_name"),
     supabase.from("category_labels").select("category_label_id, att_type_label, category_id").order("att_type_label"),
-    selectAll<{ att_type_label: string | null }>((from, to) =>
-      supabase.from("places").select("att_type_label").order("place_id").range(from, to)
+    selectAll<{ category_label_id: string | null }>((from, to) =>
+      supabase.from("places").select("category_label_id").order("place_id").range(from, to)
     ),
   ]);
   if (categoriesResult.error) throw categoriesResult.error;
   if (labelsResult.error) throw labelsResult.error;
 
   const placeCounts = new Map<string, number>();
-  for (const { att_type_label } of placeRows) {
-    if (att_type_label) placeCounts.set(att_type_label, (placeCounts.get(att_type_label) ?? 0) + 1);
+  for (const { category_label_id } of placeRows) {
+    if (category_label_id) placeCounts.set(category_label_id, (placeCounts.get(category_label_id) ?? 0) + 1);
   }
 
   const labelsByCategory = new Map<string, AdminCategoryLabel[]>();
@@ -57,7 +57,7 @@ export async function listAdminCategories(): Promise<AdminCategory[]> {
     list.push({
       category_label_id: label.category_label_id,
       att_type_label: label.att_type_label,
-      place_count: placeCounts.get(label.att_type_label) ?? 0,
+      place_count: placeCounts.get(label.category_label_id) ?? 0,
     });
     labelsByCategory.set(label.category_id, list);
   }
