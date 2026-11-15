@@ -53,6 +53,7 @@ export interface ItineraryItemResult {
 // id ของจุดเริ่มต้นทริปใน matrix (utils/orsTravelMatrix.ts)
 export const TRIP_START_ID = "__trip_start__";
 
+// [ค่า] หน้าคำนวณเวลาเดินทาง · FALLBACK_AVG_SPEED_KMH = 30 — ความเร็วเฉลี่ย (กม./ชม.) ตอนใช้ระยะเส้นตรงแทน ORS (ต้องตรง backend)
 const FALLBACK_AVG_SPEED_KMH = 30;
 
 export interface TravelMetric {

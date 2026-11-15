@@ -29,6 +29,7 @@ const ORS_PROFILE =
   (import.meta.env.VITE_ORS_PROFILE as string | undefined) ?? "driving-car";
 
 // ORS directions รับได้สูงสุด 50 waypoints ต่อ request — เกินจากนี้ใช้เส้นตรงแทน
+// [ค่า] หน้าแผนที่เส้นทาง · ORS_MAX_WAYPOINTS = 50 — จำนวนจุดสูงสุดต่อ 1 คำขอเส้นทางของ OpenRouteService
 const ORS_MAX_WAYPOINTS = 50;
 
 // เครดิตเพิ่มเติมของ ORS ที่ต่อท้ายเครดิต OpenStreetMap
@@ -37,6 +38,7 @@ const ORS_ATTRIBUTION = ' | Routing by <a href="https://openrouteservice.org">op
 type LatLng = [number, number]; // [lat, lng] (รูปแบบของ Leaflet)
 
 // สีประจำวัน วนซ้ำถ้าทริปเกิน 6 วัน
+// [ค่า] หน้าแผนที่เส้นทาง · DAY_COLORS — สีเส้นทางและหมุดของแต่ละวัน (วนซ้ำเมื่อวันเกินจำนวนสี) · แก้สีที่นี่
 const DAY_COLORS = [
   "#102a6b", // navy (โทนหลักของระบบ)
   "#c2410c",
@@ -127,6 +129,7 @@ async function fetchRoute(
 const iconCache = new Map<string, L.DivIcon>();
 
 // หมุดแสดงเลขลำดับในสีของวันนั้น · ใช้ที่ cache ไว้ถ้าเคยสร้างแล้ว
+// [จุด] หน้าแผนที่เส้นทาง · ฟังก์ชันสร้างหมุดเลขลำดับ (numberIcon) — วงกลม 26px สีของวัน ขอบขาว เลขลำดับสีขาว · แก้ขนาด/สีที่ style ใน html
 function numberIcon(order: number, color: string): L.DivIcon {
   const key = `${order}-${color}`;
   let icon = iconCache.get(key);
@@ -142,6 +145,7 @@ function numberIcon(order: number, color: string): L.DivIcon {
   return icon;
 }
 
+// [จุด] หน้าแผนที่เส้นทาง · หมุดจุดเริ่มต้น (startIcon) — วงกลม 18px สี #102a6b ขอบขาว
 const startIcon = L.divIcon({
   className: "",
   html: `<div style="width:18px;height:18px;border-radius:9999px;background:#102a6b;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);"></div>`,
@@ -334,6 +338,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
             const color = getDayColor(index);
             const active = visibleDayNumbers.has(day.dayNumber);
             return (
+              // [ปุ่ม] หน้าแผนที่เส้นทาง · ปุ่มวัน — เปิด/ปิดเส้นทางของวันนั้นบนแผนที่
               <button
                 key={day.tripDayId}
                 type="button"
@@ -358,6 +363,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
       </div>
 
       {/* isolate: กัน z-index ของ Leaflet pane (สูงสุด ~1000) ไปทับ modal / drag overlay ของหน้า */}
+      {/* [แผนที่] หน้าแผนที่เส้นทาง · กรอบแผนที่เส้นทาง — สูง h-52 / sm:h-64 / lg:h-[420px] · zoom เริ่มต้น 12 · แผนที่ OpenStreetMap */}
       <div className="isolate overflow-hidden rounded-xl border border-[color:var(--line)]">
         <MapContainer
           center={defaultCenter}
@@ -369,6 +375,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
           <FitBounds points={boundsPoints} />
 
           {startPoint && (
+            // [จุด] หน้าแผนที่เส้นทาง · หมุดจุดเริ่มต้น — Marker จุดเริ่มต้นการเดินทาง (ลบ: เอา Marker นี้ออก)
             <Marker
               position={startPoint}
               icon={startIcon}
@@ -409,6 +416,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
             return (
               <Fragment key={day.tripDayId}>
                 {startLeg && startLeg.length > 1 && (
+                  // [เส้น] หน้าแผนที่เส้นทาง · เส้นประจากจุดเริ่มต้นไปสถานที่แรก — Polyline · color=สีของวัน · opacity 0.6 · weight 3 · dashArray "6 8" (ลบ/ซ่อน: เอา element นี้ออก)
                   <Polyline
                     positions={startLeg}
                     pathOptions={{
@@ -421,6 +429,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
                 )}
 
                 {mainLeg.length > 1 && (
+                  // [เส้น] หน้าแผนที่เส้นทาง · เส้นทึบเส้นทางของวัน — Polyline · color=สีของวัน · weight 4 · opacity 0.9 (เส้นถนนจริง) / 0.45 (เส้นตรง ระหว่างรอ ORS) (ลบ/ซ่อน: เอา element นี้ออก)
                   <Polyline
                     positions={mainLeg}
                     pathOptions={{
@@ -435,6 +444,7 @@ export default function RouteMap({ startLat, startLng, days }: RouteMapProps) {
                 )}
 
                 {sortedItems.map((item) => (
+                  // [จุด] หน้าแผนที่เส้นทาง · หมุดเลขลำดับสถานที่ — Marker แต่ละสถานที่ในวัน ใช้ numberIcon(visitOrder, สีวัน)
                   <Marker
                     key={`${day.tripDayId}-${item.placeId}`}
                     position={[item.lat, item.lng]}

@@ -7,6 +7,7 @@ export const PARENT_GROUPS = ["HISTORY_CULTURE", "NATURE", "RECREATION"] as cons
 export const ENVIRONMENT_TYPES = ["INDOOR", "OUTDOOR", "MIXED"] as const;
 export const PRICE_NATURES = ["free", "paid"] as const;
 
+// [ค่า] หน้าAdmin หมวดหมู่ · MAX_CATEGORY_NAME_LENGTH = 100 — ความยาวชื่อหมวดสูงสุด
 export const MAX_CATEGORY_NAME_LENGTH = 100;
 
 export interface CategoryUpdate {

@@ -207,6 +207,7 @@ function TimelineStop({
   return (
     <div className="relative pl-11">
       <div className="absolute left-0 top-0 flex flex-col items-center h-full">
+        {/* [จุด] หน้ารายละเอียดแผน · วงกลมเลขลำดับ — วงกลมสี navy ตัวเลขสีขาว ลำดับของสถานที่ในวัน */}
         <span className="w-8 h-8 rounded-full bg-[color:var(--navy)] text-white text-sm font-prompt font-semibold flex items-center justify-center shrink-0">
           {item.visitOrder}
         </span>
@@ -462,6 +463,7 @@ export default function TripDetail() {
         <p role="alert" className="text-[color:var(--danger)] font-prompt font-medium">
           {loadError}
         </p>
+        {/* [ปุ่ม] หน้ารายละเอียดแผน · กลับหน้าหลัก — ไป /home (หน้า error) */}
         <button onClick={() => navigate("/home")} className={secondaryBtn}>
           กลับหน้าหลัก
         </button>
@@ -489,11 +491,13 @@ export default function TripDetail() {
   ];
 
   return (
+    // [พื้นหลัง] หน้ารายละเอียดแผน · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-16">
       <Navbar />
 
       <div className="fade-in max-w-5xl mx-auto px-4 py-6">
         {/* ปุ่มกลับหน้าหลัก → /home */}
+        {/* [ปุ่ม] หน้ารายละเอียดแผน · กลับหน้าหลัก — ไป /home (หน้าแสดงผิดพลาด) */}
         <button
           onClick={() => navigate("/home")}
           className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
@@ -568,6 +572,7 @@ export default function TripDetail() {
 
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
             {/* ปุ่มแก้ไขเส้นทาง → โหลดแผนที่บันทึกไว้แล้วเปิดหน้า editor */}
+            {/* [ปุ่ม] หน้ารายละเอียดแผน · แก้ไขเส้นทาง — เรียก handleEditRoute → ขอ draft แล้วไปหน้าจัดลำดับเอง */}
             <button
               onClick={handleEditRoute}
               disabled={preparingEdit}
@@ -587,6 +592,7 @@ export default function TripDetail() {
             </button>
 
             {/* ปุ่มแสดงสถานที่แนะนำ → หน้าแนะนำสถานที่ของทริปนี้ */}
+            {/* [ปุ่ม] หน้ารายละเอียดแผน · แสดงสถานที่แนะนำ — ไปหน้าสถานที่แนะนำของแผนนี้ */}
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
               className={secondaryBtn}
@@ -596,6 +602,7 @@ export default function TripDetail() {
             </button>
 
             {/* ปุ่มแก้ไขข้อมูลทริป → ฟอร์มแก้ทริป (วัน งบ หมวด จุดเริ่มต้น) */}
+            {/* [ปุ่ม] หน้ารายละเอียดแผน · แก้ไขข้อมูลแผนการท่องเที่ยว — ไปฟอร์มแก้แผน (/trip/:id/edit) */}
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/edit`)}
               className={ghostBtn}
@@ -654,6 +661,7 @@ export default function TripDetail() {
               เริ่มจากเลือกสถานที่ที่สนใจก่อน ระบบจะช่วยจัดร่างเส้นทางให้อัตโนมัติ
             </p>
             {/* ปุ่มไปเลือกสถานที่ (แสดงเมื่อยังไม่มีแผน) → หน้าแนะนำสถานที่ */}
+            {/* [ปุ่ม] หน้ารายละเอียดแผน · ไปเลือกสถานที่แนะนำ — ไปหน้าสถานที่แนะนำ (แผนที่ยังไม่มีแผนเดินทางที่ยืนยัน) */}
             <button
               onClick={() => navigate(`/trip/${tripIdParam}/recommendations`)}
               className={`${primaryBtn} mt-2`}

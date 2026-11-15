@@ -17,6 +17,7 @@ const FIND_PLACE_FIELDS = "place_id,name,geometry,formatted_address";
 const DETAILS_FIELDS =
   "place_id,name,formatted_address,formatted_phone_number,website,opening_hours,rating,user_ratings_total,geometry,type";
 
+// [ค่า] หน้าAdmin นำเข้า Google · BIAS_RADIUS_METERS = 1000 — รัศมีค้นหา Find Place รอบพิกัดใน CSV (เมตร)
 export const BIAS_RADIUS_METERS = 1000;
 
 // status ที่ทำต่อไม่ได้ทั้ง job (key ผิด/โควต้าหมด) — แถวอื่นจะเจอเหมือนกันหมด

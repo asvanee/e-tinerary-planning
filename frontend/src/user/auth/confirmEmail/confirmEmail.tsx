@@ -6,6 +6,7 @@ export default function ConfirmEmail() {
   const navigate = useNavigate();
 
   return (
+    // [พื้นหลัง] หน้ายืนยันอีเมล · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-md bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-12 py-8 text-center">
         <MailCheck
@@ -24,6 +25,7 @@ export default function ConfirmEmail() {
           กรุณากดลิงก์ในอีเมลเพื่อเข้าสู่ระบบ
         </p>
 
+        {/* [ปุ่ม] หน้ายืนยันอีเมล · กลับไปหน้าหลัก — ไปหน้าต้อนรับ (/) */}
         <button
           type="button"
           onClick={() => navigate("/")}

@@ -6,6 +6,7 @@ import type { ImportItemsPage, ImportItemStatus } from "../lib/importTypes";
 import GoogleCandidateInfo from "./GoogleCandidateInfo";
 import MapLink from "./MapLink";
 
+// [ค่า] หน้าAdmin ตารางผลนำเข้า · PAGE_SIZE = 100 — จำนวนแถวต่อหน้าของตาราง (ต้องตรง ITEMS_PAGE_SIZE ใน backend)
 const PAGE_SIZE = 100; // ตรงกับ backend importQueries.ts::ITEMS_PAGE_SIZE
 
 const FILTERS: (ImportItemStatus | null)[] = [null, ...(Object.keys(ITEM_STATUS_LABELS) as ImportItemStatus[])];
@@ -42,6 +43,7 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
     <div className="flex flex-col gap-3">
       <div role="tablist" className="flex flex-wrap gap-2">
         {FILTERS.map((status) => (
+          // [ปุ่ม] หน้าAdmin ตารางผลนำเข้า · แท็บกรองสถานะ — กรองรายการตามสถานะ แล้วกลับหน้าแรกของตาราง
           <button
             key={status ?? "all"}
             type="button"
@@ -129,6 +131,7 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
 
       {data && pageCount > 1 && (
         <div className="flex items-center gap-3 text-sm">
+          {/* [ปุ่ม] หน้าAdmin ตารางผลนำเข้า · ก่อนหน้า — ไปหน้าก่อนหน้าของตาราง (ปิดเมื่ออยู่หน้าแรก) */}
           <button
             type="button"
             disabled={page === 0}
@@ -140,6 +143,7 @@ export default function ImportItemsTable({ jobId, token, refreshKey }: ImportIte
           <span className="text-[color:var(--deep)]">
             หน้า {page + 1} / {pageCount} · ทั้งหมด {data.total.toLocaleString()} แถว
           </span>
+          {/* [ปุ่ม] หน้าAdmin ตารางผลนำเข้า · ถัดไป — ไปหน้าถัดไปของตาราง (ปิดเมื่อเป็นหน้าสุดท้าย) */}
           <button
             type="button"
             disabled={page + 1 >= pageCount}

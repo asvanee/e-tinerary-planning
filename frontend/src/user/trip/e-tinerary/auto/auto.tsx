@@ -437,6 +437,7 @@ export default function AutoTrip() {
               ระบบกำหนดเวลาเที่ยวสถานที่ละ 1 ชั่วโมง และคำนวณเวลาเดินทางกับเวลาเปิด-ปิดให้
             </p>
             {/* ปุ่มจัดทริปอัตโนมัติ → ให้ระบบจัดแผน */}
+            {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · จัดแผนอัตโนมัติ — เรียก handleGenerateTrip → POST /api/itinerary/trips/:id/auto */}
             <button
               onClick={handleGenerateTrip}
               disabled={generating}
@@ -459,6 +460,7 @@ export default function AutoTrip() {
                 {generateError}
               </p>
             )}
+            {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · กลับ — เรียก handleBack กลับหน้าก่อนหน้า */}
             <button onClick={handleBack} className={secondaryBtn}>
               <ArrowLeft size={18} strokeWidth={1.75} />
               กลับ
@@ -485,11 +487,13 @@ export default function AutoTrip() {
   const saveSucceeded = saveMessage === "บันทึกแผนเดินทางลงฐานข้อมูลสำเร็จ";
 
   return (
+    // [พื้นหลัง] หน้าจัดแผนอัตโนมัติ · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-16">
       <Navbar />
 
       <div className="fade-in max-w-5xl mx-auto px-4 py-6">
         {/* ปุ่มกลับสถานที่แนะนำ → หน้าแนะนำสถานที่ */}
+        {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · กลับสถานที่แนะนำ — เรียก handleBack กลับหน้าสถานที่แนะนำ */}
         <button
           onClick={handleBack}
           className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
@@ -512,6 +516,7 @@ export default function AutoTrip() {
 
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
             {/* ปุ่มยืนยันแผน → บันทึกแล้วไปหน้ารายละเอียดทริป */}
+            {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · ยืนยันและบันทึกแผนการท่องเที่ยว — เรียก handleConfirmTrip → PUT /api/itinerary/trips/:id */}
             <button
               onClick={handleConfirmTrip}
               disabled={saving || editing}
@@ -530,6 +535,7 @@ export default function AutoTrip() {
               )}
             </button>
             {/* ปุ่มแก้ไขเส้นทาง → ไปแก้ในหน้า editor */}
+            {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · แก้ไขเส้นทาง — เรียก handleEditTrip ไปหน้าจัดลำดับเองพร้อมแผนที่จัดไว้ */}
             <button
               onClick={handleEditTrip}
               disabled={saving || editing}
@@ -542,6 +548,7 @@ export default function AutoTrip() {
               )}
               {editing ? "กำลังเตรียมข้อมูล..." : "แก้ไขเส้นทาง"}
             </button>
+            {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · เลือกสถานที่ใหม่ — เรียก handleBack กลับไปเลือกสถานที่ใหม่ */}
             <button onClick={handleBack} className={ghostBtn}>
               <Search size={18} strokeWidth={1.75} />
               เลือกสถานที่ใหม่
@@ -587,6 +594,7 @@ export default function AutoTrip() {
             const active = selectedDay === index;
             // แท็บเลือกวัน 1 วัน → แสดงสถานที่และแผนที่ของวันนั้น
             return (
+              // [ปุ่ม] หน้าจัดแผนอัตโนมัติ · แท็บวัน — สลับดูแผนรายวัน
               <button
                 key={index}
                 role="tab"
@@ -652,6 +660,7 @@ export default function AutoTrip() {
               return (
                 <div key={`${stop.place_id}-${index}`} className="relative pl-11">
                   <div className="absolute left-0 top-0 flex flex-col items-center h-full">
+                    {/* [จุด] หน้าจัดแผนอัตโนมัติ · วงกลมเลขลำดับ — วงกลมสี navy ตัวเลขสีขาว ลำดับของสถานที่ในวัน */}
                     <span className="w-8 h-8 rounded-full bg-[color:var(--navy)] text-white text-sm font-prompt font-semibold flex items-center justify-center shrink-0">
                       {index + 1}
                     </span>
@@ -679,6 +688,7 @@ export default function AutoTrip() {
                           </span>
                         )}
                         {stop.is_recommendation && (
+                          // [พื้นหลัง] หน้าจัดแผนอัตโนมัติ · ป้ายสถานที่แนะนำเพิ่มเติม — ป้ายสีเหลือง (bg-amber-100) บนสถานที่ที่ระบบเติมเข้ามา
                           <span className="mt-1 ml-2 inline-block text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
                             สถานที่แนะนำเพิ่มเติม
                           </span>
@@ -704,6 +714,7 @@ export default function AutoTrip() {
                     </ul>
 
                     {/* ปุ่มดูตำแหน่ง → เปิด Google Maps ที่สถานที่นี้ */}
+                    {/* [ปุ่ม] หน้าจัดแผนอัตโนมัติ · ดูตำแหน่งบน Google Maps — เปิดตำแหน่งสถานที่ใน Google Maps แท็บใหม่ */}
                     <button
                       onClick={() => openGoogleMaps(stop.latitude, stop.longitude)}
                       className="mt-3 inline-flex items-center gap-1.5 text-sm text-[color:var(--deep)] underline underline-offset-2 hover:text-[color:var(--navy)]"
@@ -713,6 +724,7 @@ export default function AutoTrip() {
                     </button>
                     {/* ปุ่มไม่เอาสถานที่นี้ → ตัดสถานที่แนะนำเพิ่มเติมออกจากแผน (มีเฉพาะสถานที่นอกหมวดที่เลือก) */}
                     {stop.is_recommendation && (
+                      // [ปุ่ม] หน้าจัดแผนอัตโนมัติ · ไม่เอาสถานที่นี้ — ตัดสถานที่ที่ระบบแนะนำเพิ่มออกจากแผน (เฉพาะป้ายสถานที่แนะนำเพิ่มเติม)
                       <button
                         onClick={() =>
                           setRemovedRecommendationIds((previous) => {

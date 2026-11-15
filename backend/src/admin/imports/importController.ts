@@ -26,6 +26,7 @@ import {
   supabaseResolveStore,
 } from "./importQueries";
 
+// [ค่า] หน้าAdmin นำเข้า Google · MAX_LIMIT_ROWS = 10_000 — จำนวนแถวสูงสุดที่ใส่ในช่องจำนวนแถวตอนนำเข้า
 const MAX_LIMIT_ROWS = 10_000;
 const ITEM_STATUSES = new Set<ImportItemStatus>([
   "imported",

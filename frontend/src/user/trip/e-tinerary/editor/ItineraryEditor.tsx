@@ -122,7 +122,9 @@ function dayKey(tripDayId: string) {
 }
 
 // เวลาที่จะอยู่ต้องเป็นจำนวนเต็ม 1–1440 นาที (ช่วงเดียวกับ backend visitDurations.ts)
+// [ค่า] หน้าจัดลำดับเอง · MIN_VISIT_DURATION_MIN = 1 — เวลาที่อยู่ต่ำสุด (นาที) ต้องตรง backend visitDurations.ts
 const MIN_VISIT_DURATION_MIN = 1;
+// [ค่า] หน้าจัดลำดับเอง · MAX_VISIT_DURATION_MIN = 1440 — เวลาที่อยู่สูงสุด (นาที) ต้องตรง backend visitDurations.ts
 const MAX_VISIT_DURATION_MIN = 1440;
 
 // ข้อความในช่องกรอก -> นาที · ว่างหรือไม่ถูกต้อง = null (ถือว่ายังไม่กรอก)
@@ -252,6 +254,7 @@ function PlaceCard({
     >
       <div className="flex items-start gap-1.5">
         {/* ที่จับสำหรับลาก (ลากเพื่อจัดลำดับหรือย้ายวัน) */}
+        {/* [ปุ่ม] หน้าจัดลำดับเอง · จับลาก (ไอคอนลาก) — จับลากสถานที่เพื่อจัดลำดับหรือย้ายวัน (dnd-kit) */}
         <button
           type="button"
           {...attributes}
@@ -263,6 +266,7 @@ function PlaceCard({
         </button>
 
         {item && (
+          // [จุด] หน้าจัดลำดับเอง · วงกลมเลขลำดับ — วงกลมสี navy ตัวเลขสีขาว ลำดับของสถานที่ในวัน
           <span className="shrink-0 mt-1 w-7 h-7 rounded-full bg-[color:var(--navy)] text-white font-prompt font-semibold text-sm flex items-center justify-center">
             {item.visitOrder}
           </span>
@@ -282,6 +286,7 @@ function PlaceCard({
         </div>
 
         {/* ปุ่มเปิด/ปิดแผงจัดลำดับ-ย้ายวัน (สำหรับจอเล็กที่ลากยาก) */}
+        {/* [ปุ่ม] หน้าจัดลำดับเอง · จัดลำดับ / ย้ายวัน — เปิด/ปิดเมนูย่อยบนมือถือ (เลื่อน ย้ายวัน เอาออก) */}
         <button
           type="button"
           onClick={() => setShowActions((v) => !v)}
@@ -327,6 +332,7 @@ function PlaceCard({
       {onDurationChange && (
         <label className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-[color:var(--deep)]">
           <span className="font-prompt font-medium">เวลาที่อยู่</span>
+          {/* [ช่องกรอก] หน้าจัดลำดับเอง · เวลาที่จะอยู่ (นาที) — state durationInput · จำนวนเต็ม MIN_VISIT_DURATION_MIN–MAX_VISIT_DURATION_MIN */}
           <input
             type="number"
             inputMode="numeric"
@@ -368,6 +374,7 @@ function PlaceCard({
           {onShift && (
             <>
               {/* ปุ่มเลื่อนขึ้น 1 ลำดับในวันเดียวกัน */}
+              {/* [ปุ่ม] หน้าจัดลำดับเอง · เลื่อนขึ้น — เลื่อนสถานที่ขึ้น 1 ลำดับ (ปิดถ้าอยู่ลำดับแรก) */}
               <button
                 type="button"
                 onClick={() => onShift(-1)}
@@ -378,6 +385,7 @@ function PlaceCard({
                 <ChevronUp size={18} strokeWidth={1.75} />
               </button>
               {/* ปุ่มเลื่อนลง 1 ลำดับในวันเดียวกัน */}
+              {/* [ปุ่ม] หน้าจัดลำดับเอง · เลื่อนลง — เลื่อนสถานที่ลง 1 ลำดับ (ปิดถ้าอยู่ลำดับสุดท้าย) */}
               <button
                 type="button"
                 onClick={() => onShift(1)}
@@ -391,6 +399,7 @@ function PlaceCard({
           )}
 
           <div className="relative">
+            {/* [ช่องกรอก] หน้าจัดลำดับเอง · ย้ายไปวัน — เลือกวันปลายทางที่จะย้ายสถานที่ไป */}
             <select
               aria-label={`ย้าย ${name} ไปวัน`}
               value=""
@@ -417,6 +426,7 @@ function PlaceCard({
 
           {/* ปุ่มเอาออก → ย้ายสถานที่กลับไปคลังที่ยังไม่จัดวัน */}
           {onRemove && (
+            // [ปุ่ม] หน้าจัดลำดับเอง · เอาออก — เอาสถานที่ออกจากวัน กลับไปรายการที่ยังไม่จัด
             <button
               type="button"
               onClick={onRemove}
@@ -760,12 +770,14 @@ export default function ItineraryEditor() {
   const conflictCount = Object.values(computedByDay).flat().filter(isProblem).length;
 
   return (
+    // [พื้นหลัง] หน้าจัดลำดับเอง · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)] pb-44">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-4">
         <div className="fade-in mb-4 flex items-start gap-3">
           {/* ปุ่มกลับ → หน้าก่อนหน้า */}
+          {/* [ปุ่ม] หน้าจัดลำดับเอง · กลับ — ย้อนหน้าก่อนหน้า (navigate(-1)) */}
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -979,6 +991,7 @@ export default function ItineraryEditor() {
             </div>
 
             {/* ปุ่มยืนยันแผน → บันทึกแล้วไปหน้ารายละเอียดทริป (กดไม่ได้ถ้ายังมีจุดที่มีปัญหา หรือยังไม่กรอกเวลาที่อยู่ครบ) */}
+            {/* [ปุ่ม] หน้าจัดลำดับเอง · ยืนยันแผน — เรียก handleConfirm → PUT /api/itinerary/trips/:id · ปิดเมื่อมีข้อขัดแย้งหรือยังกรอกเวลาไม่ครบ */}
             <button
               type="button"
               onClick={handleConfirm}

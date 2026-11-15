@@ -51,6 +51,7 @@ export default function ProvinceReview() {
     run(adminRequest<Review>(`${base}/rows/${encodeURIComponent(attId)}`, token, { method: "DELETE" }));
 
   const back = (
+    // [ปุ่ม] หน้าAdmin ตรวจสถานที่ซ้ำ · กลับไปรายชื่อจังหวัด — ไป /admin/provinces
     <button
       type="button"
       onClick={() => navigate("/admin/provinces")}
@@ -66,6 +67,7 @@ export default function ProvinceReview() {
         {back}
         <div role="alert" className="flex flex-wrap items-center gap-3 text-[color:var(--danger)]">
           <TriangleAlert size={18} strokeWidth={1.75} /> {loadError}
+          {/* [ปุ่ม] หน้าAdmin ตรวจสถานที่ซ้ำ · ลองใหม่ — โหลดข้อมูลตรวจซ้ำใหม่ */}
           <button
             type="button"
             onClick={() => {
@@ -133,6 +135,7 @@ export default function ProvinceReview() {
           </p>
         </div>
         {/* นำเข้าได้เมื่อตัดสินใจครบ (backend ตรวจซ้ำ) */}
+        {/* [ปุ่ม] หน้าAdmin ตรวจสถานที่ซ้ำ · นำเข้า — ไปหน้านำเข้า · ปิดไว้จนกว่าจะตัดสินครบทุกรายการ */}
         <button
           type="button"
           disabled={summary.pending > 0}
@@ -146,6 +149,7 @@ export default function ProvinceReview() {
 
       <div role="tablist" className="flex flex-wrap gap-2">
         {tabs.map((t) => (
+          // [ปุ่ม] หน้าAdmin ตรวจสถานที่ซ้ำ · แท็บ — สลับแท็บ (กลุ่มซ้ำ / แถวมีปัญหา / ...)
           <button
             key={t.id}
             type="button"

@@ -6,10 +6,15 @@ import { TtlCache } from "./ttlCache";
 // ไม่มีพยากรณ์ = ไม่มีค่า (คะแนนสภาพอากาศเป็น 1.0) · API พลาดก็ข้าม ไม่ throw
 
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+// [ค่า] หน้าพยากรณ์ฝน · FORECAST_MAX_DAYS_AHEAD = 15 — จำนวนวันล่วงหน้าที่ Open-Meteo พยากรณ์ได้ (ต้องตรง frontend tripDates.ts)
 const FORECAST_MAX_DAYS_AHEAD = 15; // Open-Meteo พยากรณ์ได้ 16 วันรวมวันนี้
+// [ค่า] หน้าพยากรณ์ฝน · GRID_DECIMALS = 1 — ทศนิยมของพิกัดที่ใช้จัดกลุ่มกริดพยากรณ์
 const GRID_DECIMALS = 1;
+// [ค่า] หน้าพยากรณ์ฝน · CHUNK_SIZE = 50 — จำนวนกริดต่อ 1 คำขอ Open-Meteo
 const CHUNK_SIZE = 50; // จำนวนกริดต่อ request (กัน URL ยาวเกิน)
+// [ค่า] หน้าพยากรณ์ฝน · REQUEST_TIMEOUT_MS = 5000 — เวลารอคำตอบ Open-Meteo สูงสุด (มิลลิวินาที)
 const REQUEST_TIMEOUT_MS = 5000;
+// [ค่า] หน้าพยากรณ์ฝน · CACHE_TTL_MS — อายุแคชพยากรณ์ (2 ชั่วโมง)
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
 export interface LatLng {

@@ -1,5 +1,6 @@
 // ⚠️ ต้องแก้คู่กับ backend/src/utils/haversine.ts
 
+// [ค่า] หน้าคำนวณเวลาเดินทาง · EARTH_RADIUS_KM = 6371 — รัศมีโลกที่ใช้คำนวณระยะเส้นตรง (ต้องตรง backend utils/haversine.ts)
 const EARTH_RADIUS_KM = 6371;
 
 // องศา → เรเดียน

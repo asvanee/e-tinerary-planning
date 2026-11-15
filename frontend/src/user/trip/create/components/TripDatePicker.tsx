@@ -81,6 +81,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
     return (
         <div ref={rootRef} className="relative">
             {/* ปุ่มช่องวันที่ → เปิด/ปิดปฏิทิน */}
+            {/* [ปุ่ม] หน้าสร้างแผน(ปฏิทิน) · ช่องเลือกวันที่ — เปิด/ปิดปฏิทิน */}
             <button
                 id={id}
                 type="button"
@@ -103,6 +104,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
                 >
                     <div className="flex items-center justify-between mb-3">
                         {/* ปุ่มเดือนก่อนหน้า */}
+                        {/* [ปุ่ม] หน้าสร้างแผน(ปฏิทิน) · เดือนก่อนหน้า — เลื่อนปฏิทินไปเดือนก่อน (ปิดถ้าเป็นเดือนต่ำสุดที่เลือกได้) */}
                         <button
                             type="button"
                             onClick={() => shiftMonth(-1)}
@@ -116,6 +118,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
                             {monthLabel(view.year, view.month)}
                         </p>
                         {/* ปุ่มเดือนถัดไป */}
+                        {/* [ปุ่ม] หน้าสร้างแผน(ปฏิทิน) · เดือนถัดไป — เลื่อนปฏิทินไปเดือนถัดไป */}
                         <button
                             type="button"
                             onClick={() => shiftMonth(1)}
@@ -140,6 +143,7 @@ export default function TripDatePicker({ id, value, onChange, minDate, maxDate, 
                             const Icon = forecast ? Cloud : CloudOff;
                             // ปุ่มวันที่ 1 วัน กดแล้วเลือกวันนั้นและปิดปฏิทิน
                             return (
+                                // [ปุ่ม] หน้าสร้างแผน(ปฏิทิน) · ช่องวันที่ในปฏิทิน — เลือกวันนั้น · ปิดวันที่ก่อน minDate หรือหลัง maxDate
                                 <button
                                     key={iso}
                                     type="button"

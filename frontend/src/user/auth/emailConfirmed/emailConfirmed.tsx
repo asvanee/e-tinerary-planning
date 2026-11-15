@@ -18,6 +18,7 @@ export default function EmailConfirmed() {
   }, [location.hash, location.pathname, location.search, navigate]);
 
   return (
+    // [พื้นหลัง] หน้ายืนยันอีเมลสำเร็จ · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-md bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-12 py-8 text-center">
         {isError ? (
@@ -44,6 +45,7 @@ export default function EmailConfirmed() {
             : "บัญชีของคุณพร้อมใช้งานแล้ว เข้าสู่ระบบเพื่อเริ่มวางแผนการท่องเที่ยวได้เลย"}
         </p>
 
+        {/* [ปุ่ม] หน้ายืนยันอีเมลสำเร็จ · เข้าสู่ระบบ — ไป /login */}
         <button
           type="button"
           onClick={() => navigate("/login")}
@@ -52,6 +54,7 @@ export default function EmailConfirmed() {
           เข้าสู่ระบบ
         </button>
 
+        {/* [ปุ่ม] หน้ายืนยันอีเมลสำเร็จ · กลับไปหน้าหลัก — ไปหน้าต้อนรับ (/) */}
         <button
           type="button"
           onClick={() => navigate("/")}

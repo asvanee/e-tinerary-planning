@@ -3,6 +3,7 @@ export default function NoteField({ value, onChange }: { value: string; onChange
   return (
     <label className="flex flex-col gap-1 grow">
       <span className="font-prompt text-[color:var(--navy)]">หมายเหตุ (ไม่บังคับ)</span>
+      {/* [ช่องกรอก] หน้าAdmin ช่องหมายเหตุ · หมายเหตุ — ข้อความหมายเหตุของคำตัดสิน (note) */}
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

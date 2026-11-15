@@ -121,6 +121,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
             </p>
           ))}
           {ownDecision ? (
+            // [ปุ่ม] หน้าAdmin การ์ดกลุ่มซ้ำ · ยกเลิกการตัดสินใจ — ลบคำตัดสินของกลุ่มนี้
             <button
               type="button"
               disabled={busy}
@@ -147,11 +148,13 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                     {!group.decided && (
                       <div className="flex flex-col gap-1 mb-2">
                         <label className="inline-flex items-center gap-2 cursor-pointer">
+                          {/* [ช่องกรอก] หน้าAdmin การ์ดกลุ่มซ้ำ · ติ๊กเลือกแถวที่จะรวม — เลือกแถวในกลุ่มที่ต้องการรวม */}
                           <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} />
                           รวม
                         </label>
                         {canMerge && selected.has(id) && (
                           <label className="inline-flex items-center gap-2 cursor-pointer">
+                            {/* [ช่องกรอก] หน้าAdmin การ์ดกลุ่มซ้ำ · เลือกค่าของแถว (รวมแถว) — ตัวเลือกค่าของช่องนั้น */}
                             <input
                               type="radio"
                               name={`primary-${formId}`}
@@ -203,6 +206,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                       <td key={id} className={`align-top px-3 py-2 max-w-64 ${chosen ? "bg-[color:var(--sky-soft)]" : ""}`}>
                         <label className={`flex gap-2 ${isChoice ? "cursor-pointer" : ""}`}>
                           {isChoice && (
+                            // [ช่องกรอก] หน้าAdmin การ์ดกลุ่มซ้ำ · เลือกค่าของแถว — ตัวเลือกค่าของช่องนั้น
                             <input
                               type="radio"
                               name={`${column}-${formId}`}
@@ -221,12 +225,14 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
                     <td className={`align-top px-3 py-2 ${manualChosen ? "bg-[color:var(--sky-soft)]" : ""}`}>
                       {choosable && typeable(column) ? (
                         <label className="flex items-center gap-2 cursor-pointer">
+                          {/* [ช่องกรอก] หน้าAdmin การ์ดกลุ่มซ้ำ · เลือกพิมพ์เอง — ตัวเลือกพิมพ์ค่าเอง */}
                           <input
                             type="radio"
                             name={`${column}-${formId}`}
                             checked={manualChosen}
                             onChange={() => typeValue(column, manualValues[column] ?? "")}
                           />
+                          {/* [ช่องกรอก] หน้าAdmin การ์ดกลุ่มซ้ำ · พิมพ์ค่าเอง — state manualValues[ช่อง] */}
                           <input
                             value={manualValues[column] ?? ""}
                             onChange={(e) => typeValue(column, e.target.value)}
@@ -259,6 +265,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
             <div className="flex flex-wrap gap-3 text-sm">
               <label className="flex flex-col gap-1">
                 <span className="font-prompt text-[color:var(--navy)]">กรอกพิกัดเอง (ไม่บังคับ)</span>
+                {/* [ช่องกรอก] หน้าAdmin การ์ดกลุ่มซ้ำ · พิกัดที่พิมพ์เอง — state manualLocation */}
                 <input
                   value={manualLocation}
                   onChange={(e) => setManualLocation(e.target.value)}
@@ -271,6 +278,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
           )}
           {formError && <p role="alert" className="text-sm text-[color:var(--danger)]">{formError}</p>}
           <div className="flex flex-wrap items-center gap-2">
+            {/* [ปุ่ม] หน้าAdmin การ์ดกลุ่มซ้ำ · รวมที่เลือกเป็นที่เดียว — บันทึกคำตัดสิน merge (เลือกค่าของแต่ละช่อง) */}
             <button
               type="button"
               disabled={busy || !canMerge}
@@ -279,6 +287,7 @@ export default function GroupCard({ group, rows, decisions, busy, onSave, onUndo
             >
               <Combine size={18} strokeWidth={1.75} /> รวมที่เลือกเป็นที่เดียว ({selectedIds.length})
             </button>
+            {/* [ปุ่ม] หน้าAdmin การ์ดกลุ่มซ้ำ · แยกทั้งหมด (คนละที่) — บันทึกคำตัดสิน separate */}
             <button
               type="button"
               disabled={busy}

@@ -16,8 +16,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     "font-prompt text-sm font-medium min-h-10 min-w-10 px-3 md:px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] text-[color:var(--navy)] hover:bg-[color:var(--sky-soft)]";
 
   return (
+    // [พื้นหลัง] หน้าAdmin แถบบน · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
       <header className="sticky top-0 z-50 w-full h-16 px-4 sm:px-6 flex items-center justify-between bg-white border-b border-[color:var(--line)]">
+        {/* [ปุ่ม] หน้าAdmin แถบบน · โลโก้/ชื่อระบบ — กดไปหน้าแรกของ Admin (/admin) */}
         <button
           onClick={() => navigate("/admin")}
           aria-label="ไปหน้าหลักผู้ดูแลระบบ"
@@ -39,6 +41,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             {username}
           </span>
 
+          {/* [ปุ่ม] หน้าAdmin แถบบน · กลับหน้าผู้ใช้ — กดไปหน้าหลักของผู้ใช้ (/home) */}
           <button
             onClick={() => navigate("/home")}
             aria-label="กลับหน้าผู้ใช้"
@@ -48,6 +51,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <span className="hidden md:inline">กลับหน้าผู้ใช้</span>
           </button>
 
+          {/* [ปุ่ม] หน้าAdmin แถบบน · ออกจากระบบ — เรียก handleLogout แล้วกลับหน้า login */}
           <button
             onClick={handleLogout}
             aria-label="ออกจากระบบ"

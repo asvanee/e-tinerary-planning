@@ -9,9 +9,11 @@ import { CircleCheck, Loader2, MapPin, Search, TriangleAlert } from "lucide-reac
 // ค้นหาที่อยู่ด้วย Nominatim ของ OpenStreetMap (ฟรี ไม่ต้องใช้ key)
 // นโยบาย: ไม่เกิน 1 คำขอต่อวินาที และห้ามค้นขณะพิมพ์ จึงค้นเฉพาะตอนกดปุ่มหรือกด Enter
 const SEARCH_URL = "https://nominatim.openstreetmap.org/search";
+// [ค่า] หน้าสร้างแผน(ปักหมุด) · SEARCH_LIMIT = 5 — จำนวนผลค้นหาที่อยู่สูงสุด
 const SEARCH_LIMIT = 5;
 
 // default center: กรุงเทพมหานคร (กรณียังไม่เคยปักหมุดมาก่อน)
+// [ค่า] หน้าสร้างแผน(ปักหมุด) · DEFAULT_CENTER — จุดกึ่งกลางแผนที่เริ่มต้น (กรุงเทพฯ) ก่อนผู้ใช้ปักหมุด
 const DEFAULT_CENTER = { lat: 13.7563, lng: 100.5018 };
 
 type Position = { lat: number; lng: number };
@@ -32,6 +34,7 @@ interface NominatimItem {
 }
 
 // หมุดเป็น divIcon — ไม่พึ่งไฟล์รูป default ของ Leaflet ที่มักพังใน Vite
+// [จุด] หน้าสร้างแผน(ปักหมุด) · หมุดจุดเริ่มต้น (pinIcon) — วงกลม 22px สี #102a6b ขอบขาว 3px
 const pinIcon = L.divIcon({
     className: "",
     html: `<div style="width:22px;height:22px;border-radius:9999px;background:#102a6b;border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);"></div>`,
@@ -190,6 +193,7 @@ export default function LocationPinPicker({
                             strokeWidth={1.75}
                             className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--sky)]"
                         />
+                        {/* [ช่องกรอก] หน้าสร้างแผน(ปักหมุด) · ค้นหาจุดเริ่มต้น — state query */}
                         <input
                             type="text"
                             aria-label="ค้นหาจุดเริ่มต้น"
@@ -201,6 +205,7 @@ export default function LocationPinPicker({
                         />
                     </div>
                     {/* ปุ่มค้นหา → ค้นหาสถานที่จากข้อความที่พิมพ์ */}
+                    {/* [ปุ่ม] หน้าสร้างแผน(ปักหมุด) · ค้นหา — ค้นหาที่อยู่จาก Nominatim (ปิดถ้าช่องค้นหาว่าง) */}
                     <button
                         type="button"
                         onClick={() => void runSearch()}
@@ -223,6 +228,7 @@ export default function LocationPinPicker({
                         {results.map((result) => (
                             <li key={result.id} className="border-b border-[color:var(--line)] last:border-b-0">
                                 {/* ผลการค้นหา 1 รายการ → กดแล้วย้ายหมุดไปที่นั่น (ยังต้องกดยืนยันปักหมุดอีกครั้ง) */}
+                                {/* [ปุ่ม] หน้าสร้างแผน(ปักหมุด) · ผลการค้นหาแต่ละแถว — เลือกผลค้นหา แล้วย้ายหมุดไปตำแหน่งนั้น */}
                                 <button
                                     type="button"
                                     onClick={() => pickResult(result)}
@@ -248,6 +254,7 @@ export default function LocationPinPicker({
             </div>
 
             {/* isolate: ให้ z-index ภายในของ Leaflet อยู่ในกล่องนี้ ไม่ทับ navbar */}
+            {/* [แผนที่] หน้าสร้างแผน(ปักหมุด) · กรอบแผนที่ปักหมุด — สูง h-80 (20rem) · จุดกึ่งกลางเริ่มต้น DEFAULT_CENTER */}
             <div className="isolate relative h-80 overflow-hidden rounded-xl border border-[color:var(--line)]">
                 <MapContainer
                     center={[focus.lat, focus.lng]}
@@ -258,6 +265,7 @@ export default function LocationPinPicker({
                     <OsmTileLayer />
                     <FocusMap focus={focus} />
                     <ClickToPin onPick={moveMarker} />
+                    {/* [จุด] หน้าสร้างแผน(ปักหมุด) · หมุดจุดเริ่มต้นลากได้ — Marker draggable ปล่อยแล้วเรียก moveMarker (ลบ: เอา Marker นี้ออก) */}
                     <Marker
                         position={[markerPos.lat, markerPos.lng]}
                         icon={pinIcon}
@@ -293,6 +301,7 @@ export default function LocationPinPicker({
                 </p>
 
                 {/* ปุ่มยืนยันปักหมุด → ส่งพิกัดและที่อยู่ให้ฟอร์ม */}
+                {/* [ปุ่ม] หน้าสร้างแผน(ปักหมุด) · ยืนยันปักหมุด — ยืนยันตำแหน่งเป็นจุดเริ่มต้นการเดินทาง */}
                 <button
                     type="button"
                     onClick={handleConfirm}

@@ -9,7 +9,9 @@ import type { LatLng } from "./googlePlaces";
  * ระยะใกล้อย่างเดียวยืนยันไม่ได้ เพราะพิกัด CSV บางแถวคัดลอกมาจากหมุดของสิ่งที่อยู่ใกล้ๆ
  * (ทดลองน่าน: "เวียงภูเพียงแช่แห้ง" ห่าง 0 m จาก "วงเวียนพระธาตุแช่แห้ง")
  */
+// [ค่า] หน้าAdmin นำเข้า Google · MAX_MATCH_METERS = 1000 — รับผล Google เมื่อห่างจากพิกัด CSV ไม่เกินค่านี้ (เมตร)
 export const MAX_MATCH_METERS = 1000;
+// [ค่า] หน้าAdmin นำเข้า Google · NAME_SIMILARITY_MIN = 0.6 — ความคล้ายของชื่อต่ำสุดที่รับผล Google (0–1)
 export const NAME_SIMILARITY_MIN = 0.6;
 
 export type MatchResult =

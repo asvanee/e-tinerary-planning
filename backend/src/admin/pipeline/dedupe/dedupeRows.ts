@@ -17,6 +17,7 @@ import {
   parseCoords,
 } from "./normalize";
 
+// [ค่า] หน้าAdmin ตรวจสถานที่ซ้ำ · LOCATION_PROXIMITY_METERS = 500 — ระยะที่ถือว่าพิกัดใกล้กันตอนตรวจสถานที่ซ้ำ (เมตร)
 const LOCATION_PROXIMITY_METERS = 500;
 
 // ข้อความเหตุผลที่ให้คนตรวจ เมื่อแถวแชร์เบอร์/เว็บเดียวกันแต่ดูไม่ใช่ที่เดียวกัน

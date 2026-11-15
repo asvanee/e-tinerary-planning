@@ -31,6 +31,7 @@ interface Props {
 }
 
 // กรอบประเทศไทยคร่าวๆ — กันพิกัดผิด (เช่น หลุดไปต่างประเทศ) ไม่ให้ดึงแผนที่ไปไกล
+// [ค่า] หน้าแผนที่สถานที่แนะนำ · TH (กรอบประเทศไทย) — พิกัดนอกกรอบนี้ไม่แสดงหมุดบนแผนที่
 const TH = { minLat: 5.5, maxLat: 20.6, minLng: 97.3, maxLng: 105.7 };
 const inThailand = (lat: number, lng: number) =>
   Number.isFinite(lat) &&
@@ -66,6 +67,7 @@ function makePinIcon(color: string, rank: number, selected: boolean, active: boo
 const pinIconCache = new Map<string, L.DivIcon>();
 
 // ไอคอนหมุด (เลขอันดับ สีตามหมวด ไฮไลต์เมื่อเลือก/โฟกัส) · ใช้ที่ cache ไว้ถ้าเคยสร้างแล้ว
+// [จุด] หน้าแผนที่สถานที่แนะนำ · ฟังก์ชันหมุดสถานที่แนะนำ (getPinIcon) — หมุดเลขอันดับ สีตามหมวด ไฮไลต์เมื่อเลือก/โฟกัส · สีหมวดแก้ที่ categoryColors.ts
 function getPinIcon(color: string, rank: number, selected: boolean, active: boolean) {
   const key = `${color}|${rank}|${selected}|${active}`;
   let icon = pinIconCache.get(key);
@@ -168,6 +170,7 @@ export default function RecommendationMap({
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       {/* isolate: ให้ z-index ภายในของ Leaflet (400-1000) อยู่ในกล่องนี้ ไม่ทับ navbar / แถบเลือกด้านล่าง */}
+      {/* [แผนที่] หน้าแผนที่สถานที่แนะนำ · กรอบแผนที่สถานที่แนะนำ — สูงขั้นต่ำ 320px · กึ่งกลางเริ่มต้น [13.0, 101.0] zoom 6 */}
       <div className="isolate relative flex-1 min-h-[320px] rounded-2xl overflow-hidden border border-[color:var(--line)] [box-shadow:var(--shadow)]">
         <MapContainer
           center={[13.0, 101.0]}
@@ -184,6 +187,7 @@ export default function RecommendationMap({
             const active = focus?.id === p.placeId;
             const color = categoryColor(p.categoryName);
             return (
+              // [จุด] หน้าแผนที่สถานที่แนะนำ · หมุดสถานที่แนะนำ — Marker สีตามหมวดพร้อมเลขอันดับ กดดู Popup (ลบ: เอา Marker นี้ออก)
               <Marker
                 key={p.placeId}
                 position={[p.lat, p.lng]}
@@ -221,6 +225,7 @@ export default function RecommendationMap({
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                       {/* ปุ่มดูในรายการ → กลับแท็บรายการและเลื่อนไปที่การ์ดนี้ */}
+                      {/* [ปุ่ม] หน้าแผนที่สถานที่แนะนำ · ดูในรายการ — เลื่อนไปการ์ดของสถานที่นี้ในรายการ */}
                       <button
                         type="button"
                         onClick={() => onShowCard(p.placeId)}
@@ -238,6 +243,7 @@ export default function RecommendationMap({
                       </button>
                       {/* ปุ่มเลือก/ยกเลิกเลือก (เฉพาะโหมดจัดทริปเอง) */}
                       {isCustomMode && (
+                        // [ปุ่ม] หน้าแผนที่สถานที่แนะนำ · เลือก / ยกเลิกเลือก — เลือกหรือยกเลิกสถานที่นี้ (โหมดจัดลำดับเอง)
                         <button
                           type="button"
                           onClick={() => onToggleSelect(p.placeId)}

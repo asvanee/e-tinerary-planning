@@ -15,11 +15,13 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+// [ค่า] หน้าสร้างแผน · BUDGET_SCOPES — ตัวเลือกขอบเขตงบ (กลุ่ม/รายคน)
 const BUDGET_SCOPES = [
     { value: "GROUP", label: "งบรวมทั้งกลุ่ม" },
     { value: "PER_PERSON", label: "งบต่อคน" },
 ];
 
+// [ค่า] หน้าสร้างแผน · BUDGET_PERIODS — ตัวเลือกช่วงเวลางบ (ทั้งแผน/รายวัน)
 const BUDGET_PERIODS = [
     { value: "TOTAL_TRIP", label: "ตลอดทั้งแผน" },
     { value: "PER_DAY", label: "ต่อวัน" },
@@ -140,6 +142,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     );
 }
 
+// [ค่า] หน้าสร้างแผน · STEPS — ชื่อขั้นตอนของฟอร์มสร้างแผน เพิ่ม/ลดขั้นต้องแก้ส่วนแสดงผลของแต่ละ step ด้วย
 const STEPS = ["จังหวัดปลายทางและจุดเริ่มต้น", "วันเวลาและจำนวนคน", "งบและความสนใจ"];
 
 // แถบแสดงขั้นตอนของฟอร์ม กดวงกลมของขั้นที่ผ่านมาแล้วเพื่อย้อนกลับไปขั้นนั้น (ขั้นที่ยังไม่ถึงกดไม่ได้)
@@ -151,6 +154,7 @@ function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }
                 const active = i === step;
                 return (
                     <li key={label} className="flex items-center gap-2 flex-1 last:flex-none">
+                        {/* [ปุ่ม] หน้าสร้างแผน · วงกลมขั้นตอนบนหัวฟอร์ม — กระโดดไปขั้นที่เลือก (ปิดขั้นที่ยังไปไม่ได้) */}
                         <button
                             type="button"
                             disabled={i > step}
@@ -176,6 +180,7 @@ function Stepper({ step, onJump }: { step: number; onJump: (i: number) => void }
                             </span>
                         </button>
                         {i < STEPS.length - 1 && (
+                            // [เส้น] หน้าสร้างแผน · เส้นเชื่อมระหว่างวงกลมขั้นตอน — สี navy เมื่อขั้นนั้นเสร็จแล้ว สี line เมื่อยังไม่เสร็จ
                             <span
                                 className={`h-px flex-1 ${done ? "bg-[color:var(--navy)]" : "bg-[color:var(--line)]"
                                     }`}
@@ -690,6 +695,7 @@ export default function CreateTrip() {
     const HeaderIcon = editMode ? Pencil : Plane;
 
     return (
+        // [พื้นหลัง] หน้าสร้างแผน · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
         <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
             <Navbar />
 
@@ -723,6 +729,7 @@ export default function CreateTrip() {
                                                 hint="แสดงเฉพาะจังหวัดที่มีสถานที่แนะนำในระบบแล้ว"
                                             >
                                                 <SelectWrap>
+                                                    {/* [ช่องกรอก] หน้าสร้างแผน · จังหวัด — state province (บังคับ) โหลดจาก GET /api/place-dropdown/provinces */}
                                                     <select
                                                         id="province"
                                                         value={province}
@@ -747,6 +754,7 @@ export default function CreateTrip() {
                                                 hint="ไม่บังคับ ใช้จำกัดพื้นที่ที่แนะนำสถานที่"
                                             >
                                                 <SelectWrap>
+                                                    {/* [ช่องกรอก] หน้าสร้างแผน · อำเภอ/เขต — state district (ไม่บังคับ) โหลดจาก GET /api/place-dropdown/districts */}
                                                     <select
                                                         id="district"
                                                         value={district}
@@ -812,6 +820,7 @@ export default function CreateTrip() {
                                                 </p>
                                             )}
                                             <Field id="startTime" label="เวลาเริ่มต้น">
+                                                {/* [ช่องกรอก] หน้าสร้างแผน · เวลาเริ่มต้น — state startTime (HH:MM) */}
                                                 <input
                                                     id="startTime"
                                                     type="time"
@@ -826,6 +835,7 @@ export default function CreateTrip() {
                                                 label="เวลาว่างต่อวัน (ชั่วโมง)"
                                                 hint="เวลาเริ่มต้นรวมกับเวลาว่างต่อวันต้องไม่ข้ามเที่ยงคืน เช่น เริ่ม 20:00 ว่างได้ไม่เกิน 4 ชั่วโมง"
                                             >
+                                                {/* [ช่องกรอก] หน้าสร้างแผน · เวลาว่างต่อวัน (ชั่วโมง) — state availableTimePerDay · 1–24 · เวลาเริ่ม+ชั่วโมงต้องไม่ข้ามเที่ยงคืน */}
                                                 <input
                                                     id="availableTimePerDay"
                                                     type="number"
@@ -839,6 +849,7 @@ export default function CreateTrip() {
                                                 />
                                             </Field>
                                             <Field id="numberOfPeople" label="จำนวนผู้เดินทาง">
+                                                {/* [ช่องกรอก] หน้าสร้างแผน · จำนวนผู้เดินทาง — state numberOfPeople · อย่างน้อย 1 */}
                                                 <input
                                                     id="numberOfPeople"
                                                     type="number"
@@ -859,6 +870,7 @@ export default function CreateTrip() {
                                 <>
                                     <Section icon={Wallet} title="งบประมาณ">
                                         <label className="flex items-start gap-3 p-4 rounded-xl border border-[color:var(--line)] bg-white cursor-pointer transition-colors duration-200 hover:border-[color:var(--sky)] has-[:checked]:border-[color:var(--navy)] has-[:checked]:bg-[color:var(--sky-soft)] has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[color:var(--line)]">
+                                            {/* [ช่องกรอก] หน้าสร้างแผน · ติ๊กกำหนดงบประมาณ — state useBudget เปิดช่องงบ */}
                                             <input
                                                 type="checkbox"
                                                 checked={useBudget}
@@ -878,6 +890,7 @@ export default function CreateTrip() {
                                         {useBudget && (
                                             <div className="fade-in grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                                                 <Field id="totalBudget" label="งบประมาณ (บาท)">
+                                                    {/* [ช่องกรอก] หน้าสร้างแผน · งบประมาณ (บาท) — state totalBudget · ไม่ติดลบ */}
                                                     <input
                                                         id="totalBudget"
                                                         type="number"
@@ -891,6 +904,7 @@ export default function CreateTrip() {
                                                 </Field>
                                                 <Field id="budgetScope" label="ขอบเขตงบ">
                                                     <SelectWrap>
+                                                        {/* [ช่องกรอก] หน้าสร้างแผน · ขอบเขตงบ — state budgetScope ตัวเลือกจาก BUDGET_SCOPES (กลุ่ม/รายคน) */}
                                                         <select
                                                             id="budgetScope"
                                                             value={budgetScope}
@@ -907,6 +921,7 @@ export default function CreateTrip() {
                                                 </Field>
                                                 <Field id="budgetPeriod" label="ช่วงเวลา">
                                                     <SelectWrap>
+                                                        {/* [ช่องกรอก] หน้าสร้างแผน · ช่วงเวลางบ — state budgetPeriod ตัวเลือกจาก BUDGET_PERIODS (ทั้งแผน/รายวัน) */}
                                                         <select
                                                             id="budgetPeriod"
                                                             value={budgetPeriod}
@@ -949,6 +964,7 @@ export default function CreateTrip() {
                                                                         const selected = selectedCategoryIds.includes(cat.category_id);
                                                                         // ปุ่มเลือก/ยกเลิกหมวดที่สนใจ
                                                                         return (
+                                                                            // [ปุ่ม] หน้าสร้างแผน · ปุ่มเลือกหมวดหมู่ — ติ๊ก/ยกเลิกหมวดที่สนใจ (toggleCategory)
                                                                             <button
                                                                                 key={cat.category_id}
                                                                                 type="button"
@@ -994,6 +1010,7 @@ export default function CreateTrip() {
                         <div className="flex gap-3">
                             {/* ปุ่มย้อนกลับ → ขั้นก่อนหน้า (ขั้นแรกไม่แสดง) */}
                             {step > 0 && (
+                                // [ปุ่ม] หน้าสร้างแผน · ย้อนกลับ — กลับขั้นก่อนหน้าของฟอร์ม
                                 <button
                                     type="button"
                                     onClick={() => goToStep(step - 1)}
@@ -1006,6 +1023,7 @@ export default function CreateTrip() {
 
                             {/* ขั้นที่ไม่ใช่ขั้นสุดท้ายมีปุ่ม "ถัดไป" (ตรวจข้อมูลขั้นนี้แล้วไปขั้นต่อไป) · ขั้นสุดท้ายเป็นปุ่มสร้าง/บันทึกทริป (ส่งฟอร์ม) */}
                             {step < LAST_STEP ? (
+                                // [ปุ่ม] หน้าสร้างแผน · ถัดไป — ตรวจขั้นนี้แล้วไปขั้นถัดไป (goNext)
                                 <button
                                     type="button"
                                     key="next-btn"
@@ -1016,6 +1034,7 @@ export default function CreateTrip() {
                                     <ArrowRight size={20} strokeWidth={1.75} />
                                 </button>
                             ) : (
+                                // [ปุ่ม] หน้าสร้างแผน · วางแผนการเดินทาง / บันทึกการแก้ไข — ส่งฟอร์ม POST /api/trips (สร้าง) หรือ PUT /api/trips/:id (แก้ไข) · ปิดระหว่างกำลังบันทึก
                                 <button
                                     key="submit-btn"
                                     type="submit"
@@ -1046,6 +1065,7 @@ export default function CreateTrip() {
             </main>
 
             {showSuccessModal && summary && createdTrip && (
+                // [พื้นหลัง] หน้าสร้างแผน · ฉากหลังหน้าต่างบันทึกสำเร็จ — สี navy โปร่ง 60% คลุมทั้งจอ
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 bg-[color:var(--navy)]/60">
                     <div
                         role="dialog"
@@ -1139,6 +1159,7 @@ export default function CreateTrip() {
                         </dl>
 
                         {/* ปุ่มดูสถานที่ที่ตรงใจ → หน้าแนะนำสถานที่ของทริปที่เพิ่งสร้าง */}
+                        {/* [ปุ่ม] หน้าสร้างแผน · ดูสถานที่ที่ตรงใจ — ไปหน้าสถานที่แนะนำของแผนที่สร้าง */}
                         <button
                             type="button"
                             onClick={() => navigate(`/trip/${createdTrip.trip_id}/recommendations`)}

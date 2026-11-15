@@ -112,6 +112,7 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
+              {/* [ปุ่ม] หน้าAdmin แถวรอตรวจ · ยอมรับผล Google — ตัดสินแถวรอตรวจเป็น accept_google */}
               <button
                 type="button"
                 disabled={busy || !canAccept}
@@ -120,6 +121,7 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
               >
                 <Check size={16} strokeWidth={1.75} /> ยอมรับผล Google
               </button>
+              {/* [ปุ่ม] หน้าAdmin แถวรอตรวจ · นำเข้าจาก CSV อย่างเดียว — ตัดสินแถวรอตรวจเป็น csv_only */}
               <button
                 type="button"
                 disabled={busy}
@@ -128,6 +130,7 @@ export default function PendingReview({ base, token, reloadKey, onResolved }: Pe
               >
                 <FileText size={16} strokeWidth={1.75} /> นำเข้าจาก CSV อย่างเดียว
               </button>
+              {/* [ปุ่ม] หน้าAdmin แถวรอตรวจ · ตัดทิ้ง — ตัดสินแถวรอตรวจเป็น skip (ไม่นำเข้า) */}
               <button
                 type="button"
                 disabled={busy}

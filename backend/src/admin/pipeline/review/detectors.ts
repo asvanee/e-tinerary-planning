@@ -3,7 +3,9 @@ import { AttractionRow } from "../attractionTypes";
 import { displayName, isJunkName, namesStrictlyMatch, parseCoords } from "../dedupe/normalize";
 import { RowIssue } from "./reviewTypes";
 
+// [ค่า] หน้าAdmin ตรวจสถานที่ซ้ำ · NEAR_POINTS_METERS = 50 — ระยะที่ถือว่าสองจุดซ้อนกัน (เมตร)
 export const NEAR_POINTS_METERS = 50;
+// [ค่า] หน้าAdmin ตรวจสถานที่ซ้ำ · FAR_FROM_PROVINCE_KM = 150 — ระยะที่ถือว่าอยู่ไกลจากจังหวัดผิดปกติ (กม.)
 export const FAR_FROM_PROVINCE_KM = 150;
 
 // กรอบพิกัดประเทศไทยแบบหยาบ (ใช้กันพิกัดที่ผิดชัดๆ เช่นสลับ lat/lng หรืออยู่ต่างประเทศ)

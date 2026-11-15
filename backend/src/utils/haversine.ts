@@ -1,5 +1,6 @@
 // ⚠️ ต้องแก้คู่กับ frontend/src/user/trip/e-tinerary/lib/haversine.ts
 
+// [ค่า] หน้าคำนวณเวลาเดินทาง · EARTH_RADIUS_KM = 6371 — รัศมีโลกที่ใช้คำนวณระยะเส้นตรง
 const EARTH_RADIUS_KM = 6371;
 
 // องศา → เรเดียน

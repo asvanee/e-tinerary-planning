@@ -49,11 +49,13 @@ export default function AdminRoute({ children }: { children: ReactNode }) {
 
   if (check === "error") {
     return (
+      // [พื้นหลัง] หน้าAdmin ตรวจสิทธิ์ · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
       <div className="font-sarabun min-h-screen flex flex-col items-center justify-center gap-4 px-4 bg-[color:var(--cream)]">
         <p role="alert" className="flex items-center gap-2 text-[color:var(--danger)] font-prompt font-medium">
           <TriangleAlert size={20} strokeWidth={1.75} />
           ไม่สามารถตรวจสอบสิทธิ์ผู้ดูแลระบบได้
         </p>
+        {/* [ปุ่ม] หน้าAdmin ตรวจสิทธิ์ · ลองใหม่ — ตรวจสิทธิ์ Admin ซ้ำเมื่อตรวจไม่สำเร็จ */}
         <button
           type="button"
           onClick={() => {

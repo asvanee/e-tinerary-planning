@@ -1,5 +1,6 @@
 // ช่วงวันเดินทาง: วันที่เป็น YYYY-MM-DD, วันจบไม่ก่อนวันเริ่ม และรวมไม่เกิน 31 วัน
 // ⚠️ จำนวนวันสูงสุดต้องตรงกับ frontend/src/user/trip/create/tripDates.ts
+// [ค่า] หน้าสร้างแผน(ตรวจวันที่) · MAX_TRIP_DAYS = 31 — จำนวนวันสูงสุดของแผน (ต้องตรง frontend tripDates.ts)
 export const MAX_TRIP_DAYS = 31;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;

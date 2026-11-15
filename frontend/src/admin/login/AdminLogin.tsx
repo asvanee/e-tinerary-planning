@@ -39,6 +39,7 @@ export default function AdminLogin() {
       onSuccess={handleSuccess}
       footer={
         <p className="text-center text-sm mt-6">
+          {/* [ปุ่ม] หน้าAdmin เข้าสู่ระบบ · กลับไปหน้าเข้าสู่ระบบผู้ใช้ — ไปหน้า /login */}
           <button
             type="button"
             onClick={() => navigate("/login")}

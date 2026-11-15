@@ -18,6 +18,7 @@ export default function Welcome() {
   const navigate = useNavigate();
 
   return (
+    // [พื้นหลัง] หน้าหน้าต้อนรับ · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 bg-[color:var(--cream,#fcedd3)]">
       <div className="fade-in w-full max-w-sm text-center bg-white rounded-2xl border border-[color:var(--line,rgba(89,144,192,0.25))] [box-shadow:var(--shadow,0_2px_12px_rgba(16,42,107,0.08))] px-8 py-10">
         <img
@@ -43,6 +44,7 @@ export default function Welcome() {
         </ul>
 
         <div className="flex flex-col gap-3">
+          {/* [ปุ่ม] หน้าหน้าต้อนรับ · สมัครสมาชิก — ไป /register */}
           <button
             onClick={() => navigate("/register")}
             className="font-prompt font-medium w-full min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy,#102a6b)] hover:bg-[color:var(--navy-dark,#0c2054)] active:scale-[0.98] transition-all duration-200"
@@ -51,6 +53,7 @@ export default function Welcome() {
             สมัครสมาชิก
           </button>
 
+          {/* [ปุ่ม] หน้าหน้าต้อนรับ · เข้าสู่ระบบ — ไป /login */}
           <button
             onClick={() => navigate("/login")}
             className="font-prompt font-medium w-full min-h-12 flex items-center justify-center gap-2 rounded-xl text-[color:var(--navy,#102a6b)] bg-transparent border-2 border-[color:var(--sky,#5990c0)] hover:bg-[color:var(--sky-soft,rgba(89,144,192,0.1))] active:scale-[0.98] transition-all duration-200"

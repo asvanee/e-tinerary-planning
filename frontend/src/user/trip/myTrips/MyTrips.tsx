@@ -121,11 +121,13 @@ export default function MyTrips() {
     "font-prompt font-medium min-h-12 px-6 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200";
 
   return (
+    // [พื้นหลัง] หน้าแผนของฉัน · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
       <Navbar />
 
       <div className="fade-in max-w-4xl mx-auto px-4 py-8">
         {/* ปุ่มกลับ → หน้าก่อนหน้า */}
+        {/* [ปุ่ม] หน้าแผนของฉัน · กลับ — ย้อนหน้าก่อนหน้า */}
         <button
           onClick={() => navigate(-1)}
           className="font-prompt text-sm font-medium text-[color:var(--navy)] flex items-center gap-1.5 mb-5 min-h-10 hover:text-[color:var(--deep)] transition-colors duration-200"
@@ -144,6 +146,7 @@ export default function MyTrips() {
             </p>
           </div>
           {/* ปุ่มสร้างทริปใหม่ → หน้าสร้างทริป */}
+          {/* [ปุ่ม] หน้าแผนของฉัน · สร้างแผนการท่องเที่ยวใหม่ — ไปฟอร์มสร้างแผน (หัวหน้า) */}
           <button
             onClick={() => navigate("/trip/create")}
             className={`${primaryBtn} w-full sm:w-auto whitespace-nowrap`}
@@ -203,6 +206,7 @@ export default function MyTrips() {
               เริ่มวางแผนการท่องเที่ยวแรกของคุณได้เลย
             </p>
             {/* ปุ่มสร้างทริปใหม่ (แสดงเมื่อยังไม่มีทริป) → หน้าสร้างทริป */}
+            {/* [ปุ่ม] หน้าแผนของฉัน · สร้างแผนการท่องเที่ยวใหม่ — ไปฟอร์มสร้างแผน (กรณีไม่มีแผน) */}
             <button
               onClick={() => navigate("/trip/create")}
               className={`${primaryBtn} mt-2`}
@@ -221,6 +225,7 @@ export default function MyTrips() {
                 className={`${cardClass} flex items-stretch hover:border-[color:var(--sky)] transition-colors duration-200`}
               >
                 {/* พื้นที่หลักของการ์ด: กดเพื่อดูรายละเอียด */}
+                {/* [ปุ่ม] หน้าแผนของฉัน · การ์ดแผน / ดูรายละเอียด — เปิดรายละเอียดแผนที่เลือก */}
                 <button
                   onClick={() => navigate(`/trip/${trip.trip_id}/detail`)}
                   className="flex-1 min-w-0 flex items-center justify-between gap-4 text-left px-5 sm:px-6 py-5 rounded-l-2xl"
@@ -264,6 +269,7 @@ export default function MyTrips() {
 
                 {/* ปุ่มลบ แยกจากพื้นที่กดของการ์ด */}
                 <div className="flex items-center pr-3 sm:pr-4 pl-1">
+                  {/* [ปุ่ม] หน้าแผนของฉัน · ถังขยะ — เปิดกล่องยืนยันลบแผน */}
                   <button
                     onClick={() => setConfirmTripId(trip.trip_id)}
                     aria-label="ลบแผนการท่องเที่ยวนี้"
@@ -281,6 +287,7 @@ export default function MyTrips() {
 
       {/* Popup ยืนยันก่อนลบ */}
       {confirmTripId && (
+        // [พื้นหลัง] หน้าแผนของฉัน · ฉากหลังกล่องยืนยันลบ — สีดำโปร่ง 40% คลุมทั้งจอ
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
           onClick={() => {
@@ -311,6 +318,7 @@ export default function MyTrips() {
             </p>
             <div className="flex gap-3">
               {/* ปุ่มยกเลิก → ปิด popup ไม่ลบ */}
+              {/* [ปุ่ม] หน้าแผนของฉัน · ยกเลิก (กล่องยืนยันลบ) — ปิดกล่องยืนยัน ไม่ลบ */}
               <button
                 onClick={() => setConfirmTripId(null)}
                 disabled={deletingId === confirmTripId}
@@ -319,6 +327,7 @@ export default function MyTrips() {
                 ยกเลิก
               </button>
               {/* ปุ่มลบ → ลบทริปที่เลือกจริง */}
+              {/* [ปุ่ม] หน้าแผนของฉัน · ลบเลย — ลบแผน DELETE /api/trips/:id */}
               <button
                 onClick={() => handleDelete(confirmTripId)}
                 disabled={deletingId === confirmTripId}

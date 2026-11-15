@@ -65,6 +65,7 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
 
 
   return (
+    // [พื้นหลัง] หน้าเข้าสู่ระบบ · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-md bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-8 sm:px-12 py-8">
         <div className="text-center mb-6">
@@ -84,6 +85,7 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="email" className={labelClass}>อีเมล</label>
+            {/* [ช่องกรอก] หน้าเข้าสู่ระบบ · อีเมล — state email */}
             <input
               id="email"
               type="email"
@@ -110,6 +112,7 @@ export default function LoginForm({ title, subtitle, onSuccess, footer }: LoginF
             </p>
           )}
 
+          {/* [ปุ่ม] หน้าเข้าสู่ระบบ · เข้าสู่ระบบ — ส่งฟอร์ม POST /api/auth/login (ปิดระหว่างกำลังส่ง) */}
           <button
             type="submit"
             disabled={isSubmitting}

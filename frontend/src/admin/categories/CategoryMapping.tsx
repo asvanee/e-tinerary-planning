@@ -54,6 +54,7 @@ function Select({
     <label className="flex flex-col gap-1">
       <span className={labelTextClass}>{label}</span>
       <span className="relative">
+        {/* [ช่องกรอก] หน้าAdmin หมวดหมู่ · ช่องเลือกกลุ่มหมวด — เลือกกลุ่ม (ประวัติศาสตร์/ธรรมชาติ/นันทนาการ) ค่ามาจาก system/categoryGroups.ts */}
         <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
           {options.map((o) => (
             <option key={o.value} value={o.value}>
@@ -99,6 +100,7 @@ function CategoryCard({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
           <span className={labelTextClass}>ชื่อหมวด</span>
+          {/* [ช่องกรอก] หน้าAdmin หมวดหมู่ · ชื่อหมวด — field category_name · ยาวไม่เกิน 100 ตัวอักษร */}
           <input
             value={fields.category_name}
             onChange={(e) => set("category_name")(e.target.value)}
@@ -113,6 +115,7 @@ function CategoryCard({
 
       {dirty && (
         <div className="flex flex-wrap items-center gap-2">
+          {/* [ปุ่ม] หน้าAdmin หมวดหมู่ · บันทึก — บันทึกการแก้หมวด (ชื่อ กลุ่ม ลักษณะสถานที่ ลักษณะราคา) · ปิดไว้ถ้ายังไม่มีการแก้ */}
           <button
             type="button"
             disabled={busy || !fields.category_name.trim()}
@@ -124,6 +127,7 @@ function CategoryCard({
             <Save size={16} strokeWidth={1.75} />
             บันทึก
           </button>
+          {/* [ปุ่ม] หน้าAdmin หมวดหมู่ · ยกเลิก — ล้างค่าที่แก้กลับเป็นค่าที่บันทึกไว้ */}
           <button
             type="button"
             disabled={busy}
@@ -153,6 +157,7 @@ function CategoryCard({
                   <span className="text-[color:var(--muted)]">({label.place_count} แห่ง)</span>
                 </span>
                 <span className="relative">
+                  {/* [ช่องกรอก] หน้าAdmin หมวดหมู่ · ย้ายป้าย ททท. — เลือกหมวดปลายทางของป้าย (PUT categories/labels/:id) */}
                   <select
                     value=""
                     disabled={busy}
@@ -269,6 +274,7 @@ export default function CategoryMapping() {
         <div role="alert" className="mt-6 flex flex-wrap items-center gap-3 text-[color:var(--danger)]">
           <TriangleAlert size={18} strokeWidth={1.75} />
           {loadError}
+          {/* [ปุ่ม] หน้าAdmin หมวดหมู่ · ลองใหม่ — โหลดรายการหมวดใหม่เมื่อโหลดไม่สำเร็จ */}
           <button
             type="button"
             onClick={() => {

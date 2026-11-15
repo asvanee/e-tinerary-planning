@@ -65,6 +65,7 @@ export default function Register() {
     "font-semibold text-[color:var(--deep)] underline underline-offset-2 hover:text-[color:var(--navy)] transition-colors duration-200 cursor-pointer";
 
   return (
+    // [พื้นหลัง] หน้าสมัครสมาชิก · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen flex items-center justify-center px-4 py-6 bg-[color:var(--cream)]">
       <div className="fade-in w-full max-w-3xl bg-white rounded-2xl border border-[color:var(--line)] [box-shadow:var(--shadow)] px-6 sm:px-12 py-8">
         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[color:var(--line)]">
@@ -87,6 +88,7 @@ export default function Register() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="username" className={labelClass}>ชื่อผู้ใช้</label>
+              {/* [ช่องกรอก] หน้าสมัครสมาชิก · ชื่อผู้ใช้ — state username */}
               <input
                 id="username"
                 autoComplete="username"
@@ -101,6 +103,7 @@ export default function Register() {
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="email" className={labelClass}>อีเมล</label>
+              {/* [ช่องกรอก] หน้าสมัครสมาชิก · อีเมล — state email */}
               <input
                 id="email"
                 type="email"
@@ -135,6 +138,7 @@ export default function Register() {
                   <span>{message}</span>
                 </p>
                 {isEmailDuplicate && (
+                  // [ปุ่ม] หน้าสมัครสมาชิก · คลิกที่นี่เพื่อเข้าสู่ระบบ — ไป /login (ข้อความในกล่องแจ้งสมัครสำเร็จ)
                   <button
                     type="button"
                     onClick={() => navigate("/login")}
@@ -149,6 +153,7 @@ export default function Register() {
 
           {/* Submit + Footer: แถวเดียวบนจอกว้าง */}
           <div className="mt-6 flex flex-col gap-4 md:flex-row-reverse md:items-center md:justify-between">
+            {/* [ปุ่ม] หน้าสมัครสมาชิก · สมัครสมาชิก — ส่งฟอร์ม POST /api/auth/register (ปิดระหว่างกำลังส่ง) */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -169,6 +174,7 @@ export default function Register() {
 
             <p className="text-center md:text-left text-sm text-[color:var(--muted)]">
               มีบัญชีอยู่แล้ว?{" "}
+              {/* [ปุ่ม] หน้าสมัครสมาชิก · เข้าสู่ระบบ — ไป /login */}
               <button
                 type="button"
                 onClick={() => navigate("/login")}

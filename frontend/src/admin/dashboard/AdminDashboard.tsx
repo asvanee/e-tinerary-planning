@@ -43,12 +43,14 @@ export default function AdminDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
         {TOOLS.map(({ title, description, icon: Icon, to }) => (
+          // [ปุ่ม] หน้าAdmin หน้าแรก · การ์ดเมนู — กดไปหน้าตามเมนู (จังหวัด/หมวดหมู่) ที่กำหนดใน navigate(to)
           <button
             key={title}
             type="button"
             onClick={() => navigate(to)}
             className="relative text-left flex flex-col gap-3 p-5 rounded-2xl bg-white border border-[color:var(--line)] [box-shadow:var(--shadow)] transition-colors enabled:hover:bg-[color:var(--sky-soft)] enabled:cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
           >
+            {/* [พื้นหลัง] หน้าAdmin หน้าแรก · กรอบไอคอนการ์ดเมนู — พื้น sky-soft */}
             <span className="w-11 h-11 rounded-xl flex items-center justify-center bg-[color:var(--sky-soft)] text-[color:var(--navy)]">
               <Icon size={22} strokeWidth={1.75} />
             </span>

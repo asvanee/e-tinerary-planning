@@ -217,6 +217,7 @@ function Metric({
   );
 }
 
+// [ค่า] หน้าสถานที่แนะนำ · RAINY_PERCENT = 50 — โอกาสฝนตั้งแต่ค่านี้ขึ้นไปจะแสดงเป็นไอคอนฝน
 const RAINY_PERCENT = 50; // โอกาสฝนตั้งแต่ค่านี้แสดงไอคอนฝน
 
 // สภาพอากาศบนการ์ด: ในร่มไม่กระทบจากฝน · กลางแจ้ง/บางส่วนแสดงโอกาสฝน
@@ -590,6 +591,7 @@ export default function TripRecommendations() {
 
   // สวิตช์เติมสถานที่หมวดอื่น วางแถวเดียวกับปุ่มจัดทริป
   const fillSwitch = canToggleFilled && (
+    // [ปุ่ม] หน้าสถานที่แนะนำ · เติมสถานที่หมวดอื่น — สวิตช์แสดง/ซ่อนสถานที่หมวดอื่น (การ์ดสีเหลือง) เมื่อหมวดที่เลือกมีไม่ถึง 50 แห่ง
     <button
       type="button"
       role="switch"
@@ -754,6 +756,7 @@ export default function TripRecommendations() {
     const filled = item.categoryScore === 0;
 
     return (
+      // [พื้นหลัง] หน้าสถานที่แนะนำ · พื้นการ์ดสถานที่แนะนำ — สีเหลืองอ่อน (bg-amber-50) เมื่อเป็นสถานที่หมวดอื่นที่เติมเข้ามา สีขาวถ้าตรงหมวด
       <li
         key={item.placeId}
         id={`place-card-${item.placeId}`}
@@ -769,12 +772,14 @@ export default function TripRecommendations() {
           focus?.id === item.placeId ? "ring-2 ring-[color:var(--sky)]" : ""
         }`}
       >
+        {/* [จุด] หน้าสถานที่แนะนำ · วงกลมเลขอันดับ — วงกลมสี navy ตัวเลขอันดับ POI */}
         <span className="shrink-0 w-10 h-10 rounded-full bg-[color:var(--navy)] text-white font-prompt font-semibold flex items-center justify-center">
           {rankOf.get(item.placeId)}
         </span>
 
         <div className="flex-1 min-w-0">
           {filled && (
+            // [พื้นหลัง] หน้าสถานที่แนะนำ · ป้ายสถานที่หมวดอื่น — ป้ายสีเหลือง (bg-amber-100) บนการ์ดสถานที่หมวดอื่น
             <span
               title="หมวดหมู่ที่เลือกมีสถานที่ไม่พอ ระบบจึงเติมสถานที่หมวดอื่นมาแนะนำ"
               className="inline-flex items-center gap-1 mb-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-medium"
@@ -918,6 +923,7 @@ export default function TripRecommendations() {
           </div>
 
           {p && (
+            // [ปุ่ม] หน้าสถานที่แนะนำ · ดูบนแผนที่ — เลื่อนแผนที่ไปที่สถานที่นี้
             <button
               type="button"
               onClick={() => handleShowOnMap(item.placeId)}
@@ -929,6 +935,7 @@ export default function TripRecommendations() {
           )}
 
           {isCustomMode && (
+            // [ปุ่ม] หน้าสถานที่แนะนำ · เลือก / ยกเลิกเลือก — เลือกหรือยกเลิกสถานที่นี้ (โหมดจัดลำดับเอง)
             <button
               type="button"
               aria-pressed={selected}
@@ -949,11 +956,13 @@ export default function TripRecommendations() {
   };
 
   return (
+    // [พื้นหลัง] หน้าสถานที่แนะนำ · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
       <Navbar />
 
       <main className={`max-w-6xl mx-auto px-4 sm:px-8 py-6 ${isCustomMode ? "pb-28" : ""}`}>
         {/* ปุ่มกลับ → ฟอร์มสร้าง/แก้ทริป (/trip/create) */}
+        {/* [ปุ่ม] หน้าสถานที่แนะนำ · กลับ — กลับฟอร์มแก้แผน (/trip/create) */}
         <button
           type="button"
           onClick={() => navigate("/trip/create")}
@@ -1015,6 +1024,7 @@ export default function TripRecommendations() {
             title="เกิดข้อผิดพลาด"
             text={error}
           >
+            {/* [ปุ่ม] หน้าสถานที่แนะนำ · กลับหน้าหลัก — ไป /home (หน้า error) */}
             <button type="button" onClick={() => navigate("/home")} className={`${primaryBtn} mt-3`}>
               กลับหน้าหลัก
             </button>
@@ -1027,6 +1037,7 @@ export default function TripRecommendations() {
             title="ไม่พบสถานที่ที่ตรงเงื่อนไข"
             text="ลองปรับงบประมาณ เวลา หรือหมวดหมู่ที่สนใจของแผนการท่องเที่ยวนี้ดูอีกครั้ง"
           >
+            {/* [ปุ่ม] หน้าสถานที่แนะนำ · กลับหน้าหลัก — ไป /home (ไม่พบข้อมูลแผน) */}
             <button type="button" onClick={() => navigate("/home")} className={`${primaryBtn} mt-3`}>
               กลับหน้าหลัก
             </button>
@@ -1042,6 +1053,7 @@ export default function TripRecommendations() {
                   <div className="flex flex-wrap items-center gap-3">
                     {fillSwitch}
                     {/* ปุ่มจัดทริปอัตโนมัติ → ให้ระบบจัดแผนทั้งทริป แล้วไปหน้า Auto Trip */}
+                    {/* [ปุ่ม] หน้าสถานที่แนะนำ · จัดแผนอัตโนมัติ — เรียก handleAutoTrip → POST /api/itinerary/trips/:id/auto (ถ้าแผนยังไม่เลือกหมวดจะเปิดหน้าต่างเลือกหมวดก่อน) */}
                     <button
                       type="button"
                       onClick={handleAutoTrip}
@@ -1061,6 +1073,7 @@ export default function TripRecommendations() {
                       )}
                     </button>
                     {/* ปุ่มจัดทริปเอง → เข้าโหมดเลือกสถานที่เอง */}
+                    {/* [ปุ่ม] หน้าสถานที่แนะนำ · จัดลำดับเอง — เรียก handleStartCustomMode เข้าโหมดเลือกสถานที่เอง */}
                     <button type="button" onClick={handleStartCustomMode} className={primaryBtn}>
                       <ListChecks size={20} strokeWidth={1.75} />
                       จัดลำดับเอง
@@ -1075,6 +1088,7 @@ export default function TripRecommendations() {
                   <div className="flex flex-wrap items-center gap-3">
                     {fillSwitch}
                     {/* ปุ่มยกเลิก → ออกจากโหมดจัดทริปเอง */}
+                    {/* [ปุ่ม] หน้าสถานที่แนะนำ · ยกเลิก (โหมดจัดลำดับเอง) — ออกจากโหมดเลือกสถานที่เอง */}
                     <button type="button" onClick={handleCancelCustomMode} className={outlineBtn}>
                       <X size={20} strokeWidth={1.75} />
                       ยกเลิก
@@ -1087,6 +1101,7 @@ export default function TripRecommendations() {
             {availableCategories.length > 0 && (
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-1 px-1">
                 {/* ปุ่มทั้งหมด → ล้างตัวกรองหมวด */}
+                {/* [ปุ่ม] หน้าสถานที่แนะนำ · ทั้งหมด (กรองหมวด) — แสดงทุกหมวด */}
                 <button
                   type="button"
                   aria-pressed={selectedCategory === null}
@@ -1099,6 +1114,7 @@ export default function TripRecommendations() {
                   const count = visiblePlaces.filter((p) => p.categoryName === cat).length;
                   // ปุ่มกรองตามหมวด 1 หมวด
                   return (
+                    // [ปุ่ม] หน้าสถานที่แนะนำ · ปุ่มหมวด (กรองหมวด) — กรองรายการให้เหลือหมวดนี้
                     <button
                       key={cat}
                       type="button"
@@ -1120,6 +1136,7 @@ export default function TripRecommendations() {
             {/* สลับมุมมองบนมือถือ (จอใหญ่แสดงรายการ + แผนที่คู่กัน) */}
             <div className="flex gap-2 mb-4 lg:hidden">
               {/* ปุ่มสลับมุมมอง: รายการ / แผนที่ */}
+              {/* [ปุ่ม] หน้าสถานที่แนะนำ · รายการ — สลับมุมมองเป็นรายการ */}
               <button
                 type="button"
                 aria-pressed={view === "list"}
@@ -1128,6 +1145,7 @@ export default function TripRecommendations() {
               >
                 รายการ
               </button>
+              {/* [ปุ่ม] หน้าสถานที่แนะนำ · แผนที่ — สลับมุมมองเป็นแผนที่ */}
               <button
                 type="button"
                 aria-pressed={view === "map"}
@@ -1179,6 +1197,7 @@ export default function TripRecommendations() {
                 )}
               </div>
               {/* ปุ่มสร้างเส้นทาง → ส่งสถานที่ที่เลือกไปสร้างร่างแผน แล้วไปหน้า editor */}
+              {/* [ปุ่ม] หน้าสถานที่แนะนำ · สร้างเส้นทาง — เรียก handleCreateRoute → POST …/draft แล้วไปหน้าจัดลำดับเอง */}
               <button
                 type="button"
                 onClick={handleCreateRoute}
@@ -1203,6 +1222,7 @@ export default function TripRecommendations() {
       )}
 
       {categoryDialogOpen && (
+        // [พื้นหลัง] หน้าสถานที่แนะนำ · ฉากหลังหน้าต่างเลือกประเภทสถานที่ — สีดำโปร่ง 40% คลุมทั้งจอ
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-4 py-6">
           <section
             role="dialog"
@@ -1222,6 +1242,7 @@ export default function TripRecommendations() {
                   เลือกความสนใจอย่างน้อย 1 หมวดเพื่อจัดแผนอัตโนมัติ
                 </p>
               </div>
+              {/* [ปุ่ม] หน้าสถานที่แนะนำ · ปิดหน้าต่าง (กากบาท) — ปิดหน้าต่างเลือกประเภทสถานที่ */}
               <button
                 type="button"
                 aria-label="ปิดหน้าต่างเลือกประเภทสถานที่"
@@ -1262,6 +1283,7 @@ export default function TripRecommendations() {
                           );
                           // ปุ่มเลือก/ยกเลิกหมวด 1 หมวด
                           return (
+                            // [ปุ่ม] หน้าสถานที่แนะนำ · ปุ่มเลือกหมวดในหน้าต่าง — ติ๊ก/ยกเลิกหมวดที่สนใจ (toggleTripCategory)
                             <button
                               key={category.category_id}
                               type="button"
@@ -1301,6 +1323,7 @@ export default function TripRecommendations() {
 
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               {/* ปุ่มยกเลิก → ปิดหน้าต่างเลือกหมวด */}
+              {/* [ปุ่ม] หน้าสถานที่แนะนำ · ยกเลิก (หน้าต่างเลือกหมวด) — ปิดหน้าต่างเลือกประเภทสถานที่ */}
               <button
                 type="button"
                 disabled={savingCategories}
@@ -1310,6 +1333,7 @@ export default function TripRecommendations() {
                 ยกเลิก
               </button>
               {/* ปุ่มจัดทริปอัตโนมัติ → บันทึกหมวดที่เลือก แล้วจัดทริปอัตโนมัติ */}
+              {/* [ปุ่ม] หน้าสถานที่แนะนำ · จัดแผนอัตโนมัติ (ในหน้าต่าง) — เรียก handleSaveCategories → PUT addcategories → คำนวณ POI → จัดแผนอัตโนมัติ */}
               <button
                 type="button"
                 disabled={

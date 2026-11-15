@@ -9,6 +9,7 @@ import { TtlCache } from "./ttlCache";
 // id ของจุดเริ่มต้นทริปใน matrix (ต้องตรงกับฝั่ง frontend)
 export const TRIP_START_ID = "__trip_start__";
 
+// [ค่า] หน้าคำนวณเวลาเดินทาง · FALLBACK_AVG_SPEED_KMH = 30 — ความเร็วเฉลี่ย (กม./ชม.) ตอนใช้ระยะเส้นตรงแทน ORS (ต้องตรง frontend)
 export const FALLBACK_AVG_SPEED_KMH = 30;
 
 export interface TravelMetric {
@@ -27,6 +28,7 @@ export interface TravelPoint {
 }
 
 // ORS รับได้สูงสุด 3,500 คู่ต่อ request
+// [ค่า] หน้าคำนวณเวลาเดินทาง · ORS_MAX_MATRIX_ROUTES = 3500 — จำนวนคู่เส้นทางสูงสุดต่อ 1 คำขอ ORS Matrix
 const ORS_MAX_MATRIX_ROUTES = 3500;
 
 interface PairMetric {

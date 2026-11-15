@@ -1,7 +1,9 @@
 // วันที่ของทริปเป็น string "YYYY-MM-DD" คิดแบบ UTC ทั้งหมด จะได้ไม่เพี้ยนตาม timezone ของเครื่อง
 // ⚠️ MAX_TRIP_DAYS ต้องตรงกับ backend/src/user/trip/tripDateRange.ts
 //    FORECAST_MAX_DAYS_AHEAD ต้องตรงกับ backend/src/utils/weatherForecast.ts
+// [ค่า] หน้าสร้างแผน(วันที่) · MAX_TRIP_DAYS = 31 — จำนวนวันสูงสุดของแผน (ต้องตรง backend tripDateRange.ts)
 export const MAX_TRIP_DAYS = 31;
+// [ค่า] หน้าสร้างแผน(วันที่) · FORECAST_MAX_DAYS_AHEAD = 15 — จำนวนวันล่วงหน้าที่มีพยากรณ์ฝน (ต้องตรง backend weatherForecast.ts)
 export const FORECAST_MAX_DAYS_AHEAD = 15; // Open-Meteo พยากรณ์ได้ 16 วันรวมวันนี้
 
 const DAY_MS = 24 * 60 * 60 * 1000;

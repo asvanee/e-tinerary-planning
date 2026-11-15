@@ -70,6 +70,7 @@ export default function ProblemRowCard({ item, row, busy, onSave, onUndo }: Prob
             {decision.kind === "fix_location" ? ` → ${decision.lat}, ${decision.lng}` : ""}
             {decision.note ? ` · หมายเหตุ: ${decision.note}` : ""}
           </span>
+          {/* [ปุ่ม] หน้าAdmin การ์ดแถวมีปัญหา · ยกเลิก — ลบคำตัดสินของแถวนี้ */}
           <button
             type="button"
             disabled={busy}
@@ -84,6 +85,7 @@ export default function ProblemRowCard({ item, row, busy, onSave, onUndo }: Prob
           <div className="flex flex-wrap gap-3 text-sm">
             <label className="flex flex-col gap-1">
               <span className="font-prompt text-[color:var(--navy)]">พิกัดที่ถูกต้อง</span>
+              {/* [ช่องกรอก] หน้าAdmin การ์ดแถวมีปัญหา · พิกัดใหม่ — state location ใช้กับปุ่มบันทึกพิกัด */}
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
@@ -95,6 +97,7 @@ export default function ProblemRowCard({ item, row, busy, onSave, onUndo }: Prob
           </div>
           {formError && <p role="alert" className="text-sm text-[color:var(--danger)]">{formError}</p>}
           <div className="flex flex-wrap gap-2">
+            {/* [ปุ่ม] หน้าAdmin การ์ดแถวมีปัญหา · บันทึกพิกัด — บันทึกคำตัดสิน fix_location ด้วยพิกัดที่กรอก */}
             <button
               type="button"
               disabled={busy}
@@ -103,6 +106,7 @@ export default function ProblemRowCard({ item, row, busy, onSave, onUndo }: Prob
             >
               <MapPin size={18} strokeWidth={1.75} /> บันทึกพิกัด
             </button>
+            {/* [ปุ่ม] หน้าAdmin การ์ดแถวมีปัญหา · ไม่ใช่ปัญหา — บันทึกคำตัดสิน ok */}
             <button
               type="button"
               disabled={busy}
@@ -111,6 +115,7 @@ export default function ProblemRowCard({ item, row, busy, onSave, onUndo }: Prob
             >
               <CheckCircle2 size={18} strokeWidth={1.75} /> ไม่ใช่ปัญหา
             </button>
+            {/* [ปุ่ม] หน้าAdmin การ์ดแถวมีปัญหา · ตัดทิ้ง — บันทึกคำตัดสิน exclude */}
             <button
               type="button"
               disabled={busy}

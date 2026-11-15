@@ -36,6 +36,7 @@ export default function ProvinceList() {
 
       <div className="relative mt-6 max-w-sm">
         <Search size={18} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--muted)]" />
+        {/* [ช่องกรอก] หน้าAdmin รายชื่อจังหวัด · ค้นหาจังหวัด — state query กรองรายชื่อจังหวัด */}
         <input
           type="search"
           value={query}
@@ -50,6 +51,7 @@ export default function ProvinceList() {
         <div role="alert" className="mt-6 flex flex-wrap items-center gap-3 text-[color:var(--danger)]">
           <TriangleAlert size={18} strokeWidth={1.75} />
           <span>{error}</span>
+          {/* [ปุ่ม] หน้าAdmin รายชื่อจังหวัด · ลองใหม่ — โหลดรายชื่อจังหวัดใหม่ */}
           <button
             type="button"
             onClick={() => {
@@ -90,6 +92,7 @@ export default function ProvinceList() {
                   <td className="px-4 py-3 text-right">{p.decisions > 0 ? p.decisions.toLocaleString() : "–"}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      {/* [ปุ่ม] หน้าAdmin รายชื่อจังหวัด · ตรวจข้อมูล — ไปหน้าตรวจสถานที่ซ้ำของจังหวัดนั้น */}
                       <button
                         type="button"
                         onClick={() => navigate(`/admin/provinces/${encodeURIComponent(p.province)}`)}
@@ -97,6 +100,7 @@ export default function ProvinceList() {
                       >
                         ตรวจข้อมูล <ChevronRight size={16} strokeWidth={1.75} />
                       </button>
+                      {/* [ปุ่ม] หน้าAdmin รายชื่อจังหวัด · นำเข้า — ไปหน้านำเข้า Google ของจังหวัดนั้น */}
                       <button
                         type="button"
                         onClick={() => navigate(`/admin/provinces/${encodeURIComponent(p.province)}/import`)}

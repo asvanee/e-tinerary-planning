@@ -19,6 +19,7 @@ export function calculateDistanceScore(distanceKm: number): number {
 }
 
 // สถานที่โดนฝนแค่ไหน ตาม environment_type ของหมวด (กลางแจ้ง 1 · ผสม 0.5 · ในร่ม 0)
+// [ค่า] หน้าคะแนนสถานที่ · RAIN_EXPOSURE — ระดับโดนฝนตามลักษณะสถานที่ (กลางแจ้ง 1 ผสม 0.5 ในร่ม 0)
 const RAIN_EXPOSURE: Record<EnvironmentType, number> = {
   OUTDOOR: 1,
   MIXED: 0.5,
@@ -51,6 +52,7 @@ export function calculatePriceScore(
 
 // น้ำหนักจากแบบสอบถาม AHP 42 คน (รวมผลแบบค่าเฉลี่ยเรขาคณิตของคำตอบ) — ที่มาดู docs/AHP_POI_WEIGHTS.md
 // คำนวณซ้ำได้ด้วย ahp/runAhp.ts
+// [ค่า] หน้าคะแนนสถานที่ · WEIGHTS — น้ำหนัก POI 5 ปัจจัย (หมวด รีวิว ระยะทาง ราคา อากาศ) รวมต้องเป็น 1 · มาจาก AHP ห้ามแก้เองถ้าไม่ได้คำนวณใหม่
 export const WEIGHTS = {
   category: 0.1421,
   rating: 0.0869,

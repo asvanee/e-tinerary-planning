@@ -19,6 +19,7 @@ export default function PasswordField({
     <div className="flex flex-col gap-1.5">
       <label htmlFor="password" className={labelClass}>รหัสผ่าน</label>
       <div className="relative">
+        {/* [ช่องกรอก] หน้าช่องรหัสผ่าน · รหัสผ่าน — ค่า value ที่ส่งเข้ามา */}
         <input
           id="password"
           type={showPassword ? "text" : "password"}
@@ -30,6 +31,7 @@ export default function PasswordField({
           className={`${inputClass} pr-12`}
         />
         {/* ปุ่มสลับแสดง/ซ่อนรหัสผ่าน */}
+        {/* [ปุ่ม] หน้าช่องรหัสผ่าน · ไอคอนตา — สลับแสดง/ซ่อนรหัสผ่าน */}
         <button
           type="button"
           onClick={() => setShowPassword((v) => !v)}

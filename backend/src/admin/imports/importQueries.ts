@@ -14,6 +14,7 @@ import { selectAll } from "../provinces/decisionQueries";
 const JOBS = "pipeline_jobs";
 const ITEMS = "pipeline_job_items";
 const ACTIVE_STATUSES = ["queued", "running"];
+// [ค่า] หน้าAdmin นำเข้า Google · ITEMS_PAGE_SIZE = 100 — จำนวนแถวต่อหน้าของตารางผลนำเข้า (ต้องตรง frontend ImportItemsTable)
 export const ITEMS_PAGE_SIZE = 100;
 
 export interface ImportJob {

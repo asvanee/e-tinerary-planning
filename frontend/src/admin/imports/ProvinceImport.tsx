@@ -7,7 +7,9 @@ import type { ImportJob, ImportJobStatus, ImportPreview } from "../lib/importTyp
 import ImportItemsTable from "./ImportItemsTable";
 import PendingReview from "./PendingReview";
 
+// [ค่า] หน้าAdmin นำเข้า Google · POLL_MS = 2000 — ถามสถานะงานนำเข้าทุกกี่ มิลลิวินาที
 const POLL_MS = 2000;
+// [ค่า] หน้าAdmin นำเข้า Google · DEFAULT_LIMIT = "10" — จำนวนแถวเริ่มต้นในช่องนำเข้า
 const DEFAULT_LIMIT = "10"; // เริ่มทีละน้อยเพราะทุกแถวเรียก Google (มีค่าใช้จ่าย) — ลบออกได้ถ้าต้องการทั้งหมด
 
 const JOB_STATUS_LABELS: Record<ImportJobStatus, string> = {
@@ -145,6 +147,7 @@ export default function ProvinceImport() {
 
   return (
     <div className="fade-in flex flex-col gap-4">
+      {/* [ปุ่ม] หน้าAdmin นำเข้า Google · กลับไปหน้าตรวจข้อมูล — กลับหน้าตรวจสถานที่ซ้ำของจังหวัดนี้ */}
       <button
         type="button"
         onClick={() => navigate(`/admin${base}`)}
@@ -172,6 +175,7 @@ export default function ProvinceImport() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-prompt text-[color:var(--navy)]">จำนวนสถานที่รอบนี้ (เว้นว่าง = ทั้งหมดที่เหลือ)</span>
+            {/* [ช่องกรอก] หน้าAdmin นำเข้า Google · จำนวนแถว — state limitInput · จำนวนเต็ม 1–10,000 · ค่าเริ่มต้น DEFAULT_LIMIT */}
             <input
               type="number"
               min={1}
@@ -181,6 +185,7 @@ export default function ProvinceImport() {
               className="min-h-10 w-40 px-3 rounded-lg border border-[color:var(--line)]"
             />
           </label>
+          {/* [ปุ่ม] หน้าAdmin นำเข้า Google · คำนวณใหม่ — คำนวณตัวอย่างนำเข้าใหม่ตามจำนวนแถวที่กรอก (ไม่เรียก Google) */}
           <button
             type="button"
             disabled={!limitValid || limitInput === appliedLimit}
@@ -195,6 +200,7 @@ export default function ProvinceImport() {
         {previewError && (
           <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 text-[color:var(--danger)]">
             <TriangleAlert size={18} strokeWidth={1.75} /> {previewError}
+            {/* [ปุ่ม] หน้าAdmin นำเข้า Google · ลองใหม่ — โหลดตัวอย่างนำเข้าใหม่เมื่อโหลดไม่สำเร็จ */}
             <button type="button" onClick={() => setReloadKey((k) => k + 1)} className={primaryBtn}>
               ลองใหม่
             </button>
@@ -230,6 +236,7 @@ export default function ProvinceImport() {
                   ))}
                 </ul>
                 {preview.pendingDecisions > 0 && (
+                  // [ปุ่ม] หน้าAdmin นำเข้า Google · ไปตรวจข้อมูลให้ครบ — พาไปหน้าตรวจสถานที่ซ้ำเมื่อยังมีเรื่องค้าง
                   <button type="button" onClick={() => navigate(`/admin${base}`)} className="mt-2 underline">
                     ไปตรวจข้อมูลให้ครบ
                   </button>
@@ -238,6 +245,7 @@ export default function ProvinceImport() {
             )}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
+              {/* [ปุ่ม] หน้าAdmin นำเข้า Google · เริ่มนำเข้า — เรียก startImport → POST import (เรียก Google มีค่าใช้จ่าย) */}
               <button type="button" disabled={!canStart} onClick={startImport} className={primaryBtn}>
                 <CloudDownload size={18} strokeWidth={1.75} /> เริ่มนำเข้า {preview.toProcess.toLocaleString()} สถานที่
               </button>
@@ -265,6 +273,7 @@ export default function ProvinceImport() {
           </p>
           {viewedJob.error && <p className="text-sm text-[color:var(--danger)] mt-1">{viewedJob.error}</p>}
 
+          {/* [พื้นหลัง] หน้าAdmin นำเข้า Google · รางแถบความคืบหน้า — พื้นราง sky-soft ส่วนที่เติมสี navy อยู่บรรทัดถัดไป */}
           <div className="mt-3 h-3 rounded-full bg-[color:var(--sky-soft)] overflow-hidden">
             <div
               className="h-full bg-[color:var(--navy)] transition-all"
@@ -279,6 +288,7 @@ export default function ProvinceImport() {
           </div>
 
           {isActive(viewedJob) && !viewedJob.cancel_requested && (
+            // [ปุ่ม] หน้าAdmin นำเข้า Google · ยกเลิก (หยุดก่อนสถานที่ถัดไป) — ยกเลิกงานนำเข้าที่กำลังทำ
             <button type="button" disabled={busy} onClick={() => cancelJob(viewedJob.job_id)} className={`${secondaryBtn} mt-3`}>
               <X size={18} strokeWidth={1.75} /> ยกเลิก (หยุดก่อนสถานที่ถัดไป)
             </button>
@@ -301,6 +311,7 @@ export default function ProvinceImport() {
           <ul className="flex flex-col gap-2">
             {jobs.map((job) => (
               <li key={job.job_id}>
+                {/* [ปุ่ม] หน้าAdmin นำเข้า Google · แถวประวัติงาน — เลือกดูงานนำเข้าที่เคยทำ */}
                 <button
                   type="button"
                   onClick={() => setSelectedJobId(job.job_id)}

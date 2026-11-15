@@ -44,6 +44,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
+    // [พื้นหลัง] หน้าหน้าหลัก · พื้นหลังทั้งหน้า — สีครีม var(--cream) ใน global.css (แก้ที่ bg-[color:var(--cream)])
     <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
       <Navbar />
 
@@ -68,6 +69,7 @@ export default function Home() {
             </p>
 
             {/* ปุ่มเริ่มวางแผนเที่ยว → หน้าสร้างทริป */}
+            {/* [ปุ่ม] หน้าหน้าหลัก · เริ่มวางแผนเที่ยว — ไปฟอร์มสร้างแผน (/trip/create) */}
             <button
               onClick={() => navigate("/trip/create")}
               className="font-prompt font-medium w-full sm:w-auto sm:px-10 min-h-12 flex items-center justify-center gap-2 rounded-xl text-white bg-[color:var(--navy)] hover:bg-[color:var(--navy-dark)] active:scale-[0.98] transition-all duration-200"

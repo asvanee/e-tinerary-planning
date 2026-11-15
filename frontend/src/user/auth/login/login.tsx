@@ -38,6 +38,7 @@ export default function Login() {
         <>
           <p className="text-center text-sm text-[color:var(--muted)] mt-6">
             ยังไม่มีบัญชี?{" "}
+            {/* [ปุ่ม] หน้าเข้าสู่ระบบ · สมัครสมาชิก — ไป /register */}
             <button
               type="button"
               onClick={() => navigate("/register")}
@@ -48,6 +49,7 @@ export default function Login() {
           </p>
 
           <p className="text-center text-sm mt-3">
+            {/* [ปุ่ม] หน้าเข้าสู่ระบบ · เข้าสู่ระบบสำหรับผู้ดูแลระบบ — ไป /admin/login */}
             <button
               type="button"
               onClick={() => navigate("/admin/login")}

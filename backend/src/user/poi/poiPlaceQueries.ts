@@ -37,6 +37,7 @@ export interface PlaceWithScore {
 }
 
 // จำนวนสถานที่แนะนำที่แสดง และเกณฑ์ว่าหมวดที่เลือกมี "พอ" หรือไม่
+// [ค่า] หน้าคะแนนสถานที่ · POI_RESULT_LIMIT = 50 — จำนวนสถานที่แนะนำที่เก็บและแสดง และเกณฑ์ว่าหมวดที่เลือก "พอ" หรือไม่
 export const POI_RESULT_LIMIT = 50;
 
 interface FilteredPlacesResult {

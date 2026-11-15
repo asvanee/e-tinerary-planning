@@ -1,6 +1,8 @@
 // ตรวจเวลาที่ผู้ใช้กรอกว่าจะอยู่แต่ละสถานที่ (ตอนยืนยันแผน)
 
+// [ค่า] หน้าจัดลำดับเอง · MIN_VISIT_DURATION_MIN = 1 — เวลาที่อยู่ต่ำสุด (นาที)
 export const MIN_VISIT_DURATION_MIN = 1;
+// [ค่า] หน้าจัดลำดับเอง · MAX_VISIT_DURATION_MIN = 1440 — เวลาที่อยู่สูงสุด (นาที) ตรงกับ CHECK ของตาราง itineraries
 export const MAX_VISIT_DURATION_MIN = 1440; // ตรงกับ CHECK ของ itineraries.visit_duration_min
 
 export type ParsedVisitDurations = { durations: Map<string, number> } | { error: string };

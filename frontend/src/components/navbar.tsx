@@ -23,6 +23,7 @@ export default function Navbar() {
 
   return (
     <nav className="font-sarabun sticky top-0 z-50 w-full h-16 px-4 sm:px-6 flex items-center justify-between bg-white border-b border-[color:var(--line)]">
+      {/* [ปุ่ม] หน้าแถบเมนูบน · โลโก้ — ไปหน้าหลัก (/home) */}
       <button
         onClick={() => navigate("/home")}
         aria-label="ไปหน้าหลัก"
@@ -39,6 +40,7 @@ export default function Navbar() {
       </button>
 
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* [ปุ่ม] หน้าแถบเมนูบน · หน้าหลัก — ไปหน้าหลัก (/home) */}
         <button
           onClick={() => navigate("/home")}
           aria-label="หน้าหลัก"
@@ -48,6 +50,7 @@ export default function Navbar() {
           <Home size={20} strokeWidth={1.75} />
           <span className="hidden md:inline">หน้าหลัก</span>
         </button>
+        {/* [ปุ่ม] หน้าแถบเมนูบน · แผนการท่องเที่ยวของฉัน — ไปรายการแผน (/trips) */}
         <button
           onClick={() => navigate("/trips")}
           aria-label="แผนการท่องเที่ยวของฉัน"
@@ -57,6 +60,7 @@ export default function Navbar() {
           <span className="hidden md:inline">แผนการท่องเที่ยวของฉัน</span>
         </button>
 
+        {/* [ปุ่ม] หน้าแถบเมนูบน · สร้างแผนการท่องเที่ยว — ไปฟอร์มสร้างแผน (/trip/create) */}
         <button
           onClick={() => navigate("/trip/create")}
           aria-label="สร้างแผนการท่องเที่ยว"
@@ -78,6 +82,7 @@ export default function Navbar() {
           </span>
         </div>
 
+        {/* [ปุ่ม] หน้าแถบเมนูบน · ออกจากระบบ — เรียก handleLogout (POST /api/auth/logout) แล้วกลับหน้า login */}
         <button
           onClick={handleLogout}
           aria-label="ออกจากระบบ"

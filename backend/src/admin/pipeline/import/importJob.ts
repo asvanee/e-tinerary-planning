@@ -54,6 +54,7 @@ export interface RunImportJobOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
+// [ค่า] หน้าAdmin นำเข้า Google · GOOGLE_DELAY_MS = 200 — หน่วงระหว่างคำขอ Google แต่ละแถว (มิลลิวินาที)
 export const GOOGLE_DELAY_MS = 200;
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

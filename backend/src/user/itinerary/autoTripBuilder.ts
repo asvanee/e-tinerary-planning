@@ -90,8 +90,11 @@ interface AutoTripResult {
   total_distance_km: number;
 }
 // ค่าที่กำหนด
+// [ค่า] หน้าจัดแผนอัตโนมัติ · LAST_DAY_MINUTE — เวลาสิ้นสุดวัน (นาที) เมื่อแผนไม่ระบุเวลาจบ
 const LAST_DAY_MINUTE = 24 * 60 - 1; // วันที่ไม่ระบุเวลาจบ ใช้ 23:59
+// [ค่า] หน้าจัดแผนอัตโนมัติ · DEFAULT_DAY_END — เวลาจบวัน (HH:MM) เมื่อไม่มีเวลาว่างต่อวัน
 const DEFAULT_DAY_END = "18:00"; // แผนการท่องเที่ยวที่ไม่มีเวลาว่างต่อวัน ใช้ 18:00 เป็นเวลาจบ
+// [ค่า] หน้าจัดแผนอัตโนมัติ · AUTO_TRIP_VISIT_DURATION_MIN = 60 — เวลาเที่ยวต่อสถานที่ของจัดแผนอัตโนมัติ (นาที)
 const AUTO_TRIP_VISIT_DURATION_MIN = 60; // เวลาเที่ยวต่อสถานที่ (1 ชั่วโมง)
 const TRIP_START_NAME = "จุดเริ่มต้นการเดินทาง";
 const DAY_START_NAME = "เริ่มต้นวัน";
