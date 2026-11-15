@@ -147,6 +147,7 @@ describe("buildProvinceReview — ปัญหารายแถว", () => {
       row("far", { ATT_LOCATION: "13.75, 100.5" }),
       row("junk", { ATT_NAME_TH: "ทดสอบอัพเดทผ่าน API", ATT_LOCATION: A.replace("98.98", "98.99") }),
       row("noname", { ATT_NAME_TH: "", ATT_NAME_EN: "ไม่มี", ATT_LOCATION: FAR.replace("18.84", "18.85") }),
+      // ATT_STATUS ไม่ใช่ 1 ไม่ถือเป็นปัญหา (ปล่อยผ่าน)
       row("closed", { ATT_STATUS: "3", ATT_STATUS_REMARK: "โครงการปิดไปแล้ว", ATT_LOCATION: FAR.replace("18.84", "18.86") }),
     ];
     expect(issuesOf(rows, "link")).toEqual(["invalid_location"]);
@@ -154,7 +155,7 @@ describe("buildProvinceReview — ปัญหารายแถว", () => {
     expect(issuesOf(rows, "far")).toEqual(["far_from_province"]);
     expect(issuesOf(rows, "junk")).toEqual(["junk_name"]);
     expect(issuesOf(rows, "noname")).toEqual(["missing_name"]);
-    expect(issuesOf(rows, "closed")).toEqual(["status_not_active"]);
+    expect(issuesOf(rows, "closed")).toEqual([]);
     expect(issuesOf(rows, "ok1")).toEqual([]);
   });
 

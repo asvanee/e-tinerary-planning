@@ -46,8 +46,7 @@ export type RowIssueType =
   | "outside_thailand"
   | "far_from_province"
   | "junk_name"
-  | "missing_name"
-  | "status_not_active";
+  | "missing_name";
 
 export interface RowIssue {
   type: RowIssueType;

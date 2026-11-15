@@ -104,11 +104,5 @@ export function detectRowIssues(row: AttractionRow, center: { lat: number; lng: 
     }
   }
 
-  const status = row.ATT_STATUS?.trim();
-  if (status && status !== "1") {
-    const remark = row.ATT_STATUS_REMARK?.trim();
-    issues.push({ type: "status_not_active", detail: `ATT_STATUS = ${status}${remark ? ` (${remark})` : ""}` });
-  }
-
   return issues;
 }

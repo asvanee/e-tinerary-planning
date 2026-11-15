@@ -105,5 +105,4 @@ export const ISSUE_LABELS: Record<RowIssueType, string> = {
   far_from_province: "พิกัดห่างจากจังหวัดผิดปกติ",
   junk_name: "ชื่อดูเป็นข้อมูลทดสอบ",
   missing_name: "ไม่มีชื่อ",
-  status_not_active: "สถานะใน ททท. ไม่ปกติ",
 };

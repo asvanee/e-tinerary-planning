@@ -583,3 +583,9 @@
 - สถานะ: **ผู้ใช้รัน SQL แล้ว ผ่าน (2026-11-15/16)** `docs/sql/2026-11-15_places_category_label_id.sql` · Claude ยังไม่ได้ตรวจด้วย select (ไม่มีสิทธิ์อ่านฐานข้อมูล) · อัปเดต `docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`, `CLAUDE.md` แล้ว · ตาราง `backup_20261115_places` ยังเก็บไว้ ลบได้เมื่อมั่นใจ
 - ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (สั่งทำ 2026-11-15)
 - ไฟล์ที่กระทบ: `backend/src/admin/imports/importQueries.ts` (`insertPlace`, `findCategoryLabelId`), `backend/src/admin/categories/categoryQueries.ts` (นับสถานที่ต่อป้าย) · query ฝั่งผู้ใช้ที่ embed `category_labels!inner(...)` ไม่ต้องแก้
+
+### D-72 · 2026-11-16 · หน้าตรวจสถานที่ไม่ถือว่า `ATT_STATUS` ≠ 1 เป็นปัญหา
+- บริบท: ตัวตรวจรายแถว `detectRowIssues` เคยขึ้นป้าย "สถานะใน ททท. ไม่ปกติ" เมื่อ `ATT_STATUS` ไม่ใช่ `1` ทำให้แถวเหล่านั้นอยู่ในแท็บ "สถานที่มีปัญหา" และต้องตัดสินก่อนจึงนำเข้าได้
+- ข้อสรุป: เลิกตรวจข้อนี้ (ปล่อยผ่าน) · ลบประเภท `status_not_active` ออกจาก backend/frontend · ยังเก็บคอลัมน์ `ATT_STATUS` / `ATT_STATUS_REMARK` ไว้ในข้อมูลและหน้าเปรียบเทียบเหมือนเดิม · แถวที่เคยค้างเพราะข้อนี้อย่างเดียวจะไม่ขึ้นแท็บ "สถานที่มีปัญหา" อีก (คำตัดสินที่เคยบันทึกไว้ไม่ถูกลบ)
+- ผู้ตัดสินใจ: เจ้าของโปรเจกต์ (สั่งแก้ 2026-11-16)
+- ไฟล์ที่กระทบ: `backend/src/admin/pipeline/review/detectors.ts`, `reviewTypes.ts`, `frontend/src/admin/lib/reviewTypes.ts`, `placeFields.ts`, `backend/src/admin/pipeline/__tests__/review.unit.test.ts`
