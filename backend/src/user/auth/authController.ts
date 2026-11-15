@@ -103,9 +103,10 @@ export const login = async (req: Request, res: Response) => {
 
     if (profileError) console.error("Get profile error:", profileError);
 
+    // มาถึงตรงนี้แปลว่ายืนยันอีเมลแล้ว จึงตั้ง email_verified เป็น true ให้ตรงกับ Supabase Auth
     await supabase
       .from("users")
-      .update({ last_login: new Date() })
+      .update({ last_login: new Date(), email_verified: true })
       .eq("user_id", user.id);
 
     res.json({
