@@ -34,7 +34,7 @@ export interface PlaceInput {
 
 export interface DayAssignment {
   tripDayId: string;
-  dayNumber: number; // วันที่ 1 เท่านั้นที่มีช่วงเดินทางจากจุดเริ่มต้นทริป
+  dayNumber: number; // วันที่ 1 เท่านั้นที่มีช่วงเดินทางจากจุดเริ่มต้นการเดินทาง
   visitDate: string; // "YYYY-MM-DD"
   startTime: string | null; // "HH:MM:SS"
   endTime: string | null;

@@ -25,23 +25,23 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
   const { tripId } = req.params;
 
   if (!tripId || Array.isArray(tripId)) {
-    return res.status(400).json({ message: "ไม่พบรหัสทริป" });
+    return res.status(400).json({ message: "ไม่พบรหัสแผนการท่องเที่ยว" });
   }
 
   try {
     const trip = await getTripInfo(tripId);
 
     if (!trip) {
-      return res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
+      return res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ในระบบ" });
     }
 
     if (trip.userId !== req.user?.id) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
+      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงแผนการท่องเที่ยวนี้" });
     }
 
     if (trip.startLat === null || trip.startLng === null) {
       return res.status(400).json({
-        message: "ทริปนี้ยังไม่มีพิกัดจุดเริ่มต้น ไม่สามารถคำนวณคะแนนได้",
+        message: "แผนการท่องเที่ยวนี้ยังไม่มีพิกัดจุดเริ่มต้น ไม่สามารถคำนวณคะแนนได้",
       });
     }
 
@@ -58,7 +58,7 @@ export const calculatePoi = async (req: AuthRequest, res: Response) => {
 
       return res.status(200).json({
         message:
-          "ไม่พบสถานที่ที่ตรงเงื่อนไข (จังหวัด/งบ) ของทริปนี้",
+          "ไม่พบสถานที่ที่ตรงเงื่อนไข (จังหวัด/งบ) ของแผนการท่องเที่ยวนี้",
         categoryMatchCount,
         categoryFilled,
         results: [],

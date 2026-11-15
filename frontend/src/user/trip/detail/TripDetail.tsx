@@ -169,7 +169,7 @@ const BUDGET_SCOPE_LABELS: Record<string, string> = {
 };
 
 const BUDGET_PERIOD_LABELS: Record<string, string> = {
-  TOTAL_TRIP: "ทั้งทริป",
+  TOTAL_TRIP: "ทั้งแผน",
   PER_DAY: "ต่อวัน",
 };
 
@@ -291,7 +291,7 @@ export default function TripDetail() {
       return;
     }
     if (!tripIdParam) {
-      setLoadError("ไม่พบรหัสทริป");
+      setLoadError("ไม่พบรหัสแผนการท่องเที่ยว");
       setLoading(false);
       return;
     }
@@ -312,7 +312,7 @@ export default function TripDetail() {
 
         const tripData = await tripRes.json();
         if (!tripRes.ok) {
-          throw new Error(tripData.message || "ไม่พบข้อมูลทริปนี้");
+          throw new Error(tripData.message || "ไม่พบข้อมูลแผนการท่องเที่ยวนี้");
         }
 
         const itineraryData: SavedItineraryResponse = await itineraryRes.json();
@@ -601,7 +601,7 @@ export default function TripDetail() {
               className={ghostBtn}
             >
               <Pencil size={18} strokeWidth={1.75} />
-              แก้ไขข้อมูลทริป
+              แก้ไขข้อมูลแผนการท่องเที่ยว
             </button>
           </div>
 
@@ -648,7 +648,7 @@ export default function TripDetail() {
               className="text-[color:var(--sky)]"
             />
             <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
-              ทริปนี้ยังไม่มีแผนเดินทางที่ยืนยันแล้ว
+              แผนการท่องเที่ยวนี้ยังไม่มีแผนเดินทางที่ยืนยันแล้ว
             </h2>
             <p className="text-sm text-[color:var(--muted)] max-w-md">
               เริ่มจากเลือกสถานที่ที่สนใจก่อน ระบบจะช่วยจัดร่างเส้นทางให้อัตโนมัติ

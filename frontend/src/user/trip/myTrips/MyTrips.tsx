@@ -59,7 +59,7 @@ export default function MyTrips() {
         const data = await res.json();
 
         if (!res.ok) {
-          setError(data.message || "ไม่สามารถโหลดข้อมูลทริปได้");
+          setError(data.message || "ไม่สามารถโหลดข้อมูลแผนการท่องเที่ยวได้");
           return;
         }
 
@@ -100,7 +100,7 @@ export default function MyTrips() {
       const data = await res.json();
 
       if (!res.ok) {
-        setDeleteError(data.message || "ลบทริปไม่สำเร็จ");
+        setDeleteError(data.message || "ลบแผนการท่องเที่ยวไม่สำเร็จ");
         return;
       }
 
@@ -137,10 +137,10 @@ export default function MyTrips() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="font-prompt font-semibold text-3xl text-[color:var(--navy)]">
-              ทริปของฉัน
+              แผนการท่องเที่ยวของฉัน
             </h1>
             <p className="text-[color:var(--deep)] text-sm mt-1">
-              ดูทริปทั้งหมดที่คุณเคยวางแผนไว้
+              ดูแผนการท่องเที่ยวทั้งหมดที่คุณเคยวางแผนไว้
             </p>
           </div>
           {/* ปุ่มสร้างทริปใหม่ → หน้าสร้างทริป */}
@@ -149,7 +149,7 @@ export default function MyTrips() {
             className={`${primaryBtn} w-full sm:w-auto whitespace-nowrap`}
           >
             <Plane size={20} strokeWidth={1.75} />
-            สร้างทริปใหม่
+            สร้างแผนการท่องเที่ยวใหม่
           </button>
         </div>
 
@@ -173,7 +173,7 @@ export default function MyTrips() {
               strokeWidth={1.75}
               className="animate-spin text-[color:var(--sky)]"
             />
-            กำลังโหลดข้อมูลทริป...
+            กำลังโหลดข้อมูลแผนการท่องเที่ยว...
           </div>
         )}
 
@@ -197,10 +197,10 @@ export default function MyTrips() {
               className="text-[color:var(--sky)]"
             />
             <h2 className="font-prompt font-semibold text-lg text-[color:var(--navy)]">
-              คุณยังไม่มีทริปที่บันทึกไว้
+              คุณยังไม่มีแผนการท่องเที่ยวที่บันทึกไว้
             </h2>
             <p className="text-sm text-[color:var(--muted)]">
-              เริ่มวางแผนทริปแรกของคุณได้เลย
+              เริ่มวางแผนการท่องเที่ยวแรกของคุณได้เลย
             </p>
             {/* ปุ่มสร้างทริปใหม่ (แสดงเมื่อยังไม่มีทริป) → หน้าสร้างทริป */}
             <button
@@ -208,7 +208,7 @@ export default function MyTrips() {
               className={`${primaryBtn} mt-2`}
             >
               <Plane size={20} strokeWidth={1.75} />
-              สร้างทริปใหม่
+              สร้างแผนการท่องเที่ยวใหม่
             </button>
           </div>
         )}
@@ -266,8 +266,8 @@ export default function MyTrips() {
                 <div className="flex items-center pr-3 sm:pr-4 pl-1">
                   <button
                     onClick={() => setConfirmTripId(trip.trip_id)}
-                    aria-label="ลบทริปนี้"
-                    title="ลบทริปนี้"
+                    aria-label="ลบแผนการท่องเที่ยวนี้"
+                    title="ลบแผนการท่องเที่ยวนี้"
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-[color:var(--muted)] hover:text-[color:var(--danger)] hover:bg-[color:var(--sky-soft)] transition-colors duration-200"
                   >
                     <Trash2 size={20} strokeWidth={1.75} />
@@ -304,10 +304,10 @@ export default function MyTrips() {
               id="delete-title"
               className="font-prompt font-semibold text-lg text-[color:var(--navy)] mb-1"
             >
-              ลบทริปนี้เลยไหม?
+              ลบแผนการท่องเที่ยวนี้เลยไหม?
             </p>
             <p className="text-sm text-[color:var(--muted)] mb-6">
-              แผนการเดินทางทั้งหมดของทริปนี้จะถูกลบและกู้คืนไม่ได้
+              แผนการเดินทางทั้งหมดของแผนการท่องเที่ยวนี้จะถูกลบและกู้คืนไม่ได้
             </p>
             <div className="flex gap-3">
               {/* ปุ่มยกเลิก → ปิด popup ไม่ลบ */}

@@ -125,7 +125,7 @@ export default function LocationPinPicker({
         if (initialLat != null && initialLng != null) {
             setMarkerPos({ lat: initialLat, lng: initialLng });
             setFocus({ lat: initialLat, lng: initialLng, zoom: 16 });
-            setConfirmed(true); // ค่านี้มาจากทริปที่บันทึกไว้แล้ว ถือว่ายืนยันอยู่แล้ว
+            setConfirmed(true); // ค่านี้มาจากแผนการท่องเที่ยวที่บันทึกไว้แล้ว ถือว่ายืนยันอยู่แล้ว
         }
     }
 

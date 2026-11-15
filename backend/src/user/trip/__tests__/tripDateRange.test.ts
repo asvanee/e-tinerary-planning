@@ -1,4 +1,4 @@
-import { getTripDateRangeError } from "../tripDateRange";
+import { getPastStartDateError, getTripDateRangeError } from "../tripDateRange";
 
 describe("getTripDateRangeError", () => {
   test.each([
@@ -11,7 +11,7 @@ describe("getTripDateRangeError", () => {
   });
 
   test("32 วัน → ไม่ผ่าน", () => {
-    expect(getTripDateRangeError("2026-11-13", "2026-12-14")).toBe("ทริปยาวได้ไม่เกิน 31 วัน");
+    expect(getTripDateRangeError("2026-11-13", "2026-12-14")).toBe("แผนยาวได้ไม่เกิน 31 วัน");
   });
 
   test("วันจบก่อนวันเริ่ม → ไม่ผ่าน", () => {
@@ -27,5 +27,18 @@ describe("getTripDateRangeError", () => {
     ["ไม่ใช่ string", 20261113, "2026-11-14"],
   ])("%s → รูปแบบวันที่ไม่ถูกต้อง", (_label, start, end) => {
     expect(getTripDateRangeError(start, end)).toBe("รูปแบบวันที่ไม่ถูกต้อง");
+  });
+});
+
+describe("getPastStartDateError", () => {
+  test("วันนี้และวันหลังจากนี้ → ผ่าน", () => {
+    expect(getPastStartDateError("2026-11-15", "2026-11-15")).toBeNull();
+    expect(getPastStartDateError("2026-11-16", "2026-11-15")).toBeNull();
+  });
+
+  test("วันที่ผ่านมาแล้ว → ไม่ผ่าน", () => {
+    expect(getPastStartDateError("2026-11-14", "2026-11-15")).toBe(
+      "ไม่สามารถเลือกวันที่ผ่านมาแล้วเป็นวันเริ่มต้นได้"
+    );
   });
 });

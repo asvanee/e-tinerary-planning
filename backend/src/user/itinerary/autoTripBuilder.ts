@@ -91,9 +91,9 @@ interface AutoTripResult {
 }
 // ค่าที่กำหนด
 const LAST_DAY_MINUTE = 24 * 60 - 1; // วันที่ไม่ระบุเวลาจบ ใช้ 23:59
-const DEFAULT_DAY_END = "18:00"; // ทริปที่ไม่มีเวลาว่างต่อวัน ใช้ 18:00 เป็นเวลาจบ
+const DEFAULT_DAY_END = "18:00"; // แผนการท่องเที่ยวที่ไม่มีเวลาว่างต่อวัน ใช้ 18:00 เป็นเวลาจบ
 const AUTO_TRIP_VISIT_DURATION_MIN = 60; // เวลาเที่ยวต่อสถานที่ (1 ชั่วโมง)
-const TRIP_START_NAME = "จุดเริ่มต้นทริป";
+const TRIP_START_NAME = "จุดเริ่มต้นการเดินทาง";
 const DAY_START_NAME = "เริ่มต้นวัน";
 
 // สร้างจุดเริ่มต้นทริปในรูปสถานที่ (รับพิกัดเริ่มต้น)
@@ -515,7 +515,7 @@ export function buildAutoTrip(
   recommendationPlaces: AutoPlace[] = []
 ): AutoTripResult {
   if (!places.length && !recommendationPlaces.length) {
-    throw new Error("ไม่พบสถานที่สำหรับจัดทริป");
+    throw new Error("ไม่พบสถานที่สำหรับจัดแผน");
   }
 
   const result = schedulePlaces(

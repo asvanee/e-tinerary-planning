@@ -167,7 +167,7 @@ export async function getOrCreateTripDays(
 
   if (metaError || !tripMeta) {
     throw new Error(
-      `ดึงข้อมูลทริปไม่สำเร็จ: ${metaError?.message ?? "ไม่พบทริป"}`
+      `ดึงข้อมูลแผนการท่องเที่ยวไม่สำเร็จ: ${metaError?.message ?? "ไม่พบแผนการท่องเที่ยว"}`
     );
   }
 
@@ -202,7 +202,7 @@ export async function getOrCreateTripDays(
 
   if (tripError || !trip) {
     throw new Error(
-      `ดึงข้อมูลเพื่อสร้าง trip_days ไม่สำเร็จ: ${tripError?.message ?? "ไม่พบทริป"}`
+      `ดึงข้อมูลเพื่อสร้าง trip_days ไม่สำเร็จ: ${tripError?.message ?? "ไม่พบแผนการท่องเที่ยว"}`
     );
   }
 
@@ -375,7 +375,7 @@ export async function getAutoTripCategories(
     .eq("trip_id", tripId);
 
   if (error) {
-    throw new Error(`ดึงหมวดหมู่ของทริปไม่สำเร็จ: ${error.message}`);
+    throw new Error(`ดึงหมวดหมู่ของแผนการท่องเที่ยวไม่สำเร็จ: ${error.message}`);
   }
 
   const categoryMap = new Map<string, { categoryId: string; categoryName: string }>();

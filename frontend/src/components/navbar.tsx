@@ -50,20 +50,20 @@ export default function Navbar() {
         </button>
         <button
           onClick={() => navigate("/trips")}
-          aria-label="ทริปของฉัน"
+          aria-label="แผนการท่องเที่ยวของฉัน"
           className={`${btnBase} ${btnGhost} ${pathname === "/trips" ? btnActive : ""}`}
         >
           <FolderOpen size={20} strokeWidth={1.75} />
-          <span className="hidden md:inline">ทริปของฉัน</span>
+          <span className="hidden md:inline">แผนการท่องเที่ยวของฉัน</span>
         </button>
 
         <button
           onClick={() => navigate("/trip/create")}
-          aria-label="สร้างทริป"
+          aria-label="สร้างแผนการท่องเที่ยว"
           className={`${btnBase} ${btnPrimary}`}
         >
           <Plane size={20} strokeWidth={1.75} />
-          <span className="hidden md:inline">สร้างทริป</span>
+          <span className="hidden md:inline">สร้างแผนการท่องเที่ยว</span>
         </button>
 
         <div

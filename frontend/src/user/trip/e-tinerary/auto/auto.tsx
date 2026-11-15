@@ -190,18 +190,18 @@ export default function AutoTrip() {
 
       if (!response.ok) {
         throw new Error(
-          apiMessage(payload) ?? "ไม่สามารถจัดทริปอัตโนมัติได้"
+          apiMessage(payload) ?? "ไม่สามารถจัดแผนอัตโนมัติได้"
         );
       }
       if (!isAutoTripResponse(payload)) {
-        throw new Error("รูปแบบผลการจัดทริปไม่ถูกต้อง");
+        throw new Error("รูปแบบผลการจัดแผนไม่ถูกต้อง");
       }
 
       setData(payload);
       setRemovedRecommendationIds(new Set());
       setSelectedDay(0);
     } catch (err) {
-      setGenerateError(errorText(err, "เกิดข้อผิดพลาดในการจัดทริป"));
+      setGenerateError(errorText(err, "เกิดข้อผิดพลาดในการจัดแผน"));
     } finally {
       setGenerating(false);
     }
@@ -353,7 +353,7 @@ export default function AutoTrip() {
       const tripDays = itineraryResult.tripDays ?? [];
 
       if (!Array.isArray(tripDays) || tripDays.length === 0) {
-        throw new Error("ไม่พบข้อมูลวันเดินทางของทริปนี้ใน Supabase");
+        throw new Error("ไม่พบข้อมูลวันเดินทางของแผนการท่องเที่ยวนี้ใน Supabase");
       }
 
       // วันใน Auto Trip ใช้เลขวันจริง ซึ่งอาจข้ามวันที่ไม่มีสถานที่
@@ -418,7 +418,7 @@ export default function AutoTrip() {
       <div className="font-sarabun min-h-screen bg-[color:var(--cream)]">
         <Navbar />
         <div className="mx-auto max-w-xl px-4 py-16 text-center text-[color:var(--muted)]">
-          {!tripId ? "ไม่พบรหัสทริป" : "กรุณาเข้าสู่ระบบ"}
+          {!tripId ? "ไม่พบรหัสแผนการท่องเที่ยว" : "กรุณาเข้าสู่ระบบ"}
         </div>
       </div>
     );
@@ -431,7 +431,7 @@ export default function AutoTrip() {
         <div className="fade-in max-w-xl mx-auto px-4 py-16">
           <div className={`${cardClass} px-6 py-10 flex flex-col items-center gap-3 text-center`}>
             <h1 className="font-prompt font-semibold text-2xl text-[color:var(--navy)]">
-              จัดทริปอัตโนมัติ
+              จัดแผนอัตโนมัติ
             </h1>
             <p className="text-sm text-[color:var(--muted)]">
               ระบบกำหนดเวลาเที่ยวสถานที่ละ 1 ชั่วโมง และคำนวณเวลาเดินทางกับเวลาเปิด-ปิดให้
@@ -445,12 +445,12 @@ export default function AutoTrip() {
               {generating ? (
                 <>
                   <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
-                  กำลังจัดทริป...
+                  กำลังจัดแผน...
                 </>
               ) : (
                 <>
                   <Sparkles size={18} strokeWidth={1.75} />
-                  จัดทริปอัตโนมัติ
+                  จัดแผนอัตโนมัติ
                 </>
               )}
             </button>
@@ -504,10 +504,10 @@ export default function AutoTrip() {
             Auto Trip
           </span>
           <h1 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
-            ทริปของคุณพร้อมแล้ว
+            แผนการท่องเที่ยวของคุณพร้อมแล้ว
           </h1>
           <p className="mt-1 text-[color:var(--muted)]">
-            ระบบจัดลำดับสถานที่ให้โดยอัตโนมัติ โดยคำนึงถึงระยะทาง เวลา และข้อจำกัดของทริป
+            ระบบจัดลำดับสถานที่ให้โดยอัตโนมัติ โดยคำนึงถึงระยะทาง เวลา และข้อจำกัดของแผนการท่องเที่ยว
           </p>
 
           <div className="mt-6 pt-5 border-t border-[color:var(--line)] flex flex-wrap gap-2">
@@ -525,7 +525,7 @@ export default function AutoTrip() {
               ) : (
                 <>
                   <CircleCheck size={18} strokeWidth={1.75} />
-                  ยืนยันและบันทึกทริป
+                  ยืนยันและบันทึกแผนการท่องเที่ยว
                 </>
               )}
             </button>

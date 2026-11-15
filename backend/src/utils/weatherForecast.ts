@@ -23,7 +23,7 @@ export function gridKey(lat: number, lng: number): string {
 }
 
 // วันนี้ตามเวลาไทย "YYYY-MM-DD"
-function todayInBangkok(): string {
+export function todayInBangkok(): string {
   // เวลาไทย = UTC+7 (ไม่มี DST)
   return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }

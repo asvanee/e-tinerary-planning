@@ -4,7 +4,8 @@ import { AuthRequest } from "../auth/authMiddleware";
 import { errorMessage } from "../../utils/errorMessage";
 import { DAY_STRUCTURE_FIELDS, DayStructure, dayStructureChanged } from "./tripDayStructure";
 import { diffTripCategories, parseCategoryIds, TripCategoryLink } from "./tripCategories";
-import { getTripDateRangeError } from "./tripDateRange";
+import { getPastStartDateError, getTripDateRangeError } from "./tripDateRange";
+import { todayInBangkok } from "../../utils/weatherForecast";
 
 const VALID_SCOPES = ["GROUP", "PER_PERSON"];
 const VALID_PERIODS = ["TOTAL_TRIP", "PER_DAY"];
@@ -48,7 +49,7 @@ function requireTripParams(req: AuthRequest, res: Response): { userId: string; t
 
   const { tripId } = req.params;
   if (!tripId || Array.isArray(tripId)) {
-    res.status(400).json({ message: "ไม่พบรหัสทริป" });
+    res.status(400).json({ message: "ไม่พบรหัสแผนการท่องเที่ยว" });
     return null;
   }
   return { userId, tripId };
@@ -169,8 +170,12 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
   if (!userId) return;
 
   const body = req.body as TripBody;
-  const validationError = validateTripBody(body, "กรุณาปักหมุดจุดเริ่มต้นก่อนสร้างทริป");
+  const validationError = validateTripBody(body, "กรุณาปักหมุดจุดเริ่มต้นก่อนสร้างแผนการท่องเที่ยว");
   if (validationError) return res.status(400).json({ message: validationError });
+
+  // สร้างแผนใหม่ต้องเริ่มวันนี้หรือหลังจากนั้น (validateTripBody ตรวจรูปแบบวันที่แล้ว)
+  const pastStartError = getPastStartDateError(body.start_date as string, todayInBangkok());
+  if (pastStartError) return res.status(400).json({ message: pastStartError });
 
   try {
     const { data, error } = await supabase
@@ -201,8 +206,8 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
 
     return res.status(201).json({
       message: categoryWarning
-        ? "สร้างทริปสำเร็จ แต่บันทึกหมวดหมู่ความสนใจไม่สำเร็จ กรุณาลองแก้ไขทริปภายหลัง"
-        : "สร้างทริปสำเร็จ",
+        ? "สร้างแผนการท่องเที่ยวสำเร็จ แต่บันทึกหมวดหมู่ความสนใจไม่สำเร็จ กรุณาลองแก้ไขแผนการท่องเที่ยวภายหลัง"
+        : "สร้างแผนการท่องเที่ยวสำเร็จ",
       trip: data,
       categoryWarning,
     });
@@ -248,7 +253,7 @@ export const getTripById = async (req: AuthRequest, res: Response) => {
     console.error("Get trip by id error:", error.message);
     return res.status(500).json({ message: error.message });
   }
-  if (!data) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์เข้าถึง" });
+  if (!data) return res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ หรือคุณไม่มีสิทธิ์เข้าถึง" });
 
   // ดึงหมวดไม่สำเร็จ -> ส่ง array ว่าง ไม่ให้ทั้ง endpoint ล้ม
   const { data: categoryData, error: categoryFetchError } = await supabase
@@ -284,7 +289,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
   const { userId, tripId } = params;
 
   const body = req.body as TripBody;
-  const validationError = validateTripBody(body, "กรุณาปักหมุดจุดเริ่มต้นก่อนบันทึกทริป");
+  const validationError = validateTripBody(body, "กรุณาปักหมุดจุดเริ่มต้นก่อนบันทึกแผนการท่องเที่ยว");
   if (validationError) return res.status(400).json({ message: validationError });
 
   try {
@@ -297,9 +302,16 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
 
     if (beforeError) {
       console.error("Load trip before update error:", beforeError);
-      return res.status(500).json({ message: "ไม่สามารถบันทึกการแก้ไขทริปได้" });
+      return res.status(500).json({ message: "ไม่สามารถบันทึกการแก้ไขแผนการท่องเที่ยวได้" });
     }
-    if (!before) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    if (!before) return res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+
+    // เปลี่ยนวันเริ่มเป็นวันที่ผ่านมาแล้วไม่ได้ (แผนที่เริ่มไปแล้วแก้ข้อมูลอื่นโดยไม่แตะวันเริ่มได้)
+    const storedStartDate = (before as unknown as DayStructure).start_date;
+    if (body.start_date !== storedStartDate) {
+      const pastStartError = getPastStartDateError(body.start_date as string, todayInBangkok());
+      if (pastStartError) return res.status(400).json({ message: pastStartError });
+    }
 
     const { data, error } = await supabase
       .from("trips")
@@ -313,7 +325,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       console.error("Update trip error:", error);
       return res.status(500).json({ message: error.message });
     }
-    if (!data) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    if (!data) return res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
 
     let categoryWarning = false;
     const { category_ids } = body;
@@ -357,10 +369,10 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json({
       message: planResetWarning
-        ? "บันทึกทริปสำเร็จ แต่ล้างแผนเดิมไม่สำเร็จ วันและเวลาของแผนอาจยังเป็นค่าเก่า กรุณาลองบันทึกอีกครั้ง"
+        ? "บันทึกแผนการท่องเที่ยวสำเร็จ แต่ล้างแผนเดิมไม่สำเร็จ วันและเวลาของแผนอาจยังเป็นค่าเก่า กรุณาลองบันทึกอีกครั้ง"
         : categoryWarning
-        ? "บันทึกทริปสำเร็จ แต่บันทึกหมวดหมู่ความสนใจไม่สำเร็จ กรุณาลองแก้ไขอีกครั้ง"
-        : "บันทึกการแก้ไขทริปสำเร็จ",
+        ? "บันทึกแผนการท่องเที่ยวสำเร็จ แต่บันทึกหมวดหมู่ความสนใจไม่สำเร็จ กรุณาลองแก้ไขอีกครั้ง"
+        : "บันทึกการแก้ไขแผนการท่องเที่ยวสำเร็จ",
       trip: data,
       categoryWarning,
       planReset,
@@ -396,7 +408,7 @@ export const updateTripCategories = async (req: AuthRequest, res: Response) => {
       console.error("Load trip for categories error:", tripError);
       return res.status(500).json({ message: failMessage });
     }
-    if (!trip) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    if (!trip) return res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
 
     const { data: found, error: categoriesError } = await supabase
       .from("categories")
@@ -470,7 +482,7 @@ export const deleteTrip = async (req: AuthRequest, res: Response) => {
     console.error("Delete trip error:", error.message);
     return res.status(500).json({ message: error.message });
   }
-  if (!count) return res.status(404).json({ message: "ไม่พบทริปนี้ หรือคุณไม่มีสิทธิ์ลบ" });
+  if (!count) return res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ หรือคุณไม่มีสิทธิ์ลบ" });
 
-  res.json({ message: "ลบทริปสำเร็จ" });
+  res.json({ message: "ลบแผนการท่องเที่ยวสำเร็จ" });
 };

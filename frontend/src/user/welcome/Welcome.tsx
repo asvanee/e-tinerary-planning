@@ -10,7 +10,7 @@ import { UserPlus, LogIn, MapPin, Route, CalendarDays } from "lucide-react";
 const features = [
   { icon: MapPin, label: "แนะนำสถานที่" },
   { icon: Route, label: "จัดเส้นทาง" },
-  { icon: CalendarDays, label: "วางแผนทริป" },
+  { icon: CalendarDays, label: "วางแผนการท่องเที่ยว" },
 ];
 
 // หน้าแรกของเว็บ: ปุ่มสมัครสมาชิก (/register) และเข้าสู่ระบบ (/login)

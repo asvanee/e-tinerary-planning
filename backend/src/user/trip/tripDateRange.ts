@@ -23,6 +23,12 @@ export function enumerateDates(startDate: string, endDate: string): string[] {
   return dates;
 }
 
+// วันเริ่มต้องไม่ผ่านมาแล้ว (เทียบกับวันนี้ตามเวลาไทย) · ทั้งสองค่าเป็น "YYYY-MM-DD" ที่ผ่านการตรวจรูปแบบแล้ว
+// null = ผ่าน, string = ข้อความ error
+export function getPastStartDateError(startDate: string, today: string): string | null {
+  return startDate < today ? "ไม่สามารถเลือกวันที่ผ่านมาแล้วเป็นวันเริ่มต้นได้" : null;
+}
+
 // null = ผ่าน, string = ข้อความ error
 export function getTripDateRangeError(startDate: unknown, endDate: unknown): string | null {
   const start = toUtcDay(startDate);
@@ -30,7 +36,7 @@ export function getTripDateRangeError(startDate: unknown, endDate: unknown): str
   if (start === null || end === null) return "รูปแบบวันที่ไม่ถูกต้อง";
   if (end < start) return "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น";
   if ((end - start) / DAY_MS + 1 > MAX_TRIP_DAYS) {
-    return `ทริปยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`;
+    return `แผนยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`;
   }
   return null;
 }

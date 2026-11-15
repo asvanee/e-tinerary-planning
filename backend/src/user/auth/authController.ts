@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { supabase, createAuthClient } from "../../config/db";
-import { errorMessage } from "../../utils/errorMessage";
 
 // สมัครสมาชิก รับ username, email, password จาก body
 // สร้างบัญชีใน Supabase Auth ก่อน แล้วค่อยบันทึกโปรไฟล์ลงตาราง users
@@ -22,7 +21,8 @@ export const register = async (req: Request, res: Response) => {
       if (error.message.toLowerCase().includes("already registered")) {
         return res.status(409).json({ message: "อีเมลนี้มีบัญชีอยู่แล้ว" });
       }
-      return res.status(400).json({ message: error.message });
+      console.error("Register signUp error:", error.message);
+      return res.status(400).json({ message: "สมัครสมาชิกไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่านอีกครั้ง" });
     }
 
     // อีเมลซ้ำบางครั้ง Supabase ไม่คืน error แต่ส่ง identities ว่างมาแทน
@@ -50,14 +50,16 @@ export const register = async (req: Request, res: Response) => {
       ) {
         return res.status(409).json({ message: "อีเมลนี้มีบัญชีอยู่แล้ว" });
       }
-      return res.status(500).json({ message: insertError.message });
+      console.error("Register insert user error:", insertError.message);
+      return res.status(500).json({ message: "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" });
     }
 
     res.json({
       message: "สมัครสมาชิกสำเร็จ! กรุณายืนยัน email ของคุณก่อนเข้าสู่ระบบ.",
     });
   } catch (err) {
-    res.status(500).json({ message: errorMessage(err) });
+    console.error("Register exception:", err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 };
 
@@ -82,7 +84,8 @@ export const login = async (req: Request, res: Response) => {
       if (error.message.toLowerCase().includes("too many requests")) {
         return res.status(429).json({ message: "ลองใหม่อีกครั้งในภายหลัง" });
       }
-      return res.status(400).json({ message: error.message });
+      console.error("Login signIn error:", error.message);
+      return res.status(400).json({ message: "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" });
     }
     const user = data.user;
 
@@ -111,7 +114,8 @@ export const login = async (req: Request, res: Response) => {
       session: data.session,
     });
   } catch (err) {
-    res.status(500).json({ message: errorMessage(err) });
+    console.error("Login exception:", err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 };
 

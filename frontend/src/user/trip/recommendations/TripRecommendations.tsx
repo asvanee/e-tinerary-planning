@@ -84,7 +84,7 @@ function getTripCategoryIds(payload: unknown): string[] {
     !("category_ids" in payload.trip) ||
     !isStringArray(payload.trip.category_ids)
   ) {
-    throw new Error("รูปแบบข้อมูลหมวดหมู่ทริปไม่ถูกต้อง");
+    throw new Error("รูปแบบข้อมูลหมวดหมู่แผนการท่องเที่ยวไม่ถูกต้อง");
   }
 
   return payload.trip.category_ids;
@@ -326,7 +326,7 @@ export default function TripRecommendations() {
     }
 
     if (!tripId) {
-      setError("ไม่พบรหัสทริป");
+      setError("ไม่พบรหัสแผนการท่องเที่ยว");
       setLoading(false);
       return;
     }
@@ -513,7 +513,7 @@ export default function TripRecommendations() {
     );
     const payload: unknown = await response.json();
     if (!response.ok) {
-      throw new Error(apiMessage(payload) ?? "จัดทริปอัตโนมัติไม่สำเร็จ");
+      throw new Error(apiMessage(payload) ?? "จัดแผนอัตโนมัติไม่สำเร็จ");
     }
 
     setCategoryDialogOpen(false);
@@ -537,7 +537,7 @@ export default function TripRecommendations() {
       });
       const tripPayload: unknown = await tripResponse.json();
       if (!tripResponse.ok) {
-        throw new Error(apiMessage(tripPayload) ?? "โหลดข้อมูลทริปไม่สำเร็จ");
+        throw new Error(apiMessage(tripPayload) ?? "โหลดข้อมูลแผนการท่องเที่ยวไม่สำเร็จ");
       }
 
       if (getTripCategoryIds(tripPayload).length === 0) {
@@ -551,7 +551,7 @@ export default function TripRecommendations() {
       console.error("Auto Trip error:", err);
 
       setAutoTripError(
-        errorText(err, "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ")
+        errorText(err, "เกิดข้อผิดพลาดในการจัดแผนอัตโนมัติ")
       );
     } finally {
       setAutoCreatingRoute(false);
@@ -867,7 +867,7 @@ export default function TripRecommendations() {
             <p className="mt-2 flex items-start gap-1.5 text-sm text-[color:var(--danger)]">
               <TriangleAlert size={16} strokeWidth={1.75} className="shrink-0 mt-0.5" />
               {closedAllTrip
-                ? "ปิดทุกวันของทริปนี้"
+                ? "ปิดทุกวันของแผนการท่องเที่ยวนี้"
                 : `ปิดทั้งวันในวันเดินทาง: ${closedDates.map((d) => formatVisitDate(d, "short")).join(", ")}`}
             </p>
           )}
@@ -968,7 +968,7 @@ export default function TripRecommendations() {
             สถานที่ที่ตรงใจคุณ
           </h1>
           <p className="text-sm text-[color:var(--muted)] mt-1 max-w-2xl">
-            จัดเรียงตามคะแนนความเหมาะสม (POI Score) ที่คำนวณจากความสนใจ งบประมาณ ระยะทาง และเวลาของทริปนี้
+            จัดเรียงตามคะแนนความเหมาะสม (POI Score) ที่คำนวณจากความสนใจ งบประมาณ ระยะทาง และเวลาของแผนการท่องเที่ยวนี้
           </p>
         </div>
 
@@ -1025,7 +1025,7 @@ export default function TripRecommendations() {
           <StateCard
             icon={SearchX}
             title="ไม่พบสถานที่ที่ตรงเงื่อนไข"
-            text="ลองปรับงบประมาณ เวลา หรือหมวดหมู่ที่สนใจของทริปนี้ดูอีกครั้ง"
+            text="ลองปรับงบประมาณ เวลา หรือหมวดหมู่ที่สนใจของแผนการท่องเที่ยวนี้ดูอีกครั้ง"
           >
             <button type="button" onClick={() => navigate("/home")} className={`${primaryBtn} mt-3`}>
               กลับหน้าหลัก
@@ -1051,19 +1051,19 @@ export default function TripRecommendations() {
                       {autoCreatingRoute ? (
                         <>
                           <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
-                          กำลังจัดทริป...
+                          กำลังจัดแผน...
                         </>
                       ) : (
                         <>
                           <Sparkles size={20} strokeWidth={1.75} />
-                          จัดทริปอัตโนมัติ
+                          จัดแผนอัตโนมัติ
                         </>
                       )}
                     </button>
                     {/* ปุ่มจัดทริปเอง → เข้าโหมดเลือกสถานที่เอง */}
                     <button type="button" onClick={handleStartCustomMode} className={primaryBtn}>
                       <ListChecks size={20} strokeWidth={1.75} />
-                      จัดทริปเอง
+                      จัดลำดับเอง
                     </button>
                   </div>
                 </>
@@ -1219,7 +1219,7 @@ export default function TripRecommendations() {
                   เลือกประเภทสถานที่
                 </h2>
                 <p className="mt-1 text-sm text-[color:var(--muted)]">
-                  เลือกความสนใจอย่างน้อย 1 หมวดเพื่อจัดทริปอัตโนมัติ
+                  เลือกความสนใจอย่างน้อย 1 หมวดเพื่อจัดแผนอัตโนมัติ
                 </p>
               </div>
               <button
@@ -1323,12 +1323,12 @@ export default function TripRecommendations() {
                 {savingCategories ? (
                   <>
                     <Loader2 size={20} strokeWidth={1.75} className="animate-spin" />
-                    กำลังจัดทริปอัตโนมัติ...
+                    กำลังจัดแผนอัตโนมัติ...
                   </>
                 ) : (
                   <>
                     <Check size={20} strokeWidth={1.75} />
-                    จัดทริปอัตโนมัติ
+                    จัดแผนอัตโนมัติ
                   </>
                 )}
               </button>

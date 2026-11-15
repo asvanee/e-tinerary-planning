@@ -21,7 +21,7 @@ const BUDGET_SCOPES = [
 ];
 
 const BUDGET_PERIODS = [
-    { value: "TOTAL_TRIP", label: "ตลอดทั้งทริป" },
+    { value: "TOTAL_TRIP", label: "ตลอดทั้งแผน" },
     { value: "PER_DAY", label: "ต่อวัน" },
 ];
 
@@ -333,7 +333,7 @@ export default function CreateTrip() {
                 }
             } catch (err) {
                 console.error(err);
-                alert("ไม่สามารถโหลดข้อมูลทริปเดิมได้ กรุณาลองใหม่อีกครั้ง");
+                alert("ไม่สามารถโหลดข้อมูลแผนการท่องเที่ยวเดิมได้ กรุณาลองใหม่อีกครั้ง");
             }
         };
 
@@ -468,12 +468,12 @@ export default function CreateTrip() {
 
         // ต้องยืนยันปักหมุดก่อน (ไม่มี fallback จุดเริ่มต้น)
         if (!pinConfirmed || startLat === null || startLng === null) {
-            showError("กรุณาปักหมุดจุดเริ่มต้น แล้วกด \"ยืนยันปักหมุด\" ก่อนสร้างทริป");
+            showError("กรุณาปักหมุดจุดเริ่มต้น แล้วกด \"ยืนยันปักหมุด\" ก่อนสร้างแผนการท่องเที่ยว");
             return;
         }
 
         if (!session) {
-            alert("กรุณาเข้าสู่ระบบก่อนสร้างทริป");
+            alert("กรุณาเข้าสู่ระบบก่อนสร้างแผนการท่องเที่ยว");
             navigate("/login");
             return;
         }
@@ -546,7 +546,7 @@ export default function CreateTrip() {
                 budgetChanged;
             if (
                 dayStructureChanged &&
-                !confirm("วัน เวลา หรืองบต่อวันของทริปเปลี่ยน แผนเดิมของทริปนี้ (ถ้ามี) จะถูกล้าง และต้องจัดแผนใหม่ ต้องการบันทึกหรือไม่?")
+                !confirm("วัน เวลา หรืองบต่อวันของแผนการท่องเที่ยวเปลี่ยน แผนเดิมของแผนการท่องเที่ยวนี้ (ถ้ามี) จะถูกล้าง และต้องจัดแผนใหม่ ต้องการบันทึกหรือไม่?")
             ) {
                 return;
             }
@@ -601,8 +601,8 @@ export default function CreateTrip() {
                 showError(
                     result.message ||
                     (editMode
-                        ? "เกิดข้อผิดพลาดในการแก้ไขทริป"
-                        : "เกิดข้อผิดพลาดในการสร้างทริป")
+                        ? "เกิดข้อผิดพลาดในการแก้ไขแผนการท่องเที่ยว"
+                        : "เกิดข้อผิดพลาดในการสร้างแผนการท่องเที่ยว")
                 );
                 return;
             }
@@ -699,12 +699,12 @@ export default function CreateTrip() {
                         <HeaderIcon size={40} strokeWidth={1.5} className="shrink-0 text-[color:var(--sky)]" />
                         <div>
                             <h2 className="font-prompt font-semibold text-2xl sm:text-3xl text-[color:var(--navy)]">
-                                {editMode ? "แก้ไขข้อมูลทริป" : "วางแผนการเดินทาง"}
+                                {editMode ? "แก้ไขข้อมูลแผนการท่องเที่ยว" : "วางแผนการเดินทาง"}
                             </h2>
                             <p className="text-[color:var(--deep)] text-sm mt-0.5">
                                 {editMode
-                                    ? "แก้ไขรายละเอียดของทริป"
-                                    : "กรอกรายละเอียดเพื่อวางแผนทริปของคุณ"}
+                                    ? "แก้ไขรายละเอียดของแผนการท่องเที่ยว"
+                                    : "กรอกรายละเอียดเพื่อวางแผนการท่องเที่ยวของคุณ"}
                             </p>
                         </div>
                     </div>
@@ -772,7 +772,7 @@ export default function CreateTrip() {
 
                                     <Section icon={MapPinned} title="จุดเริ่มต้นการเดินทาง">
                                         <p className={`${hintClass} mb-3`}>
-                                            เช่น โรงแรมที่พัก ใช้คำนวณระยะทางไปยังสถานที่แนะนำในทริปของคุณ
+                                            เช่น โรงแรมที่พัก ใช้คำนวณระยะทางไปยังสถานที่แนะนำในแผนการท่องเที่ยวของคุณ
                                         </p>
                                         <LocationPinPicker
                                             initialLat={startLat}
@@ -796,7 +796,7 @@ export default function CreateTrip() {
                                                     minDate={today}
                                                 />
                                             </Field>
-                                            <Field id="endDate" label="วันที่สิ้นสุด" hint={`ทริปยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`}>
+                                            <Field id="endDate" label="วันที่สิ้นสุด" hint={`แผนยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`}>
                                                 <TripDatePicker
                                                     id="endDate"
                                                     className={inputClass}
@@ -1063,7 +1063,7 @@ export default function CreateTrip() {
                                 id="trip-success-title"
                                 className="font-prompt font-semibold text-xl text-[color:var(--navy)]"
                             >
-                                บันทึกข้อมูลทริปเรียบร้อยแล้ว
+                                บันทึกข้อมูลแผนการท่องเที่ยวเรียบร้อยแล้ว
                             </h3>
                         </div>
 
@@ -1074,7 +1074,7 @@ export default function CreateTrip() {
                             >
                                 <TriangleAlert size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
                                 <span>
-                                    บันทึกหมวดหมู่ความสนใจไม่สำเร็จ ทริปของคุณถูกสร้างเรียบร้อยแล้ว
+                                    บันทึกหมวดหมู่ความสนใจไม่สำเร็จ แผนการท่องเที่ยวของคุณถูกสร้างเรียบร้อยแล้ว
                                     แต่อาจไม่มีหมวดหมู่ผูกไว้ สามารถแก้ไขภายหลังได้
                                 </span>
                             </div>

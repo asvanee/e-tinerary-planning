@@ -253,7 +253,7 @@ export default function CategoryMapping() {
       <div className="mt-4 flex gap-2 p-3 rounded-xl bg-[color:var(--sky-soft)] text-sm text-[color:var(--navy)]">
         <Info size={18} strokeWidth={1.75} className="shrink-0 mt-0.5" />
         <p>
-          การแก้มีผลกับผู้ใช้ทุกคนทันที · คะแนนในหน้าแนะนำของทริปเดิมจะเปลี่ยนเมื่อคำนวณใหม่ ·
+          การแก้มีผลกับผู้ใช้ทุกคนทันที · คะแนนในหน้าแนะนำของแผนการท่องเที่ยวเดิมจะเปลี่ยนเมื่อคำนวณใหม่ ·
           ค่าใช้จ่ายในแผนที่ยืนยันแล้วไม่เปลี่ยน · "ฟรี" = คิดค่าเข้า 0 บาทในงบ
         </p>
       </div>

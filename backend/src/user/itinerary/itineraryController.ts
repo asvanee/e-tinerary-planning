@@ -58,7 +58,7 @@ function findMissingPlaceIds(
 }
 
 // ดึง tripId จาก path · ไม่มีหรือรูปแบบผิดตอบ 400 แล้วคืน null
-function getTripId(req: AuthRequest, res: Response, message = "ไม่พบรหัสทริป"): string | null {
+function getTripId(req: AuthRequest, res: Response, message = "ไม่พบรหัสแผนการท่องเที่ยว"): string | null {
   const { tripId } = req.params;
   if (!tripId || Array.isArray(tripId)) {
     res.status(400).json({ message });
@@ -76,12 +76,12 @@ async function loadOwnedTrip(
   const tripOwner = await getTripOwnerAndStart(tripId);
 
   if (!tripOwner) {
-    res.status(404).json({ message: "ไม่พบทริปนี้ในระบบ" });
+    res.status(404).json({ message: "ไม่พบแผนการท่องเที่ยวนี้ในระบบ" });
     return null;
   }
 
   if (tripOwner.userId !== req.user?.id) {
-    res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงทริปนี้" });
+    res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึงแผนการท่องเที่ยวนี้" });
     return null;
   }
 
@@ -106,14 +106,14 @@ export const buildDraft = async (req: AuthRequest, res: Response) => {
 
     if (tripOwner.startLat === null || tripOwner.startLng === null) {
       return res.status(400).json({
-        message: "ทริปนี้ยังไม่มีพิกัดจุดเริ่มต้น ไม่สามารถจัดเส้นทางได้",
+        message: "แผนการท่องเที่ยวนี้ยังไม่มีพิกัดจุดเริ่มต้น ไม่สามารถจัดเส้นทางได้",
       });
     }
 
     const tripDays = await getOrCreateTripDays(tripId);
 
     if (tripDays.length === 0) {
-      return res.status(400).json({ message: "ทริปนี้ไม่มีวันเดินทางเลย" });
+      return res.status(400).json({ message: "แผนการท่องเที่ยวนี้ไม่มีวันเดินทางเลย" });
     }
 
     const places = await getSelectedPlaces(place_ids);
@@ -180,7 +180,7 @@ export const confirmItinerary = async (req: AuthRequest, res: Response) => {
     for (const dayInput of days) {
       if (!tripDaysById.has(dayInput.trip_day_id)) {
         return res.status(400).json({
-          message: `trip_day_id ${dayInput.trip_day_id} ไม่ใช่ของทริปนี้`,
+          message: `trip_day_id ${dayInput.trip_day_id} ไม่ใช่ของแผนการท่องเที่ยวนี้`,
         });
       }
       if (!Array.isArray(dayInput.place_ids)) {
@@ -511,24 +511,24 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
 
     if (tripError || !trip) {
       console.error("Get trip error:", tripError);
-      return res.status(404).json({ message: "ไม่พบข้อมูลทริป" });
+      return res.status(404).json({ message: "ไม่พบข้อมูลแผนการท่องเที่ยว" });
     }
 
     if (trip.start_lat === null || trip.start_lng === null) {
       return res.status(400).json({
-        message: "กรุณากำหนดจุดเริ่มต้นทริปก่อนจัดทริปอัตโนมัติ",
+        message: "กรุณากำหนดจุดเริ่มต้นการเดินทางก่อนจัดแผนอัตโนมัติ",
       });
     }
 
     const tripDays = await getOrCreateTripDays(tripId);
     if (tripDays.length === 0) {
-      return res.status(400).json({ message: "ทริปนี้ไม่มีวันเดินทางเลย" });
+      return res.status(400).json({ message: "แผนการท่องเที่ยวนี้ไม่มีวันเดินทางเลย" });
     }
 
     const categories = await getAutoTripCategories(tripId);
     if (categories.length === 0) {
       return res.status(400).json({
-        message: "ทริปนี้ยังไม่มีประเภทสถานที่ที่เลือก",
+        message: "แผนการท่องเที่ยวนี้ยังไม่มีประเภทสถานที่ที่เลือก",
       });
     }
 
@@ -538,7 +538,7 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
 
     if (rawPlaces.length === 0) {
       return res.status(400).json({
-        message: "ไม่พบสถานที่ที่มีคะแนน POI สำหรับทริปนี้",
+        message: "ไม่พบสถานที่ที่มีคะแนน POI สำหรับแผนการท่องเที่ยวนี้",
       });
     }
 
@@ -612,7 +612,7 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
 
     return res.status(200).json({
       success: true,
-      message: "จัดทริปอัตโนมัติสำเร็จ",
+      message: "จัดแผนอัตโนมัติสำเร็จ",
       trip_id: result.trip_id,
       start_lat: tripInfo.start_lat,
       start_lng: tripInfo.start_lng,
@@ -624,7 +624,7 @@ export async function buildAutoTripController(req: AuthRequest, res: Response) {
     console.error("buildAutoTripController error:", error);
     return res.status(500).json({
       success: false,
-      message: "เกิดข้อผิดพลาดในการจัดทริปอัตโนมัติ",
+      message: "เกิดข้อผิดพลาดในการจัดแผนอัตโนมัติ",
     });
   }
 }

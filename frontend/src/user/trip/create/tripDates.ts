@@ -46,6 +46,6 @@ export function getTripDateError(startDate: string, endDate: string): string | n
     if (!isRealDate(startDate) || !isRealDate(endDate)) return "รูปแบบวันที่ไม่ถูกต้อง";
     const days = countTripDays(startDate, endDate);
     if (days < 1) return "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น";
-    if (days > MAX_TRIP_DAYS) return `ทริปยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`;
+    if (days > MAX_TRIP_DAYS) return `แผนยาวได้ไม่เกิน ${MAX_TRIP_DAYS} วัน`;
     return null;
 }
